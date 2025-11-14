@@ -905,10 +905,7 @@
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
+<a href="#907" id="907">907</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -1379,10 +1376,7 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{
-            ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -1421,7 +1415,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected let statement"</span>);
         };
         <span class="macro">assert_eq!</span>(let_statement.pattern.to_string(), <span class="string">"x"</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        <span class="macro">assert!</span>(let_statement.r#type.is_none());
         <span class="macro">assert_eq!</span>(let_statement.expression.to_string(), <span class="string">"1"</span>);
         <span class="macro">assert!</span>(!let_statement.comptime);
     }
@@ -1434,7 +1428,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected let statement"</span>);
         };
         <span class="macro">assert_eq!</span>(let_statement.pattern.to_string(), <span class="string">"x"</span>);
-        <span class="macro">assert_eq!</span>(let_statement.r#type.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(let_statement.r#type.unwrap().to_string(), <span class="string">"Field"</span>);
         <span class="macro">assert_eq!</span>(let_statement.expression.to_string(), <span class="string">"1"</span>);
         <span class="macro">assert!</span>(!let_statement.comptime);
     }
@@ -1491,7 +1485,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected let statement"</span>);
         };
         <span class="macro">assert_eq!</span>(let_statement.pattern.to_string(), <span class="string">"mut x"</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        <span class="macro">assert!</span>(let_statement.r#type.is_none());
         <span class="macro">assert_eq!</span>(let_statement.expression.to_string(), <span class="string">"1"</span>);
         <span class="macro">assert!</span>(!let_statement.comptime);
 

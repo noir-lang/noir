@@ -365,7 +365,7 @@
 <span class="kw">use crate</span>::{
     QuotedType, Type,
     ast::{GenericTypeArgs, IntegerBitSize},
-    elaborator::{Elaborator, PathResolutionMode, Turbofish},
+    elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{
@@ -547,7 +547,7 @@
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -&gt; Type {
         <span class="kw">match </span>primitive_type {
             PrimitiveType::Bool

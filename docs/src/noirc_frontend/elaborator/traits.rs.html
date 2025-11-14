@@ -954,7 +954,10 @@
 <a href="#953" id="953">953</a>
 <a href="#954" id="954">954</a>
 <a href="#955" id="955">955</a>
-<a href="#956" id="956">956</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
 //!
 //! # Terminology:
 //!
@@ -1132,7 +1135,10 @@
         Ident, ItemVisibility, NoirFunction, Path, TraitBound, TraitItem, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::{PathResolutionMode, PathResolutionTarget, path_resolution::PathResolutionItem},
+    elaborator::{
+        PathResolutionMode, PathResolutionTarget, WildcardDisallowedContext,
+        path_resolution::PathResolutionItem, types::WildcardAllowed,
+    },
     hir::{
         def_collector::dc_crate::UnresolvedTrait,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -1412,7 +1418,7 @@
         <span class="kw">let </span>the_trait = <span class="self">self</span>.lookup_trait_or_error(trait_path)<span class="question-mark">?</span>;
         <span class="kw">let </span>trait_id = the_trait.id;
         <span class="kw">let </span>location = bound.trait_path.location;
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitBound);
 
         <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.resolve_type_args_inner(
             bound.trait_generics.clone(),
@@ -1504,7 +1510,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constraint: <span class="kw-2">&amp;</span>UnresolvedTraitConstraint,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitConstraint&gt; {
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitConstraint);
         <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constraint.typ.clone(), wildcard_allowed);
         <span class="kw">let </span>trait_bound = <span class="self">self</span>.resolve_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound)<span class="question-mark">?</span>;
         <span class="kw">let </span>location = constraint.trait_bound.trait_path.location;

@@ -655,8 +655,7 @@
 <a href="#654" id="654">654</a>
 <a href="#655" id="655">655</a>
 <a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#657" id="657">657</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span>noirc_errors::{Located, Location};
 
@@ -864,15 +863,14 @@
         };
 
         <span class="kw">let </span>typ = <span class="kw">if </span><span class="self">self</span>.eat_colon() {
-            <span class="self">self</span>.parse_type_or_error()
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error())
         } <span class="kw">else </span>{
             <span class="self">self</span>.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 <span class="self">self</span>.previous_token_location,
             );
-            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
-        };
+            <span class="prelude-val">None
+        </span>};
 
         <span class="kw">if </span><span class="self">self</span>.eat_assign() {
             <span class="kw">let </span>expr_start_location = <span class="self">self</span>.current_token_location;
@@ -1186,7 +1184,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected constant"</span>);
         };
         <span class="macro">assert_eq!</span>(name.to_string(), <span class="string">"x"</span>);
-        <span class="macro">assert_eq!</span>(typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(typ.unwrap().to_string(), <span class="string">"Field"</span>);
         <span class="macro">assert!</span>(!noir_trait.is_alias);
     }
 

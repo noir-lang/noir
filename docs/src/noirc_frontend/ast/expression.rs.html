@@ -926,7 +926,14 @@
 <a href="#925" id="925">925</a>
 <a href="#926" id="926">926</a>
 <a href="#927" id="927">927</a>
-<a href="#928" id="928">928</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
@@ -1375,8 +1382,8 @@
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub struct </span>Lambda {
-    <span class="kw">pub </span>parameters: Vec&lt;(Pattern, UnresolvedType)&gt;,
-    <span class="kw">pub </span>return_type: UnresolvedType,
+    <span class="kw">pub </span>parameters: Vec&lt;(Pattern, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt;,
+    <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
     <span class="kw">pub </span>body: Expression,
 }
 
@@ -1736,9 +1743,16 @@
 
 <span class="kw">impl </span>Display <span class="kw">for </span>Lambda {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="kw">let </span>parameters = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.parameters, |(name, r#type)| <span class="macro">format!</span>(<span class="string">"{name}: {type}"</span>));
+        <span class="kw">let </span>parameters = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.parameters, |(name, r#type)| {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = r#type { <span class="macro">format!</span>(<span class="string">"{name}: {typ}"</span>) } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{name}"</span>) }
+        });
 
-        <span class="macro">write!</span>(f, <span class="string">"|{}| -&gt; {} {{ {} }}"</span>, parameters.join(<span class="string">", "</span>), <span class="self">self</span>.return_type, <span class="self">self</span>.body)
+        <span class="kw">let </span>parameters = parameters.join(<span class="string">", "</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(return_type) = <span class="kw-2">&amp;</span><span class="self">self</span>.return_type {
+            <span class="macro">write!</span>(f, <span class="string">"|{}| -&gt; {} {{ {} }}"</span>, parameters, return_type, <span class="self">self</span>.body)
+        } <span class="kw">else </span>{
+            <span class="macro">write!</span>(f, <span class="string">"|{}| {{ {} }}"</span>, parameters, <span class="self">self</span>.body)
+        }
     }
 }
 

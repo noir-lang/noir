@@ -3290,7 +3290,7 @@
     <span class="kw">use crate</span>::{
         ast::{
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
-            StatementKind, UnaryOp, UnresolvedTypeData,
+            StatementKind, UnaryOp,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -4276,7 +4276,7 @@
         };
         <span class="macro">assert!</span>(lambda.parameters.is_empty());
         <span class="macro">assert_eq!</span>(lambda.body.to_string(), <span class="string">"1"</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(lambda.return_type.typ, UnresolvedTypeData::Unspecified));
+        <span class="macro">assert!</span>(lambda.return_type.is_none());
     }
 
     <span class="attr">#[test]
@@ -4290,11 +4290,11 @@
 
         <span class="kw">let </span>(pattern, typ) = lambda.parameters.remove(<span class="number">0</span>);
         <span class="macro">assert_eq!</span>(pattern.to_string(), <span class="string">"x"</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ.typ, UnresolvedTypeData::Unspecified));
+        <span class="macro">assert!</span>(typ.is_none());
 
         <span class="kw">let </span>(pattern, typ) = lambda.parameters.remove(<span class="number">0</span>);
         <span class="macro">assert_eq!</span>(pattern.to_string(), <span class="string">"y"</span>);
-        <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(typ.unwrap().to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]
@@ -4306,7 +4306,7 @@
         };
         <span class="macro">assert!</span>(lambda.parameters.is_empty());
         <span class="macro">assert_eq!</span>(lambda.body.to_string(), <span class="string">"1"</span>);
-        <span class="macro">assert_eq!</span>(lambda.return_type.typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(lambda.return_type.unwrap().to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]

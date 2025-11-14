@@ -542,7 +542,7 @@
                     associated_types.remove(name.as_string());
                 }
                 TraitImplItemKind::Type { name, alias } =&gt; {
-                    <span class="kw">if let </span>UnresolvedTypeData::Unspecified = alias.typ {
+                    <span class="kw">if </span>alias.is_none() {
                         <span class="kw">continue</span>;
                     }
                     associated_types.remove(name.as_string());

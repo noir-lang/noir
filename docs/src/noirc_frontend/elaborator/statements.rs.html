@@ -615,7 +615,12 @@
 <a href="#614" id="614">614</a>
 <a href="#615" id="615">615</a>
 <a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
@@ -625,7 +630,7 @@
         AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
         LoopStatement, Statement, StatementKind, WhileStatement,
     },
-    elaborator::PathResolutionTarget,
+    elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
@@ -710,8 +715,13 @@
         let_stmt: LetStatement,
         global_id: <span class="prelude-ty">Option</span>&lt;GlobalId&gt;,
     ) -&gt; (HirLetStatement, Type) {
-        <span class="kw">let </span>type_contains_unspecified = let_stmt.r#type.contains_unspecified();
-        <span class="kw">let </span>annotated_type = <span class="self">self</span>.resolve_inferred_type(let_stmt.r#type);
+        <span class="kw">let </span>no_type = let_stmt.r#type.is_none();
+        <span class="kw">let </span>wildcard_allowed = <span class="kw">if </span>global_id.is_some() {
+            WildcardAllowed::No(WildcardDisallowedContext::Global)
+        } <span class="kw">else </span>{
+            WildcardAllowed::Yes
+        };
+        <span class="kw">let </span>annotated_type = <span class="self">self</span>.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
 
         <span class="kw">let </span>pattern_location = let_stmt.pattern.location();
         <span class="kw">let </span>expr_location = let_stmt.expression.location;
@@ -719,7 +729,7 @@
             <span class="self">self</span>.elaborate_expression_with_target_type(let_stmt.expression, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>annotated_type));
 
         <span class="comment">// Require the top-level of a global's type to be fully-specified
-        </span><span class="kw">if </span>type_contains_unspecified &amp;&amp; global_id.is_some() {
+        </span><span class="kw">if </span>global_id.is_some() &amp;&amp; (no_type || annotated_type.contains_type_variable()) {
             <span class="kw">let </span>expected_type = annotated_type.clone();
             <span class="kw">let </span>error = ResolverError::UnspecifiedGlobalType {
                 pattern_location,

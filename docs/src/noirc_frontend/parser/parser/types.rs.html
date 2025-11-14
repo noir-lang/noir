@@ -593,11 +593,7 @@
 <a href="#592" id="592">592</a>
 <a href="#593" id="593">593</a>
 <a href="#594" id="594">594</a>
-<a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a>
-<a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#595" id="595">595</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token, TokenKind},
@@ -724,8 +720,8 @@
                 <span class="self">self</span>.expected_token(Token::Keyword(Keyword::Fn));
                 <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Function(
                     Vec::new(),
-                    Box::new(<span class="self">self</span>.unspecified_type_at_previous_token_end()),
-                    Box::new(<span class="self">self</span>.unspecified_type_at_previous_token_end()),
+                    Box::new(<span class="self">self</span>.error_type_at_previous_token_end()),
+                    Box::new(<span class="self">self</span>.error_type_at_previous_token_end()),
                     unconstrained,
                 ));
             }
@@ -746,8 +742,8 @@
 
             <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Function(
                 Vec::new(),
-                Box::new(<span class="self">self</span>.unspecified_type_at_previous_token_end()),
-                Box::new(<span class="self">self</span>.unspecified_type_at_previous_token_end()),
+                Box::new(<span class="self">self</span>.error_type_at_previous_token_end()),
+                Box::new(<span class="self">self</span>.error_type_at_previous_token_end()),
                 unconstrained,
             ));
         }
@@ -902,16 +898,12 @@
     }
 
     <span class="doccomment">/// OptionalTypeAnnotation = ( ':' Type )?
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_optional_type_annotation(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; UnresolvedType {
-        <span class="kw">if </span><span class="self">self</span>.eat_colon() {
-            <span class="self">self</span>.parse_type_or_error()
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.unspecified_type_at_previous_token_end()
-        }
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_optional_type_annotation(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt; {
+        <span class="kw">if </span><span class="self">self</span>.eat_colon() { <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>unspecified_type_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_location(<span class="self">self</span>.location_at_previous_token_end())
+    <span class="kw">fn </span>error_type_at_previous_token_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; UnresolvedType {
+        UnresolvedTypeData::Error.with_location(<span class="self">self</span>.location_at_previous_token_end())
     }
 }
 

@@ -595,20 +595,12 @@
 <a href="#594" id="594">594</a>
 <a href="#595" id="595">595</a>
 <a href="#596" id="596">596</a>
-<a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#597" id="597">597</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
         Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
-        UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token},
@@ -759,18 +751,12 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
             <span class="self">self</span>.eat_semicolons();
-            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
             <span class="kw">let </span>name = <span class="self">self</span>.unknown_ident_at_previous_token_end();
-            <span class="kw">let </span>alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            <span class="kw">let </span>alias = <span class="prelude-val">None</span>;
             <span class="kw">return </span><span class="prelude-val">Some</span>(TraitImplItemKind::Type { name, alias });
         };
 
-        <span class="kw">let </span>alias = <span class="kw">if </span><span class="self">self</span>.eat_assign() {
-            <span class="self">self</span>.parse_type_or_error()
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Error, location }
-        };
+        <span class="kw">let </span>alias = <span class="kw">if </span><span class="self">self</span>.eat_assign() { <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 
         <span class="self">self</span>.eat_semicolon_or_error();
 
@@ -792,14 +778,14 @@
         };
 
         <span class="kw">let </span>typ = <span class="kw">if </span><span class="self">self</span>.eat_colon() {
-            <span class="self">self</span>.parse_type_or_error()
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error())
         } <span class="kw">else </span>{
             <span class="self">self</span>.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 <span class="self">self</span>.previous_token_location,
             );
-            <span class="self">self</span>.unspecified_type_at_previous_token_end()
-        };
+            <span class="prelude-val">None
+        </span>};
 
         <span class="kw">let </span>expr = <span class="kw">if </span><span class="self">self</span>.eat_assign() {
             <span class="self">self</span>.parse_expression_or_error()
@@ -1121,7 +1107,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected type"</span>);
         };
         <span class="macro">assert_eq!</span>(name.to_string(), <span class="string">"Foo"</span>);
-        <span class="macro">assert_eq!</span>(alias.to_string(), <span class="string">"i32"</span>);
+        <span class="macro">assert_eq!</span>(alias.unwrap().to_string(), <span class="string">"i32"</span>);
     }
 
     <span class="attr">#[test]
@@ -1141,7 +1127,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected constant"</span>);
         };
         <span class="macro">assert_eq!</span>(name.to_string(), <span class="string">"x"</span>);
-        <span class="macro">assert_eq!</span>(typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(typ.unwrap().to_string(), <span class="string">"Field"</span>);
         <span class="macro">assert_eq!</span>(expr.to_string(), <span class="string">"1"</span>);
     }
 

@@ -1085,8 +1085,7 @@
     <span class="self">self</span>, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
-        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
-        UnresolvedTypeData, Visitor,
+        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl, Visitor,
     },
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
@@ -1435,7 +1434,7 @@
 
     <span class="kw">fn </span>visit_let_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, let_statement: <span class="kw-2">&amp;</span>LetStatement) -&gt; bool {
         <span class="comment">// Only show inlay hints for let variables that don't have an explicit type annotation
-        </span><span class="kw">if let </span>UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+        </span><span class="kw">if </span>let_statement.r#type.is_none() {
             let_statement.pattern.accept(<span class="self">self</span>);
         };
 
@@ -1483,7 +1482,8 @@
 
     <span class="kw">fn </span>visit_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lambda: <span class="kw-2">&amp;</span>Lambda, <span class="kw">_</span>: Span) -&gt; bool {
         <span class="kw">for </span>(pattern, typ) <span class="kw">in </span><span class="kw-2">&amp;</span>lambda.parameters {
-            <span class="kw">if </span><span class="macro">matches!</span>(typ.typ, UnresolvedTypeData::Unspecified) {
+            <span class="comment">// Only show inlay hints for parameters that don't have an explicit type annotation
+            </span><span class="kw">if </span>typ.is_none() {
                 pattern.accept(<span class="self">self</span>);
             }
         }

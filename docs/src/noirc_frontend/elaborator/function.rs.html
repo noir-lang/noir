@@ -565,7 +565,10 @@
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
 <a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -583,7 +586,10 @@
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::lints,
+    elaborator::{
+        lints,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
         resolution::errors::ResolverError,
@@ -660,7 +666,7 @@
             // Adds the impl generics to the generics state and resolve the impl's self type
             </span><span class="self">self</span>.add_generics(generics);
 
-            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(self_type.clone(), wildcard_allowed);
             function_set.self_type = <span class="prelude-val">Some</span>(self_type.clone());
             <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(self_type);
@@ -738,7 +744,7 @@
             <span class="self">self</span>.resolve_function_parameters(func, <span class="kw-2">&amp;mut </span>generics, <span class="kw-2">&amp;mut </span>trait_constraints);
 
         <span class="comment">// Resolve return type
-        </span><span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        </span><span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.use_type(func.return_type(), wildcard_allowed));
 
         <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract());
@@ -890,7 +896,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         <span class="kw">for </span>Param { visibility, pattern, typ, location: <span class="kw">_ </span>} <span class="kw">in </span>func.parameters().iter().cloned() {
             <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {

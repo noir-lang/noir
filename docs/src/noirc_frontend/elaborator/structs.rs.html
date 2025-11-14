@@ -125,7 +125,8 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -134,6 +135,7 @@
 <span class="kw">use crate</span>::{
     StructField,
     ast::NoirStruct,
+    elaborator::{WildcardDisallowedContext, types::WildcardAllowed},
     hir::{def_collector::dc_crate::UnresolvedStruct, resolution::errors::ResolverError},
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
@@ -215,7 +217,7 @@
             <span class="kw">let </span>struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(<span class="kw-2">&amp;</span>unresolved.generics, <span class="kw-2">&amp;</span>struct_def.borrow().generics);
 
-            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
             <span class="kw">let </span>fields = vecmap(<span class="kw-2">&amp;</span>unresolved.fields, |field| {
                 <span class="kw">let </span>name = field.item.name.clone();
                 <span class="kw">let </span>typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);

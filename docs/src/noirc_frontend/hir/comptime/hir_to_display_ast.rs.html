@@ -594,7 +594,7 @@
         <span class="kw">let </span>kind = <span class="kw">match </span><span class="self">self </span>{
             HirStatement::Let(let_stmt) =&gt; {
                 <span class="kw">let </span>pattern = let_stmt.pattern.to_display_ast(interner);
-                <span class="kw">let </span>r#type = interner.id_type(let_stmt.expression).to_display_ast();
+                <span class="kw">let </span>r#type = <span class="prelude-val">Some</span>(interner.id_type(let_stmt.expression).to_display_ast());
                 <span class="kw">let </span>expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
@@ -745,9 +745,9 @@
             }
             HirExpression::Lambda(lambda) =&gt; {
                 <span class="kw">let </span>parameters = vecmap(lambda.parameters.clone(), |(pattern, typ)| {
-                    (pattern.to_display_ast(interner), typ.to_display_ast())
+                    (pattern.to_display_ast(interner), <span class="prelude-val">Some</span>(typ.to_display_ast()))
                 });
-                <span class="kw">let </span>return_type = lambda.return_type.to_display_ast();
+                <span class="kw">let </span>return_type = <span class="prelude-val">Some</span>(lambda.return_type.to_display_ast());
                 <span class="kw">let </span>body = lambda.body.to_display_ast(interner);
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }

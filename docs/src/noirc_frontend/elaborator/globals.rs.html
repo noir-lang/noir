@@ -175,11 +175,7 @@
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
 <a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
+<a href="#177" id="177">177</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
 //!
 //! ## Design
 //!
@@ -203,7 +199,7 @@
 
 </span><span class="kw">use crate</span>::{
     Type,
-    ast::{Pattern, UnresolvedTypeData},
+    ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
     node_interner::{DependencyId, GlobalId, GlobalValue},
@@ -251,11 +247,7 @@
         </span>};
 
         <span class="kw">let </span>location = let_stmt.pattern.location();
-        <span class="kw">let </span>type_location = <span class="kw">if </span><span class="macro">matches!</span>(let_stmt.r#type.typ, UnresolvedTypeData::Unspecified) {
-            location
-        } <span class="kw">else </span>{
-            let_stmt.r#type.location
-        };
+        <span class="kw">let </span>type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
         <span class="comment">// ABI attributes are only meaningful within contracts, so error if used elsewhere.
         </span><span class="kw">if </span>!<span class="self">self</span>.in_contract() {

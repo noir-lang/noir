@@ -53,10 +53,7 @@
 <a href="#52" id="52">52</a>
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#55" id="55">55</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{ExpressionKind, Lambda, Pattern, UnresolvedType},
     parser::labels::ParsingRuleLabel,
     token::Token,
@@ -77,17 +74,14 @@
         }
 
         <span class="kw">let </span>parameters = <span class="self">self</span>.parse_lambda_parameters();
-        <span class="kw">let </span>return_type = <span class="kw">if </span><span class="self">self</span>.eat(Token::Arrow) {
-            <span class="self">self</span>.parse_type_or_error()
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.unspecified_type_at_previous_token_end()
-        };
+        <span class="kw">let </span>return_type =
+            <span class="kw">if </span><span class="self">self</span>.eat(Token::Arrow) { <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
         <span class="kw">let </span>body = <span class="self">self</span>.parse_expression_or_error();
 
         <span class="prelude-val">Some</span>(ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body })))
     }
 
-    <span class="kw">fn </span>parse_lambda_parameters(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;(Pattern, UnresolvedType)&gt; {
+    <span class="kw">fn </span>parse_lambda_parameters(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;(Pattern, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt; {
         <span class="self">self</span>.parse_many(
             <span class="string">"parameters"</span>,
             separated_by_comma().until(Token::Pipe),
@@ -95,7 +89,7 @@
         )
     }
 
-    <span class="kw">fn </span>parse_lambda_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Pattern, UnresolvedType)&gt; {
+    <span class="kw">fn </span>parse_lambda_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Pattern, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt; {
         <span class="kw">loop </span>{
             <span class="kw">let </span><span class="prelude-val">Some</span>(pattern) = <span class="self">self</span>.parse_pattern() <span class="kw">else </span>{
                 <span class="self">self</span>.expected_label(ParsingRuleLabel::Pattern);

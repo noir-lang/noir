@@ -628,7 +628,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::function_context::BindableTypeVariableKind;
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::path_resolution::PathResolutionItem;
-<span class="kw">use </span><span class="kw">crate</span>::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::TypeCheckError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::{
@@ -919,7 +919,7 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_type_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypePath) -&gt; (ExprId, Type) {
         <span class="kw">let </span>typ_location = path.typ.location;
         <span class="kw">let </span>turbofish = path.turbofish;
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
         <span class="kw">let </span>typ = <span class="self">self</span>.use_type(path.typ, wildcard_allowed);
         <span class="self">self</span>.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }

@@ -737,7 +737,7 @@
 <span class="kw">use crate</span>::{
     DataType, Kind, Type, TypeAlias,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
-    elaborator::Turbofish,
+    elaborator::{Turbofish, types::WildcardAllowed},
     hir::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError},
@@ -1344,7 +1344,7 @@
         <span class="kw">let </span>generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 <span class="kw">let </span>location = generic.location;
-                <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+                <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
                 <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })

@@ -1788,7 +1788,13 @@
 <a href="#1787" id="1787">1787</a>
 <a href="#1788" id="1788">1788</a>
 <a href="#1789" id="1789">1789</a>
-<a href="#1790" id="1790">1790</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1790" id="1790">1790</a>
+<a href="#1791" id="1791">1791</a>
+<a href="#1792" id="1792">1792</a>
+<a href="#1793" id="1793">1793</a>
+<a href="#1794" id="1794">1794</a>
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2415,7 +2421,8 @@
                             errors.push(error.into());
                         } <span class="kw">else </span>{
                             <span class="kw">let </span>type_variable_id = context.def_interner.next_type_variable_id();
-                            <span class="kw">let </span>typ = <span class="self">self</span>.resolve_associated_constant_type(typ, <span class="kw-2">&amp;mut </span>errors);
+                            <span class="kw">let </span>typ =
+                                <span class="self">self</span>.resolve_associated_constant_type(typ.as_ref(), <span class="kw-2">&amp;mut </span>errors);
                             <span class="kw">let </span>type_var =
                                 TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
@@ -2701,9 +2708,14 @@
 
     <span class="kw">fn </span>resolve_associated_constant_type(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        typ: <span class="kw-2">&amp;</span>UnresolvedType,
+        typ: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>UnresolvedType&gt;,
         errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
     ) -&gt; Type {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(typ) = typ <span class="kw">else </span>{
+            <span class="comment">// Don't report an error again as it was already reported by the parser
+            </span><span class="kw">return </span>Type::Error;
+        };
+
         <span class="comment">// TODO: delay this to the Elaborator
         // See https://github.com/noir-lang/noir/issues/8504
         </span><span class="kw">if let </span>UnresolvedTypeData::Named(path, _generics, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>typ.typ {
@@ -3246,8 +3258,8 @@
     <span class="kw">if let </span><span class="prelude-val">Ok</span>(big_num) = big_num { big_num == FieldElement::modulus() } <span class="kw">else </span>{ CHOSEN_FIELD == str }
 }
 
-<span class="kw">type </span>AssociatedTypes = Vec&lt;(Ident, UnresolvedType)&gt;;
-<span class="kw">type </span>AssociatedConstants = Vec&lt;(Ident, UnresolvedType, Expression)&gt;;
+<span class="kw">type </span>AssociatedTypes = Vec&lt;(Ident, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt;;
+<span class="kw">type </span>AssociatedConstants = Vec&lt;(Ident, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;, Expression)&gt;;
 
 <span class="doccomment">/// Returns a tuple of (methods, associated types, associated constants)
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>collect_trait_impl_items(

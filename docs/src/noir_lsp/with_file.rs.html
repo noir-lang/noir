@@ -1032,7 +1032,13 @@
 <a href="#1031" id="1031">1031</a>
 <a href="#1032" id="1032">1032</a>
 <a href="#1033" id="1033">1033</a>
-<a href="#1034" id="1034">1034</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1130,7 +1136,7 @@
 <span class="kw">fn </span>let_statement_with_file(let_statement: LetStatement, file: FileId) -&gt; LetStatement {
     LetStatement {
         pattern: pattern_with_file(let_statement.pattern, file),
-        r#type: unresolved_type_with_file(let_statement.r#type, file),
+        r#type: option_unresolved_type_with_file(let_statement.r#type, file),
         expression: expression_with_file(let_statement.expression, file),
         attributes: secondary_attributes_with_file(let_statement.attributes, file),
         comptime: let_statement.comptime,
@@ -1252,12 +1258,12 @@
         }
         TraitImplItemKind::Constant(ident, typ, expression) =&gt; TraitImplItemKind::Constant(
             ident_with_file(ident, file),
-            unresolved_type_with_file(typ, file),
+            option_unresolved_type_with_file(typ, file),
             expression_with_file(expression, file),
         ),
         TraitImplItemKind::Type { name, alias } =&gt; TraitImplItemKind::Type {
             name: ident_with_file(name, file),
-            alias: unresolved_type_with_file(alias, file),
+            alias: option_unresolved_type_with_file(alias, file),
         },
     }
 }
@@ -1317,7 +1323,7 @@
         },
         TraitItem::Constant { name, typ } =&gt; TraitItem::Constant {
             name: ident_with_file(name, file),
-            typ: unresolved_type_with_file(typ, file),
+            typ: option_unresolved_type_with_file(typ, file),
         },
         TraitItem::Type { name, bounds } =&gt; TraitItem::Type {
             name: ident_with_file(name, file),
@@ -1488,6 +1494,13 @@
     vecmap(types, |typ| unresolved_type_with_file(typ, file))
 }
 
+<span class="kw">fn </span>option_unresolved_type_with_file(
+    typ: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
+    file: FileId,
+) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt; {
+    typ.map(|typ| unresolved_type_with_file(typ, file))
+}
+
 <span class="kw">fn </span>unresolved_type_with_file(typ: UnresolvedType, file: FileId) -&gt; UnresolvedType {
     UnresolvedType {
         typ: unresolved_type_data_with_file(typ.typ, file),
@@ -1543,7 +1556,6 @@
         UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error =&gt; typ,
     }
 }
@@ -1768,9 +1780,9 @@
 <span class="kw">fn </span>lambda_with_file(lambda: Lambda, file: FileId) -&gt; Lambda {
     Lambda {
         parameters: vecmap(lambda.parameters, |(pattern, typ)| {
-            (pattern_with_file(pattern, file), unresolved_type_with_file(typ, file))
+            (pattern_with_file(pattern, file), option_unresolved_type_with_file(typ, file))
         }),
-        return_type: unresolved_type_with_file(lambda.return_type, file),
+        return_type: option_unresolved_type_with_file(lambda.return_type, file),
         body: expression_with_file(lambda.body, file),
     }
 }

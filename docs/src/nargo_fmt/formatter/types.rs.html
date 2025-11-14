@@ -361,8 +361,7 @@
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
 <a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#363" id="363">363</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{AsTraitPath, UnresolvedType, UnresolvedTypeData},
     token::{Keyword, Token},
 };
@@ -506,7 +505,6 @@
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error =&gt; <span class="macro">unreachable!</span>(<span class="string">"Should not be present in the AST"</span>),
-            UnresolvedTypeData::Unspecified =&gt; <span class="macro">panic!</span>(<span class="string">"Unspecified type should have been handled"</span>),
         }
     }
 

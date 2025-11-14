@@ -1448,7 +1448,11 @@
 <a href="#1447" id="1447">1447</a>
 <a href="#1448" id="1448">1448</a>
 <a href="#1449" id="1449">1449</a>
-<a href="#1450" id="1450">1450</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
 
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
@@ -1464,7 +1468,11 @@
         ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
         UnresolvedTypeData,
     },
-    elaborator::{UnstableFeature, path_resolution::PathResolutionItem},
+    elaborator::{
+        UnstableFeature,
+        path_resolution::PathResolutionItem,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::Value,
         def_collector::dc_crate::UnresolvedEnum,
@@ -1586,7 +1594,7 @@
             datatype.borrow_mut().init_variants();
             <span class="self">self</span>.resolving_ids.insert(<span class="kw-2">*</span>type_id);
 
-            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::EnumVariant);
             <span class="kw">for </span>(i, variant) <span class="kw">in </span>typ.enum_def.variants.iter().enumerate() {
                 <span class="kw">let </span>parameters = variant.item.parameters.as_ref();
                 <span class="kw">let </span>types = parameters.map(|params| {
@@ -2065,7 +2073,7 @@
         variables_defined: <span class="kw-2">&amp;mut </span>Vec&lt;Ident&gt;,
     ) -&gt; Pattern {
         <span class="kw">let </span>location = constructor.typ.location;
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
         <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constructor.typ, wildcard_allowed);
 
         <span class="kw">let </span><span class="prelude-val">Some</span>((struct_name, <span class="kw-2">mut </span>expected_field_types)) =

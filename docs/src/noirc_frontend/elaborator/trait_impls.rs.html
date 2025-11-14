@@ -901,12 +901,22 @@
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
 <a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    elaborator::{PathResolutionMode, types::bind_ordered_generics},
+    elaborator::{
+        PathResolutionMode, WildcardDisallowedContext,
+        types::{WildcardAllowed, bind_ordered_generics},
+    },
     hir::{
         def_collector::{
             dc_crate::{CompilationError, UnresolvedTraitImpl},
@@ -985,7 +995,8 @@
                         // This can't be done in code, but it could happen with unquoted types.
                         </span><span class="kw">continue</span>;
                     };
-                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+                    <span class="kw">let </span>wildcard_allowed =
+                        WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
                     <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind(
                         unresolved_type,
                         <span class="kw-2">&amp;</span>associated_type.typ.kind(),
@@ -1328,8 +1339,9 @@
     ) -&gt; Vec&lt;(Ident, UnresolvedType, Kind)&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>associated_types = Vec::new();
         <span class="kw">for </span>(name, typ, expr) <span class="kw">in </span>trait_impl.associated_constants.drain(..) {
-            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
-            <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type(typ, wildcard_allowed);
+            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+            <span class="kw">let </span>resolved_type =
+                typ.map(|typ| <span class="self">self</span>.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
             <span class="kw">let </span>kind = Kind::Numeric(Box::new(resolved_type));
             <span class="kw">let </span>location = expr.location;
             <span class="kw">let </span>typ = <span class="kw">match </span>UnresolvedTypeExpression::from_expr(expr, location) {
@@ -1342,6 +1354,8 @@
             associated_types.push((name, typ, kind));
         }
         <span class="kw">for </span>(name, typ) <span class="kw">in </span>trait_impl.associated_types.drain(..) {
+            <span class="kw">let </span>location = name.location();
+            <span class="kw">let </span>typ = typ.unwrap_or_else(|| UnresolvedTypeData::Error.with_location(location));
             associated_types.push((name, typ, Kind::Any));
         }
         associated_types
@@ -1600,7 +1614,7 @@
                 .chain(new_generics_trait_constraints.iter().map(|(constraint, <span class="kw">_</span>)| constraint)),
         );
 
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitImplType);
         <span class="kw">let </span>unresolved_type = trait_impl.object_type.clone();
         <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(unresolved_type, wildcard_allowed);
         trait_impl.methods.self_type = <span class="prelude-val">Some</span>(self_type.clone());
@@ -1793,7 +1807,7 @@
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
         <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
         <span class="kw">let </span>allow_implicit_named_args = <span class="bool-val">false</span>;
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
         <span class="self">self</span>.resolve_type_or_trait_args_inner(
             args,
             item,

@@ -185,16 +185,10 @@
 <a href="#184" id="184">184</a>
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    ast::{
-        Expression, ExpressionKind, Ident, LetStatement, Pattern, UnresolvedType,
-        UnresolvedTypeData,
-    },
+    ast::{Expression, ExpressionKind, Ident, LetStatement, Pattern},
     parser::ParserErrorReason,
     token::Attribute,
 };
@@ -221,7 +215,7 @@
             <span class="kw">let </span>ident = <span class="self">self</span>.unknown_ident_at_previous_token_end();
             <span class="kw">return </span>LetStatement {
                 pattern: ident_to_pattern(ident, mutable),
-                r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
+                r#type: <span class="prelude-val">None</span>,
                 expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
@@ -262,7 +256,7 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern, UnresolvedTypeData},
+        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -292,7 +286,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected identifier pattern"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"foo"</span>, name.to_string());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        <span class="macro">assert!</span>(let_statement.r#type.is_none());
         <span class="macro">assert!</span>(!let_statement.comptime);
         <span class="macro">assert!</span>(let_statement.is_global_let);
         <span class="macro">assert_eq!</span>(visibility, ItemVisibility::Private);
@@ -306,7 +300,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected identifier pattern"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"foo"</span>, name.to_string());
-        <span class="macro">assert_eq!</span>(let_statement.r#type.typ.to_string(), <span class="string">"i32"</span>);
+        <span class="macro">assert_eq!</span>(let_statement.r#type.unwrap().to_string(), <span class="string">"i32"</span>);
     }
 
     <span class="attr">#[test]

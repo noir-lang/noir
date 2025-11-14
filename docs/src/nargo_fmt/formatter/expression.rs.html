@@ -2639,16 +2639,12 @@
 <a href="#2638" id="2638">2638</a>
 <a href="#2639" id="2639">2639</a>
 <a href="#2640" id="2640">2640</a>
-<a href="#2641" id="2641">2641</a>
-<a href="#2642" id="2642">2642</a>
-<a href="#2643" id="2643">2643</a>
-<a href="#2644" id="2644">2644</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2641" id="2641">2641</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
-        UnresolvedTypeData,
     },
     token::{Keyword, Token, TokenKind},
 };
@@ -2862,7 +2858,7 @@
     <span class="kw">fn </span>format_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lambda: Lambda) -&gt; FormattedLambda {
         <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
 
-        <span class="kw">let </span>lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+        <span class="kw">let </span>lambda_has_return_type = lambda.return_type.is_some();
 
         <span class="kw">let </span>params_and_return_type_chunk = <span class="self">self</span>.chunk(|formatter| {
             formatter.write_token(Token::Pipe);
@@ -2872,7 +2868,7 @@
                     formatter.write_space();
                 }
                 <span class="kw">let </span><span class="kw-2">mut </span>pattern_and_type_group = formatter.format_pattern(pattern);
-                <span class="kw">if </span>typ.typ != UnresolvedTypeData::Unspecified {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typ {
                     pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
                         formatter.write_token(Token::Colon);
                         formatter.write_space();
@@ -2887,10 +2883,10 @@
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            <span class="kw">if </span>lambda_has_return_type {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(return_type) = lambda.return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
-                formatter.format_type(lambda.return_type);
+                formatter.format_type(return_type);
                 formatter.write_space();
             }
         });
@@ -2910,11 +2906,9 @@
         <span class="kw">let </span>comments_count_before_body = <span class="self">self</span>.written_comments_count;
         <span class="self">self</span>.format_expression(lambda.body, <span class="kw-2">&amp;mut </span>body_group);
 
-        body_group.kind = GroupKind::LambdaBody {
-            block_statement_count,
-            has_comments: <span class="self">self</span>.written_comments_count &gt; comments_count_before_body,
-            lambda_has_return_type,
-        };
+        <span class="kw">let </span>has_comments = <span class="self">self</span>.written_comments_count &gt; comments_count_before_body;
+        body_group.kind =
+            GroupKind::LambdaBody { block_statement_count, has_comments, lambda_has_return_type };
 
         group.group(body_group);
 

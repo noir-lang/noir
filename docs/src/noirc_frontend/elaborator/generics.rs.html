@@ -317,7 +317,8 @@
 <a href="#316" id="316">316</a>
 <a href="#317" id="317">317</a>
 <a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a></pre></div><pre class="rust"><code><span class="doccomment">//! Generic parameter resolution and type parameter handling.
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a></pre></div><pre class="rust"><code><span class="doccomment">//! Generic parameter resolution and type parameter handling.
 
 </span><span class="kw">use </span>std::rc::Rc;
 
@@ -331,6 +332,7 @@
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
     },
+    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::resolution::errors::ResolverError,
     node_interner::{DefinitionKind, NodeInterner, QuotedTypeId},
 };
@@ -457,7 +459,7 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_generic_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>UnresolvedGeneric) -&gt; Kind {
         <span class="kw">if let </span>UnresolvedGeneric::Numeric { ident, typ } = generic {
             <span class="kw">let </span>unresolved_typ = typ.clone();
-            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::NumericGeneric);
             <span class="kw">let </span>typ = <span class="kw">if </span>unresolved_typ.is_type_expression() {
                 <span class="self">self</span>.resolve_type_with_kind(
                     unresolved_typ.clone(),

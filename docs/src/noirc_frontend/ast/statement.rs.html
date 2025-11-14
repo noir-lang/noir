@@ -1034,12 +1034,7 @@
 <a href="#1033" id="1033">1033</a>
 <a href="#1034" id="1034">1034</a>
 <a href="#1035" id="1035">1035</a>
-<a href="#1036" id="1036">1036</a>
-<a href="#1037" id="1037">1037</a>
-<a href="#1038" id="1038">1038</a>
-<a href="#1039" id="1039">1039</a>
-<a href="#1040" id="1040">1040</a>
-<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1036" id="1036">1036</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1051,7 +1046,6 @@
     GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
-<span class="kw">use </span><span class="kw">crate</span>::ast::UnresolvedTypeData;
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::types::SELF_TYPE_NAME;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{
@@ -1205,7 +1199,7 @@
 <span class="kw">impl </span>StatementKind {
     <span class="kw">pub fn </span>new_let(
         pattern: Pattern,
-        r#type: UnresolvedType,
+        r#type: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
         expression: Expression,
         attributes: Vec&lt;SecondaryAttribute&gt;,
     ) -&gt; StatementKind {
@@ -1537,10 +1531,6 @@
         <span class="self">self</span>.segments.first().map(|segment| <span class="kw-2">&amp;</span>segment.ident)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_wildcard(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.as_ident() { ident.as_str() == WILDCARD_TYPE } <span class="kw">else </span>{ <span class="bool-val">false </span>}
-    }
-
     <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.segments.is_empty() &amp;&amp; <span class="self">self</span>.kind == PathKind::Plain
     }
@@ -1598,7 +1588,7 @@
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub struct </span>LetStatement {
     <span class="kw">pub </span>pattern: Pattern,
-    <span class="kw">pub </span>r#type: UnresolvedType,
+    <span class="kw">pub </span>r#type: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
     <span class="kw">pub </span>expression: Expression,
     <span class="kw">pub </span>attributes: Vec&lt;SecondaryAttribute&gt;,
 
@@ -1854,7 +1844,7 @@
                 </span><span class="kw">let </span>let_array = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(array_ident.clone()),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        <span class="prelude-val">None</span>,
                         array,
                         <span class="macro">vec!</span>[],
                     ),
@@ -1891,7 +1881,7 @@
                 </span><span class="kw">let </span>let_elem = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        <span class="prelude-val">None</span>,
                         Expression::new(loop_element, array_location),
                         <span class="macro">vec!</span>[],
                     ),
@@ -1975,10 +1965,10 @@
 
 <span class="kw">impl </span>Display <span class="kw">for </span>LetStatement {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.r#type.typ, UnresolvedTypeData::Unspecified) {
-            <span class="macro">write!</span>(f, <span class="string">"let {} = {}"</span>, <span class="self">self</span>.pattern, <span class="self">self</span>.expression)
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span><span class="self">self</span>.r#type {
+            <span class="macro">write!</span>(f, <span class="string">"let {}: {} = {}"</span>, <span class="self">self</span>.pattern, typ, <span class="self">self</span>.expression)
         } <span class="kw">else </span>{
-            <span class="macro">write!</span>(f, <span class="string">"let {}: {} = {}"</span>, <span class="self">self</span>.pattern, <span class="self">self</span>.r#type, <span class="self">self</span>.expression)
+            <span class="macro">write!</span>(f, <span class="string">"let {} = {}"</span>, <span class="self">self</span>.pattern, <span class="self">self</span>.expression)
         }
     }
 }

@@ -217,7 +217,9 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{NoirTraitImpl, Pattern, TraitImplItem, TraitImplItemKind},
     token::{Keyword, Token},
 };
@@ -307,10 +309,12 @@
                 <span class="self">self</span>.write_keyword(Keyword::Type);
                 <span class="self">self</span>.write_space();
                 <span class="self">self</span>.write_identifier(name);
-                <span class="self">self</span>.write_space();
-                <span class="self">self</span>.write_token(Token::Assign);
-                <span class="self">self</span>.write_space();
-                <span class="self">self</span>.format_type(alias);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = alias {
+                    <span class="self">self</span>.write_space();
+                    <span class="self">self</span>.write_token(Token::Assign);
+                    <span class="self">self</span>.write_space();
+                    <span class="self">self</span>.format_type(alias);
+                }
                 <span class="self">self</span>.write_semicolon();
             }
         }

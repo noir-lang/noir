@@ -3165,19 +3165,7 @@
 <a href="#3164" id="3164">3164</a>
 <a href="#3165" id="3165">3165</a>
 <a href="#3166" id="3166">3166</a>
-<a href="#3167" id="3167">3167</a>
-<a href="#3168" id="3168">3168</a>
-<a href="#3169" id="3169">3169</a>
-<a href="#3170" id="3170">3170</a>
-<a href="#3171" id="3171">3171</a>
-<a href="#3172" id="3172">3172</a>
-<a href="#3173" id="3173">3173</a>
-<a href="#3174" id="3174">3174</a>
-<a href="#3175" id="3175">3175</a>
-<a href="#3176" id="3176">3176</a>
-<a href="#3177" id="3177">3177</a>
-<a href="#3178" id="3178">3178</a>
-<a href="#3179" id="3179">3179</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3167" id="3167">3167</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3206,7 +3194,10 @@
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
         Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
+    elaborator::{
+        ElaborateReason, Elaborator, PrimitiveType,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::{
             InterpreterError, Value,
@@ -4072,7 +4063,7 @@
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, <span class="string">"a type"</span>)<span class="question-mark">?</span>;
     <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(<span class="string">"Quoted::as_type"</span>, location));
-    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+    <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
     <span class="kw">let </span>typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.use_type(typ, wildcard_allowed)
@@ -5189,11 +5180,7 @@
                 .into_iter()
                 .map(|(pattern, typ)| {
                     <span class="kw">let </span>pattern = Shared::new(Value::pattern(pattern));
-                    <span class="kw">let </span>typ = <span class="kw">if let </span>UnresolvedTypeData::Unspecified = typ.typ {
-                        <span class="prelude-val">None
-                    </span>} <span class="kw">else </span>{
-                        <span class="prelude-val">Some</span>(Value::UnresolvedType(typ.typ))
-                    };
+                    <span class="kw">let </span>typ = typ.map(|typ| Value::UnresolvedType(typ.typ));
                     <span class="kw">let </span>typ = Shared::new(option(option_unresolved_type.clone(), typ, location));
                     Value::Tuple(<span class="macro">vec!</span>[pattern, typ])
                 })
@@ -5206,13 +5193,7 @@
                 ]))),
             ));
 
-            <span class="kw">let </span>return_type = lambda.return_type.typ;
-            <span class="kw">let </span>return_type = <span class="kw">if let </span>UnresolvedTypeData::Unspecified = return_type {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else </span>{
-                <span class="prelude-val">Some</span>(return_type)
-            };
-            <span class="kw">let </span>return_type = return_type.map(Value::UnresolvedType);
+            <span class="kw">let </span>return_type = lambda.return_type.map(|typ| Value::UnresolvedType(typ.typ));
             <span class="kw">let </span>return_type = Shared::new(option(option_unresolved_type, return_type, location));
 
             <span class="kw">let </span>body = Shared::new(Value::expression(lambda.body.kind));
@@ -5241,12 +5222,7 @@
             tuple_types.pop().unwrap();
             <span class="kw">let </span>option_type = tuple_types.pop().unwrap();
 
-            <span class="kw">let </span>typ = <span class="kw">if </span>let_statement.r#type.typ == UnresolvedTypeData::Unspecified {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else </span>{
-                <span class="prelude-val">Some</span>(Value::UnresolvedType(let_statement.r#type.typ))
-            };
-
+            <span class="kw">let </span>typ = let_statement.r#type.map(|typ| Value::UnresolvedType(typ.typ));
             <span class="kw">let </span>typ = option(option_type, typ, location);
 
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[

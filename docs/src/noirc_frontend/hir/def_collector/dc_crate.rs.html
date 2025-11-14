@@ -687,8 +687,8 @@
     <span class="kw">pub </span>generics: UnresolvedGenerics,
     <span class="kw">pub </span>where_clause: Vec&lt;UnresolvedTraitConstraint&gt;,
 
-    <span class="kw">pub </span>associated_types: Vec&lt;(Ident, UnresolvedType)&gt;,
-    <span class="kw">pub </span>associated_constants: Vec&lt;(Ident, UnresolvedType, Expression)&gt;,
+    <span class="kw">pub </span>associated_types: Vec&lt;(Ident, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt;,
+    <span class="kw">pub </span>associated_constants: Vec&lt;(Ident, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;, Expression)&gt;,
 
     <span class="comment">// Every field after this line is filled in later in the elaborator
     </span><span class="kw">pub </span>trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,

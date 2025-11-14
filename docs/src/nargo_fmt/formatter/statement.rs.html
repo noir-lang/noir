@@ -902,12 +902,10 @@
 <a href="#901" id="901">901</a>
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#904" id="904">904</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
-        WhileStatement,
+        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -1028,7 +1026,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         keyword: Keyword,
         pattern: Pattern,
-        typ: UnresolvedType,
+        typ: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
         value: <span class="prelude-ty">Option</span>&lt;Expression&gt;,
         attributes: Vec&lt;SecondaryAttribute&gt;,
     ) -&gt; ChunkGroup {
@@ -1042,7 +1040,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>pattern_and_type_group = <span class="self">self</span>.format_pattern(pattern);
 
-        <span class="kw">if </span>typ.typ != UnresolvedTypeData::Unspecified {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typ {
             pattern_and_type_group.text(<span class="self">self</span>.chunk(|formatter| {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();

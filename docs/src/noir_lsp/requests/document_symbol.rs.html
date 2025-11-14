@@ -809,7 +809,13 @@
 <a href="#808" id="808">808</a>
 <a href="#809" id="809">809</a>
 <a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{
@@ -1132,12 +1138,14 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>visit_trait_item_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, typ: <span class="kw-2">&amp;</span>UnresolvedType) -&gt; bool {
+    <span class="kw">fn </span>visit_trait_item_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, typ: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>UnresolvedType&gt;) -&gt; bool {
         <span class="kw">if </span>name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
-        <span class="self">self</span>.collect_in_constant(name, typ, <span class="prelude-val">None</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typ {
+            <span class="self">self</span>.collect_in_constant(name, typ, <span class="prelude-val">None</span>);
+        }
         <span class="bool-val">false
     </span>}
 
@@ -1192,21 +1200,25 @@
     <span class="kw">fn </span>visit_trait_impl_item_constant(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: <span class="kw-2">&amp;</span>Ident,
-        typ: <span class="kw-2">&amp;</span>UnresolvedType,
+        typ: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>UnresolvedType&gt;,
         default_value: <span class="kw-2">&amp;</span>Expression,
         _span: Span,
     ) -&gt; bool {
-        <span class="self">self</span>.collect_in_constant(name, typ, <span class="prelude-val">Some</span>(default_value));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typ {
+            <span class="self">self</span>.collect_in_constant(name, typ, <span class="prelude-val">Some</span>(default_value));
+        }
         <span class="bool-val">false
     </span>}
 
     <span class="kw">fn </span>visit_trait_impl_item_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: <span class="kw-2">&amp;</span>Ident,
-        alias: <span class="kw-2">&amp;</span>UnresolvedType,
+        alias: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>UnresolvedType&gt;,
         _span: Span,
     ) -&gt; bool {
-        <span class="self">self</span>.collect_in_type(name, <span class="prelude-val">Some</span>(alias));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = alias {
+            <span class="self">self</span>.collect_in_type(name, <span class="prelude-val">Some</span>(alias));
+        }
         <span class="bool-val">false
     </span>}
 
