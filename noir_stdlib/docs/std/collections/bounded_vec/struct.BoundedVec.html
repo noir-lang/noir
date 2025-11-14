@@ -53,7 +53,7 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A <code>BoundedVec&lt;T, MaxLen&gt;</code> is a growable storage similar to a <code>Vec&lt;T&gt;</code> except that it
+<p>A <code>BoundedVec&lt;T, MaxLen&gt;</code> is a growable storage similar to a <a href="../../../std/collections/vec/struct.Vec.html"><code>Vec</code></a><code>&lt;T&gt;</code> except that it
 is bounded with a maximum possible length. Unlike <code>Vec</code>, <code>BoundedVec</code> is not implemented
 via slices and thus is not subject to the same restrictions slices are (notably, nested
 slices - and thus nested vectors as well - are disallowed).</p>
@@ -400,7 +400,7 @@ assert_eq(result, expected);
 The given length must be less than or equal to the length of the array.</p>
 <p>This function will zero out any elements at or past index <code>len</code> of <code>array</code>.
 This incurs an extra runtime cost of O(MaxLen). If you are sure your array is
-zeroed after that index, you can use <code>from_parts_unchecked</code> to remove the extra loop.</p>
+zeroed after that index, you can use <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html#from_parts_unchecked"><code>from_parts_unchecked</code></a> to remove the extra loop.</p>
 <p>Example:</p>
 <pre><code class="language-noir">let vec: BoundedVec&lt;u32, 4&gt; = BoundedVec::from_parts([1, 2, 3, 0], 3);
 assert_eq(vec.len(), 3);

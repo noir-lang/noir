@@ -118,7 +118,7 @@
 <h1>Primitive type <span id="primitive" class="primitive">Expr</span></h1>
 <div class="comments">
 <p>A compile-time, quoted, syntactically valid expression.</p>
-<p>An <code>Expr</code> can be obtained using <code>Quoted::as_expr</code>:</p>
+<p>An <code>Expr</code> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
 <pre><code>fn main() {
     comptime {
         let expr = quote { 1 + 2 }.as_expr().unwrap();

@@ -30,8 +30,8 @@ variable and we have the type equality <code>(a, i32) = (u8, i32)</code>, the co
 <p>Unbound type variables will often be rendered as <code>_</code> while printing them. Bound type
 variables will appear as the type they are bound to.</p>
 <p>This can be used in conjunction with functions which internally perform type checks
-such as <code>Type::implements</code> or <code>Type::get_trait_impl</code> to potentially grab some of the types used.</p>
-<p>Note that calling <code>Type::implements</code> or <code>Type::get_trait_impl</code> on a type variable will always
+such as <a href="../../../std/primitive.Type.html#implements"><code>Type::implements</code></a> or <a href="../../../std/primitive.Type.html#get_trait_impl"><code>Type::get_trait_impl</code></a> to potentially grab some of the types used.</p>
+<p>Note that calling <a href="../../../std/primitive.Type.html#implements"><code>Type::implements</code></a> or <a href="../../../std/primitive.Type.html#get_trait_impl"><code>Type::get_trait_impl</code></a> on a type variable will always
 fail.</p>
 <p>Example:</p>
 <pre><code class="language-noir">trait Serialize&lt;let N: u32&gt; {}
