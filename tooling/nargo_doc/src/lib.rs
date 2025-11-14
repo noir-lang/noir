@@ -46,6 +46,7 @@ struct DocItemBuilder<'a> {
     crate_graph: &'a CrateGraph,
     def_maps: &'a DefMaps,
     current_module_id: LocalModuleId,
+    current_type: Option<CurrentType>,
     /// The minimum visibility of the current module. For example,
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
@@ -64,6 +65,12 @@ struct DocItemBuilder<'a> {
     reference_regex: Regex,
 }
 
+#[derive(Clone, Copy)]
+enum CurrentType {
+    Type(TypeId),
+    Trait(TraitId),
+}
+
 impl<'a> DocItemBuilder<'a> {
     fn new(
         interner: &'a NodeInterner,
@@ -79,6 +86,7 @@ impl<'a> DocItemBuilder<'a> {
             crate_graph,
             def_maps,
             current_module_id,
+            current_type: None,
             visibility: ItemVisibility::Public,
             module_def_id_to_item: HashMap::new(),
             module_imports: HashMap::new(),
@@ -121,6 +129,7 @@ impl DocItemBuilder<'_> {
             }
             expand_items::Item::DataType(item_data_type) => {
                 let type_id = item_data_type.id;
+                self.current_type = Some(CurrentType::Type(type_id));
                 let shared_data_type = self.interner.get_type(type_id);
                 let data_type = shared_data_type.borrow();
                 if data_type.is_enum() {
@@ -152,6 +161,7 @@ impl DocItemBuilder<'_> {
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = self.get_type_id(type_id);
+                self.current_type = None;
                 Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
@@ -165,6 +175,7 @@ impl DocItemBuilder<'_> {
             }
             expand_items::Item::Trait(item_trait) => {
                 let trait_id = item_trait.id;
+                self.current_type = Some(CurrentType::Trait(trait_id));
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
@@ -214,6 +225,9 @@ impl DocItemBuilder<'_> {
                 }
 
                 let id = self.get_trait_id(trait_id);
+
+                self.current_type = None;
+
                 Item::Trait(Trait {
                     id,
                     name,
@@ -308,7 +322,7 @@ impl DocItemBuilder<'_> {
         Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
-    fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
+    fn convert_impl(&self, impl_: expand_items::Impl) -> Impl {
         let generics = vecmap(impl_.generics, |(name, kind)| {
             let numeric = self.kind_to_numeric(kind);
             Generic { name, numeric }
@@ -349,7 +363,7 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_trait_constraint(
-        &mut self,
+        &self,
         constraint: &noirc_frontend::hir_def::traits::TraitConstraint,
     ) -> TraitConstraint {
         let r#type = self.convert_type(&constraint.typ);
@@ -357,7 +371,7 @@ impl DocItemBuilder<'_> {
         TraitConstraint { r#type, bound }
     }
 
-    fn convert_trait_bound(&mut self, trait_bound: &ResolvedTraitBound) -> TraitBound {
+    fn convert_trait_bound(&self, trait_bound: &ResolvedTraitBound) -> TraitBound {
         let trait_ = self.interner.get_trait(trait_bound.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = self.get_trait_id(trait_.id);
@@ -366,7 +380,7 @@ impl DocItemBuilder<'_> {
         TraitBound { trait_id, trait_name, ordered_generics, named_generics }
     }
 
-    fn convert_type(&mut self, typ: &noirc_frontend::Type) -> Type {
+    fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {
         match typ {
             noirc_frontend::Type::Unit => Type::Unit,
             noirc_frontend::Type::FieldElement => Type::Primitive(PrimitiveTypeKind::Field),
@@ -507,7 +521,7 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_trait_generics(
-        &mut self,
+        &self,
         trait_generics: &noirc_frontend::hir::type_check::generics::TraitGenerics,
     ) -> (Vec<Type>, std::collections::BTreeMap<String, Type>) {
         let ordered_generics = vecmap(&trait_generics.ordered, |typ| self.convert_type(typ));
@@ -527,7 +541,7 @@ impl DocItemBuilder<'_> {
         (ordered_generics, named_generics)
     }
 
-    fn convert_function(&mut self, func_id: FuncId) -> Function {
+    fn convert_function(&self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
         let unconstrained = modifiers.is_unconstrained;
@@ -578,13 +592,13 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn convert_generic(&mut self, generic: &ResolvedGeneric) -> Generic {
+    fn convert_generic(&self, generic: &ResolvedGeneric) -> Generic {
         let numeric = self.kind_to_numeric(generic.kind());
         let name = generic.name.to_string();
         Generic { name, numeric }
     }
 
-    fn kind_to_numeric(&mut self, kind: Kind) -> Option<Type> {
+    fn kind_to_numeric(&self, kind: Kind) -> Option<Type> {
         match kind {
             Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
             Kind::Numeric(typ) => Some(self.convert_type(&typ)),
@@ -635,14 +649,14 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
+    fn doc_comments(&self, id: ReferenceId) -> Option<(String, Links)> {
         let comments = self.interner.doc_comments(id)?;
         let comments = comments.join("\n").trim().to_string();
         let links = self.find_links_in_comments(&comments);
         Some((comments, links))
     }
 
-    fn find_links_in_comments(&mut self, comments: &str) -> Links {
+    fn find_links_in_comments(&self, comments: &str) -> Links {
         let mut links = HashMap::new();
         let mut in_code_block = false;
         for line in comments.lines() {
@@ -676,9 +690,35 @@ impl DocItemBuilder<'_> {
     /// This is similar to how name resolution works in the compiler, except that it's simpler
     /// (no need to report errors), and references to type and trait functions are handled
     /// a bit differently.
-    fn path_to_link(&mut self, path: &str) -> Option<Link> {
+    fn path_to_link(&self, path: &str) -> Option<Link> {
         if path.is_empty() || path.contains(' ') {
             return None;
+        }
+
+        let segments: Vec<&str> = path.split("::").collect();
+
+        if let Some(current_type) = self.current_type {
+            if segments.len() <= 2 && segments[0] == "Self" {
+                let method_name = segments.get(1);
+                match current_type {
+                    CurrentType::Type(type_id) => {
+                        if let Some(method_name) = method_name {
+                            return self.type_method_link(type_id, method_name);
+                        } else {
+                            let id = self.get_type_id(type_id);
+                            return Some(Link::TypeOrModule(id));
+                        }
+                    }
+                    CurrentType::Trait(trait_id) => {
+                        if let Some(method_name) = method_name {
+                            return self.trait_method_link(trait_id, method_name);
+                        } else {
+                            let id = self.get_trait_id(trait_id);
+                            return Some(Link::TypeOrModule(id));
+                        }
+                    }
+                }
+            }
         }
 
         let module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
@@ -689,7 +729,6 @@ impl DocItemBuilder<'_> {
         }
 
         // Search a primitive type or primitive type function
-        let segments: Vec<&str> = path.split("::").collect();
         if segments.len() > 2 {
             return None;
         }
@@ -710,7 +749,7 @@ impl DocItemBuilder<'_> {
     }
 
     fn path_to_link_searching_modules(
-        &mut self,
+        &self,
         path: &str,
         module_id: ModuleId,
         check_dependencies: bool,
@@ -790,37 +829,16 @@ impl DocItemBuilder<'_> {
                     if index != segments.len() - 2 {
                         return None;
                     }
-                    let data_type = self.interner.get_type(type_id);
-                    if data_type.borrow().visibility != ItemVisibility::Public {
-                        return None;
-                    }
-                    let generic_types = data_type.borrow().generic_types();
-                    let typ = noirc_frontend::Type::DataType(data_type, generic_types);
-                    let methods = self.interner.get_type_methods(&typ)?;
-                    let method_name = *segments.last().unwrap();
-                    let method = methods.get(method_name)?;
-                    let method = method.direct.first()?;
-                    let method = method.method;
-                    let visibility = self.interner.function_modifiers(&method).visibility;
-                    if visibility != ItemVisibility::Public {
-                        return None;
-                    }
-                    let id = self.get_type_id(type_id);
-                    return Some(Link::Function(id, method_name.to_string()));
+                    let method_name = segments.last().unwrap();
+                    return self.type_method_link(type_id, method_name);
                 }
                 ModuleDefId::TraitId(trait_id) => {
                     // This must refer to a trait method, so only one segment should remain
                     if index != segments.len() - 2 {
                         return None;
                     }
-                    let trait_ = self.interner.get_trait(trait_id);
-                    if trait_.visibility != ItemVisibility::Public {
-                        return None;
-                    }
-                    let method_name = *segments.last().unwrap();
-                    trait_.find_method(method_name, self.interner)?;
-                    let id = self.get_trait_id(trait_id);
-                    return Some(Link::Function(id, method_name.to_string()));
+                    let method_name = segments.last().unwrap();
+                    return self.trait_method_link(trait_id, method_name);
                 }
                 ModuleDefId::TypeAliasId(_) => {
                     // We could handle methods via type aliases, but for now we don't
@@ -832,6 +850,35 @@ impl DocItemBuilder<'_> {
             }
         }
         None
+    }
+
+    fn type_method_link(&self, type_id: TypeId, method_name: &str) -> Option<Link> {
+        let data_type = self.interner.get_type(type_id);
+        if data_type.borrow().visibility != ItemVisibility::Public {
+            return None;
+        }
+        let generic_types = data_type.borrow().generic_types();
+        let typ = noirc_frontend::Type::DataType(data_type, generic_types);
+        let methods = self.interner.get_type_methods(&typ)?;
+        let method = methods.get(method_name)?;
+        let method = method.direct.first()?;
+        let method = method.method;
+        let visibility = self.interner.function_modifiers(&method).visibility;
+        if visibility != ItemVisibility::Public {
+            return None;
+        }
+        let id = self.get_type_id(type_id);
+        Some(Link::Function(id, method_name.to_string()))
+    }
+
+    fn trait_method_link(&self, trait_id: TraitId, method_name: &str) -> Option<Link> {
+        let trait_ = self.interner.get_trait(trait_id);
+        if trait_.visibility != ItemVisibility::Public {
+            return None;
+        }
+        trait_.find_method(method_name, self.interner)?;
+        let id = self.get_trait_id(trait_id);
+        Some(Link::Function(id, method_name.to_string()))
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {
@@ -856,7 +903,7 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_module_def_id_name(&mut self, id: ModuleDefId) -> String {
+    fn get_module_def_id_name(&self, id: ModuleDefId) -> String {
         match id {
             ModuleDefId::ModuleId(module_id) => {
                 let attributes = self.interner.try_module_attributes(module_id);
@@ -888,7 +935,7 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_module_def_id(&mut self, id: ModuleDefId) -> ItemId {
+    fn get_module_def_id(&self, id: ModuleDefId) -> ItemId {
         match id {
             ModuleDefId::ModuleId(id) => self.get_module_id(id),
             ModuleDefId::FunctionId(id) => self.get_function_id(id),
@@ -902,14 +949,14 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_module_id(&mut self, id: ModuleId) -> ItemId {
+    fn get_module_id(&self, id: ModuleId) -> ItemId {
         let module = self.interner.module_attributes(id);
         let location = module.location;
         let module_def_id = ModuleDefId::ModuleId(id);
         ItemId { location, module_def_id }
     }
 
-    fn get_type_id(&mut self, id: TypeId) -> ItemId {
+    fn get_type_id(&self, id: TypeId) -> ItemId {
         let data_type = self.interner.get_type(id);
         let data_type = data_type.borrow();
         let location = data_type.location;
@@ -917,14 +964,14 @@ impl DocItemBuilder<'_> {
         ItemId { location, module_def_id }
     }
 
-    fn get_trait_id(&mut self, id: TraitId) -> ItemId {
+    fn get_trait_id(&self, id: TraitId) -> ItemId {
         let trait_ = self.interner.get_trait(id);
         let location = trait_.location;
         let module_def_id = ModuleDefId::TraitId(id);
         ItemId { location, module_def_id }
     }
 
-    fn get_type_alias_id(&mut self, id: TypeAliasId) -> ItemId {
+    fn get_type_alias_id(&self, id: TypeAliasId) -> ItemId {
         let alias = self.interner.get_type_alias(id);
         let alias = alias.borrow();
         let location = alias.location;
@@ -932,14 +979,14 @@ impl DocItemBuilder<'_> {
         ItemId { location, module_def_id }
     }
 
-    fn get_function_id(&mut self, id: FuncId) -> ItemId {
+    fn get_function_id(&self, id: FuncId) -> ItemId {
         let func_meta = self.interner.function_meta(&id);
         let location = func_meta.location;
         let module_def_id = ModuleDefId::FunctionId(id);
         ItemId { location, module_def_id }
     }
 
-    fn get_global_id(&mut self, id: GlobalId) -> ItemId {
+    fn get_global_id(&self, id: GlobalId) -> ItemId {
         let global_info = self.interner.get_global(id);
         let location = global_info.location;
         let module_def_id = ModuleDefId::GlobalId(id);
