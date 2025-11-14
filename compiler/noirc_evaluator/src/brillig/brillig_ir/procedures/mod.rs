@@ -67,8 +67,7 @@ pub enum ProcedureId {
     VectorRemove,
     /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
     CheckMaxStackDepth,
-    /// Revert with the given error message.
-    RevertWithString(String),
+    ErrorWithString(String),
 }
 
 impl ProcedureId {
@@ -85,7 +84,7 @@ impl ProcedureId {
             ProcedureId::PrepareVectorInsert => 8,
             ProcedureId::VectorRemove => 9,
             ProcedureId::CheckMaxStackDepth => 10,
-            ProcedureId::RevertWithString(_) => 11,
+            ProcedureId::ErrorWithString(_) => 11,
         })
     }
 
@@ -103,7 +102,7 @@ impl ProcedureId {
             8 => ProcedureId::PrepareVectorInsert,
             9 => ProcedureId::VectorRemove,
             10 => ProcedureId::CheckMaxStackDepth,
-            11 => ProcedureId::RevertWithString("".to_string()),
+            11 => ProcedureId::ErrorWithString("".to_string()),
             _ => panic!("Unsupported procedure debug ID of {inner} was supplied"),
         }
     }
@@ -122,7 +121,7 @@ impl std::fmt::Display for ProcedureId {
             ProcedureId::PrepareVectorInsert => write!(f, "PrepareVectorInsert"),
             ProcedureId::VectorRemove => write!(f, "VectorRemove"),
             ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
-            ProcedureId::RevertWithString(_) => write!(f, "ErrorWithString"),
+            ProcedureId::ErrorWithString(_) => write!(f, "ErrorWithString"),
         }
     }
 }
@@ -158,7 +157,7 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::CheckMaxStackDepth => {
             compile_check_max_stack_depth_procedure(&mut brillig_context, stack_start);
         }
-        ProcedureId::RevertWithString(error_string) => {
+        ProcedureId::ErrorWithString(error_string) => {
             compile_error_with_string_procedure(&mut brillig_context, error_string);
         }
     };
