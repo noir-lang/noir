@@ -73,18 +73,17 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     variable
                 }
                 Type::Slice(_) => {
-                    let variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        result,
-                        dfg,
-                    );
                     // Not initializing the vector pointer to any particular value; it's output only.
                     // The foreign call handler is expected to write the vector data to the free memory pointer,
                     // storing its value back into this variable. The caller of this method will also generate
                     // code to initialize the vector metadata after the foreign call has been handled.
                     // The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
-                    variable
+                    self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result,
+                        dfg,
+                    )
                 }
                 _ => {
                     unreachable!("ICE: unsupported return type for black box call {typ:?}")
