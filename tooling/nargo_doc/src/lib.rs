@@ -656,6 +656,18 @@ impl DocItemBuilder<'_> {
         Some((comments, links))
     }
 
+    /// The idea of this method is to find occurrences of `[.+]` in comments.
+    /// For each of these we try to resolve them to a ModuleDefId of sort, which
+    /// is actually represented as a Link to a type, method, module, etc.
+    ///
+    /// The doc generator ([html::to_html]) will output these links as footnotes,
+    /// so for example a comment like "See [Vec]" will be rendered as:
+    ///
+    /// ```markdown
+    /// See [Vec]
+    ///
+    /// [Vec]: (link to Vec docs)
+    /// ```
     fn find_links_in_comments(&self, comments: &str) -> Links {
         let mut links = HashMap::new();
         let mut in_code_block = false;

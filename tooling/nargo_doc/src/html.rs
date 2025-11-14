@@ -1374,6 +1374,8 @@ impl HTMLCreator {
         self.output.push_str("</div>\n");
     }
 
+    /// Append each link found in the comments (occurrences of `[.+]` that resolve to a type,
+    /// module, method, etc.) as a footnote that links to the corresponding HTML page.
     fn append_comments_links(&self, links: &Links, comments: &mut String) {
         if links.is_empty() {
             return;
