@@ -824,7 +824,35 @@ impl Elaborator<'_> {
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+        let msg = message.map(|assert_msg_expr| {
+            let (msg, typ) = self.elaborate_expression(assert_msg_expr);
+            // If the error message contains a format string, those types need to appear in the ABI,
+            // except if we are in a meta-programming context, in which case the comptime interpreter
+            // handles a wider variety of types, e.g. quoted types.
+            if !self.in_comptime_context() {
+                let location = self.interner.expr_location(&msg);
+                let typ = typ.follow_bindings();
+                let mut check_msg_compat = |typ: &Type| {
+                    if typ.is_message_compatible(false) || matches!(typ, Type::Error) {
+                        return;
+                    }
+                    let error = TypeCheckError::TypeCannotBeUsed {
+                        typ: typ.clone(),
+                        place: "message",
+                        location,
+                    };
+                    self.push_err(CompilationError::TypeError(error));
+                };
+                if let Type::FmtString(_, item_types) = typ {
+                    if let Type::Tuple(item_types) = item_types.as_ref() {
+                        item_types.iter().for_each(check_msg_compat);
+                    }
+                } else {
+                    check_msg_compat(&typ);
+                }
+            }
+            msg
+        });
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
