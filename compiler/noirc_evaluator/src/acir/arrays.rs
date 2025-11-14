@@ -877,7 +877,6 @@ impl Context<'_> {
         // Use the previously defined result of an array operation to fetch the internal type information.
         let array_acir_value = &self.convert_value(array_id, dfg);
         let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
-        // dbg!(&array_acir_value);
         match array_acir_value {
             AcirValue::Array(values) => {
                 let flat_elem_type_sizes = calculate_element_type_sizes_array(values);
