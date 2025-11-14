@@ -976,7 +976,7 @@ impl BoilerplateStats {
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access instructions.
     fn is_small(&self) -> bool {
-        self.unrolled_instructions() < self.baseline_instructions()
+        self.unrolled_instructions() <= self.baseline_instructions()
     }
 }
 
@@ -1991,5 +1991,112 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
         assert_ne!(lower, upper);
+    }
+
+    // Ensure we unroll when unrolled_instructions == baseline_instructions,
+    // not just when it is strictly `<`. If we do it correctly, main should have
+    // 5 blocks when unrolled, not 7.
+    #[test]
+    fn might_as_well_unroll() {
+        let src = "
+            g0 = Field 1
+            g1 = make_array [Field 1, Field 1] : [Field; 2]
+            g2 = Field 0
+            g3 = make_array [Field 0, Field 0] : [Field; 2]
+            g4 = make_array [g1, g3] : [[Field; 2]; 2]
+            g5 = Field 340282366920938463463374607431768211456
+            g6 = Field 53438638232309528389504892708671455233
+            g7 = Field 64323764613183177041862057485226039389
+            
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v8: Field, v9: Field):
+                jmp b1(u32 0, Field 0)
+              b1(v10: u32, v11: Field):
+                v18 = lt v10, u32 2
+                jmpif v18 then: b2, else: b3
+              b2():
+                v33 = array_get g4, index v10 -> [Field; 2]
+                jmp b4(u32 0, v11)
+              b3():
+                v20 = call field_less_than(v11, v8) -> u1
+                constrain v20 == u1 0
+                v22 = eq v8, v9
+                constrain v22 == u1 0
+                jmp b5(u32 0, Field 0)
+              b4(v12: u32, v13: Field):
+                v34 = lt v12, u32 2
+                jmpif v34 then: b6, else: b7
+              b5(v14: u32, v15: Field):
+                v23 = lt v14, u32 2
+                jmpif v23 then: b8, else: b9
+              b6():
+                v36 = array_get v33, index v12 -> Field
+                v37 = add v13, v36
+                v38 = unchecked_add v12, u32 1
+                jmp b4(v38, v37)
+              b7():
+                v35 = unchecked_add v10, u32 1
+                jmp b1(v35, v13)
+              b8():
+                v26 = array_get g4, index v14 -> [Field; 2]
+                v27 = array_get v26, index u32 0 -> Field
+                v28 = add v15, v27
+                v30 = array_get v26, index u32 1 -> Field
+                v31 = add v28, v30
+                v32 = unchecked_add v14, u32 1
+                jmp b5(v32, v31)
+              b9():
+                v24 = eq v8, v9
+                constrain v24 == u1 0
+                v25 = call field_less_than(v15, v8) -> u1
+                constrain v25 == u1 0
+                return
+            }
+        ";
+
+        let expected = "
+            g0 = Field 1
+            g1 = make_array [Field 1, Field 1] : [Field; 2]
+            g2 = Field 0
+            g3 = make_array [Field 0, Field 0] : [Field; 2]
+            g4 = make_array [g1, g3] : [[Field; 2]; 2]
+            g5 = Field 340282366920938463463374607431768211456
+            g6 = Field 53438638232309528389504892708671455233
+            g7 = Field 64323764613183177041862057485226039389
+
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v8: Field, v9: Field):
+                jmp b1(u32 0, Field 0)
+              b1(v10: u32, v11: Field):
+                v16 = lt v10, u32 2
+                jmpif v16 then: b2, else: b3
+              b2():
+                v24 = array_get g4, index v10 -> [Field; 2]
+                v25 = array_get v24, index u32 0 -> Field
+                v26 = add v11, v25
+                v28 = array_get v24, index u32 1 -> Field
+                v29 = add v26, v28
+                jmp b4(v29)
+              b3():
+                v18 = call field_less_than(v11, v8) -> u1
+                constrain v18 == u1 0
+                v20 = eq v8, v9
+                constrain v20 == u1 0
+                jmp b5(Field 2)
+              b4(v12: Field):
+                v30 = unchecked_add v10, u32 1
+                jmp b1(v30, v12)
+              b5(v13: Field):
+                v22 = eq v8, v9
+                constrain v22 == u1 0
+                v23 = call field_less_than(v13, v8) -> u1
+                constrain v23 == u1 0
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
