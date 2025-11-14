@@ -99,7 +99,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// [BrilligVariable::BrilligVector] has special handling: we didn't know the size when we allocated this variable
     /// for a result variable in SSA, so it doesn't point at any particular address. For that reason we always turn it
-    /// into a [BrilligVariable::MemoryAddress], and we expect the foreign call handler to store at it the the address
+    /// into a [ValueOrArray::MemoryAddress], and we expect the foreign call handler to store at it the the address
     /// of the output data written to the heap, once the foreign call returns.
     fn output_variables_to_destinations(
         &mut self,
