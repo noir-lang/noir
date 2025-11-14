@@ -11,9 +11,10 @@ pub use field_element::FieldElement as GenericFieldElement;
 use num_bigint::BigInt;
 
 pub fn truncate_to<F: AcirField>(input: &F, bits: u32) -> F {
-    if bits >= input.num_bits() {
+    let num_bits = input.num_bits();
+    if bits >= num_bits {
         *input
-    } else if input.num_bits() < 128 {
+    } else if num_bits < 128 {
         let mask = 2u128.pow(bits) - 1;
         return F::from(input.to_u128() & mask);
     } else {
