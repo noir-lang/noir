@@ -156,7 +156,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Inlining",
         ),
         // Run mem2reg with the CFG separated into blocks
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
         SsaPass::new(
             Ssa::dead_instruction_elimination_pre_flattening,
@@ -176,7 +177,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
         // introduce signed divisions.
@@ -185,7 +186,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
         // then try to free memory before inlining, which involves copying a instructions.
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -228,7 +229,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         // We cannot run mem2reg after DIE, because it removes Store instructions.
         // We have to run it before, to give it a chance to turn Store+Load into known values.
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
@@ -245,6 +246,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
