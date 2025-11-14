@@ -6,7 +6,10 @@ use acir::{
     },
 };
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use brillig_vm::{FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, VM, VMStatus};
+use brillig_vm::{
+    FREE_MEMORY_POINTER_ADDRESS, FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
+    VM, VMStatus,
+};
 
 /// Set up for a foreign call test
 ///
@@ -731,17 +734,16 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
 #[test]
 fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() {
     let opcodes = &[
+        // Set the free memory to start at slot 2.
         Opcode::Const {
-            destination: MemoryAddress::direct(0),
+            destination: FREE_MEMORY_POINTER_ADDRESS,
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(2u64),
         },
         Opcode::ForeignCall {
             function: "foo".to_string(),
-            destinations: vec![ValueOrArray::HeapVector(HeapVector {
-                pointer: MemoryAddress::Direct(0),
-                size: MemoryAddress::Direct(1),
-            })],
+            // We expect the heap address of the vector to be written to a variable @1
+            destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::Direct(1))],
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![
                     HeapValueType::Simple(BitSize::Field),
