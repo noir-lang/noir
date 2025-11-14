@@ -74,7 +74,7 @@ fn resolve_fmt_strings() {
 fn resolve_fmt_string_with_global() {
     let src = r#"
     global VALUE: u32 = 42;
-    
+
     fn main() {
         let _result = f"Value: {VALUE}";
     }
@@ -93,7 +93,7 @@ fn multiple_resolution_errors() {
                        ~ not found in this scope
                ^ unused variable z
                ~ unused variable
-                       
+
         }
     "#;
     check_errors(src);
@@ -225,4 +225,39 @@ fn must_use() {
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_assert_message() {
+    let src = r#"
+        fn main() {
+            let xs = &[0_u32];
+            assert(xs[0] > 0, f"bad slice: {xs}");
+                              ^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
+
+            assert(false, ());
+                          ^^ The type () cannot be used in a message
+
+            assert(false, xs);
+                          ^^ The type [u32] cannot be used in a message
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_generic_assert_message() {
+    // The message cannot appear in the ABI, but we can't tell
+    // what T is going to be before monomorphization, so we can't reject.
+    let src = r#"
+        fn main() {
+            let a = &[1, 2, 3];
+            foo(f"A: {a} is not 1!");
+        }
+
+        fn foo<T>(x: T) {
+            assert(false, x);
+        }
+    "#;
+    assert_no_errors(src);
 }
