@@ -16,6 +16,7 @@
     --primitive-color: var(--struct-color);
     --sidebar-color: light-dark(#f5f5f5, #505050);
     --comment-color: light-dark(#8e908c, #8d8d8b);
+    --target-color: light-dark(#fdffd3, #494a3d);
 }
 
 body {
@@ -50,6 +51,10 @@ code {
     font-family: "Source Code Pro",monospace;
     text-wrap: auto;
     white-space: pre-wrap;
+}
+
+:target {
+    background-color: var(--target-color);
 }
 
 .code-header {
