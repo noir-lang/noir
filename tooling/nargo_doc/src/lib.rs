@@ -69,6 +69,7 @@ struct DocItemBuilder<'a> {
 enum CurrentType {
     Type(TypeId),
     Trait(TraitId),
+    PrimitiveType(PrimitiveTypeKind),
 }
 
 impl<'a> DocItemBuilder<'a> {
@@ -266,6 +267,7 @@ impl DocItemBuilder<'_> {
                         kind
                     }
                 };
+                self.current_type = Some(CurrentType::PrimitiveType(kind));
                 let impls = vecmap(primitive_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(primitive_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
@@ -279,6 +281,7 @@ impl DocItemBuilder<'_> {
                     let links = self.find_links_in_comments(&comments);
                     (comments, links)
                 });
+                self.current_type = None;
                 Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
             }
             expand_items::Item::Global(global_id) => {
@@ -717,7 +720,7 @@ impl DocItemBuilder<'_> {
 
         if let Some(current_type) = self.current_type {
             if segments.len() <= 2 && segments[0] == "Self" {
-                let method_name = segments.get(1);
+                let method_name = segments.get(1).copied();
                 match current_type {
                     CurrentType::Type(type_id) => {
                         if let Some(method_name) = method_name {
@@ -733,6 +736,44 @@ impl DocItemBuilder<'_> {
                         } else {
                             let id = self.get_trait_id(trait_id);
                             return Some(Link::TypeOrModule(id));
+                        }
+                    }
+                    CurrentType::PrimitiveType(primitive_type) => {
+                        let Some(method_name) = method_name else {
+                            return Some(Link::PrimitiveType(primitive_type));
+                        };
+
+                        // Array and Slice need special handling because they are composite types
+                        // that aren't named like they are in the docs.
+                        match primitive_type {
+                            PrimitiveTypeKind::Array => {
+                                let typ = noirc_frontend::Type::Array(
+                                    Box::new(noirc_frontend::Type::Error),
+                                    Box::new(noirc_frontend::Type::Error),
+                                );
+                                return self.primitive_type_method_link(
+                                    primitive_type,
+                                    &typ,
+                                    method_name,
+                                );
+                            }
+                            PrimitiveTypeKind::Slice => {
+                                let typ = noirc_frontend::Type::Slice(Box::new(
+                                    noirc_frontend::Type::Error,
+                                ));
+                                return self.primitive_type_method_link(
+                                    primitive_type,
+                                    &typ,
+                                    method_name,
+                                );
+                            }
+                            _ => {
+                                let name = primitive_type.to_string();
+                                return self.primitive_type_or_primitive_type_method_link(
+                                    &name,
+                                    Some(method_name),
+                                );
+                            }
                         }
                     }
                 }
@@ -751,19 +792,9 @@ impl DocItemBuilder<'_> {
             return None;
         }
 
-        let first_name = segments[0];
-        let second_name = segments.get(1);
-
-        let primitive_type = noirc_frontend::elaborator::PrimitiveType::lookup_by_name(first_name)?;
-        let doc_primitive_type = convert_primitive_type(primitive_type);
-        let Some(second_name) = second_name else {
-            return Some(Link::PrimitiveType(doc_primitive_type));
-        };
-
-        let typ = primitive_type.to_type();
-        self.interner.lookup_direct_method(&typ, second_name, false)?;
-
-        Some(Link::PrimitiveTypeFunction(doc_primitive_type, second_name.to_string()))
+        let name = segments[0];
+        let method_name = segments.get(1).copied();
+        self.primitive_type_or_primitive_type_method_link(name, method_name)
     }
 
     fn path_to_link_searching_modules(
@@ -897,6 +928,32 @@ impl DocItemBuilder<'_> {
         trait_.find_method(method_name, self.interner)?;
         let id = self.get_trait_id(trait_id);
         Some(Link::Function(id, method_name.to_string()))
+    }
+
+    fn primitive_type_or_primitive_type_method_link(
+        &self,
+        name: &str,
+        method_name: Option<&str>,
+    ) -> Option<Link> {
+        let primitive_type = noirc_frontend::elaborator::PrimitiveType::lookup_by_name(name)?;
+        let doc_primitive_type = convert_primitive_type(primitive_type);
+        let Some(method_name) = method_name else {
+            return Some(Link::PrimitiveType(doc_primitive_type));
+        };
+
+        let typ = primitive_type.to_type();
+        self.primitive_type_method_link(doc_primitive_type, &typ, method_name)
+    }
+
+    fn primitive_type_method_link(
+        &self,
+        primitive_type: PrimitiveTypeKind,
+        typ: &noirc_frontend::Type,
+        method_name: &str,
+    ) -> Option<Link> {
+        self.interner.lookup_direct_method(typ, method_name, false)?;
+
+        Some(Link::PrimitiveTypeFunction(primitive_type, method_name.to_string()))
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {
