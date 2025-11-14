@@ -393,14 +393,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         }
 
                         // We write the data to the current free memory pointer.
-                        let free_memory_pointer = self.memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
+                        let free_memory_addr = self.memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
 
                         // Store the address itself back in the destination.
-                        self.memory.write_ref(*vector_pointer, free_memory_pointer);
+                        self.memory.write_ref(*vector_pointer, free_memory_addr);
 
                         // Set the size in the size address and write the data.
                         // The RC and the capacity will be initialized in codegen after the call.
-                        let vector_address = VectorAddress::from(free_memory_pointer);
+                        let vector_address = VectorAddress::from(free_memory_addr);
                         self.memory.write(vector_address.size_addr(), values.len().into());
                         self.write_values_to_memory(
                             vector_address.items_start(),
@@ -414,7 +414,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         let total_size = offsets::VECTOR_META_COUNT + values.len();
                         self.memory.write_ref(
                             FREE_MEMORY_POINTER_ADDRESS,
-                            free_memory_pointer.offset(total_size),
+                            free_memory_addr.offset(total_size),
                         );
                     } else {
                         unimplemented!("deflattening heap vectors from foreign calls");
