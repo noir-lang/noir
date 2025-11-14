@@ -327,26 +327,27 @@ impl<F> BlackBoxFuncCall<F> {
 impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
-            BlackBoxFuncCall::Blake2s { inputs, .. }
-            | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            BlackBoxFuncCall::Blake2s { inputs, outputs: _ }
+            | BlackBoxFuncCall::Blake3 { inputs, outputs: _ }
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.to_vec(),
 
-            BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
-            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } => {
+            BlackBoxFuncCall::Keccakf1600 { inputs, outputs: _ } => inputs.to_vec(),
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs: _ } => {
                 [inputs, iv.as_slice(), key.as_slice()].concat()
             }
-            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs: _ } => {
                 [inputs.as_slice(), hash_values.as_slice()].concat()
             }
-            BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
+            BlackBoxFuncCall::AND { lhs, rhs, output: _, num_bits: _ }
+            | BlackBoxFuncCall::XOR { lhs, rhs, output: _, num_bits: _ } => {
                 vec![*lhs, *rhs]
             }
-            BlackBoxFuncCall::RANGE { input, .. } => vec![*input],
+            BlackBoxFuncCall::RANGE { input, num_bits: _ } => vec![*input],
 
-            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, .. } => {
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs: _ } => {
                 [points.as_slice(), scalars.as_slice(), &[*predicate]].concat()
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, .. } => {
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs: _ } => {
                 vec![input1[0], input1[1], input1[2], input2[0], input2[1], input2[2], *predicate]
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
