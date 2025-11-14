@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BitCounter","FieldElement"]};
+window.SIDEBAR_ITEMS = {"constant":["I128_SIGN_BOUNDARY"],"struct":["BitCounter","FieldElement"]};

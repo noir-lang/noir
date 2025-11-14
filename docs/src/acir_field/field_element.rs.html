@@ -607,7 +607,207 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
 <span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>ark_std::io::Write;
 <span class="kw">use </span>num_bigint::BigUint;
@@ -617,8 +817,12 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::AcirField;
 
-<span class="comment">// XXX: Switch out for a trait and proper implementations
-// This implementation is inefficient, can definitely remove hex usage and Iterator instances for trivial functionality
+<span class="doccomment">/// The value 2^127, which represents the boundary between positive and negative
+/// values in i128 representation. Values greater this are treated as negative when
+/// converting to signed integers.
+</span><span class="kw">const </span>I128_SIGN_BOUNDARY: u128 = <span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>;
+
+<span class="comment">// XXX: Include a trait-based design with field-specific implementations.
 </span><span class="attr">#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 </span><span class="kw">pub struct </span>FieldElement&lt;F: PrimeField&gt;(F);
 
@@ -654,22 +858,16 @@
 }
 
 <span class="kw">impl</span>&lt;F: PrimeField&gt; From&lt;i128&gt; <span class="kw">for </span>FieldElement&lt;F&gt; {
-    <span class="kw">fn </span>from(<span class="kw-2">mut </span>a: i128) -&gt; FieldElement&lt;F&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>negative = <span class="bool-val">false</span>;
-        <span class="kw">if </span>a &lt; <span class="number">0 </span>{
-            a = -a;
-            negative = <span class="bool-val">true</span>;
+    <span class="kw">fn </span>from(a: i128) -&gt; FieldElement&lt;F&gt; {
+        <span class="comment">// Optimized: Convert directly without string conversion
+        </span><span class="kw">if </span>a &gt;= <span class="number">0 </span>{
+            <span class="comment">// Positive case: convert via u128
+            </span>FieldElement(F::from(a <span class="kw">as </span>u128))
+        } <span class="kw">else </span>{
+            <span class="comment">// Negative case: handle i128::MIN specially to avoid overflow
+            </span><span class="kw">let </span>abs_value = a.wrapping_neg() <span class="kw">as </span>u128;
+            FieldElement(-F::from(abs_value))
         }
-
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="kw">match </span>F::from_str(<span class="kw-2">&amp;</span>a.to_string()) {
-            <span class="prelude-val">Ok</span>(result) =&gt; result,
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Cannot convert i128 as a string to a field element"</span>),
-        };
-
-        <span class="kw">if </span>negative {
-            result = -result;
-        }
-        FieldElement(result)
     }
 }
 
@@ -723,19 +921,38 @@
 }
 
 <span class="kw">impl</span>&lt;F: PrimeField&gt; FieldElement&lt;F&gt; {
-    <span class="kw">pub fn </span>from_repr(field: F) -&gt; <span class="self">Self </span>{
+    <span class="doccomment">/// Constructs a `FieldElement` from the underlying prime field representation.
+    ///
+    /// This wraps an `ark_ff::PrimeField` element into a `FieldElement`.
+    </span><span class="kw">pub fn </span>from_repr(field: F) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>(field)
     }
 
-    <span class="comment">// XXX: This method is used while this field element
-    // implementation is not generic.
+    <span class="doccomment">/// Extracts the underlying prime field representation.
+    ///
+    /// This returns the wrapped `ark_ff::PrimeField` element.
     </span><span class="kw">pub fn </span>into_repr(<span class="self">self</span>) -&gt; F {
         <span class="self">self</span>.<span class="number">0
     </span>}
 
-    <span class="kw">pub fn </span>fits_in_u128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="doccomment">/// Returns true if this field element can be represented as a u128.
+    ///
+    /// A field element fits in u128 if it requires at most 128 bits to represent,
+    /// i.e., if its value is in the range [0, 2^128 - 1].
+    </span><span class="kw">pub fn </span>fits_in_u128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.num_bits() &lt;= <span class="number">128
     </span>}
+
+    <span class="doccomment">/// Returns true if this field element can be represented as an i128.
+    ///
+    /// An i128 can represent values in the range [i128::MIN, i128::MAX], which corresponds
+    /// to field elements in [0, 2^127 - 1] (positive) and [p - 2^127, p - 1] (negative),
+    /// where p is the field modulus. Note that 2^127 itself cannot be represented as i128
+    /// since it is not in the negative range.
+    </span><span class="kw">pub fn </span>fits_in_i128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">let </span>num_bits = u32::min(<span class="self">self</span>.neg().num_bits(), <span class="self">self</span>.num_bits());
+        num_bits &lt;= <span class="number">127 </span>&amp;&amp; <span class="self">self </span>!= <span class="kw-2">&amp;</span>FieldElement::from(I128_SIGN_BOUNDARY)
+    }
 
     <span class="doccomment">/// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
@@ -823,6 +1040,9 @@
     }
 
     <span class="kw">fn </span>to_u128(<span class="self">self</span>) -&gt; u128 {
+        <span class="kw">if </span>!<span class="self">self</span>.fits_in_u128() {
+            <span class="macro">panic!</span>(<span class="string">"field element too large for u128"</span>);
+        }
         <span class="kw">let </span>as_bigint = <span class="self">self</span>.<span class="number">0</span>.into_bigint();
         <span class="kw">let </span>limbs = as_bigint.as_ref();
 
@@ -840,27 +1060,23 @@
     }
 
     <span class="kw">fn </span>to_i128(<span class="self">self</span>) -&gt; i128 {
-        <span class="comment">// Negative integers are represented by the range [p + i128::MIN, p) whilst
-        // positive integers are represented by the range [0, i128::MAX).
-        // We can then differentiate positive from negative values by their MSB.
-        </span><span class="kw">let </span>is_negative = <span class="self">self</span>.neg().num_bits() &lt; <span class="self">self</span>.num_bits();
-        <span class="kw">let </span>bytes = <span class="kw">if </span>is_negative { <span class="self">self</span>.neg() } <span class="kw">else </span>{ <span class="self">self </span>}.to_be_bytes();
-        i128::from_be_bytes(bytes[<span class="number">16</span>..<span class="number">32</span>].try_into().unwrap()) * <span class="kw">if </span>is_negative { -<span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>}
-    }
-    <span class="kw">fn </span>try_into_i128(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;i128&gt; {
-        <span class="comment">// Negative integers are represented by the range [p + i128::MIN, p) whilst
-        // positive integers are represented by the range [0, i128::MAX).
-        // We can then differentiate positive from negative values by their MSB.
-        </span><span class="kw">let </span>is_negative = <span class="self">self</span>.neg().num_bits() &lt; <span class="self">self</span>.num_bits();
-        <span class="kw">let </span>bytes = <span class="kw">if </span>is_negative { <span class="self">self</span>.neg() } <span class="kw">else </span>{ <span class="self">self </span>}.to_be_bytes();
-        <span class="comment">// There is data in the first 16 bytes, so it cannot be represented as an i128
-        </span><span class="kw">if </span>bytes[<span class="number">0</span>..<span class="number">16</span>].iter().any(|b| <span class="kw-2">*</span>b != <span class="number">0</span>) {
-            <span class="kw">return </span><span class="prelude-val">None</span>;
+        <span class="kw">if </span>!<span class="self">self</span>.fits_in_i128() {
+            <span class="macro">panic!</span>(<span class="string">"field element too large for i128"</span>);
         }
-        <span class="prelude-val">Some</span>(
+        <span class="comment">// Negative integers are represented by the range [p + i128::MIN, p) while
+        // positive integers are represented by the range [0, i128::MAX).
+        // We can then differentiate positive from negative values by their MSB.
+        </span><span class="kw">if </span><span class="self">self</span>.neg().num_bits() &lt; <span class="self">self</span>.num_bits() {
+            <span class="kw">let </span>bytes = <span class="self">self</span>.neg().to_be_bytes();
+            i128::from_be_bytes(bytes[<span class="number">16</span>..<span class="number">32</span>].try_into().unwrap()).neg()
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>bytes = <span class="self">self</span>.to_be_bytes();
             i128::from_be_bytes(bytes[<span class="number">16</span>..<span class="number">32</span>].try_into().unwrap())
-                * <span class="kw">if </span>is_negative { -<span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>},
-        )
+        }
+    }
+
+    <span class="kw">fn </span>try_into_i128(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;i128&gt; {
+        <span class="self">self</span>.fits_in_i128().then(|| <span class="self">self</span>.to_i128())
     }
 
     <span class="kw">fn </span>try_to_u64(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
@@ -879,9 +1095,7 @@
     }
 
     <span class="kw">fn </span>to_hex(<span class="self">self</span>) -&gt; String {
-        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-        <span class="self">self</span>.<span class="number">0</span>.serialize_uncompressed(<span class="kw-2">&amp;mut </span>bytes).unwrap();
-        bytes.reverse();
+        <span class="kw">let </span>bytes = <span class="self">self</span>.to_be_bytes();
         hex::encode(bytes)
     }
 
@@ -889,22 +1103,51 @@
         <span class="kw">if </span><span class="self">self</span>.is_zero() {
             <span class="kw">return </span><span class="string">"0x00"</span>.to_owned();
         }
-        <span class="kw">let </span><span class="kw-2">mut </span>hex = <span class="string">"0x"</span>.to_string();
-        <span class="kw">let </span>self_to_hex = <span class="self">self</span>.to_hex();
-        <span class="kw">let </span>trimmed_field = self_to_hex.trim_start_matches(<span class="string">'0'</span>);
-        <span class="kw">if </span>trimmed_field.len() % <span class="number">2 </span>!= <span class="number">0 </span>{
-            hex.push(<span class="string">'0'</span>);
+
+        <span class="comment">// Work directly with bytes
+        </span><span class="kw">let </span>bytes = <span class="self">self</span>.to_be_bytes();
+
+        <span class="comment">// Find the first non-zero byte
+        </span><span class="kw">let </span>first_nonzero = bytes.iter().position(|<span class="kw-2">&amp;</span>b| b != <span class="number">0</span>).unwrap_or(bytes.len());
+        <span class="kw">let </span>trimmed = <span class="kw-2">&amp;</span>bytes[first_nonzero..];
+
+        <span class="comment">// Build the hex string directly
+        // Pre-allocate: "0x" + at least 2 chars per byte
+        </span><span class="kw">let </span><span class="kw-2">mut </span>result = String::with_capacity(<span class="number">2 </span>+ trimmed.len() * <span class="number">2</span>);
+        result.push_str(<span class="string">"0x"</span>);
+
+        <span class="comment">// Format the first byte - use {:x} to avoid leading zero if byte &gt;= 0x10
+        </span><span class="kw">use </span>std::fmt::Write;
+        <span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>result, <span class="string">"{:x}"</span>, trimmed[<span class="number">0</span>]).unwrap();
+
+        <span class="comment">// Ensure even length by padding if necessary
+        </span><span class="kw">if </span>result.len() % <span class="number">2 </span>!= <span class="number">0 </span>{
+            <span class="comment">// Insert '0' after "0x" to make it even
+            </span>result.insert(<span class="number">2</span>, <span class="string">'0'</span>);
         }
-        hex.push_str(trimmed_field);
-        hex
+
+        <span class="comment">// Format remaining bytes with padding
+        </span><span class="kw">for </span>byte <span class="kw">in </span><span class="kw-2">&amp;</span>trimmed[<span class="number">1</span>..] {
+            <span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>result, <span class="string">"{byte:02x}"</span>).unwrap();
+        }
+
+        result
     }
 
     <span class="kw">fn </span>from_hex(hex_str: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;FieldElement&lt;F&gt;&gt; {
         <span class="kw">let </span>value = hex_str.strip_prefix(<span class="string">"0x"</span>).unwrap_or(hex_str);
-        <span class="comment">// Values of odd length require an additional "0" prefix
-        </span><span class="kw">let </span>sanitized_value =
-            <span class="kw">if </span>value.len() % <span class="number">2 </span>== <span class="number">0 </span>{ value.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"0{value}"</span>) };
-        <span class="kw">let </span>hex_as_bytes = hex::decode(sanitized_value).ok()<span class="question-mark">?</span>;
+
+        <span class="comment">// Decode directly, handling even length efficiently
+        </span><span class="kw">let </span>hex_as_bytes = <span class="kw">if </span>value.len() % <span class="number">2 </span>== <span class="number">0 </span>{
+            hex::decode(value).ok()<span class="question-mark">?
+        </span>} <span class="kw">else </span>{
+            <span class="comment">// For odd length, prepend '0' to the string view only for decoding
+            </span><span class="kw">let </span><span class="kw-2">mut </span>padded = String::with_capacity(value.len() + <span class="number">1</span>);
+            padded.push(<span class="string">'0'</span>);
+            padded.push_str(value);
+            hex::decode(padded).ok()<span class="question-mark">?
+        </span>};
+
         <span class="prelude-val">Some</span>(FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>hex_as_bytes))
     }
 
@@ -943,10 +1186,9 @@
         <span class="kw">let </span>num_bytes = nearest_bytes(num_bits);
         <span class="kw">let </span>num_elements = num_bytes / <span class="number">8</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bytes = <span class="self">self</span>.to_be_bytes();
-        bytes.reverse(); <span class="comment">// put it in big endian format. XXX(next refactor): we should be explicit about endianness.
+        <span class="kw">let </span>bytes = <span class="self">self</span>.to_le_bytes();
 
-        </span>bytes[<span class="number">0</span>..num_elements].to_vec()
+        bytes[<span class="number">0</span>..num_elements].to_vec()
     }
 }
 
@@ -975,7 +1217,7 @@
 <span class="kw">impl</span>&lt;F: PrimeField&gt; Add <span class="kw">for </span>FieldElement&lt;F&gt; {
     <span class="kw">type </span>Output = FieldElement&lt;F&gt;;
     <span class="kw">fn </span>add(<span class="kw-2">mut </span><span class="self">self</span>, rhs: FieldElement&lt;F&gt;) -&gt; <span class="self">Self</span>::Output {
-        <span class="self">self</span>.<span class="number">0</span>.add_assign(<span class="kw-2">&amp;</span>rhs.<span class="number">0</span>);
+        <span class="self">self</span>.add_assign(rhs);
         FieldElement(<span class="self">self</span>.<span class="number">0</span>)
     }
 }
@@ -988,7 +1230,7 @@
 <span class="kw">impl</span>&lt;F: PrimeField&gt; Sub <span class="kw">for </span>FieldElement&lt;F&gt; {
     <span class="kw">type </span>Output = FieldElement&lt;F&gt;;
     <span class="kw">fn </span>sub(<span class="kw-2">mut </span><span class="self">self</span>, rhs: FieldElement&lt;F&gt;) -&gt; <span class="self">Self</span>::Output {
-        <span class="self">self</span>.<span class="number">0</span>.sub_assign(<span class="kw-2">&amp;</span>rhs.<span class="number">0</span>);
+        <span class="self">self</span>.sub_assign(rhs);
         FieldElement(<span class="self">self</span>.<span class="number">0</span>)
     }
 }
@@ -1077,6 +1319,164 @@
         <span class="kw">let </span>big_field = field + FieldElement::one();
         <span class="macro">assert_eq!</span>(big_field.num_bits(), <span class="number">129</span>);
         <span class="macro">assert!</span>(!big_field.fits_in_u128());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_to_u128_basic() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Test zero
+        </span><span class="macro">assert_eq!</span>(F::zero().to_u128(), <span class="number">0</span>);
+
+        <span class="comment">// Test small values
+        </span><span class="macro">assert_eq!</span>(F::from(<span class="number">1_u128</span>).to_u128(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">42_u128</span>).to_u128(), <span class="number">42</span>);
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">1000_u128</span>).to_u128(), <span class="number">1000</span>);
+
+        <span class="comment">// Test u128::MAX
+        </span><span class="macro">assert_eq!</span>(F::from(u128::MAX).to_u128(), u128::MAX);
+
+        <span class="comment">// Test power of 2 boundaries
+        </span><span class="macro">assert_eq!</span>(F::from(<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>).to_u128(), <span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>);
+        <span class="macro">assert_eq!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) - <span class="number">1</span>).to_u128(), (<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) - <span class="number">1</span>);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"field element too large for u128"</span>)]
+    </span><span class="kw">fn </span>test_to_u128_panics_on_overflow() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Create a field element larger than u128::MAX
+        </span><span class="kw">let </span>too_large = F::from(u128::MAX) + F::one();
+        too_large.to_u128(); <span class="comment">// Should panic
+    </span>}
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_try_into_u128() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Valid conversions
+        </span><span class="macro">assert_eq!</span>(F::zero().try_into_u128(), <span class="prelude-val">Some</span>(<span class="number">0</span>));
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">42_u128</span>).try_into_u128(), <span class="prelude-val">Some</span>(<span class="number">42</span>));
+        <span class="macro">assert_eq!</span>(F::from(u128::MAX).try_into_u128(), <span class="prelude-val">Some</span>(u128::MAX));
+
+        <span class="comment">// Invalid conversion
+        </span><span class="kw">let </span>too_large = F::from(u128::MAX) + F::one();
+        <span class="macro">assert_eq!</span>(too_large.try_into_u128(), <span class="prelude-val">None</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_fits_in_i128() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Positive values that fit
+        </span><span class="macro">assert!</span>(F::zero().fits_in_i128());
+        <span class="macro">assert!</span>(F::from(<span class="number">1_i128</span>).fits_in_i128());
+        <span class="macro">assert!</span>(F::from(<span class="number">42_i128</span>).fits_in_i128());
+        <span class="macro">assert!</span>(F::from(i128::MAX).fits_in_i128());
+
+        <span class="comment">// Negative values that fit (except i128::MIN)
+        </span><span class="macro">assert!</span>(F::from(-<span class="number">1_i128</span>).fits_in_i128());
+        <span class="macro">assert!</span>(F::from(-<span class="number">42_i128</span>).fits_in_i128());
+        <span class="macro">assert!</span>(F::from(i128::MIN + <span class="number">1</span>).fits_in_i128());
+
+        <span class="comment">// Boundary: 2^127 - 1 fits (i128::MAX)
+        </span><span class="macro">assert!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) - <span class="number">1</span>).fits_in_i128());
+
+        <span class="comment">// Boundary: 2^127 does NOT fit (exceeds i128::MAX, not negative)
+        // Note: This also means i128::MIN doesn't fit, as it converts to a field element
+        // that when interpreted as unsigned equals 2^127
+        </span><span class="macro">assert!</span>(!F::from(<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>).fits_in_i128());
+        <span class="macro">assert!</span>(!F::from(i128::MIN).fits_in_i128());
+
+        <span class="comment">// Values that don't fit
+        </span><span class="kw">let </span>too_large = F::from(u128::MAX);
+        <span class="macro">assert!</span>(!too_large.fits_in_i128());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_to_i128_positive() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Test positive values
+        </span><span class="macro">assert_eq!</span>(F::zero().to_i128(), <span class="number">0</span>);
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">1_i128</span>).to_i128(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">42_i128</span>).to_i128(), <span class="number">42</span>);
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">1000_i128</span>).to_i128(), <span class="number">1000</span>);
+        <span class="macro">assert_eq!</span>(F::from(i128::MAX).to_i128(), i128::MAX);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_to_i128_negative() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Test negative values
+        </span><span class="macro">assert_eq!</span>(F::from(-<span class="number">1_i128</span>).to_i128(), -<span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(F::from(-<span class="number">42_i128</span>).to_i128(), -<span class="number">42</span>);
+        <span class="macro">assert_eq!</span>(F::from(-<span class="number">1000_i128</span>).to_i128(), -<span class="number">1000</span>);
+
+        <span class="comment">// Test boundary values
+        </span><span class="macro">assert_eq!</span>(F::from(-i128::MAX).to_i128(), -i128::MAX);
+        <span class="macro">assert_eq!</span>(F::from(i128::MIN + <span class="number">1</span>).to_i128(), i128::MIN + <span class="number">1</span>);
+
+        <span class="comment">// i128::MIN doesn't fit
+    </span>}
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_to_i128_roundtrip() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Test roundtrip for various values
+        // i128::MIN doesn't fit
+        </span><span class="kw">let </span>test_values =
+            <span class="macro">vec!</span>[<span class="number">0_i128</span>, <span class="number">1</span>, -<span class="number">1</span>, <span class="number">42</span>, -<span class="number">42</span>, i128::MAX, i128::MAX - <span class="number">1</span>, i128::MIN + <span class="number">1</span>, -i128::MAX];
+
+        <span class="kw">for </span>value <span class="kw">in </span>test_values {
+            <span class="kw">let </span>field = F::from(value);
+            <span class="macro">assert!</span>(field.fits_in_i128(), <span class="string">"Value {value} should fit in i128"</span>);
+            <span class="macro">assert_eq!</span>(field.to_i128(), value, <span class="string">"Roundtrip failed for {value}"</span>);
+        }
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"field element too large for i128"</span>)]
+    </span><span class="kw">fn </span>test_to_i128_panics_on_positive_overflow() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// 2^127 is too large (exceeds i128::MAX)
+        </span><span class="kw">let </span>too_large = F::from(<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>);
+        too_large.to_i128(); <span class="comment">// Should panic
+    </span>}
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"field element too large for i128"</span>)]
+    </span><span class="kw">fn </span>test_to_i128_panics_on_large_value() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Large positive value that doesn't fit
+        </span><span class="kw">let </span>too_large = F::from(u128::MAX);
+        too_large.to_i128(); <span class="comment">// Should panic
+    </span>}
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_try_into_i128() {
+        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+
+        <span class="comment">// Valid positive conversions
+        </span><span class="macro">assert_eq!</span>(F::zero().try_into_i128(), <span class="prelude-val">Some</span>(<span class="number">0</span>));
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">42_i128</span>).try_into_i128(), <span class="prelude-val">Some</span>(<span class="number">42</span>));
+        <span class="macro">assert_eq!</span>(F::from(i128::MAX).try_into_i128(), <span class="prelude-val">Some</span>(i128::MAX));
+
+        <span class="comment">// Valid negative conversions
+        </span><span class="macro">assert_eq!</span>(F::from(-<span class="number">1_i128</span>).try_into_i128(), <span class="prelude-val">Some</span>(-<span class="number">1</span>));
+        <span class="macro">assert_eq!</span>(F::from(-<span class="number">42_i128</span>).try_into_i128(), <span class="prelude-val">Some</span>(-<span class="number">42</span>));
+        <span class="macro">assert_eq!</span>(F::from(i128::MIN + <span class="number">1</span>).try_into_i128(), <span class="prelude-val">Some</span>(i128::MIN + <span class="number">1</span>));
+
+        <span class="comment">// Invalid conversions
+        </span><span class="macro">assert_eq!</span>(F::from(<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>).try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(F::from(u128::MAX).try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="comment">// i128::MIN doesn't fit due to implementation
+        </span><span class="macro">assert_eq!</span>(F::from(i128::MIN).try_into_i128(), <span class="prelude-val">None</span>);
     }
 
     <span class="attr">#[test]

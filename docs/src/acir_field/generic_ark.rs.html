@@ -308,7 +308,8 @@
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 
 <span class="doccomment">/// This trait is extremely unstable and WILL have breaking changes.
 </span><span class="kw">pub trait </span>AcirField:
@@ -363,14 +364,15 @@
     </span><span class="kw">fn </span>num_bits(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32;
 
     <span class="doccomment">/// Downcast the field into a `u128`.
-    ///
-    /// If the value does not fit, it is truncated.
+    /// Panic if the value does not fit
     </span><span class="kw">fn </span>to_u128(<span class="self">self</span>) -&gt; u128;
 
     <span class="doccomment">/// Downcast the field into a `u128` if it fits into 128 bits, otherwise return `None`.
     </span><span class="kw">fn </span>try_into_u128(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u128&gt;;
 
-    <span class="kw">fn </span>to_i128(<span class="self">self</span>) -&gt; i128;
+    <span class="doccomment">/// Downcast the field into a `i128`.
+    /// Panic if the value does not fit
+    </span><span class="kw">fn </span>to_i128(<span class="self">self</span>) -&gt; i128;
 
     <span class="kw">fn </span>try_into_i128(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;i128&gt;;
 

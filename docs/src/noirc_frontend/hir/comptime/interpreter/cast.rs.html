@@ -273,19 +273,7 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
-
-<span class="kw">use </span>acvm::{AcirField, FieldElement};
-<span class="kw">use </span>noirc_errors::Location;
+<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -294,6 +282,8 @@
     shared::Signedness,
     signed_field::SignedField,
 };
+<span class="kw">use </span>acvm::{AcirField, FieldElement, acir::acir_field::truncate_to};
+<span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">fn </span>bit_size(typ: <span class="kw-2">&amp;</span>Type) -&gt; u32 {
     <span class="kw">match </span>typ {
@@ -350,15 +340,7 @@
 
 <span class="kw">fn </span>perform_cast(kind: CastType, lhs: FieldElement) -&gt; FieldElement {
     <span class="kw">match </span>kind {
-        CastType::Truncate { new_bit_size } =&gt; {
-            <span class="comment">// This performs a truncation to u128 but all types should be &lt;= 128 bits anyway
-            </span><span class="kw">let </span>lhs = lhs.to_u128();
-            <span class="kw">if </span>new_bit_size == <span class="number">128 </span>{
-                <span class="kw">return </span>lhs.into();
-            }
-            <span class="kw">let </span>mask = <span class="number">2u128</span>.pow(new_bit_size) - <span class="number">1</span>;
-            FieldElement::from(lhs &amp; mask)
-        }
+        CastType::Truncate { new_bit_size } =&gt; truncate_to(<span class="kw-2">&amp;</span>lhs, new_bit_size),
         CastType::SignExtend { old_bit_size, new_bit_size } =&gt; {
             <span class="macro">assert!</span>(new_bit_size &lt;= <span class="number">128</span>);
             <span class="kw">let </span>max_positive_value = <span class="number">2u128</span>.pow(old_bit_size - <span class="number">1</span>) - <span class="number">1</span>;
