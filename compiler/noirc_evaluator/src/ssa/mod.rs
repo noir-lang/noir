@@ -156,7 +156,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Inlining",
         ),
         // Run mem2reg with the CFG separated into blocks
-        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
         SsaPass::new(
@@ -216,6 +215,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
         ),
+        // Wait until after unrolling to run mem2reg simple
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
         SsaPass::new(Ssa::make_constrain_not_equal, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
