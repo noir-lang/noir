@@ -69,7 +69,7 @@
 //! - Indices 6-8: element 2's three fields (Field at 14, [Field; 3] at 15, [Field; 3] at 18)
 //! - Indices 9-11: element 3's three fields (Field at 21, [Field; 3] at 22, [Field; 3] at 25)
 //!
-//! We use the SSA index directly to look up element_type_sizes[index] to get the flat starting offset.
+//! We use the SSA index directly to look up `element_type_sizes[index]` to get the flat starting offset.
 //! We then use the resulting type to increment the index appropriately and fetch every element.
 //!
 //! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
