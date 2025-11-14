@@ -37,7 +37,7 @@ use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stac
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    brillig_vm::STACK_POINTER_ADDRESS,
+    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS},
 };
 use debug_show::DebugShow;
 
@@ -71,7 +71,7 @@ impl ReservedRegisters {
     /// This represents the heap, and we make sure during entry point generation that it is initialized
     /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::direct(1)
+        FREE_MEMORY_POINTER_ADDRESS
     }
 
     /// This register stores a 1_usize constant.

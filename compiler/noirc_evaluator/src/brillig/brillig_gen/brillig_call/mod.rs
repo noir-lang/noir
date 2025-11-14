@@ -47,7 +47,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) -> Vec<BrilligVariable> {
         let mut variables = Vec::new();
-        let mut vector_allocated = false;
 
         for result in results {
             let result = *result;
@@ -69,10 +68,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     );
                     let array = variable.extract_array();
 
-                    assert!(
-                        !vector_allocated,
-                        "a vector of unknown length has already been allocated at the free memory pointer"
-                    );
                     self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                     variable
@@ -84,18 +79,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         result,
                         dfg,
                     );
-                    let vector = variable.extract_vector();
-
-                    // Set the pointer to the current free memory pointer.
-                    // The free memory pointer will then be updated by the caller of this method,
-                    // once the external call is resolved and the vector size is known.
-                    assert!(
-                        !vector_allocated,
-                        "a previous vector has already been allocated at the free memory pointer"
-                    );
-                    vector_allocated = true;
-                    self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
-
+                    // Not initializing the vector pointer to any particular value; it's output only:
+                    // * We shall pass the free memory pointer (after any remaining) arrays have been allocated, via the foreign call opcode.
+                    // * The foreign call handler:
+                    //      * writes any vectors starting at foreign call pointer, one after the other
+                    //      * writes the address of where the vector was written back into the memory address allocated here
+                    // * The caller of this method generates code to update the free memory pointer after the call:
+                    //   read the vectors' metadata from the heap, and extend the free memory by their total size
                     variable
                 }
                 _ => {
