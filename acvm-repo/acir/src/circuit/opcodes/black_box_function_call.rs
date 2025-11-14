@@ -336,7 +336,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 [inputs, iv.as_slice(), key.as_slice()].concat()
             }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
-                inputs.iter().chain(hash_values.as_ref()).copied().collect()
+                [inputs.as_slice(), hash_values.as_slice()].concat()
             }
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
@@ -344,12 +344,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::RANGE { input, .. } => vec![*input],
 
             BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, .. } => {
-                let mut inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(points.len() + scalars.len());
-                inputs.extend(points.iter().copied());
-                inputs.extend(scalars.iter().copied());
-                inputs.push(*predicate);
-                inputs
+                [points.as_slice(), scalars.as_slice(), &[*predicate]].concat()
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, .. } => {
                 vec![input1[0], input1[1], input1[2], input2[0], input2[1], input2[2], *predicate]
@@ -361,20 +356,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 hashed_message,
                 predicate,
                 output: _,
-            } => {
-                let mut inputs = Vec::with_capacity(
-                    public_key_x.len()
-                        + public_key_y.len()
-                        + signature.len()
-                        + hashed_message.len(),
-                );
-                inputs.extend(public_key_x.iter().copied());
-                inputs.extend(public_key_y.iter().copied());
-                inputs.extend(signature.iter().copied());
-                inputs.extend(hashed_message.iter().copied());
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [
+                public_key_x.as_slice(),
+                public_key_y.as_slice(),
+                signature.as_slice(),
+                hashed_message.as_slice(),
+                &[*predicate],
+            ]
+            .concat(),
             BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
                 public_key_y,
@@ -382,20 +371,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 hashed_message,
                 predicate,
                 output: _,
-            } => {
-                let mut inputs = Vec::with_capacity(
-                    public_key_x.len()
-                        + public_key_y.len()
-                        + signature.len()
-                        + hashed_message.len(),
-                );
-                inputs.extend(public_key_x.iter().copied());
-                inputs.extend(public_key_y.iter().copied());
-                inputs.extend(signature.iter().copied());
-                inputs.extend(hashed_message.iter().copied());
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [
+                public_key_x.as_slice(),
+                public_key_y.as_slice(),
+                signature.as_slice(),
+                hashed_message.as_slice(),
+                &[*predicate],
+            ]
+            .concat(),
             BlackBoxFuncCall::RecursiveAggregation {
                 verification_key: key,
                 proof,
@@ -403,15 +386,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 key_hash,
                 proof_type: _,
                 predicate,
-            } => {
-                let mut inputs = Vec::new();
-                inputs.extend(key.iter().copied());
-                inputs.extend(proof.iter().copied());
-                inputs.extend(public_inputs.iter().copied());
-                inputs.push(*key_hash);
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [key.as_slice(), proof, public_inputs, &[*key_hash], &[*predicate]].concat(),
         }
     }
 
