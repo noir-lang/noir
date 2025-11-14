@@ -556,46 +556,74 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) => vec![Token::Bool(bool)],
-            Value::U1(bool) => vec![Token::Int(u128::from(bool).into(), None)],
+            Value::U1(bool) => {
+                vec![Token::Int(u128::from(bool).into(), Some(IntegerTypeSuffix::U1))]
+            }
             Value::U8(value) => {
-                vec![Token::Int(u128::from(value).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U8))]
             }
             Value::U16(value) => {
-                vec![Token::Int(u128::from(value).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U16))]
             }
             Value::U32(value) => {
-                vec![Token::Int(u128::from(value).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U32))]
             }
             Value::U64(value) => {
-                vec![Token::Int(u128::from(value).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U64))]
             }
-            Value::U128(value) => vec![Token::Int(value.into(), None)],
+            Value::U128(value) => {
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U128))]
+            }
             Value::I8(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I8),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I8))]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I16),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I16))]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I32),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I32))]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I64),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I64))]
                 }
             }
             Value::Field(value) => {
@@ -604,6 +632,9 @@ impl Value {
                 } else {
                     vec![Token::Int(value.absolute_value(), None)]
                 }
+            }
+            Value::String(value) | Value::CtString(value) | Value::FormatString(value, _) => {
+                vec![Token::Str(unwrap_rc(value))]
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };

@@ -176,7 +176,10 @@ use crate::{
         Ident, ItemVisibility, NoirFunction, Path, TraitBound, TraitItem, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::{PathResolutionMode, PathResolutionTarget, path_resolution::PathResolutionItem},
+    elaborator::{
+        PathResolutionMode, PathResolutionTarget, WildcardDisallowedContext,
+        path_resolution::PathResolutionItem, types::WildcardAllowed,
+    },
     hir::{
         def_collector::dc_crate::UnresolvedTrait,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -199,7 +202,7 @@ impl Elaborator<'_> {
     /// 4. Resolves the trait's bounds (its listed super traits).
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.local_module = unresolved_trait.module_id;
+            self.local_module = Some(unresolved_trait.module_id);
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
@@ -277,7 +280,7 @@ impl Elaborator<'_> {
     /// method bodies are not elaborated.
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.local_module = unresolved_trait.module_id;
+            self.local_module = Some(unresolved_trait.module_id);
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
@@ -351,7 +354,7 @@ impl Elaborator<'_> {
             return Vec::new();
         };
 
-        let the_trait = self.get_trait_mut(trait_id);
+        let the_trait = self.get_trait(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
             let trait_name = the_trait.name.to_string();
@@ -456,7 +459,7 @@ impl Elaborator<'_> {
         let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitBound);
 
         let (ordered, named) = self.resolve_type_args_inner(
             bound.trait_generics.clone(),
@@ -548,7 +551,7 @@ impl Elaborator<'_> {
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitConstraint);
         let typ = self.resolve_type(constraint.typ.clone(), wildcard_allowed);
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
@@ -609,7 +612,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
-        self.local_module = unresolved_trait.module_id;
+        self.local_module = Some(unresolved_trait.module_id);
 
         let mut functions = vec![];
 

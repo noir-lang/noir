@@ -9,10 +9,12 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
-use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
+use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem};
+use crate::hir_def::expr::{
+    HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
+};
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 use crate::{Kind, Type, TypeBindings};
@@ -58,16 +60,7 @@ impl Elaborator<'_> {
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::default();
-
-        // Resolve any generics if we the variable we have resolved is a function
-        // and if the turbofish operator was used.
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
-            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
-        } else {
-            None
-        };
-
-        if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -90,7 +83,13 @@ impl Elaborator<'_> {
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
                 }
             }
-        }
+
+            // Resolve any generics if the variable we have resolved is a function
+            // and if the turbofish operator was used.
+            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
+        } else {
+            None
+        };
 
         let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
 
@@ -189,6 +188,16 @@ impl Elaborator<'_> {
                     },
                     trait_path_resolution.item,
                 ),
+
+                TraitPathResolutionMethod::MultipleTraitsInScope => {
+                    // An error has already been pushed, return a dummy identifier
+                    let hir_ident = HirIdent {
+                        location: path.location,
+                        id: DefinitionId::dummy_id(),
+                        impl_kind: ImplKind::NotATraitMethod,
+                    };
+                    (hir_ident, trait_path_resolution.item)
+                }
             };
         }
 
@@ -291,7 +300,7 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(path.typ, wildcard_allowed);
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
@@ -330,10 +339,15 @@ impl Elaborator<'_> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitItemId(definition, trait_id, generics, _) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed: _,
+            }) => {
                 let mut constraint =
                     self.interner.get_trait(trait_id).as_constraint(ident_location);
-                constraint.trait_bound.trait_generics = generics;
+                constraint.trait_bound.trait_generics = trait_generics;
                 ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };

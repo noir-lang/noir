@@ -16,7 +16,10 @@ use crate::{
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::lints,
+    elaborator::{
+        lints,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
         resolution::errors::ResolverError,
@@ -71,7 +74,7 @@ impl Elaborator<'_> {
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
         for (local_module, id, func) in &mut function_set.functions {
-            self.local_module = *local_module;
+            self.local_module = Some(*local_module);
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None, extra_constraints);
             });
@@ -86,14 +89,14 @@ impl Elaborator<'_> {
         local_module: crate::hir::def_map::LocalModuleId,
         function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
     ) {
-        self.local_module = local_module;
+        self.local_module = Some(local_module);
 
         for (generics, _, function_set) in function_sets {
             // Prepare the impl
             // Adds the impl generics to the generics state and resolve the impl's self type
             self.add_generics(generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
             function_set.self_type = Some(self_type.clone());
             self.self_type = Some(self_type);
@@ -171,7 +174,7 @@ impl Elaborator<'_> {
             self.resolve_function_parameters(func, &mut generics, &mut trait_constraints);
 
         // Resolve return type
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
         let is_entry_point = func.is_entry_point(self.is_function_in_contract());
@@ -240,7 +243,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.local_module,
+            source_module: self.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.self_type.clone(),
             source_file: location.file,
@@ -323,7 +326,7 @@ impl Elaborator<'_> {
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {
@@ -453,7 +456,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = func_meta.source_module;
+        self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
 
@@ -496,9 +499,9 @@ impl Elaborator<'_> {
             | FunctionKind::LowLevel
             | FunctionKind::TraitFunctionWithoutBody => {
                 if !body.statements.is_empty() {
-                    panic!(
-                        "Builtin, low-level, and trait function declarations cannot have a body"
-                    );
+                    self.push_err(ResolverError::BuiltinWithBody {
+                        location: func_meta.name.location,
+                    });
                 }
                 (HirFunction::empty(), Type::Error)
             }

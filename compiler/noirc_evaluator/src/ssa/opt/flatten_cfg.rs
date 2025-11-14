@@ -139,7 +139,6 @@
 //!   enable_side_effects u1 1
 //!   ... b3 instructions ...
 //! ```
-use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -286,12 +285,8 @@ struct ConditionalBranch {
     ///
     /// It starts out empty, then gets filled in when we finish the branch.
     last_block: Option<BasicBlockId>,
-    /// The unresolved condition of the branch
-    old_condition: ValueId,
     /// The resolved condition of the branch, AND-ed with all outer branch conditions.
     condition: ValueId,
-    /// The allocations accumulated before processing the branch.
-    local_allocations: HashSet<ValueId>,
 }
 
 struct ConditionalContext {
@@ -313,6 +308,8 @@ struct ConditionalContext {
     ///
     /// We use this information to reset the values to their originals when we exit from branches.
     predicated_values: HashMap<ValueId, ValueId>,
+    /// The allocations accumulated before processing the branch.
+    local_allocations: HashSet<ValueId>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -390,9 +387,8 @@ impl<'f> Context<'f> {
     /// it is 'AND-ed' with the previous condition (if any)
     fn link_condition(&mut self, condition: ValueId) -> ValueId {
         // Retrieve the previous condition
-        if let Some(context) = self.condition_stack.last() {
-            let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
-            let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
+        if let Some(last_condition) = self.get_last_condition() {
+            let and = Instruction::binary(BinaryOp::And, last_condition, condition);
             let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
             self.insert_instruction(and, call_stack)
         } else {
@@ -572,19 +568,15 @@ impl<'f> Context<'f> {
         if_entry: &BasicBlockId,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
-        // manage conditions
-        let old_condition = *condition;
-        let then_condition = self.inserter.resolve(old_condition);
+        let then_condition = self.inserter.resolve(*condition);
 
         // Take the current allocations: everything for the new branch is non-local.
-        let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
-            old_condition,
             condition: self.link_condition(then_condition),
             // To be filled in by `then_stop`.
             last_block: None,
-            local_allocations: old_allocations,
         };
+        let local_allocations = std::mem::take(&mut self.local_allocations);
         let cond_context = ConditionalContext {
             condition: then_condition,
             entry_block: *if_entry,
@@ -593,6 +585,7 @@ impl<'f> Context<'f> {
             else_branch: None,
             call_stack,
             predicated_values: HashMap::default(),
+            local_allocations,
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -627,13 +620,7 @@ impl<'f> Context<'f> {
         let else_condition = self.link_condition(else_condition);
 
         // Pass on the local allocations that came before the 'then_branch' to the 'else_branch'.
-        let old_allocations = std::mem::take(&mut cond_context.then_branch.local_allocations);
-        let else_branch = ConditionalBranch {
-            old_condition: cond_context.then_branch.old_condition,
-            condition: else_condition,
-            last_block: None,
-            local_allocations: old_allocations,
-        };
+        let else_branch = ConditionalBranch { condition: else_condition, last_block: None };
         // All local allocations on the stopped 'then_branch' go out of scope.
         self.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
@@ -673,7 +660,7 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
-        self.reset_local_allocations(&mut else_branch);
+        self.local_allocations = std::mem::take(&mut cond_context.local_allocations);
         else_branch.last_block = Some(*block);
         cond_context.else_branch = Some(else_branch);
 
@@ -727,10 +714,8 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let else_condition = if let Some(branch) = cond_context.else_branch {
-            branch.condition
-        } else {
-            self.inserter.function.dfg.make_constant(FieldElement::zero(), NumericType::bool())
+        let Some(else_branch) = cond_context.else_branch else {
+            unreachable!("malformed branch");
         };
         let block = self.target_block;
 
@@ -739,7 +724,7 @@ impl<'f> Context<'f> {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
-                else_condition,
+                else_condition: else_branch.condition,
                 else_value: else_arg,
             };
             let call_stack = cond_context.call_stack;
@@ -771,11 +756,6 @@ impl<'f> Context<'f> {
         for (value, old_mapping) in conditional_context.predicated_values.drain() {
             self.inserter.map_value(value, old_mapping);
         }
-    }
-
-    /// Restore the previously known local allocations after a branch is finished.
-    fn reset_local_allocations(&mut self, conditional_branch: &mut ConditionalBranch) {
-        self.local_allocations = std::mem::take(&mut conditional_branch.local_allocations);
     }
 
     /// Insert a new instruction into the target block.
@@ -1020,126 +1000,22 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> Vec<ValueId> {
         match blackbox {
-            //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
-            // If inputs are distinct curve points, then so is their predicate version.
-            // If inputs are identical (point doubling), then so is their predicate version
-            // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
             BlackBoxFunc::EmbeddedCurveAdd => {
-                #[cfg(feature = "bn254")]
-                {
-                    let generators = Self::grumpkin_generators();
-                    // Convert the generators to ValueId
-                    let generators = generators
-                        .iter()
-                        .map(|v| {
-                            self.inserter.function.dfg.make_constant(*v, NumericType::NativeField)
-                        })
-                        .collect::<Vec<ValueId>>();
-                    let (point1_x, point2_x) = self.predicate_argument(
-                        &arguments,
-                        &generators,
-                        true,
-                        condition,
-                        call_stack,
-                    );
-                    let (point1_y, point2_y) = self.predicate_argument(
-                        &arguments,
-                        &generators,
-                        false,
-                        condition,
-                        call_stack,
-                    );
-                    arguments[0] = point1_x;
-                    arguments[1] = point1_y;
-                    arguments[3] = point2_x;
-                    arguments[4] = point2_y;
-                }
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
-                arguments[5] = self.mul_by_condition(arguments[5], condition, call_stack);
+                arguments[6] = self.mul_by_condition(arguments[6], condition, call_stack);
                 arguments
             }
 
-            // For MSM, we also ensure the inputs are on the curve if the predicate is false.
             BlackBoxFunc::MultiScalarMul => {
-                let (elements, typ) =
-                    self.apply_predicate_to_msm_argument(arguments[0], condition, call_stack);
-                let instruction = Instruction::MakeArray { elements, typ };
-                let array = self.insert_instruction(instruction, call_stack);
-                arguments[0] = array;
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
                 arguments[2] = self.mul_by_condition(arguments[2], condition, call_stack);
                 arguments
             }
 
-            // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
-            // the public key doesn't not sit on the relevant curve.
-            //
-            // We then replace the public key with the generator point if the constraint is inactive to avoid
-            // invalid public keys from causing constraints to fail.
-            BlackBoxFunc::EcdsaSecp256k1 => {
-                // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
-                const GENERATOR_X: [u8; 32] = [
-                    0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce,
-                    0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9, 0x59, 0xf2,
-                    0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
-                ];
-                const GENERATOR_Y: [u8; 32] = [
-                    0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb, 0xfc, 0x0e,
-                    0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19, 0x9c, 0x47,
-                    0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
-                ];
-
-                arguments[0] = self.merge_with_array_constant(
-                    arguments[0],
-                    GENERATOR_X,
-                    condition,
-                    call_stack,
-                );
-                arguments[1] = self.merge_with_array_constant(
-                    arguments[1],
-                    GENERATOR_Y,
-                    condition,
-                    call_stack,
-                );
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
-                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
-                arguments
-            }
-            BlackBoxFunc::EcdsaSecp256r1 => {
-                // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
-                const GENERATOR_X: [u8; 32] = [
-                    0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5, 0x63,
-                    0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1,
-                    0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
-                ];
-                const GENERATOR_Y: [u8; 32] = [
-                    0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a, 0x7c,
-                    0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6,
-                    0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
-                ];
-
-                arguments[0] = self.merge_with_array_constant(
-                    arguments[0],
-                    GENERATOR_X,
-                    condition,
-                    call_stack,
-                );
-                arguments[1] = self.merge_with_array_constant(
-                    arguments[1],
-                    GENERATOR_Y,
-                    condition,
-                    call_stack,
-                );
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
                 arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
-            // TODO: https://github.com/noir-lang/noir/issues/8998
+            // The predicate is injected in ACIRgen so no modification is needed here.
             BlackBoxFunc::RecursiveAggregation => arguments,
 
             // These functions will always be satisfiable no matter the input so no modification is needed.
@@ -1155,91 +1031,6 @@ impl<'f> Context<'f> {
             BlackBoxFunc::RANGE => {
                 unreachable!("RANGE should have been converted into `Instruction::RangeCheck`")
             }
-        }
-    }
-
-    #[cfg(feature = "bn254")]
-    fn grumpkin_generators() -> Vec<FieldElement> {
-        let g1_x = FieldElement::from_hex("0x01").unwrap();
-        let g1_y =
-            FieldElement::from_hex("0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c").unwrap();
-        let g2_x = FieldElement::from_hex(
-            "0x06ce1b0827aafa85ddeb49cdaa36306d19a74caa311e13d46d8bc688cdbffffe",
-        )
-        .unwrap();
-        let g2_y = FieldElement::from_hex(
-            "0x1c122f81a3a14964909ede0ba2a6855fc93faf6fa1a788bf467be7e7a43f80ac",
-        )
-        .unwrap();
-        vec![g1_x, g1_y, g2_x, g2_y]
-    }
-
-    /// Merges the given array with a constant array of 32 elements of type `u8`.
-    ///
-    /// This is expected to be used for the ECDSA secp256k1 and secp256r1 generators,
-    /// where the x and y coordinates of the generators are constant values.
-    fn merge_with_array_constant(
-        &mut self,
-        array: ValueId,
-        constant: [u8; 32],
-        condition: ValueId,
-        call_stack: CallStackId,
-    ) -> ValueId {
-        let expected_array_type = Type::Array(Arc::new(vec![Type::unsigned(8)]), 32);
-        let array_type = self.inserter.function.dfg.type_of_value(array);
-        assert_eq!(array_type, expected_array_type);
-
-        let elements = constant
-            .iter()
-            .map(|elem| {
-                self.inserter
-                    .function
-                    .dfg
-                    .make_constant(FieldElement::from(u32::from(*elem)), NumericType::unsigned(8))
-            })
-            .collect();
-        let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
-        let constant_array_value = self.insert_instruction(constant_array, call_stack);
-        let not_condition = self.not_instruction(condition, call_stack);
-
-        self.insert_instruction(
-            Instruction::IfElse {
-                then_condition: condition,
-                then_value: array,
-                else_condition: not_condition,
-                else_value: constant_array_value,
-            },
-            call_stack,
-        )
-    }
-
-    /// Returns the values corresponding to the given inputs by doing
-    /// 'if condition {inputs} else {generators}'
-    /// It is done for the abscissas or the ordinates, depending on 'abscissa'.
-    /// Inputs are supposed to be of the form:
-    /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
-    /// - generators: [g1_x, g1_y, g2_x, g2_y]
-    /// - index: true for abscissa, false for ordinate
-    #[cfg(feature = "bn254")]
-    fn predicate_argument(
-        &mut self,
-        inputs: &[ValueId],
-        generators: &[ValueId],
-        abscissa: bool,
-        condition: ValueId,
-        call_stack: CallStackId,
-    ) -> (ValueId, ValueId) {
-        let index = usize::from(!abscissa);
-        if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
-            // Point doubling
-            let predicated_value =
-                self.var_or(inputs[index], condition, generators[index], call_stack);
-            (predicated_value, predicated_value)
-        } else {
-            (
-                self.var_or(inputs[index], condition, generators[index], call_stack),
-                self.var_or(inputs[3 + index], condition, generators[2 + index], call_stack),
-            )
         }
     }
 
@@ -1271,66 +1062,6 @@ impl<'f> Context<'f> {
         let cast_condition = self.cast_condition_to_value_type(condition, value, call_stack);
         self.insert_instruction(
             Instruction::binary(BinaryOp::Mul { unchecked: true }, value, cast_condition),
-            call_stack,
-        )
-    }
-
-    /// When a MSM is done under a predicate, we need to apply the predicate
-    /// to the is_infinity property of the input points in order to ensure
-    /// that the points will be on the curve no matter what.
-    fn apply_predicate_to_msm_argument(
-        &mut self,
-        argument: ValueId,
-        predicate: ValueId,
-        call_stack: CallStackId,
-    ) -> (im::Vector<ValueId>, Type) {
-        let array_typ;
-        let mut array_with_predicate = im::Vector::new();
-        if let Some((array, typ)) = &self.inserter.function.dfg.get_array_constant(argument) {
-            array_typ = typ.clone();
-            for (i, value) in array.clone().iter().enumerate() {
-                if i % 3 == 2 {
-                    array_with_predicate.push_back(self.var_or_one(*value, predicate, call_stack));
-                } else {
-                    array_with_predicate.push_back(*value);
-                }
-            }
-        } else {
-            unreachable!(
-                "Expected an array, got {}",
-                &self.inserter.function.dfg.type_of_value(argument)
-            );
-        };
-
-        (array_with_predicate, array_typ)
-    }
-
-    /// Computes: `if condition { var } else { 1 }`
-    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
-        let field = self.mul_by_condition(var, condition, call_stack);
-        let not_condition = self.not_instruction(condition, call_stack);
-        // Unchecked add because of the values is guaranteed to be 0
-        self.insert_instruction(
-            Instruction::binary(BinaryOp::Add { unchecked: true }, field, not_condition),
-            call_stack,
-        )
-    }
-
-    /// Computes: `if condition { var } else { other }`
-    #[cfg(feature = "bn254")]
-    fn var_or(
-        &mut self,
-        var: ValueId,
-        condition: ValueId,
-        other: ValueId,
-        call_stack: CallStackId,
-    ) -> ValueId {
-        let field = self.mul_by_condition(var, condition, call_stack);
-        let not_condition = self.not_instruction(condition, call_stack);
-        let else_field = self.mul_by_condition(other, not_condition, call_stack);
-        // Unchecked add because one of the values is guaranteed to be 0
-        self.insert_instruction(
-            Instruction::binary(BinaryOp::Add { unchecked: true }, field, else_field),
             call_stack,
         )
     }
@@ -2229,24 +1960,6 @@ mod test {
             return v12
         }
         ");
-    }
-
-    #[test]
-    #[cfg(feature = "bn254")]
-    fn test_grumpkin_points() {
-        use crate::ssa::opt::flatten_cfg::Context;
-        use acvm::acir::FieldElement;
-
-        let generators = Context::grumpkin_generators();
-        let len = generators.len();
-        for i in (0..len).step_by(2) {
-            let gen_x = generators[i];
-            let gen_y = generators[i + 1];
-            assert!(
-                gen_y * gen_y - gen_x * gen_x * gen_x + FieldElement::from(17_u128)
-                    == FieldElement::zero()
-            );
-        }
     }
 
     #[test]

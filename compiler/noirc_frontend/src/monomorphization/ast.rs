@@ -529,6 +529,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,

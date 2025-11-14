@@ -52,7 +52,7 @@ impl CodeActionFinder<'_> {
                     associated_types.remove(name.as_string());
                 }
                 TraitImplItemKind::Type { name, alias } => {
-                    if let UnresolvedTypeData::Unspecified = alias.typ {
+                    if alias.is_none() {
                         continue;
                     }
                     associated_types.remove(name.as_string());

@@ -1,8 +1,7 @@
 use noirc_frontend::{
     ast::{
         AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
-        WhileStatement,
+        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -123,7 +122,7 @@ impl ChunkFormatter<'_, '_> {
         &mut self,
         keyword: Keyword,
         pattern: Pattern,
-        typ: UnresolvedType,
+        typ: Option<UnresolvedType>,
         value: Option<Expression>,
         attributes: Vec<SecondaryAttribute>,
     ) -> ChunkGroup {
@@ -137,7 +136,7 @@ impl ChunkFormatter<'_, '_> {
 
         let mut pattern_and_type_group = self.format_pattern(pattern);
 
-        if typ.typ != UnresolvedTypeData::Unspecified {
+        if let Some(typ) = typ {
             pattern_and_type_group.text(self.chunk(|formatter| {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();

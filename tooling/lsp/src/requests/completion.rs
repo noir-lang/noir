@@ -1796,7 +1796,9 @@ impl Visitor for NodeFinder<'_> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (_, unresolved_type) in &lambda.parameters {
-            unresolved_type.accept(self);
+            if let Some(unresolved_type) = unresolved_type {
+                unresolved_type.accept(self);
+            }
         }
 
         let old_local_variables = self.local_variables.clone();
