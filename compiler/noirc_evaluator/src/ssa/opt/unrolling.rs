@@ -976,7 +976,7 @@ impl BoilerplateStats {
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access instructions.
     fn is_small(&self) -> bool {
-        self.unrolled_instructions() <= self.baseline_instructions()
+        self.unrolled_instructions() <= self.baseline_instructions() * 2
     }
 }
 
