@@ -465,10 +465,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Pushes a [Trap][BrilligOpcode::Trap] opcode.
-    pub(super) fn trap_instruction(&mut self, revert_data: HeapVector) {
-        self.debug_show.trap_instruction(revert_data);
+    pub(super) fn trap_instruction(&mut self, error_data: HeapVector) {
+        self.debug_show.trap_instruction(error_data);
 
-        self.push_opcode(BrilligOpcode::Trap { revert_data });
+        self.push_opcode(BrilligOpcode::Trap { error_data });
     }
 }
 
