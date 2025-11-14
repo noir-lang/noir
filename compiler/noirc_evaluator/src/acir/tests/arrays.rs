@@ -359,8 +359,8 @@ fn non_homogenous_array_dynamic_access() {
   }
   "#;
 
-    let program = ssa_to_acir_program(src);
-    assert_circuit_snapshot!(program, @r"
+  let program = ssa_to_acir_program(src);
+  assert_circuit_snapshot!(program, @r"
   func 0
   private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28]
   public parameters: []
