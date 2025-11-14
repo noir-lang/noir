@@ -333,11 +333,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } => {
-                let mut all_inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(inputs.len() + iv.len() + key.len());
-                all_inputs.extend(**iv);
-                all_inputs.extend(**key);
-                all_inputs
+                [inputs, iv.as_slice(), key.as_slice()].concat()
             }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
                 inputs.iter().chain(hash_values.as_ref()).copied().collect()
