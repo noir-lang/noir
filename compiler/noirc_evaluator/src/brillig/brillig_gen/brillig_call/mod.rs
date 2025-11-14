@@ -79,13 +79,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         result,
                         dfg,
                     );
-                    // Not initializing the vector pointer to any particular value; it's output only:
-                    // * We shall pass the free memory pointer (after any remaining) arrays have been allocated, via the foreign call opcode.
-                    // * The foreign call handler:
-                    //      * writes any vectors starting at foreign call pointer, one after the other
-                    //      * writes the address of where the vector was written back into the memory address allocated here
-                    // * The caller of this method generates code to update the free memory pointer after the call:
-                    //   read the vectors' metadata from the heap, and extend the free memory by their total size
+                    // Not initializing the vector pointer to any particular value; it's output only.
+                    // The foreign call handler is expected to write the vector data to the free memory pointer,
+                    // storing its value back into this variable. The caller of this method will also generate
+                    // code to initialize the vector metadata after the foreign call has been handled.
+                    // The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
                     variable
                 }
                 _ => {
