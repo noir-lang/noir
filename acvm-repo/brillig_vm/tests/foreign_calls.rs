@@ -202,13 +202,13 @@ fn foreign_call_opcode_vector_input_and_output() {
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         },
-        // copy the input string from calldata at offset 0 to @4
+        // copy the input string from calldata at offset 0 to memory
         Opcode::CalldataCopy {
             destination_address: r_input_addr,
             size_address: MemoryAddress::direct(100),
             offset_address: MemoryAddress::direct(101),
         },
-        // input_pointer = 4
+        // input_pointer = input_addr
         Opcode::Const {
             destination: r_input_pointer,
             value: r_input_addr.to_usize().into(),
