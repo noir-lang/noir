@@ -460,9 +460,8 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
         match self.resolve_path_as_type(path) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
-                if errors.is_empty() =>
-            {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                self.push_errors(errors);
                 Some(module_id)
             }
             _ => None,
