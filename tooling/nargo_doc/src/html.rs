@@ -846,7 +846,7 @@ impl HTMLCreator {
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
-        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name);
+        self.render_id_reference(&trait_impl.trait_id, &trait_impl.trait_name);
         self.render_generic_types(&trait_impl.trait_generics);
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
@@ -1161,13 +1161,13 @@ impl HTMLCreator {
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
-        self.render_id_reference(bound.trait_id, &bound.trait_name);
+        self.render_id_reference(&bound.trait_id, &bound.trait_name);
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: ItemId, name: &str) {
+    fn render_id_reference(&mut self, id: &ItemId, name: &str) {
         if let Some(ItemInfo { path: _, uri, class, visibility: ItemVisibility::Public }) =
-            self.id_to_info.get(&id)
+            self.id_to_info.get(id)
         {
             let nesting = self.current_path.len();
             self.output.push_str(&format!(
@@ -1260,11 +1260,11 @@ impl HTMLCreator {
                 self.render_type(r#type);
             }
             Type::Struct { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(id, name);
                 self.render_generic_types(generics);
             }
             Type::TypeAlias { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(id, name);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -1305,7 +1305,7 @@ impl HTMLCreator {
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id_reference(*trait_id, trait_name);
+                self.render_id_reference(trait_id, trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -1391,7 +1391,7 @@ impl HTMLCreator {
                     uri,
                     class: _,
                     visibility: ItemVisibility::Public,
-                }) = self.id_to_info.get(&id)
+                }) = self.id_to_info.get(id)
                 {
                     let nesting = self.current_path.len();
                     comments.push_str(&format!(

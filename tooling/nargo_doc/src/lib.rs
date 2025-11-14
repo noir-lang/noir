@@ -18,8 +18,8 @@ use regex::Regex;
 
 use crate::items::{
     AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
-    ItemId, Link, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
-    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    ItemId, ItemKind, Link, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
+    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 mod html;
@@ -1027,45 +1027,51 @@ impl DocItemBuilder<'_> {
     fn get_module_id(&self, id: ModuleId) -> ItemId {
         let module = self.interner.module_attributes(id);
         let location = module.location;
-        let module_def_id = ModuleDefId::ModuleId(id);
-        ItemId { location, module_def_id }
+        let name = module.name.clone();
+        let kind = ItemKind::Module;
+        ItemId { location, kind, name }
     }
 
     fn get_type_id(&self, id: TypeId) -> ItemId {
         let data_type = self.interner.get_type(id);
         let data_type = data_type.borrow();
         let location = data_type.location;
-        let module_def_id = ModuleDefId::TypeId(id);
-        ItemId { location, module_def_id }
+        let name = data_type.name.to_string();
+        let kind = ItemKind::Struct;
+        ItemId { location, kind, name }
     }
 
     fn get_trait_id(&self, id: TraitId) -> ItemId {
         let trait_ = self.interner.get_trait(id);
         let location = trait_.location;
-        let module_def_id = ModuleDefId::TraitId(id);
-        ItemId { location, module_def_id }
+        let name = trait_.name.to_string();
+        let kind = ItemKind::Trait;
+        ItemId { location, kind, name }
     }
 
     fn get_type_alias_id(&self, id: TypeAliasId) -> ItemId {
         let alias = self.interner.get_type_alias(id);
         let alias = alias.borrow();
         let location = alias.location;
-        let module_def_id = ModuleDefId::TypeAliasId(id);
-        ItemId { location, module_def_id }
+        let name = alias.name.to_string();
+        let kind = ItemKind::TypeAlias;
+        ItemId { location, kind, name }
     }
 
     fn get_function_id(&self, id: FuncId) -> ItemId {
         let func_meta = self.interner.function_meta(&id);
+        let name = self.interner.function_name(&id).to_owned();
         let location = func_meta.location;
-        let module_def_id = ModuleDefId::FunctionId(id);
-        ItemId { location, module_def_id }
+        let kind = ItemKind::Function;
+        ItemId { location, kind, name }
     }
 
     fn get_global_id(&self, id: GlobalId) -> ItemId {
         let global_info = self.interner.get_global(id);
         let location = global_info.location;
-        let module_def_id = ModuleDefId::GlobalId(id);
-        ItemId { location, module_def_id }
+        let name = global_info.ident.to_string();
+        let kind = ItemKind::Global;
+        ItemId { location, kind, name }
     }
 }
 

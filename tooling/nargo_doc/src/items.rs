@@ -3,10 +3,7 @@
 use std::collections::BTreeMap;
 
 use noirc_errors::Location;
-use noirc_frontend::{
-    ast::ItemVisibility,
-    hir::def_map::{ModuleDefId, ModuleId},
-};
+use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
 
 pub trait HasNameAndComments {
     fn name(&self) -> String;
@@ -19,10 +16,21 @@ pub trait HasNameAndComments {
 /// have different names.
 /// This is just a temporary solution until we have a better way to uniquely identify items
 /// across crates.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemId {
-    pub module_def_id: ModuleDefId,
     pub location: Location,
+    pub kind: ItemKind,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ItemKind {
+    Module,
+    Struct,
+    Trait,
+    TypeAlias,
+    Function,
+    Global,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -34,9 +42,9 @@ pub enum Link {
 }
 
 impl Link {
-    pub fn id(&self) -> Option<ItemId> {
+    pub fn id(&self) -> Option<&ItemId> {
         match self {
-            Link::TypeOrModule(id) | Link::Function(id, _) => Some(*id),
+            Link::TypeOrModule(id) | Link::Function(id, _) => Some(id),
             Link::PrimitiveType(_) | Link::PrimitiveTypeFunction(..) => None,
         }
     }
