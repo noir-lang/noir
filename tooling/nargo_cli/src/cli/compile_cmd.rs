@@ -422,20 +422,27 @@ mod tests {
                     ..Default::default()
                 };
 
-                let (program_0, _warnings) = compile_program(
-                    &file_manager,
-                    &parsed_files,
-                    workspace,
-                    package,
-                    &options,
-                    None,
-                )
-                .unwrap_or_else(|err| {
-                    for diagnostic in err {
-                        println!("{}", diagnostic_to_string(&diagnostic, &file_manager));
-                    }
-                    panic!("Failed to compile")
+                let result = std::panic::catch_unwind(|| {
+                    compile_program(
+                        &file_manager,
+                        &parsed_files,
+                        workspace,
+                        package,
+                        &options,
+                        None,
+                    )
+                    .unwrap_or_else(|err| {
+                        for diagnostic in err {
+                            println!("{}", diagnostic_to_string(&diagnostic, &file_manager));
+                        }
+                        panic!("Failed to compile")
+                    })
                 });
+
+                let (program_0, _warnings) = match result {
+                    Ok(program) => program,
+                    Err(_) => panic!("\nPanicked while compiling {}", workspace.root_dir.display()),
+                };
 
                 let width = get_target_width(package.expression_width, None);
 
