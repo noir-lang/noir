@@ -575,36 +575,25 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.store_instruction(*write_pointer, capacity.address);
     }
 
-    /// Initialize the [BrilligVector] from a [HeapVector] returned by a foreign call.
+    /// Initialize the [BrilligVector] after the data returned by a foreign call has been written to the heap.
     ///
     /// We don't know the length of a vector returned externally before the call,
-    /// so we pass the free memory pointer and then use this function to allocate
-    /// after the fact when we know the length.
+    /// so we write the size and the data to the _free memory pointer_.
     ///
-    /// This method assumes nothing else has been allocated into the space tentatively
-    /// reserved for the vector, that is, that the _free memory pointer_ is where it was
-    /// before the foreign call.
+    /// Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.
+    ///
+    /// The VM is expected to adjust the _free memory pointer_ to point beyond where the data was written,
+    /// so we don't have to generate bytecode to increase it here.
+    ///
+    /// Returns the size variable, which we can use to set the semantic length.
     pub(crate) fn codegen_initialize_externally_returned_vector(
         &mut self,
         vector: BrilligVector,
-        resulting_heap_vector: HeapVector,
-    ) {
-        // The size in the heap vector only represents the items.
-        // Figure out how much memory we need to allocate to hold it, accounting for the metadata.
-        let total_size = self.allocate_register();
-        self.codegen_usize_op(
-            resulting_heap_vector.size,
-            *total_size,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
-        );
-
-        // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
-        self.increase_free_memory_pointer_instruction(*total_size);
-
-        // Initialize metadata (RC, size, capacity) using the shared helper
-        // For externally returned vectors, capacity equals size
-        let size_var = SingleAddrVariable::new_usize(resulting_heap_vector.size);
-        self.codegen_initialize_vector_metadata(vector, size_var, size_var);
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        // Read the address of the size on the heap based on the vector pointer on the stack.
+        let size_var = self.codegen_read_vector_size(vector);
+        // For externally returned vectors, capacity equals size.
+        self.codegen_initialize_vector_metadata(vector, *size_var, *size_var);
+        size_var
     }
 }

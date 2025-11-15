@@ -14,6 +14,14 @@ pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 /// It gets manipulated by opcodes laid down for calls by codegen.
 pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
 
+/// The free memory pointer is always in slot 1.
+///
+/// Usually it is a concern for the codegen to allocate space for arrays and vectors,
+/// however during foreign calls the VM writes vector outputs to the free memory;
+/// by sharing a constant address for it, we don't have to pass the address as
+/// part of the opcode.
+pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
+
 /// Offset constants for arrays and vectors:
 /// * Arrays are `[ref-count, ...items]`
 /// * Vectors are `[ref-count, size, capacity, ...items]`
@@ -409,6 +417,11 @@ impl<F: AcirField> Memory<F> {
     /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
         MemoryAddress::direct(self.read(ptr).to_usize())
+    }
+
+    /// Sets `ptr` to point at `address`.
+    pub fn write_ref(&mut self, ptr: MemoryAddress, address: MemoryAddress) {
+        self.write(ptr, MemoryValue::from(address.to_usize()));
     }
 
     /// Read a contiguous slice of memory starting at `address`, up to `len` slots.

@@ -47,7 +47,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) -> Vec<BrilligVariable> {
         let mut variables = Vec::new();
-        let mut vector_allocated = false;
 
         for result in results {
             let result = *result;
@@ -69,34 +68,22 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     );
                     let array = variable.extract_array();
 
-                    assert!(
-                        !vector_allocated,
-                        "a vector of unknown length has already been allocated at the free memory pointer"
-                    );
                     self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                     variable
                 }
                 Type::Slice(_) => {
-                    let variable = self.variables.define_variable(
+                    // Not initializing the vector pointer to any particular value; it's output only.
+                    // The foreign call handler is expected to write the vector data to the free memory pointer,
+                    // storing its value back into this variable. The caller of this method will also generate
+                    // code to initialize the vector metadata after the foreign call has been handled.
+                    // The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
+                    self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         result,
                         dfg,
-                    );
-                    let vector = variable.extract_vector();
-
-                    // Set the pointer to the current free memory pointer.
-                    // The free memory pointer will then be updated by the caller of this method,
-                    // once the external call is resolved and the vector size is known.
-                    assert!(
-                        !vector_allocated,
-                        "a previous vector has already been allocated at the free memory pointer"
-                    );
-                    vector_allocated = true;
-                    self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
-
-                    variable
+                    )
                 }
                 _ => {
                     unreachable!("ICE: unsupported return type for black box call {typ:?}")
