@@ -317,7 +317,9 @@ const codegenFunction = (
     ? `export const ${name}_circuit: CompiledCircuit = ${JSON.stringify(compiled_program)};`
     : '';
 
-  return `${artifact}
+  // Different templates for functions with and without return values
+  if (function_signature.returnValue) {
+    return `${artifact}
 
 export async function ${name}(${args_with_types_joined_by_comma}): Promise<${function_signature.returnValue}> {
   const program = new Noir(${name}_circuit);
@@ -326,4 +328,14 @@ export async function ${name}(${args_with_types_joined_by_comma}): Promise<${fun
   return returnValue as ${function_signature.returnValue};
 }
 `;
+  } else {
+    return `${artifact}
+
+export async function ${name}(${args_with_types_joined_by_comma}): Promise<void> {
+  const program = new Noir(${name}_circuit);
+  const args: InputMap = { ${args} };
+  await program.execute(args, foreignCallHandler);
+}
+`;
+  }
 };
