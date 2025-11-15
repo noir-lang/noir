@@ -198,21 +198,6 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_type_level_field_element(&self) -> bool {
-        let type_level = false;
-        self.is_field_element(type_level)
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Kind::Numeric(typ) => typ.is_field_element(value_level),
-            Kind::IntegerOrField => value_level,
-            _ => false,
-        }
-    }
-
     pub(crate) fn u32() -> Self {
         Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
@@ -1035,15 +1020,6 @@ impl TypeVariable {
             _ => false,
         }
     }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match &*self.borrow() {
-            TypeBinding::Bound(binding) => binding.is_field_element(value_level),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(value_level),
-        }
-    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1280,17 +1256,6 @@ impl Type {
 
     pub fn is_integer(&self) -> bool {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Integer(_, _))
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Type::FieldElement => value_level,
-            Type::TypeVariable(var) => var.is_field_element(value_level),
-            Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
-            _ => false,
-        }
     }
 
     pub fn is_signed(&self) -> bool {
