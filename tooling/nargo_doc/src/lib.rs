@@ -12,7 +12,6 @@ use noirc_frontend::node_interner::{FuncId, ReferenceId};
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
-use regex::Regex;
 
 use crate::ids::{
     get_function_id, get_global_id, get_module_def_id, get_module_id, get_trait_id,
@@ -23,7 +22,7 @@ use crate::items::{
     Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
     TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
-use crate::links::{CurrentType, path_to_link};
+use crate::links::{CurrentType, LinkFinder};
 pub use html::to_html;
 
 mod html;
@@ -66,8 +65,7 @@ struct DocItemBuilder<'a> {
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     trait_constraints: Vec<TraitConstraint>,
-    /// A regex to match `[.+]` references.
-    reference_regex: Regex,
+    link_finder: LinkFinder,
 }
 
 impl<'a> DocItemBuilder<'a> {
@@ -78,7 +76,7 @@ impl<'a> DocItemBuilder<'a> {
         def_maps: &'a DefMaps,
     ) -> Self {
         let current_module_id = def_maps[&crate_id].root();
-        let reference_regex = Regex::new(r"\[([^\[\]]+)\]").unwrap();
+        let link_finder = LinkFinder::new();
         Self {
             interner,
             crate_id,
@@ -90,7 +88,7 @@ impl<'a> DocItemBuilder<'a> {
             module_def_id_to_item: HashMap::new(),
             module_imports: HashMap::new(),
             trait_constraints: Vec::new(),
-            reference_regex,
+            link_finder,
         }
     }
 }
@@ -672,6 +670,7 @@ impl DocItemBuilder<'_> {
     fn find_links_in_comments(&self, comments: &str) -> Links {
         let mut links = HashMap::new();
         let mut in_code_block = false;
+        let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
         for line in comments.lines() {
             if line.trim_start().starts_with("```") {
                 in_code_block = !in_code_block;
@@ -681,48 +680,32 @@ impl DocItemBuilder<'_> {
                 continue;
             }
 
-            // Instead of a regex we could parse Markdown and find actual links,
-            // but this is simpler and good enough for now.
-            let words = self
-                .reference_regex
-                .captures_iter(line)
-                .map(|captures| captures[1].to_string())
-                .collect::<Vec<_>>();
-
-            for word in words {
-                // Remove surrounding backticks if present.
-                // The footnote will still mention the word with backticks.
-                let path = &word;
-                let path = path.strip_prefix('`').unwrap_or(path);
-                let path = path.strip_suffix('`').unwrap_or(path);
-
-                if let Some(link) = path_to_link(
-                    path,
-                    ModuleId { krate: self.crate_id, local_id: self.current_module_id },
-                    self.current_type,
-                    self.interner,
-                    self.def_maps,
-                    self.crate_graph,
-                ) {
-                    links.insert(word.to_string(), link);
-                    continue;
-                }
+            let line_links = self.link_finder.find_links_in_markdown_line(
+                line,
+                current_module_id,
+                self.current_type,
+                self.interner,
+                self.def_maps,
+                self.crate_graph,
+            );
+            for link in line_links {
+                links.insert(link.path, link.target);
             }
         }
         let links = links.into_iter();
         let links = links.map(|(name, link)| {
             let link = match link {
-                links::Link::TopLevelItem(module_def_id) => {
+                links::LinkTarget::TopLevelItem(module_def_id) => {
                     Link::TopLevelItem(get_module_def_id(module_def_id, self.interner))
                 }
-                links::Link::Method(module_def_id, func_id) => {
+                links::LinkTarget::Method(module_def_id, func_id) => {
                     let name = self.interner.function_name(&func_id).to_string();
                     Link::Method(get_module_def_id(module_def_id, self.interner), name)
                 }
-                links::Link::PrimitiveType(primitive_type_kind) => {
+                links::LinkTarget::PrimitiveType(primitive_type_kind) => {
                     Link::PrimitiveType(primitive_type_kind)
                 }
-                links::Link::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
+                links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
                     let name = self.interner.function_name(&func_id).to_string();
                     Link::PrimitiveTypeFunction(primitive_type_kind, name)
                 }
