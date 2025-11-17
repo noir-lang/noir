@@ -8,7 +8,7 @@ use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
-use noirc_frontend::node_interner::{FuncId, ReferenceId, TraitId, TypeId};
+use noirc_frontend::node_interner::{FuncId, ReferenceId};
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
@@ -23,7 +23,7 @@ use crate::items::{
     Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
     TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
-use crate::links::path_to_link;
+use crate::links::{CurrentType, path_to_link};
 pub use html::to_html;
 
 mod html;
@@ -68,13 +68,6 @@ struct DocItemBuilder<'a> {
     trait_constraints: Vec<TraitConstraint>,
     /// A regex to match `[.+]` references.
     reference_regex: Regex,
-}
-
-#[derive(Clone, Copy)]
-enum CurrentType {
-    Type(TypeId),
-    Trait(TraitId),
-    PrimitiveType(PrimitiveTypeKind),
 }
 
 impl<'a> DocItemBuilder<'a> {

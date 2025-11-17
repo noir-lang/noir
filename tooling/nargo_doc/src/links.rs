@@ -9,7 +9,7 @@ use noirc_frontend::{
     node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TypeId},
 };
 
-use crate::{CurrentType, convert_primitive_type, items::PrimitiveTypeKind};
+use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Link {
@@ -17,6 +17,13 @@ pub(crate) enum Link {
     Method(ModuleDefId, FuncId),
     PrimitiveType(PrimitiveTypeKind),
     PrimitiveTypeFunction(PrimitiveTypeKind, FuncId),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum CurrentType {
+    Type(TypeId),
+    Trait(TraitId),
+    PrimitiveType(PrimitiveTypeKind),
 }
 
 /// Tries to convert a path into a link by resolving a path like `std::collections::Vec`.
