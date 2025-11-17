@@ -1,11 +1,8 @@
 use noirc_errors::Location;
 use noirc_frontend::{
-    ast::{Ident, ItemVisibility},
+    ast::Ident,
     graph::CrateGraph,
-    hir::{
-        def_map::{DefMaps, ModuleDefId, ModuleId},
-        resolution::visibility::module_def_id_visibility,
-    },
+    hir::def_map::{DefMaps, ModuleDefId, ModuleId},
     node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TypeId},
 };
 use regex::Regex;
@@ -17,7 +14,7 @@ use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 /// - `[name][path]`
 /// - `[name](path)`
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Link {
+pub struct Link {
     pub target: LinkTarget,
     pub name: String,
     pub path: String,
@@ -30,7 +27,7 @@ pub(crate) struct Link {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum LinkTarget {
+pub enum LinkTarget {
     TopLevelItem(ModuleDefId),
     Method(ModuleDefId, FuncId),
     PrimitiveType(PrimitiveTypeKind),
@@ -38,23 +35,25 @@ pub(crate) enum LinkTarget {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum CurrentType {
+pub enum CurrentType {
     Type(TypeId),
     Trait(TraitId),
     PrimitiveType(PrimitiveTypeKind),
 }
 
-pub(crate) struct LinkFinder {
+pub struct LinkFinder {
     /// A regex to match `[.+]` references.
     reference_regex: Regex,
 }
 
-impl LinkFinder {
-    pub(crate) fn new() -> Self {
+impl Default for LinkFinder {
+    fn default() -> Self {
         Self { reference_regex: reference_regex() }
     }
+}
 
-    pub(crate) fn find_links(
+impl LinkFinder {
+    pub fn find_links(
         &self,
         comments: &str,
         current_module_id: ModuleId,
@@ -88,7 +87,8 @@ impl LinkFinder {
         links
     }
 
-    pub(crate) fn find_links_in_line(
+    #[allow(clippy::too_many_arguments)]
+    pub fn find_links_in_line(
         &self,
         line: &str,
         line_number: usize,
@@ -347,10 +347,6 @@ fn path_to_link_target_searching_modules(
         // We are at the last segment so we can return the item if it's public
         if index == segments.len() - 1 {
             let (module_def_id, _, _) = per_ns.iter_items().next()?;
-            let visibility = module_def_id_visibility(module_def_id, interner);
-            if visibility != ItemVisibility::Public {
-                return None;
-            }
             return Some(LinkTarget::TopLevelItem(module_def_id));
         }
 
@@ -394,9 +390,6 @@ fn type_method_link_target(
     interner: &NodeInterner,
 ) -> Option<LinkTarget> {
     let data_type = interner.get_type(type_id);
-    if data_type.borrow().visibility != ItemVisibility::Public {
-        return None;
-    }
     let generic_types = data_type.borrow().generic_types();
     let typ = noirc_frontend::Type::DataType(data_type, generic_types);
     let methods = interner.get_type_methods(&typ)?;
@@ -412,9 +405,6 @@ fn trait_method_link_target(
     interner: &NodeInterner,
 ) -> Option<LinkTarget> {
     let trait_ = interner.get_trait(trait_id);
-    if trait_.visibility != ItemVisibility::Public {
-        return None;
-    }
     let definition_id = trait_.find_method(method_name, interner)?;
     let definition = interner.definition(definition_id);
     if let DefinitionKind::Function(func_id) = definition.kind {

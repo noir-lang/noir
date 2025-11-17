@@ -28,7 +28,7 @@ pub use html::to_html;
 mod html;
 mod ids;
 pub mod items;
-mod links;
+pub mod links;
 
 /// Returns the root module in a crate.
 pub fn crate_module(
@@ -76,7 +76,7 @@ impl<'a> DocItemBuilder<'a> {
         def_maps: &'a DefMaps,
     ) -> Self {
         let current_module_id = def_maps[&crate_id].root();
-        let link_finder = LinkFinder::new();
+        let link_finder = LinkFinder::default();
         Self {
             interner,
             crate_id,
