@@ -69,8 +69,7 @@ for i in 0..5 {
 }
 assert(vector.len() == 5);
 assert(vector.max_len() == 10);
-</code></pre>
-</div>
+</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let MaxLen: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;</code></h3>
 
@@ -404,8 +403,7 @@ zeroed after that index, you can use <a href="../../../std/collections/bounded_v
 <p>Example:</p>
 <pre><code class="language-noir">let vec: BoundedVec&lt;u32, 4&gt; = BoundedVec::from_parts([1, 2, 3, 0], 3);
 assert_eq(vec.len(), 3);
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="from_parts_unchecked" class="code-header">pub fn <span class="fn">from_parts_unchecked</span>(array: [T; MaxLen], len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">

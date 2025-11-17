@@ -107,8 +107,7 @@ the value associated with the key.</p>
 } else {
     println(&quot;No value for key 7!&quot;);
 }
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="is_empty" class="code-header">pub fn <span class="fn">is_empty</span>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -191,8 +190,7 @@ equal, which of the two values that will be present for the key in the resulting
 <p>Example:</p>
 <pre><code class="language-noir">// Add 1 to each key in the map, and double the value associated with that key.
 map.iter_mut(|k, v| (k + 1, v * 2));
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="iter_keys_mut" class="code-header">pub fn <span class="fn">iter_keys_mut</span>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
@@ -210,8 +208,7 @@ equal, which of the two values that will be present for the key in the resulting
 <p>Example:</p>
 <pre><code class="language-noir">// Double each key, leaving the value associated with that key untouched
 map.iter_keys_mut(|k| k * 2);
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="iter_values_mut" class="code-header">pub fn <span class="fn">iter_values_mut</span>(&mut self, f: fn(V) -> V)</code>
 
 <div class="padded-description"><div class="comments">
@@ -221,8 +218,7 @@ because the keys are untouched and the underlying hashmap thus does not need to 
 <p>Example:</p>
 <pre><code class="language-noir">// Halve each value
 map.iter_values_mut(|v| v / 2);
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="retain" class="code-header">pub fn <span class="fn">retain</span>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
 <div class="padded-description"><div class="comments">
