@@ -11,7 +11,7 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
+    DocComment, Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
     desugar_generic_trait_bounds_and_reorder_where_clause,
@@ -1043,7 +1043,7 @@ pub fn collect_function(
     usage_tracker: &mut UsageTracker,
     function: &NoirFunction,
     module: ModuleId,
-    doc_comments: Vec<String>,
+    doc_comments: Vec<DocComment>,
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
     if let Some(field) = function.attributes().get_field_attribute() {

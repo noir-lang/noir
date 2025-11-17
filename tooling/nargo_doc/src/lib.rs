@@ -267,12 +267,10 @@ impl DocItemBuilder<'_> {
                 let impls = vecmap(primitive_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(primitive_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
-                let comments = self
-                    .interner
-                    .primitive_docs
-                    .get(&kind.to_string())
-                    .cloned()
-                    .map(|comments| comments.join("\n").trim().to_string());
+                let comments =
+                    self.interner.primitive_docs.get(&kind.to_string()).cloned().map(|comments| {
+                        vecmap(comments, |comment| comment.contents).join("\n").trim().to_string()
+                    });
                 let comments = comments.map(|comments| {
                     let links = self.find_links_in_comments(&comments);
                     (comments, links)
@@ -650,7 +648,8 @@ impl DocItemBuilder<'_> {
 
     fn doc_comments(&self, id: ReferenceId) -> Option<(String, Links)> {
         let comments = self.interner.doc_comments(id)?;
-        let comments = comments.join("\n").trim().to_string();
+        let comments =
+            vecmap(comments, |comment| comment.contents.clone()).join("\n").trim().to_string();
         let links = self.find_links_in_comments(&comments);
         Some((comments, links))
     }

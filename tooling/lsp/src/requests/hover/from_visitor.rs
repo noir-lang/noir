@@ -143,7 +143,7 @@ fn primitive_type_markup_content(name: &str, interner: &NodeInterner) -> Option<
     if let Some(comments) = interner.primitive_docs.get(name) {
         value.push_str("\n---\n");
         for comment in comments {
-            value.push_str(comment);
+            value.push_str(&comment.contents);
             value.push('\n');
         }
     }

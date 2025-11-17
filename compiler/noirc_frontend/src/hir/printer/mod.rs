@@ -177,7 +177,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             return;
         };
 
-        for comment in doc_comments {
+        for located_comment in doc_comments {
+            let comment = &located_comment.contents;
             if comment.contains('\n') {
                 let ends_with_newline = comment.ends_with('\n');
 

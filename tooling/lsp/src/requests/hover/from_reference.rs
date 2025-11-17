@@ -1,6 +1,7 @@
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::{FileId, FileMap};
+use iter_extended::vecmap;
 use nargo_doc::links::{CurrentType, LinkFinder, LinkTarget};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
@@ -875,7 +876,7 @@ fn append_doc_comments(
 
     string.push_str("\n\n---\n\n");
 
-    let doc_comments = doc_comments.join("\n");
+    let doc_comments = vecmap(doc_comments, |comment| comment.contents.clone()).join("\n");
     let doc_comments = process_doc_comments_links(doc_comments, id, args);
 
     string.push_str(&doc_comments);

@@ -9,6 +9,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::QuotedType;
+use crate::ast::DocComment;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
     UnresolvedTypeExpression,
@@ -282,7 +283,7 @@ pub struct NodeInterner {
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
-    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
 
     /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// This is used to offer importing the item via one of these exports if
@@ -292,7 +293,7 @@ pub struct NodeInterner {
     /// Contains the docs comments of primitive types.
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
-    pub primitive_docs: HashMap<String, Vec<String>>,
+    pub primitive_docs: HashMap<String, Vec<DocComment>>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -1429,13 +1430,13 @@ impl NodeInterner {
         bindings
     }
 
-    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<DocComment>) {
         if !doc_comments.is_empty() {
             self.doc_comments.insert(id, doc_comments);
         }
     }
 
-    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<DocComment>> {
         self.doc_comments.get(&id)
     }
 
