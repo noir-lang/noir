@@ -662,54 +662,41 @@ impl DocItemBuilder<'_> {
     /// The doc generator ([html::to_html]) will then replace occurrences of these links
     /// with resolved HTML links.
     fn find_links_in_comments(&self, comments: &str) -> Links {
-        let mut links = Vec::new();
-        let mut in_code_block = false;
         let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
-        for (line_number, line) in comments.lines().enumerate() {
-            if line.trim_start().starts_with("```") {
-                in_code_block = !in_code_block;
-                continue;
+        let links = self.link_finder.find_links(
+            comments,
+            current_module_id,
+            self.current_type,
+            self.interner,
+            self.def_maps,
+            self.crate_graph,
+        );
+        vecmap(links, |link| {
+            let target = match link.target {
+                links::LinkTarget::TopLevelItem(module_def_id) => {
+                    LinkTarget::TopLevelItem(get_module_def_id(module_def_id, self.interner))
+                }
+                links::LinkTarget::Method(module_def_id, func_id) => {
+                    let name = self.interner.function_name(&func_id).to_string();
+                    LinkTarget::Method(get_module_def_id(module_def_id, self.interner), name)
+                }
+                links::LinkTarget::PrimitiveType(primitive_type_kind) => {
+                    LinkTarget::PrimitiveType(primitive_type_kind)
+                }
+                links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
+                    let name = self.interner.function_name(&func_id).to_string();
+                    LinkTarget::PrimitiveTypeFunction(primitive_type_kind, name)
+                }
+            };
+            Link {
+                name: link.name,
+                path: link.path,
+                target,
+                line: link.line,
+                start: link.start,
+                end: link.end,
             }
-            if in_code_block {
-                continue;
-            }
-
-            let line_links = self.link_finder.find_links_in_markdown_line(
-                line,
-                current_module_id,
-                self.current_type,
-                self.interner,
-                self.def_maps,
-                self.crate_graph,
-            );
-            for link in line_links {
-                let target = match link.target {
-                    links::LinkTarget::TopLevelItem(module_def_id) => {
-                        LinkTarget::TopLevelItem(get_module_def_id(module_def_id, self.interner))
-                    }
-                    links::LinkTarget::Method(module_def_id, func_id) => {
-                        let name = self.interner.function_name(&func_id).to_string();
-                        LinkTarget::Method(get_module_def_id(module_def_id, self.interner), name)
-                    }
-                    links::LinkTarget::PrimitiveType(primitive_type_kind) => {
-                        LinkTarget::PrimitiveType(primitive_type_kind)
-                    }
-                    links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
-                        let name = self.interner.function_name(&func_id).to_string();
-                        LinkTarget::PrimitiveTypeFunction(primitive_type_kind, name)
-                    }
-                };
-                links.push(Link {
-                    name: link.name,
-                    path: link.path,
-                    target,
-                    line: line_number,
-                    start: link.start,
-                    end: link.end,
-                });
-            }
-        }
-        links
+        })
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {

@@ -21,6 +21,8 @@ pub(crate) struct Link {
     pub target: LinkTarget,
     pub name: String,
     pub path: String,
+    /// The line number in the comments where this link occurs (0-based).
+    pub line: usize,
     /// The start byte of the link in the line.
     pub start: usize,
     /// The end byte of the link in the line.
@@ -52,9 +54,44 @@ impl LinkFinder {
         Self { reference_regex: reference_regex() }
     }
 
-    pub(crate) fn find_links_in_markdown_line(
+    pub(crate) fn find_links(
+        &self,
+        comments: &str,
+        current_module_id: ModuleId,
+        current_type: Option<CurrentType>,
+        interner: &NodeInterner,
+        def_maps: &DefMaps,
+        crate_graph: &CrateGraph,
+    ) -> Vec<Link> {
+        let mut links = Vec::new();
+        let mut in_code_block = false;
+        for (line_number, line) in comments.lines().enumerate() {
+            if line.trim_start().starts_with("```") {
+                in_code_block = !in_code_block;
+                continue;
+            }
+            if in_code_block {
+                continue;
+            }
+
+            let line_links = self.find_links_in_line(
+                line,
+                line_number,
+                current_module_id,
+                current_type,
+                interner,
+                def_maps,
+                crate_graph,
+            );
+            links.extend(line_links);
+        }
+        links
+    }
+
+    pub(crate) fn find_links_in_line(
         &self,
         line: &str,
+        line_number: usize,
         current_module_id: ModuleId,
         current_type: Option<CurrentType>,
         interner: &NodeInterner,
@@ -78,6 +115,7 @@ impl LinkFinder {
             )?;
             Some(Link {
                 target,
+                line: line_number,
                 name: link.name,
                 path: link.link,
                 start: link.start,
