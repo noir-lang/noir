@@ -19,7 +19,7 @@ use crate::ids::{
     get_type_alias_id, get_type_id,
 };
 use crate::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item, Link,
     Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
     TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
@@ -716,7 +716,27 @@ impl DocItemBuilder<'_> {
                 }
             }
         }
-        links.into_iter().collect()
+        let links = links.into_iter();
+        let links = links.map(|(name, link)| {
+            let link = match link {
+                links::Link::TopLevelItem(module_def_id) => {
+                    Link::TopLevelItem(get_module_def_id(module_def_id, self.interner))
+                }
+                links::Link::Method(module_def_id, func_id) => {
+                    let name = self.interner.function_name(&func_id).to_string();
+                    Link::Method(get_module_def_id(module_def_id, self.interner), name)
+                }
+                links::Link::PrimitiveType(primitive_type_kind) => {
+                    Link::PrimitiveType(primitive_type_kind)
+                }
+                links::Link::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
+                    let name = self.interner.function_name(&func_id).to_string();
+                    Link::PrimitiveTypeFunction(primitive_type_kind, name)
+                }
+            };
+            (name, link)
+        });
+        links.collect()
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {

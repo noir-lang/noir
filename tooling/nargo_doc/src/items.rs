@@ -35,8 +35,8 @@ pub enum ItemKind {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Link {
-    TypeOrModule(ItemId),
-    Function(ItemId, String),
+    TopLevelItem(ItemId),
+    Method(ItemId, String),
     PrimitiveType(PrimitiveTypeKind),
     PrimitiveTypeFunction(PrimitiveTypeKind, String),
 }
@@ -44,21 +44,21 @@ pub enum Link {
 impl Link {
     pub fn id(&self) -> Option<&ItemId> {
         match self {
-            Link::TypeOrModule(id) | Link::Function(id, _) => Some(id),
+            Link::TopLevelItem(id) | Link::Method(id, _) => Some(id),
             Link::PrimitiveType(_) | Link::PrimitiveTypeFunction(..) => None,
         }
     }
 
     pub fn name(&self) -> Option<&str> {
         match self {
-            Link::TypeOrModule(_) | Link::PrimitiveType(_) => None,
-            Link::Function(_, name) | Link::PrimitiveTypeFunction(_, name) => Some(name),
+            Link::TopLevelItem(_) | Link::PrimitiveType(_) => None,
+            Link::Method(_, name) | Link::PrimitiveTypeFunction(_, name) => Some(name),
         }
     }
 
     pub fn primitive_type(&self) -> Option<PrimitiveTypeKind> {
         match self {
-            Link::TypeOrModule(..) | Link::Function(..) => None,
+            Link::TopLevelItem(..) | Link::Method(..) => None,
             Link::PrimitiveType(primitive_type_kind)
             | Link::PrimitiveTypeFunction(primitive_type_kind, _) => Some(*primitive_type_kind),
         }

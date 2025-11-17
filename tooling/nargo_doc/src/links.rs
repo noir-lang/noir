@@ -6,14 +6,18 @@ use noirc_frontend::{
         def_map::{DefMaps, ModuleDefId, ModuleId},
         resolution::visibility::module_def_id_visibility,
     },
-    node_interner::{NodeInterner, TraitId, TypeId},
+    node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TypeId},
 };
 
-use crate::{
-    CurrentType, convert_primitive_type,
-    ids::{get_module_def_id, get_module_id, get_trait_id, get_type_id},
-    items::{Link, PrimitiveTypeKind},
-};
+use crate::{CurrentType, convert_primitive_type, items::PrimitiveTypeKind};
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum Link {
+    TopLevelItem(ModuleDefId),
+    Method(ModuleDefId, FuncId),
+    PrimitiveType(PrimitiveTypeKind),
+    PrimitiveTypeFunction(PrimitiveTypeKind, FuncId),
+}
 
 /// Tries to convert a path into a link by resolving a path like `std::collections::Vec`.
 /// This is similar to how name resolution works in the compiler, except that it's simpler
@@ -41,16 +45,14 @@ pub(crate) fn path_to_link(
                     if let Some(method_name) = method_name {
                         return type_method_link(type_id, method_name, interner);
                     } else {
-                        let id = get_type_id(type_id, interner);
-                        return Some(Link::TypeOrModule(id));
+                        return Some(Link::TopLevelItem(ModuleDefId::TypeId(type_id)));
                     }
                 }
                 CurrentType::Trait(trait_id) => {
                     if let Some(method_name) = method_name {
                         return trait_method_link(trait_id, method_name, interner);
                     } else {
-                        let id = get_trait_id(trait_id, interner);
-                        return Some(Link::TypeOrModule(id));
+                        return Some(Link::TopLevelItem(ModuleDefId::TraitId(trait_id)));
                     }
                 }
                 CurrentType::PrimitiveType(primitive_type) => {
@@ -131,8 +133,7 @@ fn path_to_link_searching_modules(
     // In that case we'll recurse into this function with an empty path,
     // by searching starting from the `std` root module.
     if path.is_empty() {
-        let id = get_module_id(module_id, interner);
-        return Some(Link::TypeOrModule(id));
+        return Some(Link::TopLevelItem(ModuleDefId::ModuleId(module_id)));
     }
 
     let mut segments: Vec<&str> = path.split("::").collect();
@@ -199,8 +200,7 @@ fn path_to_link_searching_modules(
             if visibility != ItemVisibility::Public {
                 return None;
             }
-            let id = get_module_def_id(module_def_id, interner);
-            return Some(Link::TypeOrModule(id));
+            return Some(Link::TopLevelItem(module_def_id));
         }
 
         // We are not at the last segment. Find a module, type or trait to continue.
@@ -248,12 +248,7 @@ fn type_method_link(type_id: TypeId, method_name: &str, interner: &NodeInterner)
     let method = methods.get(method_name)?;
     let method = method.direct.first()?;
     let method = method.method;
-    let visibility = interner.function_modifiers(&method).visibility;
-    if visibility != ItemVisibility::Public {
-        return None;
-    }
-    let id = get_type_id(type_id, interner);
-    Some(Link::Function(id, method_name.to_string()))
+    Some(Link::Method(ModuleDefId::TypeId(type_id), method))
 }
 
 fn trait_method_link(
@@ -265,9 +260,13 @@ fn trait_method_link(
     if trait_.visibility != ItemVisibility::Public {
         return None;
     }
-    trait_.find_method(method_name, interner)?;
-    let id = get_trait_id(trait_id, interner);
-    Some(Link::Function(id, method_name.to_string()))
+    let definition_id = trait_.find_method(method_name, interner)?;
+    let definition = interner.definition(definition_id);
+    if let DefinitionKind::Function(func_id) = definition.kind {
+        Some(Link::Method(ModuleDefId::TraitId(trait_id), func_id))
+    } else {
+        None
+    }
 }
 
 fn primitive_type_or_primitive_type_method_link(
@@ -291,7 +290,6 @@ fn primitive_type_method_link(
     method_name: &str,
     interner: &NodeInterner,
 ) -> Option<Link> {
-    interner.lookup_direct_method(typ, method_name, false)?;
-
-    Some(Link::PrimitiveTypeFunction(primitive_type, method_name.to_string()))
+    let func_id = interner.lookup_direct_method(typ, method_name, false)?;
+    Some(Link::PrimitiveTypeFunction(primitive_type, func_id))
 }
