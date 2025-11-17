@@ -369,7 +369,7 @@ impl HTMLCreator {
                 self.output.push_str("</div>");
                 self.output.push_str("<div class=\"item-description\">");
                 if let Some((comments, links)) = item.comments() {
-                    let comments = self.process_comments_links(links, &comments);
+                    let comments = self.process_comments_links(links, comments.clone());
 
                     let summary = markdown_summary(&comments);
 
@@ -1363,7 +1363,7 @@ impl HTMLCreator {
         };
 
         let comments = fix_markdown(comments, current_heading_level);
-        let comments = self.process_comments_links(links, &comments);
+        let comments = self.process_comments_links(links, comments);
 
         let html = markdown::to_html(&comments);
         self.output.push_str("<div class=\"comments\">\n");
@@ -1373,9 +1373,9 @@ impl HTMLCreator {
 
     /// Replace links in the given comments with proper HTML links to pages and anchors
     /// related to target items.
-    fn process_comments_links(&self, links: &Links, comments: &String) -> String {
+    fn process_comments_links(&self, links: &Links, comments: String) -> String {
         if links.is_empty() {
-            return comments.clone();
+            return comments;
         }
 
         let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
