@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763383671617,
+  "lastUpdate": 1763384141320,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23041,48 +23041,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fb1d5553c50973d54d220a8de97381ec13f42604",
-          "message": "feat: primitive types doc comments (#10432)",
-          "timestamp": "2025-11-10T13:08:21Z",
-          "tree_id": "68f02703d6c0828e94d85a040fbf272a2ab843ed",
-          "url": "https://github.com/noir-lang/noir/commit/fb1d5553c50973d54d220a8de97381ec13f42604"
-        },
-        "date": 1762782893450,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267630,
-            "range": "± 937",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239296,
-            "range": "± 695",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2802332,
-            "range": "± 9514",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25134,6 +25092,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794568,
             "range": "± 3494",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "50d5c0b4c9ca70f3ca49e13786048d1bb15b155e",
+          "message": "fix: don't remove signed min int division overflow in DIE (#10506)",
+          "timestamp": "2025-11-17T12:32:38Z",
+          "tree_id": "0c830a637f9ffb327e346a72fd08ec4cd60e0ee2",
+          "url": "https://github.com/noir-lang/noir/commit/50d5c0b4c9ca70f3ca49e13786048d1bb15b155e"
+        },
+        "date": 1763384114730,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259479,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229668,
+            "range": "± 4804",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790699,
+            "range": "± 15366",
             "unit": "ns/iter"
           }
         ]
