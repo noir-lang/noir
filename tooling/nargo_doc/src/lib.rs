@@ -2,29 +2,34 @@ use std::collections::HashMap;
 
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
-use noirc_errors::Location;
-use noirc_frontend::ast::{Ident, IntegerBitSize, ItemVisibility};
+use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
 use noirc_frontend::graph::CrateGraph;
 use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
-use noirc_frontend::hir::resolution::visibility::module_def_id_visibility;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
-use noirc_frontend::node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId};
+use noirc_frontend::node_interner::{FuncId, ReferenceId, TraitId, TypeId};
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
 use regex::Regex;
 
+use crate::ids::{
+    get_function_id, get_global_id, get_module_def_id, get_module_id, get_trait_id,
+    get_type_alias_id, get_type_id,
+};
 use crate::items::{
     AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
-    ItemId, ItemKind, Link, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
-    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
+    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
+use crate::links::path_to_link;
+pub use html::to_html;
 
 mod html;
+mod ids;
 pub mod items;
-pub use html::to_html;
+mod links;
 
 /// Returns the root module in a crate.
 pub fn crate_module(
@@ -161,7 +166,7 @@ impl DocItemBuilder<'_> {
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
-                let id = self.get_type_id(type_id);
+                let id = get_type_id(type_id, self.interner);
                 self.current_type = None;
                 Item::Struct(Struct {
                     id,
@@ -225,7 +230,7 @@ impl DocItemBuilder<'_> {
                     }
                 }
 
-                let id = self.get_trait_id(trait_id);
+                let id = get_trait_id(trait_id, self.interner);
 
                 self.current_type = None;
 
@@ -251,7 +256,7 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics =
                     vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
-                let id = self.get_type_alias_id(type_alias_id);
+                let id = get_type_alias_id(type_alias_id, self.interner);
                 Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
             expand_items::Item::PrimitiveType(primitive_type) => {
@@ -297,7 +302,7 @@ impl DocItemBuilder<'_> {
                 let typ = self.interner.definition_type(definition_id);
                 let r#type = self.convert_type(&typ);
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
-                let id = self.get_global_id(global_id);
+                let id = get_global_id(global_id, self.interner);
                 Item::Global(Global { id, name, comments, comptime, mutable, r#type })
             }
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
@@ -321,7 +326,7 @@ impl DocItemBuilder<'_> {
             .collect();
         self.module_imports.insert(module.id, module.imports);
         let is_contract = module.is_contract;
-        let id = self.get_module_id(module.id);
+        let id = get_module_id(module.id, self.interner);
         Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
@@ -359,7 +364,7 @@ impl DocItemBuilder<'_> {
 
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
-        let trait_id = self.get_trait_id(trait_.id);
+        let trait_id = get_trait_id(trait_.id, self.interner);
         let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
         TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
@@ -377,7 +382,7 @@ impl DocItemBuilder<'_> {
     fn convert_trait_bound(&self, trait_bound: &ResolvedTraitBound) -> TraitBound {
         let trait_ = self.interner.get_trait(trait_bound.trait_id);
         let trait_name = trait_.name.to_string();
-        let trait_id = self.get_trait_id(trait_.id);
+        let trait_id = get_trait_id(trait_.id, self.interner);
         let (ordered_generics, named_generics) =
             self.convert_trait_generics(&trait_bound.trait_generics);
         TraitBound { trait_id, trait_name, ordered_generics, named_generics }
@@ -460,14 +465,14 @@ impl DocItemBuilder<'_> {
                 if data_type.is_enum() {
                     panic!("Enums are not supported yet");
                 }
-                let id = self.get_type_id(data_type.id);
+                let id = get_type_id(data_type.id, self.interner);
                 let name = data_type.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
                 Type::Struct { id, name, generics }
             }
             noirc_frontend::Type::Alias(type_alias, generics) => {
                 let type_alias = type_alias.borrow();
-                let id = self.get_type_alias_id(type_alias.id);
+                let id = get_type_alias_id(type_alias.id, self.interner);
                 let name = type_alias.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
                 Type::TypeAlias { id, name, generics }
@@ -481,7 +486,7 @@ impl DocItemBuilder<'_> {
             }
             noirc_frontend::Type::TraitAsType(trait_id, _, trait_generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
-                let trait_id = self.get_trait_id(trait_.id);
+                let trait_id = get_trait_id(trait_.id, self.interner);
                 let trait_name = trait_.name.to_string();
                 let (ordered_generics, named_generics) =
                     self.convert_trait_generics(trait_generics);
@@ -580,7 +585,7 @@ impl DocItemBuilder<'_> {
             .cloned()
             .collect::<Vec<_>>();
 
-        let id = self.get_function_id(func_id);
+        let id = get_function_id(func_id, self.interner);
 
         Function {
             id,
@@ -640,7 +645,7 @@ impl DocItemBuilder<'_> {
             }
 
             // This is an internal or external re-export
-            let id = self.get_module_def_id(import.id);
+            let id = get_module_def_id(import.id, self.interner);
             module.items.push((
                 import.visibility,
                 Item::Reexport(Reexport {
@@ -698,262 +703,20 @@ impl DocItemBuilder<'_> {
                 let path = path.strip_prefix('`').unwrap_or(path);
                 let path = path.strip_suffix('`').unwrap_or(path);
 
-                if let Some(link) = self.path_to_link(path) {
+                if let Some(link) = path_to_link(
+                    path,
+                    ModuleId { krate: self.crate_id, local_id: self.current_module_id },
+                    self.current_type,
+                    self.interner,
+                    self.def_maps,
+                    self.crate_graph,
+                ) {
                     links.insert(word.to_string(), link);
                     continue;
                 }
             }
         }
         links.into_iter().collect()
-    }
-
-    /// Tries to convert a path into a link by resolving a path like `std::collections::Vec`.
-    /// This is similar to how name resolution works in the compiler, except that it's simpler
-    /// (no need to report errors), and references to type and trait functions are handled
-    /// a bit differently.
-    fn path_to_link(&self, path: &str) -> Option<Link> {
-        if path.is_empty() || path.contains(' ') {
-            return None;
-        }
-
-        let segments: Vec<&str> = path.split("::").collect();
-
-        if let Some(current_type) = self.current_type {
-            if segments.len() <= 2 && segments[0] == "Self" {
-                let method_name = segments.get(1).copied();
-                match current_type {
-                    CurrentType::Type(type_id) => {
-                        if let Some(method_name) = method_name {
-                            return self.type_method_link(type_id, method_name);
-                        } else {
-                            let id = self.get_type_id(type_id);
-                            return Some(Link::TypeOrModule(id));
-                        }
-                    }
-                    CurrentType::Trait(trait_id) => {
-                        if let Some(method_name) = method_name {
-                            return self.trait_method_link(trait_id, method_name);
-                        } else {
-                            let id = self.get_trait_id(trait_id);
-                            return Some(Link::TypeOrModule(id));
-                        }
-                    }
-                    CurrentType::PrimitiveType(primitive_type) => {
-                        let Some(method_name) = method_name else {
-                            return Some(Link::PrimitiveType(primitive_type));
-                        };
-
-                        // Array and Slice need special handling because they are composite types
-                        // that aren't named like they are in the docs.
-                        match primitive_type {
-                            PrimitiveTypeKind::Array => {
-                                let typ = noirc_frontend::Type::Array(
-                                    Box::new(noirc_frontend::Type::Error),
-                                    Box::new(noirc_frontend::Type::Error),
-                                );
-                                return self.primitive_type_method_link(
-                                    primitive_type,
-                                    &typ,
-                                    method_name,
-                                );
-                            }
-                            PrimitiveTypeKind::Slice => {
-                                let typ = noirc_frontend::Type::Slice(Box::new(
-                                    noirc_frontend::Type::Error,
-                                ));
-                                return self.primitive_type_method_link(
-                                    primitive_type,
-                                    &typ,
-                                    method_name,
-                                );
-                            }
-                            _ => {
-                                let name = primitive_type.to_string();
-                                return self.primitive_type_or_primitive_type_method_link(
-                                    &name,
-                                    Some(method_name),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
-        let check_dependencies = true;
-        if let Some(link) = self.path_to_link_searching_modules(path, module_id, check_dependencies)
-        {
-            return Some(link);
-        }
-
-        // Search a primitive type or primitive type function
-        if segments.len() > 2 {
-            return None;
-        }
-
-        let name = segments[0];
-        let method_name = segments.get(1).copied();
-        self.primitive_type_or_primitive_type_method_link(name, method_name)
-    }
-
-    fn path_to_link_searching_modules(
-        &self,
-        path: &str,
-        module_id: ModuleId,
-        check_dependencies: bool,
-    ) -> Option<Link> {
-        // The path can be empty if a link is, for example, `[std]`.
-        // In that case we'll recurse into this function with an empty path,
-        // by searching starting from the `std` root module.
-        if path.is_empty() {
-            let id = self.get_module_id(module_id);
-            return Some(Link::TypeOrModule(id));
-        }
-
-        let mut segments: Vec<&str> = path.split("::").collect();
-        if let Some(first_segment) = segments.first() {
-            if check_dependencies && *first_segment == "crate" {
-                let crate_def_map = &self.def_maps[&module_id.krate];
-                let root_local_module = crate_def_map.root();
-                let root_module = ModuleId { krate: module_id.krate, local_id: root_local_module };
-                segments.remove(0);
-                let path = segments.join("::");
-                return self.path_to_link_searching_modules(&path, root_module, false);
-            }
-        }
-
-        let crate_id = module_id.krate;
-        let crate_def_map = &self.def_maps[&crate_id];
-        let mut current_module = &crate_def_map[module_id.local_id];
-
-        for (index, segment) in segments.iter().enumerate() {
-            let name = Ident::new(segment.to_string(), Location::dummy());
-            let per_ns = current_module.scope().find_name(&name);
-
-            if per_ns.is_none() {
-                // If we can't find the first segment we can try to search in dependencies
-                if index == 0 && check_dependencies {
-                    let crate_data = &self.crate_graph[crate_id];
-                    let dependency_crate_id =
-                        crate_data.dependencies.iter().find_map(|dependency| {
-                            if &dependency.as_name() == segment {
-                                Some(dependency.crate_id)
-                            } else {
-                                None
-                            }
-                        })?;
-                    let dependency_local_module_id = self.def_maps[&dependency_crate_id].root();
-                    let dependency_module_id = ModuleId {
-                        krate: dependency_crate_id,
-                        local_id: dependency_local_module_id,
-                    };
-                    segments.remove(0);
-                    let path = segments.join("::");
-                    return self.path_to_link_searching_modules(&path, dependency_module_id, false);
-                }
-
-                return None;
-            }
-
-            // We are at the last segment so we can return the item if it's public
-            if index == segments.len() - 1 {
-                let (module_def_id, _, _) = per_ns.iter_items().next()?;
-                let visibility = module_def_id_visibility(module_def_id, self.interner);
-                if visibility != ItemVisibility::Public {
-                    return None;
-                }
-                let id = self.get_module_def_id(module_def_id);
-                return Some(Link::TypeOrModule(id));
-            }
-
-            // We are not at the last segment. Find a module, type or trait to continue.
-            let (module_def_id, _, _) = per_ns.types?;
-            match module_def_id {
-                ModuleDefId::ModuleId(module_id) => {
-                    current_module = &crate_def_map[module_id.local_id];
-                }
-                ModuleDefId::TypeId(type_id) => {
-                    // This must refer to a type method, so only one segment should remain
-                    if index != segments.len() - 2 {
-                        return None;
-                    }
-                    let method_name = segments.last().unwrap();
-                    return self.type_method_link(type_id, method_name);
-                }
-                ModuleDefId::TraitId(trait_id) => {
-                    // This must refer to a trait method, so only one segment should remain
-                    if index != segments.len() - 2 {
-                        return None;
-                    }
-                    let method_name = segments.last().unwrap();
-                    return self.trait_method_link(trait_id, method_name);
-                }
-                ModuleDefId::TypeAliasId(_) => {
-                    // We could handle methods via type aliases, but for now we don't
-                    return None;
-                }
-                ModuleDefId::TraitAssociatedTypeId(..)
-                | ModuleDefId::FunctionId(..)
-                | ModuleDefId::GlobalId(..) => return None,
-            }
-        }
-        None
-    }
-
-    fn type_method_link(&self, type_id: TypeId, method_name: &str) -> Option<Link> {
-        let data_type = self.interner.get_type(type_id);
-        if data_type.borrow().visibility != ItemVisibility::Public {
-            return None;
-        }
-        let generic_types = data_type.borrow().generic_types();
-        let typ = noirc_frontend::Type::DataType(data_type, generic_types);
-        let methods = self.interner.get_type_methods(&typ)?;
-        let method = methods.get(method_name)?;
-        let method = method.direct.first()?;
-        let method = method.method;
-        let visibility = self.interner.function_modifiers(&method).visibility;
-        if visibility != ItemVisibility::Public {
-            return None;
-        }
-        let id = self.get_type_id(type_id);
-        Some(Link::Function(id, method_name.to_string()))
-    }
-
-    fn trait_method_link(&self, trait_id: TraitId, method_name: &str) -> Option<Link> {
-        let trait_ = self.interner.get_trait(trait_id);
-        if trait_.visibility != ItemVisibility::Public {
-            return None;
-        }
-        trait_.find_method(method_name, self.interner)?;
-        let id = self.get_trait_id(trait_id);
-        Some(Link::Function(id, method_name.to_string()))
-    }
-
-    fn primitive_type_or_primitive_type_method_link(
-        &self,
-        name: &str,
-        method_name: Option<&str>,
-    ) -> Option<Link> {
-        let primitive_type = noirc_frontend::elaborator::PrimitiveType::lookup_by_name(name)?;
-        let doc_primitive_type = convert_primitive_type(primitive_type);
-        let Some(method_name) = method_name else {
-            return Some(Link::PrimitiveType(doc_primitive_type));
-        };
-
-        let typ = primitive_type.to_type();
-        self.primitive_type_method_link(doc_primitive_type, &typ, method_name)
-    }
-
-    fn primitive_type_method_link(
-        &self,
-        primitive_type: PrimitiveTypeKind,
-        typ: &noirc_frontend::Type,
-        method_name: &str,
-    ) -> Option<Link> {
-        self.interner.lookup_direct_method(typ, method_name, false)?;
-
-        Some(Link::PrimitiveTypeFunction(primitive_type, method_name.to_string()))
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {
@@ -1009,73 +772,9 @@ impl DocItemBuilder<'_> {
             }
         }
     }
-
-    fn get_module_def_id(&self, id: ModuleDefId) -> ItemId {
-        match id {
-            ModuleDefId::ModuleId(id) => self.get_module_id(id),
-            ModuleDefId::FunctionId(id) => self.get_function_id(id),
-            ModuleDefId::TypeId(id) => self.get_type_id(id),
-            ModuleDefId::TypeAliasId(id) => self.get_type_alias_id(id),
-            ModuleDefId::TraitId(id) => self.get_trait_id(id),
-            ModuleDefId::GlobalId(id) => self.get_global_id(id),
-            ModuleDefId::TraitAssociatedTypeId(_) => {
-                panic!("Trait associated types cannot be re-exported")
-            }
-        }
-    }
-
-    fn get_module_id(&self, id: ModuleId) -> ItemId {
-        let module = self.interner.module_attributes(id);
-        let location = module.location;
-        let name = module.name.clone();
-        let kind = ItemKind::Module;
-        ItemId { location, kind, name }
-    }
-
-    fn get_type_id(&self, id: TypeId) -> ItemId {
-        let data_type = self.interner.get_type(id);
-        let data_type = data_type.borrow();
-        let location = data_type.location;
-        let name = data_type.name.to_string();
-        let kind = ItemKind::Struct;
-        ItemId { location, kind, name }
-    }
-
-    fn get_trait_id(&self, id: TraitId) -> ItemId {
-        let trait_ = self.interner.get_trait(id);
-        let location = trait_.location;
-        let name = trait_.name.to_string();
-        let kind = ItemKind::Trait;
-        ItemId { location, kind, name }
-    }
-
-    fn get_type_alias_id(&self, id: TypeAliasId) -> ItemId {
-        let alias = self.interner.get_type_alias(id);
-        let alias = alias.borrow();
-        let location = alias.location;
-        let name = alias.name.to_string();
-        let kind = ItemKind::TypeAlias;
-        ItemId { location, kind, name }
-    }
-
-    fn get_function_id(&self, id: FuncId) -> ItemId {
-        let func_meta = self.interner.function_meta(&id);
-        let name = self.interner.function_name(&id).to_owned();
-        let location = func_meta.location;
-        let kind = ItemKind::Function;
-        ItemId { location, kind, name }
-    }
-
-    fn get_global_id(&self, id: GlobalId) -> ItemId {
-        let global_info = self.interner.get_global(id);
-        let location = global_info.location;
-        let name = global_info.ident.to_string();
-        let kind = ItemKind::Global;
-        ItemId { location, kind, name }
-    }
 }
 
-fn convert_primitive_type(
+pub(crate) fn convert_primitive_type(
     primitive_type: noirc_frontend::elaborator::PrimitiveType,
 ) -> PrimitiveTypeKind {
     match primitive_type {
