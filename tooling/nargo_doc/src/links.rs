@@ -15,6 +15,7 @@ use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Link {
     pub target: LinkTarget,
+    pub name: String,
     pub path: String,
     pub start: usize,
     pub end: usize,
@@ -42,8 +43,7 @@ pub(crate) struct LinkFinder {
 
 impl LinkFinder {
     pub(crate) fn new() -> Self {
-        let reference_regex = Regex::new(r"\[([^\[\]]+)\]").unwrap();
-        Self { reference_regex }
+        Self { reference_regex: reference_regex() }
     }
 
     pub(crate) fn find_links_in_markdown_line(
@@ -55,39 +55,69 @@ impl LinkFinder {
         def_maps: &DefMaps,
         crate_graph: &CrateGraph,
     ) -> Vec<Link> {
-        let captures = self
-            .reference_regex
-            .captures_iter(line)
-            .map(|captures| {
-                let start = captures.get(0).unwrap().start();
-                let end = captures.get(0).unwrap().end();
-                (captures[1].to_string(), start, end)
+        find_links_in_markdown_line(line, &self.reference_regex)
+            .filter_map(|link| {
+                // Remove surrounding backticks if present.
+                // The footnote will still mention the word with backticks.
+                let path = &link.link;
+                let path = path.strip_prefix('`').unwrap_or(path);
+                let path = path.strip_suffix('`').unwrap_or(path);
+
+                let target = path_to_link_target(
+                    path,
+                    current_module_id,
+                    current_type,
+                    interner,
+                    def_maps,
+                    crate_graph,
+                )?;
+                Some(Link {
+                    target,
+                    name: link.word,
+                    path: link.link,
+                    start: link.start,
+                    end: link.end,
+                })
             })
-            .collect::<Vec<_>>();
-
-        let mut links = Vec::new();
-
-        for (word, start, end) in captures {
-            // Remove surrounding backticks if present.
-            // The footnote will still mention the word with backticks.
-            let path = &word;
-            let path = path.strip_prefix('`').unwrap_or(path);
-            let path = path.strip_suffix('`').unwrap_or(path);
-
-            if let Some(target) = path_to_link_target(
-                path,
-                current_module_id,
-                current_type,
-                interner,
-                def_maps,
-                crate_graph,
-            ) {
-                links.push(Link { target, path: word.clone(), start, end });
-            }
-        }
-
-        links
+            .collect()
     }
+}
+
+struct PlainLink {
+    pub word: String,
+    pub link: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item = PlainLink> {
+    regex.captures_iter(line).filter_map(|captures| {
+        let first_capture = captures.get(0).unwrap();
+        let start = first_capture.start();
+        let end = first_capture.end();
+        let word = captures.get(1)?.as_str().to_string();
+        let link = captures
+            .get(2)
+            .or(captures.get(3))
+            .map(|capture| capture.as_str().to_string())
+            .unwrap_or_else(|| word.clone());
+        Some(PlainLink { word, link, start, end })
+    })
+}
+
+/// A regex that captures markdown links as either `[reference]`, `[reference][link]` or
+/// `[reference](url)`, ignoring those that happen inside backticks.
+fn reference_regex() -> Regex {
+    Regex::new(
+        r#"(?x)
+        # Ignore links inside backticks
+        (?:`[^`]*`)|
+
+        # Match [reference], [reference][link] or [reference](url)
+        \[([^\[\]]+)\](?:\[([^\[\]]*)\]|\(([^\(\)]*)\))?
+    "#,
+    )
+    .unwrap()
 }
 
 /// Tries to convert a path into a link by resolving a path like `std::collections::Vec`.
@@ -367,4 +397,57 @@ fn primitive_type_method_link_target(
 ) -> Option<LinkTarget> {
     let func_id = interner.lookup_direct_method(typ, method_name, false)?;
     Some(LinkTarget::PrimitiveTypeFunction(primitive_type, func_id))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::links::{find_links_in_markdown_line, reference_regex};
+
+    #[test]
+    fn finds_reference_plain() {
+        let line = "Hello [world]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.word, "world");
+        assert_eq!(&link.link, "world");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 13);
+    }
+
+    #[test]
+    fn finds_reference_link_brackets() {
+        let line = "Hello [world][url]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.word, "world");
+        assert_eq!(&link.link, "url");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 18);
+    }
+
+    #[test]
+    fn finds_reference_link_parentheses() {
+        let line = "Hello [world](url)!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.word, "world");
+        assert_eq!(&link.link, "url");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 18);
+    }
+
+    #[test]
+    fn does_not_find_reference_in_backquote() {
+        let line = "Hello `[world]`! Code: `let x = [foo];`. Hello [world]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.word, "world");
+        assert_eq!(&link.link, "world");
+        assert_eq!(link.start, 47);
+        assert_eq!(link.end, 54);
+    }
 }
