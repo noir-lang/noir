@@ -156,9 +156,6 @@ jobs:
         run: |
           yarn nightly:version -- .${{ inputs.npm-tag }}
 
-      - name: Authenticate with npm
-        run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
-
       - name: Publish ES Packages
         run: yarn publish:all --provenance --access public --tag ${{ inputs.npm-tag }}
 
