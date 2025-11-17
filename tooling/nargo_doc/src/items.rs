@@ -33,39 +33,56 @@ pub enum ItemKind {
     Global,
 }
 
+/// A markdown link that resolves to an item, in one of these forms:
+/// - `[name]` (`path` will be the same as `name`)
+/// - `[name][path]`
+/// - `[name](path)`
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub enum Link {
+pub struct Link {
+    pub name: String,
+    pub path: String,
+    pub target: LinkTarget,
+    /// The line number in the comments where this link occurs (0-based).
+    pub line: usize,
+    /// The start byte in the line where the link occurs.
+    pub start: usize,
+    /// The end byte in the line where the link occurs.
+    pub end: usize,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum LinkTarget {
     TopLevelItem(ItemId),
     Method(ItemId, String),
     PrimitiveType(PrimitiveTypeKind),
     PrimitiveTypeFunction(PrimitiveTypeKind, String),
 }
 
-impl Link {
+impl LinkTarget {
     pub fn id(&self) -> Option<&ItemId> {
         match self {
-            Link::TopLevelItem(id) | Link::Method(id, _) => Some(id),
-            Link::PrimitiveType(_) | Link::PrimitiveTypeFunction(..) => None,
+            Self::TopLevelItem(id) | Self::Method(id, _) => Some(id),
+            Self::PrimitiveType(_) | Self::PrimitiveTypeFunction(..) => None,
         }
     }
 
     pub fn name(&self) -> Option<&str> {
         match self {
-            Link::TopLevelItem(_) | Link::PrimitiveType(_) => None,
-            Link::Method(_, name) | Link::PrimitiveTypeFunction(_, name) => Some(name),
+            Self::TopLevelItem(_) | Self::PrimitiveType(_) => None,
+            Self::Method(_, name) | Self::PrimitiveTypeFunction(_, name) => Some(name),
         }
     }
 
     pub fn primitive_type(&self) -> Option<PrimitiveTypeKind> {
         match self {
-            Link::TopLevelItem(..) | Link::Method(..) => None,
-            Link::PrimitiveType(primitive_type_kind)
-            | Link::PrimitiveTypeFunction(primitive_type_kind, _) => Some(*primitive_type_kind),
+            Self::TopLevelItem(..) | Self::Method(..) => None,
+            Self::PrimitiveType(primitive_type_kind)
+            | Self::PrimitiveTypeFunction(primitive_type_kind, _) => Some(*primitive_type_kind),
         }
     }
 }
 
-pub type Links = Vec<(String, Link)>;
+pub type Links = Vec<Link>;
 
 pub type Comments = (String, Links);
 

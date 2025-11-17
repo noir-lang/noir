@@ -19,8 +19,8 @@ use crate::ids::{
 };
 use crate::items::{
     AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item, Link,
-    Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
-    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
+    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 use crate::links::{CurrentType, LinkFinder};
 pub use html::to_html;
@@ -655,23 +655,17 @@ impl DocItemBuilder<'_> {
         Some((comments, links))
     }
 
-    /// The idea of this method is to find occurrences of `[.+]` in comments.
+    /// The idea of this method is to find occurrences of markdown links and references in comments.
     /// For each of these we try to resolve them to a ModuleDefId of sort, which
     /// is actually represented as a Link to a type, method, module, etc.
     ///
-    /// The doc generator ([html::to_html]) will output these links as footnotes,
-    /// so for example a comment like "See [Vec]" will be rendered as:
-    ///
-    /// ```markdown
-    /// See [Vec]
-    ///
-    /// [Vec]: (link to Vec docs)
-    /// ```
+    /// The doc generator ([html::to_html]) will then replace occurrences of these links
+    /// with resolved HTML links.
     fn find_links_in_comments(&self, comments: &str) -> Links {
-        let mut links = HashMap::new();
+        let mut links = Vec::new();
         let mut in_code_block = false;
         let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
-        for line in comments.lines() {
+        for (line_number, line) in comments.lines().enumerate() {
             if line.trim_start().starts_with("```") {
                 in_code_block = !in_code_block;
                 continue;
@@ -689,30 +683,33 @@ impl DocItemBuilder<'_> {
                 self.crate_graph,
             );
             for link in line_links {
-                links.insert(link.path, link.target);
+                let target = match link.target {
+                    links::LinkTarget::TopLevelItem(module_def_id) => {
+                        LinkTarget::TopLevelItem(get_module_def_id(module_def_id, self.interner))
+                    }
+                    links::LinkTarget::Method(module_def_id, func_id) => {
+                        let name = self.interner.function_name(&func_id).to_string();
+                        LinkTarget::Method(get_module_def_id(module_def_id, self.interner), name)
+                    }
+                    links::LinkTarget::PrimitiveType(primitive_type_kind) => {
+                        LinkTarget::PrimitiveType(primitive_type_kind)
+                    }
+                    links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
+                        let name = self.interner.function_name(&func_id).to_string();
+                        LinkTarget::PrimitiveTypeFunction(primitive_type_kind, name)
+                    }
+                };
+                links.push(Link {
+                    name: link.name,
+                    path: link.path,
+                    target,
+                    line: line_number,
+                    start: link.start,
+                    end: link.end,
+                });
             }
         }
-        let links = links.into_iter();
-        let links = links.map(|(name, link)| {
-            let link = match link {
-                links::LinkTarget::TopLevelItem(module_def_id) => {
-                    Link::TopLevelItem(get_module_def_id(module_def_id, self.interner))
-                }
-                links::LinkTarget::Method(module_def_id, func_id) => {
-                    let name = self.interner.function_name(&func_id).to_string();
-                    Link::Method(get_module_def_id(module_def_id, self.interner), name)
-                }
-                links::LinkTarget::PrimitiveType(primitive_type_kind) => {
-                    Link::PrimitiveType(primitive_type_kind)
-                }
-                links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
-                    let name = self.interner.function_name(&func_id).to_string();
-                    Link::PrimitiveTypeFunction(primitive_type_kind, name)
-                }
-            };
-            (name, link)
-        });
-        links.collect()
+        links
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {

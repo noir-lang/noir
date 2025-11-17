@@ -12,12 +12,18 @@ use regex::Regex;
 
 use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 
+/// An resolved markdown link found in a line of markdown, in the form:
+/// - `[name]` (`path` will be the same as `name`)
+/// - `[name][path]`
+/// - `[name](path)`
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Link {
     pub target: LinkTarget,
     pub name: String,
     pub path: String,
+    /// The start byte of the link in the line.
     pub start: usize,
+    /// The end byte of the link in the line.
     pub end: usize,
 }
 
@@ -54,39 +60,45 @@ impl LinkFinder {
         interner: &NodeInterner,
         def_maps: &DefMaps,
         crate_graph: &CrateGraph,
-    ) -> Vec<Link> {
-        find_links_in_markdown_line(line, &self.reference_regex)
-            .filter_map(|link| {
-                // Remove surrounding backticks if present.
-                // The footnote will still mention the word with backticks.
-                let path = &link.link;
-                let path = path.strip_prefix('`').unwrap_or(path);
-                let path = path.strip_suffix('`').unwrap_or(path);
+    ) -> impl Iterator<Item = Link> {
+        find_links_in_markdown_line(line, &self.reference_regex).filter_map(move |link| {
+            // Remove surrounding backticks if present.
+            // The link name will still mention the word with backticks.
+            let path = &link.link;
+            let path = path.strip_prefix('`').unwrap_or(path);
+            let path = path.strip_suffix('`').unwrap_or(path);
 
-                let target = path_to_link_target(
-                    path,
-                    current_module_id,
-                    current_type,
-                    interner,
-                    def_maps,
-                    crate_graph,
-                )?;
-                Some(Link {
-                    target,
-                    name: link.word,
-                    path: link.link,
-                    start: link.start,
-                    end: link.end,
-                })
+            let target = path_to_link_target(
+                path,
+                current_module_id,
+                current_type,
+                interner,
+                def_maps,
+                crate_graph,
+            )?;
+            Some(Link {
+                target,
+                name: link.name,
+                path: link.link,
+                start: link.start,
+                end: link.end,
             })
-            .collect()
+        })
     }
 }
 
+/// An unresolved markdown link found in a line of markdown, in the form:
+/// - `[name]` (`link` will be the same as `name`)
+/// - `[name][link]`
+/// - `[name](link)`
+///
+/// It's unresolved because the link might not resolve to an actual item.
 struct PlainLink {
-    pub word: String,
+    pub name: String,
     pub link: String,
+    /// The start byte of the link in the line.
     pub start: usize,
+    /// The end byte of the link in the line.
     pub end: usize,
 }
 
@@ -101,7 +113,7 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
             .or(captures.get(3))
             .map(|capture| capture.as_str().to_string())
             .unwrap_or_else(|| word.clone());
-        Some(PlainLink { word, link, start, end })
+        Some(PlainLink { name: word, link, start, end })
     })
 }
 
@@ -409,7 +421,7 @@ mod tests {
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert_eq!(links.len(), 1);
         let link = &links[0];
-        assert_eq!(&link.word, "world");
+        assert_eq!(&link.name, "world");
         assert_eq!(&link.link, "world");
         assert_eq!(link.start, 6);
         assert_eq!(link.end, 13);
@@ -421,7 +433,7 @@ mod tests {
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert_eq!(links.len(), 1);
         let link = &links[0];
-        assert_eq!(&link.word, "world");
+        assert_eq!(&link.name, "world");
         assert_eq!(&link.link, "url");
         assert_eq!(link.start, 6);
         assert_eq!(link.end, 18);
@@ -433,7 +445,7 @@ mod tests {
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert_eq!(links.len(), 1);
         let link = &links[0];
-        assert_eq!(&link.word, "world");
+        assert_eq!(&link.name, "world");
         assert_eq!(&link.link, "url");
         assert_eq!(link.start, 6);
         assert_eq!(link.end, 18);
@@ -445,7 +457,7 @@ mod tests {
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert_eq!(links.len(), 1);
         let link = &links[0];
-        assert_eq!(&link.word, "world");
+        assert_eq!(&link.name, "world");
         assert_eq!(&link.link, "world");
         assert_eq!(link.start, 47);
         assert_eq!(link.end, 54);

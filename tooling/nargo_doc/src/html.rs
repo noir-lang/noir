@@ -369,12 +369,9 @@ impl HTMLCreator {
                 self.output.push_str("</div>");
                 self.output.push_str("<div class=\"item-description\">");
                 if let Some((comments, links)) = item.comments() {
-                    let mut links_string = String::new();
-                    self.append_comments_links(links, &mut links_string);
+                    let comments = self.process_comments_links(links, &comments);
 
-                    let mut summary = markdown_summary(comments);
-                    summary.push('\n');
-                    summary.push_str(&links_string);
+                    let summary = markdown_summary(&comments);
 
                     let markdown = markdown::to_html(&summary);
                     let markdown = markdown.trim_start_matches("<p>");
@@ -1365,8 +1362,8 @@ impl HTMLCreator {
             return;
         };
 
-        let mut comments = fix_markdown(comments, current_heading_level);
-        self.append_comments_links(links, &mut comments);
+        let comments = fix_markdown(comments, current_heading_level);
+        let comments = self.process_comments_links(links, &comments);
 
         let html = markdown::to_html(&comments);
         self.output.push_str("<div class=\"comments\">\n");
@@ -1374,17 +1371,20 @@ impl HTMLCreator {
         self.output.push_str("</div>\n");
     }
 
-    /// Append each link found in the comments (occurrences of `[.+]` that resolve to a type,
-    /// module, method, etc.) as a footnote that links to the corresponding HTML page.
-    fn append_comments_links(&self, links: &Links, comments: &mut String) {
+    /// Replace links in the given comments with proper HTML links to pages and anchors
+    /// related to target items.
+    fn process_comments_links(&self, links: &Links, comments: &String) -> String {
         if links.is_empty() {
-            return;
+            return comments.clone();
         }
 
-        comments.push('\n');
-        for (reference, link) in links {
-            let id = link.id();
-            let anchor = link.name().map(|name| format!("#{name}")).unwrap_or_default();
+        let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
+        for link in links.iter().rev() {
+            let target = &link.target;
+            let name = &link.name;
+            let id = target.id();
+            let anchor = target.name().map(|name| format!("#{name}")).unwrap_or_default();
+            let mut line = lines[link.line].to_string();
             if let Some(id) = id {
                 if let Some(ItemInfo {
                     path: _,
@@ -1393,25 +1393,22 @@ impl HTMLCreator {
                     visibility: ItemVisibility::Public,
                 }) = self.id_to_info.get(id)
                 {
-                    let nesting = self.current_path.len();
-                    comments.push_str(&format!(
-                        "[{reference}]: {}{}{}\n",
-                        "../".repeat(nesting),
-                        uri,
-                        anchor,
-                    ));
+                    let nesting = "../".repeat(self.current_path.len());
+                    let replacement = format!("[{name}]({nesting}{uri}{anchor})");
+                    line.replace_range(link.start..link.end, &replacement);
                 }
             }
-            if let Some(primitive_type) = link.primitive_type() {
-                let nesting = self.current_path.len();
-                comments.push_str(&format!(
-                    "[{reference}]: {}std/{}{}\n",
-                    "../".repeat(nesting),
-                    primitive_type.uri(),
-                    anchor,
-                ));
+            if let Some(primitive_type) = target.primitive_type() {
+                let nesting = "../".repeat(self.current_path.len());
+                let uri = primitive_type.uri();
+                let replacement = format!("[{name}]({nesting}std/{uri}{anchor})");
+                line.replace_range(link.start..link.end, &replacement);
             }
+
+            lines[link.line] = line;
         }
+
+        lines.join("\n")
     }
 
     fn render_breadcrumbs(&mut self, last_is_link: bool) {
