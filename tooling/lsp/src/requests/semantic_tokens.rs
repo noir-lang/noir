@@ -74,6 +74,8 @@ impl<'args> SemanticTokenCollector<'args> {
         std::mem::take(&mut self.tokens)
     }
 
+    /// Checks doc comments on the given ReferenceId. Semantic tokens are produced for any links found,
+    /// so that they can be colorized in the editor.
     fn process_reference_id(&mut self, id: ReferenceId) {
         let Some(doc_comments) = self.args.interner.doc_comments(id) else {
             return;
@@ -110,6 +112,7 @@ impl<'args> SemanticTokenCollector<'args> {
                 let Some(token_type) = self.link_target_token_type(&link.target) else {
                     continue;
                 };
+                let token_type = self.token_types[&token_type] as u32;
                 let delta_line = start_line + link.line as u32;
                 let delta_start =
                     if link.line == 0 { start_char + link.start as u32 } else { link.start as u32 };
@@ -126,7 +129,7 @@ impl<'args> SemanticTokenCollector<'args> {
         }
     }
 
-    fn link_target_token_type(&self, target: &LinkTarget) -> Option<u32> {
+    fn link_target_token_type(&self, target: &LinkTarget) -> Option<SemanticTokenType> {
         let token_type = match target {
             LinkTarget::TopLevelItem(module_def_id) => match module_def_id {
                 ModuleDefId::ModuleId(_) => SemanticTokenType::NAMESPACE,
@@ -149,7 +152,7 @@ impl<'args> SemanticTokenCollector<'args> {
             LinkTarget::PrimitiveType(_) => return None,
             LinkTarget::PrimitiveTypeFunction(..) => SemanticTokenType::FUNCTION,
         };
-        Some(self.token_types[&token_type] as u32)
+        Some(token_type)
     }
 
     fn push_token(&mut self, mut token: SemanticToken) {
@@ -169,6 +172,7 @@ impl<'args> SemanticTokenCollector<'args> {
     }
 }
 
+// Visit every AST node that can have doc comments on it. Links are then searched in these.
 impl Visitor for SemanticTokenCollector<'_> {
     fn visit_parsed_submodule(&mut self, module: &ParsedSubModule, _: Span) -> bool {
         let name_location = module.name.location();

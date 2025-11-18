@@ -67,6 +67,7 @@ impl<'a> VisitorReferenceFinder<'a> {
         self.reference_id
     }
 
+    /// Checks if the cursor is on a link inside the doc comments of the given ReferenceId.
     fn find_in_reference_doc_comments(&mut self, id: ReferenceId) {
         let Some(doc_comments) = self.args.interner.doc_comments(id) else {
             return;

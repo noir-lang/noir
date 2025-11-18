@@ -888,6 +888,8 @@ fn append_doc_comments(
     true
 }
 
+/// Replaces markdown links inside doc comments that point to Noir items to point at code locations
+/// where those items are defined.
 fn process_doc_comments_links(
     comments: String,
     id: ReferenceId,
@@ -924,6 +926,8 @@ fn process_doc_comments_links(
     lines.join("\n")
 }
 
+/// Returns the Location where a link target exists.
+/// The Location might not exist. For example, primitive types have no definition location.
 fn link_target_location(
     target: &LinkTarget,
     args: &ProcessRequestCallbackArgs,

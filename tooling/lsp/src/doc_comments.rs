@@ -5,6 +5,8 @@ use noirc_frontend::{Type, hir::def_map::ModuleId, node_interner::ReferenceId};
 
 use crate::requests::ProcessRequestCallbackArgs;
 
+/// Given a ReferenceId, returns the ModuleId it belongs to along with whether it represents
+/// a `CurrentType`.
 pub(crate) fn current_module_and_type(
     id: ReferenceId,
     args: &ProcessRequestCallbackArgs,
