@@ -1,7 +1,7 @@
 //! Handles LSP semantic tokens requests.
 //!
 //! Semantic tokens in Noir are provided for links inside doc comments. For example,
-//! a doc comment that has `[println]` in it will be colorzed as a function reference.
+//! a doc comment that has `[println]` in it will be colorized as a function reference.
 
 use std::{collections::HashMap, future};
 
