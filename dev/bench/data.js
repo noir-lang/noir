@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763491105638,
+  "lastUpdate": 1763491107683,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,105 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "89155182+CECILIA-MULANDI@users.noreply.github.com",
-            "name": "Mulandi",
-            "username": "CECILIA-MULANDI"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f51f75613474c532eaf5a3f42316340a13005e5e",
-          "message": "fix(compiler): Improve error message for impl on primitive types (#10430) (#10442)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-11-10T14:42:30Z",
-          "tree_id": "4b0ec2381efcc7b2003cf994b81ac9ad24f013c2",
-          "url": "https://github.com/noir-lang/noir/commit/f51f75613474c532eaf5a3f42316340a13005e5e"
-        },
-        "date": 1762789763930,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.97,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.272,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.862,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.39,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.49,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.532,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 404,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 392,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.474,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 23.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 84.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.362,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.806,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.569,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.827,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a8736206336afd59b45da4569a55407628c3570f",
+          "message": "fix(brillig): Handle the return of multiple vectors from foreign calls (#10505)",
+          "timestamp": "2025-11-18T18:05:54Z",
+          "tree_id": "7afbc404bfc537499cb229133e352bf0a1cfc9c3",
+          "url": "https://github.com/noir-lang/noir/commit/a8736206336afd59b45da4569a55407628c3570f"
+        },
+        "date": 1763491075159,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.022,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.846,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.682,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.31,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.47,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 382,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 378,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.574,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 22.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 84.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.348,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.763,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.625,
             "unit": "s"
           }
         ]
