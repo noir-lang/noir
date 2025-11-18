@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod foreign_calls;
 
-use std::u32;
-
 use acir::{
     AcirField, FieldElement,
     brillig::{
@@ -1032,7 +1030,7 @@ fn free_memory_pointer_out_of_memory() {
         status,
         VMStatus::Failure {
             reason: FailureReason::RuntimeError { message: "Out of memory".into() },
-            call_stack: vec![]
+            call_stack: vec![2]
         }
     );
 }

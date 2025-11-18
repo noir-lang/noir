@@ -322,6 +322,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 }
             }
             Opcode::BinaryIntOp { op, bit_size, lhs, rhs, destination: result } => {
+                match self.process_free_memory_op(*op, *bit_size, *lhs, *rhs, *result) {
+                    Err(error) => return self.fail(error),
+                    Ok(true) => return self.increment_program_counter(),
+                    Ok(false) => {
+                        // Not a free memory op, carry on as a regular binary operation.
+                    }
+                };
                 if let Err(error) = self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result)
                 {
                     self.fail(error.to_string())
@@ -538,6 +545,45 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.memory.write(result, result_value);
         self.fuzzing_trace_binary_int_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
+    }
+
+    /// Special handling for the increment of the _free memory pointer_.
+    ///
+    /// Returns:
+    /// * `Ok(false)` if it's not a _free memory pointer_ increase
+    /// * `Ok(true)` if the operation was handled
+    /// * `Err` if there was an error
+    fn process_free_memory_op(
+        &mut self,
+        op: BinaryIntOp,
+        bit_size: IntegerBitSize,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        result: MemoryAddress,
+    ) -> Result<bool, String> {
+        if result != FREE_MEMORY_POINTER_ADDRESS
+            || op != BinaryIntOp::Add
+            || bit_size != MEMORY_ADDRESSING_BIT_SIZE
+        {
+            return Ok(false);
+        }
+
+        let lhs_value = self.memory.read(lhs);
+        let rhs_value = self.memory.read(rhs);
+
+        let MemoryValue::U32(lhs_value) = lhs_value else {
+            return Ok(false);
+        };
+        let MemoryValue::U32(rhs_value) = rhs_value else {
+            return Ok(false);
+        };
+        let Some(result_value) = lhs_value.checked_add(rhs_value) else {
+            return Err("Out of memory".to_string());
+        };
+
+        self.memory.write(result, result_value.into());
+
+        Ok(true)
     }
 
     /// Process a unary negation operation.
