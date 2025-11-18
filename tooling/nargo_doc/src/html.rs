@@ -551,7 +551,7 @@ impl HTMLCreator {
             for field in fields {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!(
-                    "<a href=\"#structfield.{}\">{}</a>",
+                    "<a href=\"#structfield.{}\">{}</a>", // cspell:disable
                     field.name, field.name
                 ));
                 self.output.push_str("</li>\n");
@@ -789,7 +789,7 @@ impl HTMLCreator {
 
         for field in fields {
             self.output.push_str(&format!(
-                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">",
+                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">", // cspell:disable
                 field.name
             ));
             self.output.push_str(&field.name);
@@ -1390,7 +1390,7 @@ impl HTMLCreator {
                 .name()
                 .map(|name| {
                     if matches!(target, LinkTarget::StructMember(..)) {
-                        format!("#structfield.{name}")
+                        format!("#structfield.{name}") // cspell:disable
                     } else {
                         format!("#{name}")
                     }
