@@ -56,7 +56,8 @@ function processHighlighting(codeSnippet, identifier) {
     result += line === '' && mutated ? '' : line + '\n';
   }
 
-  return result.trim();
+  // Remove trailing newline
+  return result.replace(/\n$/, '');
 }
 
 let lastReleasedVersion;
