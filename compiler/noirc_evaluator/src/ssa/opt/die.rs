@@ -52,7 +52,9 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        integer::IntegerConstant,
         post_order::PostOrder,
+        types::NumericType,
         value::{Value, ValueId},
     },
     opt::{die::array_oob_checks::should_insert_oob_check, pure::Purity},
@@ -447,7 +449,23 @@ fn can_be_eliminated_if_unused(
         Binary(binary) => {
             if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                 if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
-                    rhs != FieldElement::zero()
+                    // Division by zero must remain
+                    if rhs == FieldElement::zero() {
+                        return false;
+                    }
+
+                    // There's one more case: signed division that does MIN / -1
+                    let typ = function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+                    if let NumericType::Signed { bit_size } = typ {
+                        if let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
+                            let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                            if rhs == minus_one {
+                                return false;
+                            }
+                        }
+                    }
+
+                    true
                 } else {
                     false
                 }
