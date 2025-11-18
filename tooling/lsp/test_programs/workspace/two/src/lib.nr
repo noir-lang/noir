@@ -115,3 +115,6 @@ fn negative_integer() -> i32 {
 }
 
 global array: [Field; 3] = [1, 2 + 3, 4];
+
+/// See [one::subone::SubOneStruct]
+fn doc_comments_test() {}
