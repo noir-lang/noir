@@ -296,6 +296,10 @@ mod tests {
         let src = "
         /// See also [Bar] and [Bar].
         /// 
+        /// ```
+        /// This is not a link: [Bar].
+        /// ```
+        /// 
         /// And also [Bar].
         struct Foo {}
 
@@ -319,7 +323,7 @@ mod tests {
                 token_modifiers_bitset: 0,
             },
             SemanticToken {
-                delta_line: 2,   // It's on the fourth line, so two more than before.
+                delta_line: 6,   // It's on line 8, so six more than before.
                 delta_start: 21, // This isn't relative anymore as it's on a new line
                 length: 5,
                 token_type: 1,

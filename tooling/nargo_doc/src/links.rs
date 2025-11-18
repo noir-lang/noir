@@ -75,9 +75,14 @@ impl LinkFinder {
         for (line_number, line) in comments.lines().enumerate() {
             let trimmed_line = line.trim_start();
 
-            // Track block codes. We check "```" and "* ```" because block doc comments
-            // might have a leading start at the beginning of each line.
-            if trimmed_line.starts_with("```") || trimmed_line.starts_with("* ```") {
+            // Track block codes. We check "```", "* ```" and "/// ```" because the comments
+            // given here might include the syntax for comments.
+            if trimmed_line.starts_with("```")
+                || trimmed_line.strip_prefix('*').is_some_and(|line| line.trim().starts_with("```"))
+                || trimmed_line
+                    .strip_prefix("///")
+                    .is_some_and(|line| line.trim().starts_with("```"))
+            {
                 self.in_code_block = !self.in_code_block;
                 continue;
             }
