@@ -129,30 +129,33 @@ impl DocItemBuilder<'_> {
                 self.current_type = Some(CurrentType::Type(type_id));
                 let shared_data_type = self.interner.get_type(type_id);
                 let data_type = shared_data_type.borrow();
-                if data_type.is_enum() {
-                    panic!("Enums are not supported yet");
-                }
                 let comments = self.doc_comments(ReferenceId::Type(type_id));
                 let mut has_private_fields = false;
-                let fields = data_type
-                    .get_fields_as_written()
-                    .unwrap()
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, field)| {
-                        if field.visibility == ItemVisibility::Public {
-                            true
-                        } else {
-                            has_private_fields = true;
-                            false
-                        }
-                    })
-                    .map(|(index, field)| {
-                        let comments = self.doc_comments(ReferenceId::StructMember(type_id, index));
-                        let r#type = self.convert_type(&field.typ);
-                        StructField { name: field.name.to_string(), r#type, comments }
-                    })
-                    .collect();
+                let fields = if data_type.is_enum() {
+                    // Enums are shown as structs for now
+                    Vec::new()
+                } else {
+                    data_type
+                        .get_fields_as_written()
+                        .unwrap()
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, field)| {
+                            if field.visibility == ItemVisibility::Public {
+                                true
+                            } else {
+                                has_private_fields = true;
+                                false
+                            }
+                        })
+                        .map(|(index, field)| {
+                            let comments =
+                                self.doc_comments(ReferenceId::StructMember(type_id, index));
+                            let r#type = self.convert_type(&field.typ);
+                            StructField { name: field.name.to_string(), r#type, comments }
+                        })
+                        .collect()
+                };
                 let generics = vecmap(&data_type.generics, |generic| self.convert_generic(generic));
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
@@ -451,9 +454,7 @@ impl DocItemBuilder<'_> {
             }
             noirc_frontend::Type::DataType(data_type, generics) => {
                 let data_type = data_type.borrow();
-                if data_type.is_enum() {
-                    panic!("Enums are not supported yet");
-                }
+                // Enums are shown as structs for now
                 let id = get_type_id(data_type.id, self.interner);
                 let name = data_type.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
@@ -679,6 +680,11 @@ impl DocItemBuilder<'_> {
                 links::LinkTarget::Method(module_def_id, func_id) => {
                     let name = self.interner.function_name(&func_id).to_string();
                     LinkTarget::Method(get_module_def_id(module_def_id, self.interner), name)
+                }
+                links::LinkTarget::StructMember(type_id, index) => {
+                    let data_type = self.interner.get_type(type_id);
+                    let name = data_type.borrow().field_at(index).name.to_string();
+                    LinkTarget::StructMember(get_type_id(type_id, self.interner), name)
                 }
                 links::LinkTarget::PrimitiveType(primitive_type_kind) => {
                     LinkTarget::PrimitiveType(primitive_type_kind)

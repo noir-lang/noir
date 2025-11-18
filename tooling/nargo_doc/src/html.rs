@@ -16,8 +16,8 @@ use crate::{
     },
     items::{
         Comments, Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item,
-        ItemId, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
-        Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
+        ItemId, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
+        StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
     },
 };
 
@@ -550,7 +550,10 @@ impl HTMLCreator {
             self.output.push_str("<ul class=\"sidebar-list\">\n");
             for field in fields {
                 self.output.push_str("<li>");
-                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", field.name, field.name));
+                self.output.push_str(&format!(
+                    "<a href=\"#structfield.{}\">{}</a>",
+                    field.name, field.name
+                ));
                 self.output.push_str("</li>\n");
             }
             self.output.push_str("</ul>\n");
@@ -786,7 +789,7 @@ impl HTMLCreator {
 
         for field in fields {
             self.output.push_str(&format!(
-                "<div id=\"{}\" class=\"struct-field\"><code class=\"code-header\">",
+                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">",
                 field.name
             ));
             self.output.push_str(&field.name);
@@ -1383,7 +1386,16 @@ impl HTMLCreator {
             let target = &link.target;
             let name = &link.name;
             let id = target.id();
-            let anchor = target.name().map(|name| format!("#{name}")).unwrap_or_default();
+            let anchor = target
+                .name()
+                .map(|name| {
+                    if matches!(target, LinkTarget::StructMember(..)) {
+                        format!("#structfield.{name}")
+                    } else {
+                        format!("#{name}")
+                    }
+                })
+                .unwrap_or_default();
             let mut line = lines[link.line].to_string();
             if let Some(id) = id {
                 if let Some(ItemInfo {

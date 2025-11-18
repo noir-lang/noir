@@ -54,6 +54,7 @@ pub struct Link {
 pub enum LinkTarget {
     TopLevelItem(ItemId),
     Method(ItemId, String),
+    StructMember(ItemId, String),
     PrimitiveType(PrimitiveTypeKind),
     PrimitiveTypeFunction(PrimitiveTypeKind, String),
 }
@@ -61,7 +62,7 @@ pub enum LinkTarget {
 impl LinkTarget {
     pub fn id(&self) -> Option<&ItemId> {
         match self {
-            Self::TopLevelItem(id) | Self::Method(id, _) => Some(id),
+            Self::TopLevelItem(id) | Self::Method(id, _) | Self::StructMember(id, _) => Some(id),
             Self::PrimitiveType(_) | Self::PrimitiveTypeFunction(..) => None,
         }
     }
@@ -69,13 +70,15 @@ impl LinkTarget {
     pub fn name(&self) -> Option<&str> {
         match self {
             Self::TopLevelItem(_) | Self::PrimitiveType(_) => None,
-            Self::Method(_, name) | Self::PrimitiveTypeFunction(_, name) => Some(name),
+            Self::Method(_, name)
+            | Self::StructMember(_, name)
+            | Self::PrimitiveTypeFunction(_, name) => Some(name),
         }
     }
 
     pub fn primitive_type(&self) -> Option<PrimitiveTypeKind> {
         match self {
-            Self::TopLevelItem(..) | Self::Method(..) => None,
+            Self::TopLevelItem(..) | Self::Method(..) | Self::StructMember(..) => None,
             Self::PrimitiveType(primitive_type_kind)
             | Self::PrimitiveTypeFunction(primitive_type_kind, _) => Some(*primitive_type_kind),
         }

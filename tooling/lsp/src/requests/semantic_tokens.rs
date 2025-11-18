@@ -145,6 +145,7 @@ impl<'args> SemanticTokenCollector<'args> {
                 ModuleDefId::GlobalId(_) => SemanticTokenType::VARIABLE,
             },
             LinkTarget::Method(..) => SemanticTokenType::METHOD,
+            LinkTarget::StructMember(..) => SemanticTokenType::PROPERTY,
             LinkTarget::PrimitiveType(_) => return None,
             LinkTarget::PrimitiveTypeFunction(..) => SemanticTokenType::FUNCTION,
         };

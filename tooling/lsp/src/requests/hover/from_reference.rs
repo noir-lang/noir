@@ -969,6 +969,13 @@ fn link_target_location(
             let location = func_meta.location;
             to_lsp_location(args.files, location.file, location.span)
         }
+        LinkTarget::StructMember(type_id, index) => {
+            let struct_type = args.interner.get_type(*type_id);
+            let struct_type = struct_type.borrow();
+            let field = struct_type.field_at(*index);
+            let location = field.name.location();
+            to_lsp_location(args.files, location.file, location.span)
+        }
         LinkTarget::PrimitiveType(_) => {
             // Can't link to primitive types
             None

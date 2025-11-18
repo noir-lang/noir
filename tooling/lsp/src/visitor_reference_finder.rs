@@ -129,6 +129,9 @@ impl<'a> VisitorReferenceFinder<'a> {
                         | LinkTarget::PrimitiveTypeFunction(_, func_id) => {
                             ReferenceId::Function(func_id)
                         }
+                        LinkTarget::StructMember(type_id, index) => {
+                            ReferenceId::StructMember(type_id, index)
+                        }
                         LinkTarget::PrimitiveType(_) => {
                             continue;
                         }

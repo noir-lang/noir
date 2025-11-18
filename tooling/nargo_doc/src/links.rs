@@ -3,6 +3,7 @@ use noirc_frontend::{
     ast::Ident,
     graph::CrateGraph,
     hir::def_map::{DefMaps, ModuleDefId, ModuleId},
+    modules::get_parent_module,
     node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TypeId},
 };
 use regex::Regex;
@@ -30,6 +31,7 @@ pub struct Link {
 pub enum LinkTarget {
     TopLevelItem(ModuleDefId),
     Method(ModuleDefId, FuncId),
+    StructMember(TypeId, usize),
     PrimitiveType(PrimitiveTypeKind),
     PrimitiveTypeFunction(PrimitiveTypeKind, FuncId),
 }
@@ -209,7 +211,7 @@ pub(crate) fn path_to_link_target(
             match current_type {
                 CurrentType::Type(type_id) => {
                     if let Some(method_name) = method_name {
-                        return type_method_link_target(type_id, method_name, interner);
+                        return type_method_or_field_link_target(type_id, method_name, interner);
                     } else {
                         return Some(LinkTarget::TopLevelItem(ModuleDefId::TypeId(type_id)));
                     }
@@ -393,7 +395,7 @@ fn path_to_link_target_searching_modules(
                     return None;
                 }
                 let method_name = segments.last().unwrap();
-                return type_method_link_target(type_id, method_name, interner);
+                return type_method_or_field_link_target(type_id, method_name, interner);
             }
             ModuleDefId::TraitId(trait_id) => {
                 // This must refer to a trait method, so only one segment should remain
@@ -415,19 +417,28 @@ fn path_to_link_target_searching_modules(
     None
 }
 
-fn type_method_link_target(
+fn type_method_or_field_link_target(
     type_id: TypeId,
     method_name: &str,
     interner: &NodeInterner,
 ) -> Option<LinkTarget> {
     let data_type = interner.get_type(type_id);
     let generic_types = data_type.borrow().generic_types();
-    let typ = noirc_frontend::Type::DataType(data_type, generic_types);
-    let methods = interner.get_type_methods(&typ)?;
-    let method = methods.get(method_name)?;
-    let method = method.direct.first()?;
-    let method = method.method;
-    Some(LinkTarget::Method(ModuleDefId::TypeId(type_id), method))
+    let typ = noirc_frontend::Type::DataType(data_type.clone(), generic_types.clone());
+    if let Some(methods) = interner.get_type_methods(&typ) {
+        if let Some(method) = methods.get(method_name) {
+            if let Some(method) = method.direct.first() {
+                let method = method.method;
+                return Some(LinkTarget::Method(ModuleDefId::TypeId(type_id), method));
+            }
+        }
+    }
+
+    if let Some((_, _, index)) = data_type.borrow().get_field(method_name, &generic_types) {
+        return Some(LinkTarget::StructMember(type_id, index));
+    }
+
+    None
 }
 
 fn trait_method_link_target(
