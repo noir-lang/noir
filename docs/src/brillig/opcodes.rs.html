@@ -793,7 +793,11 @@
 <a href="#792" id="792">792</a>
 <a href="#793" id="793">793</a>
 <a href="#794" id="794">794</a>
-<a href="#795" id="795">795</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -1216,6 +1220,10 @@
         /// who the caller is.
         </span>function: String,
         <span class="doccomment">/// Destination addresses (may be single values or memory pointers).
+        ///
+        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
+        /// the current free memory pointer, and store the heap address into the destination.
         </span>destinations: Vec&lt;ValueOrArray&gt;,
         <span class="doccomment">/// Destination value types.
         </span>destination_value_types: Vec&lt;HeapValueType&gt;,

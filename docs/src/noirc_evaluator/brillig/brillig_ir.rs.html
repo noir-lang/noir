@@ -573,7 +573,7 @@
 <span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode <span class="kw">as </span>BrilligOpcode},
-    brillig_vm::STACK_POINTER_ADDRESS,
+    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS},
 };
 <span class="kw">use </span>debug_show::DebugShow;
 
@@ -607,7 +607,7 @@
     /// This represents the heap, and we make sure during entry point generation that it is initialized
     /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>free_memory_pointer() -&gt; MemoryAddress {
-        MemoryAddress::direct(<span class="number">1</span>)
+        FREE_MEMORY_POINTER_ADDRESS
     }
 
     <span class="doccomment">/// This register stores a 1_usize constant.
@@ -870,7 +870,7 @@
         ValueOrArray,
     };
     <span class="kw">use </span>acvm::brillig_vm::brillig::HeapValueType;
-    <span class="kw">use </span>acvm::brillig_vm::{VM, VMStatus};
+    <span class="kw">use </span>acvm::brillig_vm::{VM, VMStatus, offsets};
     <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     <span class="kw">use </span><span class="kw">crate</span>::brillig::BrilligOptions;
@@ -993,6 +993,8 @@
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
+
+        // Enable debug trace so we can see what the bytecode is if the test fails.
         </span><span class="kw">let </span>options = BrilligOptions {
             enable_debug_trace: <span class="bool-val">true</span>,
             enable_debug_assertions: <span class="bool-val">true</span>,
@@ -1000,27 +1002,28 @@
             ..Default::default()
         };
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
-        <span class="kw">let </span>r_stack = ReservedRegisters::free_memory_pointer();
-        <span class="comment">// Start stack pointer at 0
-        </span>context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + <span class="number">3</span>));
+        <span class="kw">let </span>r_free = ReservedRegisters::free_memory_pointer();
+        <span class="comment">// Set the free memory pointer after the 2 variables allocated below.
+        </span><span class="kw">let </span>r_free_value = ReservedRegisters::len() + <span class="number">2</span>;
+        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
         <span class="kw">let </span>r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        <span class="kw">let </span>r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + <span class="number">1</span>);
-        <span class="kw">let </span>r_output_size = MemoryAddress::direct(ReservedRegisters::len() + <span class="number">2</span>);
-        <span class="kw">let </span>r_equality = MemoryAddress::direct(ReservedRegisters::len() + <span class="number">3</span>);
+        <span class="kw">let </span>r_vector_ptr = r_input_size.offset(<span class="number">1</span>);
+        <span class="kw">let </span>r_equality = r_input_size.offset(<span class="number">2</span>);
+
+        <span class="comment">// The vector size is going to be on the heap. It's easy here, since we know where it will start.
+        </span><span class="kw">let </span>r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
+
         context.usize_const_instruction(r_input_size, FieldElement::from(<span class="number">12_usize</span>));
-        <span class="comment">// copy our stack frame to r_array_ptr
-        </span>context.mov_instruction(r_array_ptr, r_stack);
         context.foreign_call_instruction(
             <span class="string">"make_number_sequence"</span>.into(),
             <span class="kw-2">&amp;</span>[ValueOrArray::MemoryAddress(r_input_size)],
             <span class="kw-2">&amp;</span>[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            <span class="kw-2">&amp;</span>[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+            <span class="kw-2">&amp;</span>[ValueOrArray::MemoryAddress(r_vector_ptr)],
             <span class="kw-2">&amp;</span>[HeapValueType::Vector {
                 value_types: <span class="macro">vec!</span>[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             }],
         );
-        <span class="comment">// push stack frame by r_returned_size
-        </span>context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
+
         <span class="comment">// check r_input_size == r_output_size
         </span>context.memory_op_instruction(
             r_input_size,
@@ -1036,23 +1039,19 @@
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(<span class="number">0u64</span>),
         });
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: <span class="number">9 </span>});
-        context.push_opcode(BrilligOpcode::Trap {
-            revert_data: HeapVector {
-                pointer: MemoryAddress::direct(<span class="number">0</span>),
-                size: MemoryAddress::direct(<span class="number">0</span>),
-            },
-        });
-
-        context.stop_instruction(HeapVector {
-            pointer: MemoryAddress::direct(<span class="number">0</span>),
-            size: MemoryAddress::direct(<span class="number">0</span>),
-        });
+        <span class="comment">// If we got the expected number of items, jump to the STOP, otherwise fall through to TRAP.
+        </span>context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: <span class="number">8 </span>});
+        <span class="kw">let </span>empty_data =
+            HeapVector { pointer: MemoryAddress::direct(<span class="number">0</span>), size: MemoryAddress::direct(<span class="number">0</span>) };
+        context.push_opcode(BrilligOpcode::Trap { revert_data: empty_data });
+        context.stop_instruction(empty_data);
 
         <span class="kw">let </span>bytecode: Vec&lt;BrilligOpcode&lt;FieldElement&gt;&gt; = context.artifact().finish().byte_code;
 
         <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>bytecode, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
-        <span class="kw">let </span>status = vm.process_opcodes();
+
+        <span class="comment">// Run the VM up to the foreign call. Assert the expected call parameters.
+        </span><span class="kw">let </span>status = vm.process_opcodes();
         <span class="macro">assert_eq!</span>(
             status,
             VMStatus::ForeignCallWait {
@@ -1060,13 +1059,14 @@
                 inputs: <span class="macro">vec!</span>[ForeignCallParam::Single(FieldElement::from(<span class="number">12u128</span>))]
             }
         );
-
-        <span class="kw">let </span>number_sequence: Vec&lt;FieldElement&gt; =
+        <span class="comment">// Create the response.
+        </span><span class="kw">let </span>number_sequence: Vec&lt;FieldElement&gt; =
             (<span class="number">0_usize</span>..<span class="number">12_usize</span>).map(FieldElement::from).collect();
         <span class="kw">let </span>response = ForeignCallResult { values: <span class="macro">vec!</span>[ForeignCallParam::Array(number_sequence)] };
         vm.resolve_foreign_call(response);
 
-        <span class="kw">let </span>status = vm.process_opcodes();
+        <span class="comment">// The equality check should succeed
+        </span><span class="kw">let </span>status = vm.process_opcodes();
         <span class="macro">assert_eq!</span>(status, VMStatus::Finished { return_data_offset: <span class="number">0</span>, return_data_size: <span class="number">0 </span>});
     }
 }

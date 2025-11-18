@@ -594,7 +594,20 @@
 <a href="#593" id="593">593</a>
 <a href="#594" id="594">594</a>
 <a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
@@ -609,6 +622,14 @@
 ///
 /// It gets manipulated by opcodes laid down for calls by codegen.
 </span><span class="kw">pub const </span>STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(<span class="number">0</span>);
+
+<span class="doccomment">/// The free memory pointer is always in slot 1.
+///
+/// Usually it is a concern for the codegen to allocate space for arrays and vectors,
+/// however during foreign calls the VM writes vector outputs to the free memory;
+/// by sharing a constant address for it, we don't have to pass the address as
+/// part of the opcode.
+</span><span class="kw">pub const </span>FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(<span class="number">1</span>);
 
 <span class="doccomment">/// Offset constants for arrays and vectors:
 /// * Arrays are `[ref-count, ...items]`
@@ -1005,6 +1026,11 @@
     /// without dereferencing the pointer itself to a numeric value.
     </span><span class="kw">pub fn </span>read_ref(<span class="kw-2">&amp;</span><span class="self">self</span>, ptr: MemoryAddress) -&gt; MemoryAddress {
         MemoryAddress::direct(<span class="self">self</span>.read(ptr).to_usize())
+    }
+
+    <span class="doccomment">/// Sets `ptr` to point at `address`.
+    </span><span class="kw">pub fn </span>write_ref(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: MemoryAddress, address: MemoryAddress) {
+        <span class="self">self</span>.write(ptr, MemoryValue::from(address.to_usize()));
     }
 
     <span class="doccomment">/// Read a contiguous slice of memory starting at `address`, up to `len` slots.

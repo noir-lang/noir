@@ -561,7 +561,10 @@
 <a href="#560" id="560">560</a>
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -582,7 +585,10 @@
 <span class="comment">// Re-export `brillig`.
 </span><span class="kw">pub use </span>acir::brillig;
 <span class="kw">use </span>memory::MemoryTypeError;
-<span class="kw">pub use </span>memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, STACK_POINTER_ADDRESS, offsets};
+<span class="kw">pub use </span>memory::{
+    FREE_MEMORY_POINTER_ADDRESS, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
+    STACK_POINTER_ADDRESS, offsets,
+};
 
 <span class="kw">pub use </span><span class="kw">crate</span>::fuzzing::BranchToFeatureMap;
 <span class="kw">use </span><span class="kw">crate</span>::fuzzing::FuzzingTrace;
