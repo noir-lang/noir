@@ -24,9 +24,9 @@ use noirc_frontend::{
 
 use crate::doc_comments::current_module_and_type;
 use crate::{
-    attribute_reference_finder::AttributeReferenceFinder,
     requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
+    visitor_reference_finder::VisitorReferenceFinder,
 };
 
 pub(super) fn hover_from_reference(
@@ -40,8 +40,7 @@ pub(super) fn hover_from_reference(
             let source = file.source();
             let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder =
-                AttributeReferenceFinder::new(file_id, byte_index, args.crate_id, args.def_maps);
+            let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
             finder.find(&parsed_module)
         })
         .or_else(|| args.interner.reference_at_location(args.location))

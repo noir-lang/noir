@@ -2,29 +2,20 @@ use std::str::FromStr;
 
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::FileId;
-use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     Type,
-    ast::{
-        GenericTypeArgs, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, Path,
-        TypeAlias, Visitor,
-    },
+    ast::{GenericTypeArgs, Path, Visitor},
     elaborator::PrimitiveType,
-    modules::module_def_id_to_reference_id,
-    node_interner::{NodeInterner, ReferenceId},
+    node_interner::NodeInterner,
     parse_program,
-    parser::ParsedSubModule,
     signed_field::SignedField,
     token::IntegerTypeSuffix,
 };
 use num_bigint::BigInt;
 
 use crate::{
-    doc_comments::current_module_and_type,
-    requests::{
-        ProcessRequestCallbackArgs, hover::from_reference::format_reference, to_lsp_location,
-    },
+    requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
 
@@ -38,107 +29,26 @@ pub(super) fn hover_from_visitor(
     let (parsed_module, _errors) = parse_program(source, file_id);
     let byte_index = utils::position_to_byte_index(args.files, file_id, &position)?;
 
-    let mut finder = HoverFinder::new(args, source, file_id, args.interner, byte_index);
+    let mut finder = HoverFinder::new(args, file_id, args.interner, byte_index);
     parsed_module.accept(&mut finder);
     finder.hover
 }
 
 struct HoverFinder<'a> {
     args: &'a ProcessRequestCallbackArgs<'a>,
-    source: &'a str,
     file: FileId,
     interner: &'a NodeInterner,
     byte_index: usize,
-    link_finder: LinkFinder,
     hover: Option<Hover>,
 }
 impl<'a> HoverFinder<'a> {
     fn new(
         args: &'a ProcessRequestCallbackArgs<'a>,
-        source: &'a str,
         file: FileId,
         interner: &'a NodeInterner,
         byte_index: usize,
     ) -> Self {
-        let link_finder = LinkFinder::default();
-        Self { args, source, file, interner, byte_index, link_finder, hover: None }
-    }
-
-    fn find_in_reference_doc_comments(&mut self, id: ReferenceId) {
-        let Some(doc_comments) = self.args.interner.doc_comments(id) else {
-            return;
-        };
-
-        if !doc_comments.iter().any(|doc_comment| self.intersects_span(doc_comment.span())) {
-            return;
-        }
-
-        let Some((current_module_id, current_type)) = current_module_and_type(id, self.args) else {
-            return;
-        };
-
-        let Some(byte_lsp_location) =
-            to_lsp_location(self.args.files, self.file, Span::single_char(self.byte_index as u32))
-        else {
-            return;
-        };
-
-        self.link_finder.reset();
-        for located_comment in doc_comments {
-            let location = located_comment.location();
-            let Some(lsp_location) = to_lsp_location(self.args.files, location.file, location.span)
-            else {
-                continue;
-            };
-            let start_line = lsp_location.range.start.line;
-            let start_char = lsp_location.range.start.character;
-
-            // Read comments from source based on location: the comments in `located_comment` might
-            // have been slightly adjusted.
-            let comments =
-                &self.source[location.span.start() as usize..location.span.end() as usize];
-
-            let links = self.link_finder.find_links(
-                comments,
-                current_module_id,
-                current_type,
-                self.args.interner,
-                self.args.def_maps,
-                self.args.crate_graph,
-            );
-            for link in links {
-                let line = start_line + link.line as u32;
-                let start =
-                    if link.line == 0 { start_char + link.start as u32 } else { link.start as u32 };
-                let length = (link.end - link.start) as u32;
-                let end = start + length;
-                if byte_lsp_location.range.start.line == line
-                    && start <= byte_lsp_location.range.start.character
-                    && byte_lsp_location.range.start.character <= end
-                {
-                    let reference = match link.target {
-                        LinkTarget::TopLevelItem(module_def_id) => {
-                            module_def_id_to_reference_id(module_def_id)
-                        }
-                        LinkTarget::Method(_, func_id)
-                        | LinkTarget::PrimitiveTypeFunction(_, func_id) => {
-                            ReferenceId::Function(func_id)
-                        }
-                        LinkTarget::PrimitiveType(_) => {
-                            continue;
-                        }
-                    };
-                    if let Some(contents) = format_reference(reference, self.args) {
-                        let contents = HoverContents::Markup(MarkupContent {
-                            kind: MarkupKind::Markdown,
-                            value: contents,
-                        });
-                        self.hover = Some(Hover { contents, range: Some(lsp_location.range) });
-                    }
-                    return;
-                }
-            }
-        }
+        Self { args, file, interner, byte_index, hover: None }
     }
 
     fn intersects_span(&self, span: Span) -> bool {
@@ -147,81 +57,6 @@ impl<'a> HoverFinder<'a> {
 }
 
 impl Visitor for HoverFinder<'_> {
-    fn visit_parsed_submodule(&mut self, module: &ParsedSubModule, _: Span) -> bool {
-        let name_location = module.name.location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-
-        true
-    }
-
-    fn visit_noir_function(&mut self, function: &NoirFunction, span: Span) -> bool {
-        let name_location = function.name_ident().location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-
-        self.intersects_span(span)
-    }
-
-    fn visit_noir_struct(&mut self, noir_struct: &NoirStruct, _: Span) -> bool {
-        let name_location = noir_struct.name.location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-
-        for field in noir_struct.fields.iter() {
-            let field_name_location = field.item.name.location();
-            if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
-                self.find_in_reference_doc_comments(reference);
-            };
-        }
-
-        false
-    }
-
-    fn visit_noir_enum(&mut self, noir_enum: &NoirEnumeration, _: Span) -> bool {
-        let name_location = noir_enum.name.location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-
-        for variant in noir_enum.variants.iter() {
-            let variant_name_location = variant.item.name.location();
-            if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
-            {
-                self.find_in_reference_doc_comments(reference);
-            };
-        }
-
-        false
-    }
-
-    fn visit_noir_trait(&mut self, noir_trait: &NoirTrait, _: Span) -> bool {
-        let name_location = noir_trait.name.location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-        true
-    }
-
-    fn visit_global(&mut self, let_statement: &LetStatement, _: Span) -> bool {
-        let name_location = let_statement.pattern.location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-        false
-    }
-
-    fn visit_noir_type_alias(&mut self, type_alias: &TypeAlias, _: Span) -> bool {
-        let name_location = type_alias.name.location();
-        if let Some(reference) = self.args.interner.reference_at_location(name_location) {
-            self.find_in_reference_doc_comments(reference);
-        };
-        false
-    }
-
     fn visit_literal_integer(
         &mut self,
         value: SignedField,

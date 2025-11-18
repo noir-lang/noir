@@ -1,7 +1,7 @@
 use std::future::{self, Future};
 
-use crate::attribute_reference_finder::AttributeReferenceFinder;
 use crate::utils;
+use crate::visitor_reference_finder::VisitorReferenceFinder;
 use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
@@ -41,12 +41,7 @@ fn on_goto_definition_inner(
                 let source = file.source();
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = AttributeReferenceFinder::new(
-                    file_id,
-                    byte_index,
-                    args.crate_id,
-                    args.def_maps,
-                );
+                let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, &args);
                 finder.find(&parsed_module)
             });
         let location = if let Some(reference_id) = reference_id {

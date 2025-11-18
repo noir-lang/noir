@@ -61,7 +61,6 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
-mod attribute_reference_finder;
 mod doc_comments;
 mod notifications;
 mod requests;
@@ -71,6 +70,7 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
+mod visitor_reference_finder;
 mod with_file;
 
 #[cfg(test)]
