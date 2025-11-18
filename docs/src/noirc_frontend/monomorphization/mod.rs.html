@@ -3005,7 +3005,36 @@
 <a href="#3004" id="3004">3004</a>
 <a href="#3005" id="3005">3005</a>
 <a href="#3006" id="3006">3006</a>
-<a href="#3007" id="3007">3007</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#3007" id="3007">3007</a>
+<a href="#3008" id="3008">3008</a>
+<a href="#3009" id="3009">3009</a>
+<a href="#3010" id="3010">3010</a>
+<a href="#3011" id="3011">3011</a>
+<a href="#3012" id="3012">3012</a>
+<a href="#3013" id="3013">3013</a>
+<a href="#3014" id="3014">3014</a>
+<a href="#3015" id="3015">3015</a>
+<a href="#3016" id="3016">3016</a>
+<a href="#3017" id="3017">3017</a>
+<a href="#3018" id="3018">3018</a>
+<a href="#3019" id="3019">3019</a>
+<a href="#3020" id="3020">3020</a>
+<a href="#3021" id="3021">3021</a>
+<a href="#3022" id="3022">3022</a>
+<a href="#3023" id="3023">3023</a>
+<a href="#3024" id="3024">3024</a>
+<a href="#3025" id="3025">3025</a>
+<a href="#3026" id="3026">3026</a>
+<a href="#3027" id="3027">3027</a>
+<a href="#3028" id="3028">3028</a>
+<a href="#3029" id="3029">3029</a>
+<a href="#3030" id="3030">3030</a>
+<a href="#3031" id="3031">3031</a>
+<a href="#3032" id="3032">3032</a>
+<a href="#3033" id="3033">3033</a>
+<a href="#3034" id="3034">3034</a>
+<a href="#3035" id="3035">3035</a>
+<a href="#3036" id="3036">3036</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3838,12 +3867,41 @@
             MonomorphizationError::UnknownArrayLength { location, err, length }
         })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>contents = try_vecmap(<span class="number">0</span>..length, |<span class="kw">_</span>| <span class="self">self</span>.expr(repeated_element))<span class="question-mark">?</span>;
-        <span class="kw">if </span>is_slice {
-            <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
+        <span class="comment">// Represent `[expr; n]` as:
+        //
+        // ```
+        // let repeated_element = expr;
+        // [repeated_element, repeated_element, ..., repeated_element]
+        // ```
+        //
+        // That is, `expr` is only evaluated once, assigned to a local variable,
+        // and the array consists of references to that local variable.
+        </span><span class="kw">let </span>element = <span class="self">self</span>.expr(repeated_element)<span class="question-mark">?</span>;
+        <span class="kw">let </span>local_id = <span class="self">self</span>.next_local_id();
+
+        <span class="kw">let </span>name = <span class="string">"repeated_element"</span>.to_string();
+        <span class="kw">let </span>let_expr = ast::Expression::Let(ast::Let {
+            id: local_id,
+            mutable: <span class="bool-val">false</span>,
+            name: name.clone(),
+            expression: Box::new(element),
+        });
+
+        <span class="kw">let </span>contents = vecmap(<span class="number">0</span>..length, |<span class="kw">_</span>| {
+            <span class="kw">let </span>definition = Definition::Local(local_id);
+            <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id();
+            <span class="kw">let </span>typ = typ.clone();
+            <span class="kw">let </span>name = name.clone();
+            <span class="kw">let </span>ident =
+                ast::Ident { location: <span class="prelude-val">Some</span>(location), definition, mutable: <span class="bool-val">false</span>, name, typ, id };
+            ast::Expression::Ident(ident)
+        });
+        <span class="kw">let </span>array = <span class="kw">if </span>is_slice {
+            ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ }))
         } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
-        }
+            ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
+        };
+        <span class="prelude-val">Ok</span>(ast::Expression::Block(<span class="macro">vec!</span>[let_expr, array]))
     }
 
     <span class="kw">fn </span>index(
