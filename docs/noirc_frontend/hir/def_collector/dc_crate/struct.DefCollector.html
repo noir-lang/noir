@@ -7,7 +7,7 @@
     def_map: <a class="struct" href="../../def_map/struct.CrateDefMap.html" title="struct noirc_frontend::hir::def_map::CrateDefMap">CrateDefMap</a>,
     context: &amp;mut <a class="struct" href="../../struct.Context.html" title="struct noirc_frontend::hir::Context">Context</a>&lt;'_, '_&gt;,
     ast: <a class="struct" href="../../../parser/struct.SortedModule.html" title="struct noirc_frontend::parser::SortedModule">SortedModule</a>,
-    root_file_id: FileId,
+    root_file_id: <a class="struct" href="../../../../fm/file_map/struct.FileId.html" title="struct fm::file_map::FileId">FileId</a>,
     options: <a class="type" href="../../../elaborator/type.FrontendOptions.html" title="type noirc_frontend::elaborator::FrontendOptions">FrontendOptions</a>&lt;'_&gt;,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.CompilationError.html" title="enum noirc_frontend::hir::def_collector::dc_crate::CompilationError">CompilationError</a>&gt;</h4></section></summary><div class="docblock"><p>Collect all of the definitions in a given crate into a CrateDefMap
 Modules which are not a part of the module hierarchy starting with
