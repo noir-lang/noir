@@ -436,7 +436,7 @@ pub struct Reexport {
     pub name: String,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PrimitiveTypeKind {
     Bool,
     U1,

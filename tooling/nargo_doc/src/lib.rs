@@ -319,7 +319,7 @@ impl DocItemBuilder<'_> {
         Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
-    fn convert_impl(&self, impl_: expand_items::Impl) -> Impl {
+    fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
         let generics = vecmap(impl_.generics, |(name, kind)| {
             let numeric = self.kind_to_numeric(kind);
             Generic { name, numeric }
@@ -538,7 +538,7 @@ impl DocItemBuilder<'_> {
         (ordered_generics, named_generics)
     }
 
-    fn convert_function(&self, func_id: FuncId) -> Function {
+    fn convert_function(&mut self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
         let unconstrained = modifiers.is_unconstrained;
@@ -646,7 +646,7 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn doc_comments(&self, id: ReferenceId) -> Option<(String, Links)> {
+    fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
         let comments = self.interner.doc_comments(id)?;
         let comments =
             vecmap(comments, |comment| comment.contents.clone()).join("\n").trim().to_string();
@@ -660,8 +660,9 @@ impl DocItemBuilder<'_> {
     ///
     /// The doc generator ([html::to_html]) will then replace occurrences of these links
     /// with resolved HTML links.
-    fn find_links_in_comments(&self, comments: &str) -> Links {
+    fn find_links_in_comments(&mut self, comments: &str) -> Links {
         let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
+        self.link_finder.reset();
         let links = self.link_finder.find_links(
             comments,
             current_module_id,

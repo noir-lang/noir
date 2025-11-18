@@ -9,11 +9,11 @@ use regex::Regex;
 
 use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 
-/// An resolved markdown link found in a line of markdown, in the form:
+/// A resolved markdown link found in a line of markdown, in the form:
 /// - `[name]` (`path` will be the same as `name`)
 /// - `[name][path]`
 /// - `[name](path)`
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     pub target: LinkTarget,
     pub name: String,
@@ -26,7 +26,7 @@ pub struct Link {
     pub end: usize,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LinkTarget {
     TopLevelItem(ModuleDefId),
     Method(ModuleDefId, FuncId),
@@ -41,20 +41,27 @@ pub enum CurrentType {
     PrimitiveType(PrimitiveTypeKind),
 }
 
+/// Finds links in markdown comments.
+///
+/// It skips links that are inside code blocks (as they are not links, really),
+/// and for that it keeps track of whether we are inside a code block or not.
+///
+/// Use [`Self::reset`] to reset the state when starting to process a new group of doc comments.
 pub struct LinkFinder {
     /// A regex to match `[.+]` references.
     reference_regex: Regex,
+    in_code_block: bool,
 }
 
 impl Default for LinkFinder {
     fn default() -> Self {
-        Self { reference_regex: reference_regex() }
+        Self { reference_regex: reference_regex(), in_code_block: false }
     }
 }
 
 impl LinkFinder {
     pub fn find_links(
-        &self,
+        &mut self,
         comments: &str,
         current_module_id: ModuleId,
         current_type: Option<CurrentType>,
@@ -63,13 +70,16 @@ impl LinkFinder {
         crate_graph: &CrateGraph,
     ) -> Vec<Link> {
         let mut links = Vec::new();
-        let mut in_code_block = false;
         for (line_number, line) in comments.lines().enumerate() {
-            if line.trim_start().starts_with("```") {
-                in_code_block = !in_code_block;
+            let trimmed_line = line.trim_start();
+
+            // Track block codes. We check "```" and "* ```" because block doc comments
+            // might have a leading start at the beginning of each line.
+            if trimmed_line.starts_with("```") || trimmed_line.starts_with("* ```") {
+                self.in_code_block = !self.in_code_block;
                 continue;
             }
-            if in_code_block {
+            if self.in_code_block {
                 continue;
             }
 
@@ -88,8 +98,8 @@ impl LinkFinder {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn find_links_in_line(
-        &self,
+    fn find_links_in_line(
+        &mut self,
         line: &str,
         line_number: usize,
         current_module_id: ModuleId,
@@ -122,6 +132,11 @@ impl LinkFinder {
                 end: link.end,
             })
         })
+    }
+
+    /// Resets the state, meaning that it won't consider itself to be inside a code block.
+    pub fn reset(&mut self) {
+        self.in_code_block = false;
     }
 }
 

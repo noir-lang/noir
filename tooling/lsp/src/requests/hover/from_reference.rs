@@ -2,7 +2,7 @@ use async_lsp::lsp_types;
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::{FileId, FileMap};
 use iter_extended::vecmap;
-use nargo_doc::links::{CurrentType, LinkFinder, LinkTarget};
+use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::hir::def_map::ModuleDefId;
@@ -22,6 +22,7 @@ use noirc_frontend::{
     },
 };
 
+use crate::doc_comments::current_module_and_type;
 use crate::{
     attribute_reference_finder::AttributeReferenceFinder,
     requests::{ProcessRequestCallbackArgs, to_lsp_location},
@@ -919,60 +920,6 @@ fn process_doc_comments_links(
     }
 
     lines.join("\n")
-}
-
-fn current_module_and_type(
-    id: ReferenceId,
-    args: &ProcessRequestCallbackArgs,
-) -> Option<(ModuleId, Option<CurrentType>)> {
-    match id {
-        ReferenceId::Module(module_id) => Some((module_id, None)),
-        ReferenceId::Type(type_id)
-        | ReferenceId::StructMember(type_id, _)
-        | ReferenceId::EnumVariant(type_id, _) => {
-            let parent_module =
-                get_parent_module(ModuleDefId::TypeId(type_id), args.interner, args.def_maps)?;
-            Some((parent_module, Some(CurrentType::Type(type_id))))
-        }
-        ReferenceId::Trait(trait_id) => {
-            let parent_module =
-                get_parent_module(ModuleDefId::TraitId(trait_id), args.interner, args.def_maps)?;
-            Some((parent_module, Some(CurrentType::Trait(trait_id))))
-        }
-        ReferenceId::TraitAssociatedType(trait_associated_type_id) => {
-            let associated_type = args.interner.get_trait_associated_type(trait_associated_type_id);
-            let trait_id = associated_type.trait_id;
-            let parent_module =
-                get_parent_module(ModuleDefId::TraitId(trait_id), args.interner, args.def_maps)?;
-            Some((parent_module, Some(CurrentType::Trait(trait_id))))
-        }
-        ReferenceId::Global(global_id) => {
-            let parent_module =
-                get_parent_module(ModuleDefId::GlobalId(global_id), args.interner, args.def_maps)?;
-            Some((parent_module, None))
-        }
-        ReferenceId::Function(func_id) => {
-            let func_meta = args.interner.function_meta(&func_id);
-            let current_type = match &func_meta.self_type {
-                Some(Type::DataType(data_type, _)) => {
-                    Some(CurrentType::Type(data_type.borrow().id))
-                }
-                _ => func_meta.trait_id.map(CurrentType::Trait),
-            };
-            let parent_module =
-                get_parent_module(ModuleDefId::FunctionId(func_id), args.interner, args.def_maps)?;
-            Some((parent_module, current_type))
-        }
-        ReferenceId::Alias(type_alias_id) => {
-            let parent_module = get_parent_module(
-                ModuleDefId::TypeAliasId(type_alias_id),
-                args.interner,
-                args.def_maps,
-            )?;
-            Some((parent_module, None))
-        }
-        ReferenceId::Local(..) | ReferenceId::Reference(..) => None,
-    }
 }
 
 fn link_target_location(
