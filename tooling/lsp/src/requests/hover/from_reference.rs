@@ -58,7 +58,10 @@ pub(super) fn hover_from_reference(
         })
 }
 
-fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -> Option<String> {
+pub(super) fn format_reference(
+    reference: ReferenceId,
+    args: &ProcessRequestCallbackArgs,
+) -> Option<String> {
     match reference {
         ReferenceId::Module(id) => format_module(id, args),
         ReferenceId::Type(id) => Some(format_type(id, args)),
