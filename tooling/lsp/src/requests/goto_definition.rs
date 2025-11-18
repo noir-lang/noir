@@ -280,4 +280,18 @@ mod goto_definition_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn goto_reference_in_doc_comment() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 38, character: 10 },
+            "src/main.nr",
+            Range {
+                start: Position { line: 21, character: 7 },
+                end: Position { line: 21, character: 10 },
+            },
+        )
+        .await;
+    }
 }
