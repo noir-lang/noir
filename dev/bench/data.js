@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763489828598,
+  "lastUpdate": 1763489866514,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23036,48 +23036,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9854767b1093cbd9135b96a6dfbe6d1dfce1f725",
-          "message": "chore: get trait as non-mut (#10447)",
-          "timestamp": "2025-11-10T14:39:58Z",
-          "tree_id": "59e31f84fa94b46107d16c8ddbf15205f6bab09f",
-          "url": "https://github.com/noir-lang/noir/commit/9854767b1093cbd9135b96a6dfbe6d1dfce1f725"
-        },
-        "date": 1762787086435,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261196,
-            "range": "± 890",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231038,
-            "range": "± 10402",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800589,
-            "range": "± 7047",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "89155182+CECILIA-MULANDI@users.noreply.github.com",
             "name": "Mulandi",
             "username": "CECILIA-MULANDI"
@@ -25129,6 +25087,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796088,
             "range": "± 69035",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "789455f6bf5a35d21a6398ad85026b05b5779862",
+          "message": "fix: evaluate repeated array expr once (#10514)",
+          "timestamp": "2025-11-18T17:55:11Z",
+          "tree_id": "9ac51d613e42cddb13933a6629a463397f167490",
+          "url": "https://github.com/noir-lang/noir/commit/789455f6bf5a35d21a6398ad85026b05b5779862"
+        },
+        "date": 1763489836861,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257011,
+            "range": "± 399",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223650,
+            "range": "± 1584",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2260398,
+            "range": "± 9819",
             "unit": "ns/iter"
           }
         ]
