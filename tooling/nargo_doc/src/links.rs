@@ -319,6 +319,22 @@ fn path_to_link_target_searching_modules(
                 crate_graph,
             );
         }
+        if check_dependencies && *first_segment == "super" {
+            if let Some(parent_module) =
+                get_parent_module(ModuleDefId::ModuleId(module_id), interner, def_maps)
+            {
+                segments.remove(0);
+                let path = segments.join("::");
+                return path_to_link_target_searching_modules(
+                    &path,
+                    parent_module,
+                    false,
+                    interner,
+                    def_maps,
+                    crate_graph,
+                );
+            }
+        }
     }
 
     let crate_id = module_id.krate;
