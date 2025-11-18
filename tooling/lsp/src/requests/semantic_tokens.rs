@@ -245,3 +245,87 @@ impl Visitor for SemanticTokenCollector<'_> {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use async_lsp::lsp_types::{
+        DidOpenTextDocumentParams, PartialResultParams, SemanticToken, SemanticTokensParams,
+        SemanticTokensResult, TextDocumentIdentifier, TextDocumentItem, WorkDoneProgressParams,
+    };
+    use tokio::test;
+
+    use crate::{
+        notifications::on_did_open_text_document, requests::on_semantic_tokens_full_request,
+        test_utils,
+    };
+
+    async fn get_semantic_tokens(src: &str) -> Vec<SemanticToken> {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
+
+        let _ = on_did_open_text_document(
+            &mut state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: "noir".to_string(),
+                    version: 0,
+                    text: src.to_string(),
+                },
+            },
+        );
+
+        let response = on_semantic_tokens_full_request(
+            &mut state,
+            SemanticTokensParams {
+                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                partial_result_params: PartialResultParams { partial_result_token: None },
+            },
+        )
+        .await
+        .expect("Could not execute on_semantic_tokens_full_request");
+
+        let SemanticTokensResult::Tokens(tokens) = response.unwrap() else {
+            panic!("Expected SemanticTokensResult::Tokens");
+        };
+        tokens.data
+    }
+
+    #[test]
+    async fn test_doc_comments() {
+        let src = "
+        /// See also [Bar] and [Bar].
+        /// 
+        /// And also [Bar].
+        struct Foo {}
+
+        struct Bar {}
+        ";
+
+        let tokens = get_semantic_tokens(src).await;
+        let expected = vec![
+            SemanticToken {
+                delta_line: 1,
+                delta_start: 21,
+                length: 5,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,   // The second link is on the same line, so no delta
+                delta_start: 10, // 10 chars after the previous token start char
+                length: 5,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 2,   // It's on the fourth line, so two more than before.
+                delta_start: 21, // This isn't relative anymore as it's on a new line
+                length: 5,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+        ];
+        assert_eq!(tokens, expected);
+    }
+}
