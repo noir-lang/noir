@@ -18,6 +18,7 @@
         "autoload",
         "aztecprotocol",
         "backpropagate",
+        "backquote",
         "Backpropagation",
         "barebones",
         "barretenberg",

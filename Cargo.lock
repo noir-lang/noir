@@ -3367,6 +3367,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "regex",
  "serde",
 ]
 
@@ -3628,6 +3629,7 @@ dependencies = [
  "fuzzy-matcher",
  "iter-extended",
  "nargo",
+ "nargo_doc",
  "nargo_expand",
  "nargo_fmt",
  "nargo_toml",

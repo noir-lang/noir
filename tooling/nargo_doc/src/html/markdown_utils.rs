@@ -53,10 +53,9 @@ pub(super) fn markdown_summary(markdown: &str) -> String {
     }
     let string = string.trim().to_string();
     // Avoid having a header as a summary
-    let string = string.trim_start_matches('#');
-    let markdown = markdown::to_html(string);
-    let markdown = markdown.trim_start_matches("<p>");
-    markdown.trim_end_matches("</p>").trim().to_string()
+    let string =
+        if string.starts_with('#') { string.trim_start_matches('#').trim_start() } else { &string };
+    string.to_string()
 }
 
 #[cfg(test)]

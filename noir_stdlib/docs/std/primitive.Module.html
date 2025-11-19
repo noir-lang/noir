@@ -107,7 +107,7 @@ comptime fn attr(module: Module) {
     println(module.name()); // outputs &quot;quote { foo }&quot;
 }
 </code></pre>
-<p>It can also be obtained using <code>Quoted::as_module</code>:</p>
+<p>It can also be obtained using <a href="../std/primitive.Quoted.html#as_module"><code>Quoted::as_module</code></a>:</p>
 <pre><code>mod foo {}
 
 fn main() {
@@ -116,8 +116,7 @@ fn main() {
         println(module.name()); // outputs &quot;quote { foo }&quot;
     }
 }
-</code></pre>
-</div>
+</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 

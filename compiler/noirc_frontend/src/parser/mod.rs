@@ -12,9 +12,9 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl,
-    UseTree,
+    DocComment, Documented, Ident, ImportStatement, ItemVisibility, LetStatement,
+    ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    TypeAlias, TypeImpl, UseTree,
 };
 use crate::token::SecondaryAttribute;
 
@@ -44,7 +44,7 @@ pub struct SortedModule {
     pub submodules: Vec<Documented<SortedSubModule>>,
 
     pub inner_attributes: Vec<SecondaryAttribute>,
-    pub inner_doc_comments: Vec<String>,
+    pub inner_doc_comments: Vec<DocComment>,
 }
 
 impl std::fmt::Display for SortedModule {
@@ -104,7 +104,7 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
-    pub inner_doc_comments: Vec<String>,
+    pub inner_doc_comments: Vec<DocComment>,
 }
 
 impl ParsedModule {
@@ -146,7 +146,7 @@ impl ParsedModule {
 pub struct Item {
     pub kind: ItemKind,
     pub location: Location,
-    pub doc_comments: Vec<String>,
+    pub doc_comments: Vec<DocComment>,
 }
 
 #[derive(Clone, Debug)]
@@ -240,19 +240,19 @@ pub struct SortedSubModule {
 }
 
 impl SortedModule {
-    fn push_function(&mut self, func: NoirFunction, doc_comments: Vec<String>) {
+    fn push_function(&mut self, func: NoirFunction, doc_comments: Vec<DocComment>) {
         self.functions.push(Documented::new(func, doc_comments));
     }
 
-    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
+    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<DocComment>) {
         self.structs.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<String>) {
+    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<DocComment>) {
         self.enums.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {
+    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<DocComment>) {
         self.traits.push(Documented::new(noir_trait, doc_comments));
     }
 
@@ -264,7 +264,7 @@ impl SortedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: TypeAlias, doc_comments: Vec<String>) {
+    fn push_type_alias(&mut self, type_alias: TypeAlias, doc_comments: Vec<DocComment>) {
         self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 
@@ -272,11 +272,11 @@ impl SortedModule {
         self.imports.extend(import_stmt.desugar(None, visibility));
     }
 
-    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<String>) {
+    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<DocComment>) {
         self.module_decls.push(Documented::new(mod_decl, doc_comments));
     }
 
-    fn push_submodule(&mut self, submodule: SortedSubModule, doc_comments: Vec<String>) {
+    fn push_submodule(&mut self, submodule: SortedSubModule, doc_comments: Vec<DocComment>) {
         self.submodules.push(Documented::new(submodule, doc_comments));
     }
 
@@ -284,7 +284,7 @@ impl SortedModule {
         &mut self,
         global: LetStatement,
         visibility: ItemVisibility,
-        doc_comments: Vec<String>,
+        doc_comments: Vec<DocComment>,
     ) {
         self.globals.push((Documented::new(global, doc_comments), visibility));
     }
