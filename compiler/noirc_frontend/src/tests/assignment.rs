@@ -673,3 +673,50 @@ fn assigning_to_string_index() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_on_duplicate_pattern_name_in_let_tuple_0_1() {
+    let src = r#"
+    fn main() -> pub Field {
+        let (x, x) = (1, 2);
+                ^ Identifier `x` is bound more than once in the same pattern
+                ~ Used in a pattern more than once
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_pattern_name_in_let_tuple_0_struct() {
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+
+    fn main() -> pub Field {
+        let (x, Foo { x }) = (1, Foo { x: 2 });
+                      ^ Identifier `x` is bound more than once in the same pattern
+                      ~ Used in a pattern more than once
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_pattern_name_in_let_struct_tuple_1() {
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+
+    fn main() -> pub Field {
+        let (Foo { x }, x) = (Foo { x: 1 }, 2);
+                        ^ Identifier `x` is bound more than once in the same pattern
+                        ~ Used in a pattern more than once
+        x
+    }
+    "#;
+    check_errors(src);
+}

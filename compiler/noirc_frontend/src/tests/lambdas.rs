@@ -561,3 +561,16 @@ fn deny_attaching_mut_ref_to_immutable_object() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_on_duplicate_lambda_parameter_name() {
+    let src = r#"
+    fn main() {
+        let _ = |x, x| { x + 1 };
+                    ^ duplicate definitions of x found
+                    ~ second definition found here
+                 ~ first definition found here
+    }
+    "#;
+    check_errors(src);
+}

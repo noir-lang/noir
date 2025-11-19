@@ -34,6 +34,12 @@ pub struct Statement {
     pub location: Location,
 }
 
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
 /// ends in a block, such as a Statement::Expression containing an if expression.
