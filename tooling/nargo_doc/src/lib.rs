@@ -575,6 +575,9 @@ impl DocItemBuilder<'_> {
             .cloned()
             .collect::<Vec<_>>();
 
+        let attributes = self.interner.function_attributes(&func_id);
+        let deprecated = attributes.get_deprecated_note();
+
         let id = get_function_id(func_id, self.interner);
 
         Function {
@@ -587,6 +590,7 @@ impl DocItemBuilder<'_> {
             params,
             return_type,
             where_clause,
+            deprecated,
         }
     }
 
