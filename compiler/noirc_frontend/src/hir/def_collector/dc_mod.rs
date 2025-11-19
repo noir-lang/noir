@@ -1052,6 +1052,7 @@ pub fn collect_function(
         }
     }
 
+    let is_crate_root = def_map.root() == module.local_id;
     let module_data = &mut def_map[module.local_id];
 
     let test_attribute = function.def.attributes.as_test_function();
@@ -1061,7 +1062,7 @@ pub fn collect_function(
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
-        function.name() == MAIN_FUNCTION
+        is_crate_root && function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
     let has_allow_dead_code = function.def.attributes.has_allow("dead_code");

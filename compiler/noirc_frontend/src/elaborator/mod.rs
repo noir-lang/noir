@@ -327,6 +327,15 @@ impl<'context> Elaborator<'context> {
         self.local_module.expect("local_module is unset")
     }
 
+    /// Returns `true` if the current local module is the crate root,
+    /// and we are not inside an impl or trait impl.
+    pub(crate) fn is_at_crate_root(&self) -> bool {
+        self.self_type.is_none()
+            && self.current_trait.is_none()
+            && self.current_trait_impl.is_none()
+            && self.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
+    }
+
     pub fn from_context(
         context: &'context mut Context,
         crate_id: CrateId,
