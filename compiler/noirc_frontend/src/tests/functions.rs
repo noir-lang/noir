@@ -213,3 +213,16 @@ fn builtin_function_with_body() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_on_duplicate_parameter_name() {
+    let src = r#"
+    fn main(x: i32, x: i32) {
+                    ^ duplicate definitions of x found
+                    ~ second definition found here
+            ~ first definition found here
+        let _ = x;
+    }
+    "#;
+    check_errors(src);
+}

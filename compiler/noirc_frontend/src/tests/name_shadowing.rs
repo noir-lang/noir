@@ -10,7 +10,7 @@ fn resolve_shadowing() {
         fn main(x : Field) {
             let x = foo(x);
             let x = x;
-            let (x, x) = (x, x);
+            let (x, _) = (x, x);
             let _ = x;
         }
 

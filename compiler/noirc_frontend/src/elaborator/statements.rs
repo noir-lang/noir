@@ -142,8 +142,14 @@ impl Elaborator<'_> {
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
-        let pattern =
-            self.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition, warn_if_unused);
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let pattern = self.elaborate_pattern(
+            let_stmt.pattern,
+            r#type.clone(),
+            definition,
+            warn_if_unused,
+            &mut parameter_names_in_list,
+        );
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
