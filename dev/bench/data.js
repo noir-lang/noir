@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763493810956,
+  "lastUpdate": 1763558695761,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23026,48 +23026,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "06d43639d6a29aea192c2368b6de20776a46eade",
-          "message": "fix: avoid producing duplicate private error messages (#10449)",
-          "timestamp": "2025-11-10T15:32:50Z",
-          "tree_id": "5e33c5aa390e20017febce0f81fc776fda64d2ef",
-          "url": "https://github.com/noir-lang/noir/commit/06d43639d6a29aea192c2368b6de20776a46eade"
-        },
-        "date": 1762790351689,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261044,
-            "range": "± 1408",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230585,
-            "range": "± 4190",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2803222,
-            "range": "± 1398",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25119,6 +25077,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2259476,
             "range": "± 795",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7c50de9f5f0858db8346acd920f6bea1b1abecb4",
+          "message": "chore: push noir stdlib docs to gh pages (#10532)",
+          "timestamp": "2025-11-19T12:57:45Z",
+          "tree_id": "69c9d3d2962d68ebf1dff7d0fa0ccd6f72dd3ff2",
+          "url": "https://github.com/noir-lang/noir/commit/7c50de9f5f0858db8346acd920f6bea1b1abecb4"
+        },
+        "date": 1763558668226,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252181,
+            "range": "± 862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223626,
+            "range": "± 4499",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791394,
+            "range": "± 1646",
             "unit": "ns/iter"
           }
         ]
