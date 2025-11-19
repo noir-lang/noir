@@ -42,6 +42,7 @@ impl Elaborator<'_> {
             None,
             &mut Vec::new(),
             warn_if_unused,
+            &mut HashSet::default(),
         )
     }
 
@@ -62,11 +63,13 @@ impl Elaborator<'_> {
             None,
             created_ids,
             warn_if_unused,
+            &mut HashSet::default(),
         )
     }
 
     /// Elaborate the (potentially mutable) pattern and add the variables
     /// it created to the scope if necessary.
+    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -76,6 +79,7 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        pattern_names: &mut HashSet<String>,
     ) -> HirPattern {
         match pattern {
             // e.g. let <ident> = ...;
@@ -92,6 +96,12 @@ impl Elaborator<'_> {
                     let location = name.location();
                     HirIdent::non_trait_method(id, location)
                 } else {
+                    if !pattern_names.insert(name.to_string()) {
+                        self.push_err(ResolverError::PatternBoundMoreThanOnce {
+                            ident: name.clone(),
+                        });
+                    }
+
                     self.add_variable_decl(
                         name,
                         mutable.is_some(),
@@ -120,6 +130,7 @@ impl Elaborator<'_> {
                     Some(location),
                     new_definitions,
                     warn_if_unused,
+                    pattern_names,
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
@@ -168,6 +179,7 @@ impl Elaborator<'_> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
+                        pattern_names,
                     )
                 });
                 HirPattern::Tuple(fields, location)
@@ -183,6 +195,7 @@ impl Elaborator<'_> {
                     definition,
                     mutable,
                     new_definitions,
+                    pattern_names,
                 )
             }
             // e.g. let (<pattern>) = ...;
@@ -193,6 +206,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 warn_if_unused,
+                pattern_names,
             ),
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
@@ -203,6 +217,7 @@ impl Elaborator<'_> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
+                    pattern_names,
                 )
             }
         }
@@ -218,6 +233,7 @@ impl Elaborator<'_> {
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
+        pattern_names: &mut HashSet<String>,
     ) -> HirPattern {
         let last_segment = name.last_segment();
         let name_location = last_segment.ident.location();
@@ -271,6 +287,7 @@ impl Elaborator<'_> {
             definition,
             mutable,
             new_definitions,
+            pattern_names,
         );
 
         let struct_id = struct_type.borrow().id;
@@ -288,6 +305,7 @@ impl Elaborator<'_> {
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
+    #[allow(clippy::too_many_arguments)]
     fn resolve_constructor_pattern_fields(
         &mut self,
         fields: Vec<(Ident, Pattern)>,
@@ -296,6 +314,7 @@ impl Elaborator<'_> {
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
+        pattern_names: &mut HashSet<String>,
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
@@ -318,6 +337,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 true, // warn_if_unused
+                pattern_names,
             );
 
             if unseen_fields.contains(&field) {
