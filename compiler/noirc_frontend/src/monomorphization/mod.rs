@@ -653,13 +653,47 @@ impl<'interner> Monomorphizer<'interner> {
                     .2
                     .map(|assert_msg_expr| {
                         self.expr(assert_msg_expr).map(|expr| {
-                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                            let typ = self.interner.id_type(assert_msg_expr).follow_bindings();
+                            let loc = self.interner.expr_location(&assert_msg_expr);
+                            (expr, typ, loc)
                         })
                     })
-                    .transpose()?
-                    .map(Box::new);
+                    .transpose()?;
 
-                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+                if let Some((_, typ, location)) = assert_message.as_ref() {
+                    let check_msg_compat = |typ: &Type| {
+                        if !typ.is_message_compatible(true) {
+                            Err(MonomorphizationError::InvalidTypeInErrorMessage {
+                                typ: typ.to_string(),
+                                location: *location,
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    };
+                    match typ {
+                        Type::FmtString(_, items) => match items.as_ref() {
+                            Type::Tuple(items) => {
+                                for item in items {
+                                    check_msg_compat(item)?;
+                                }
+                            }
+                            Type::Unit => {}
+                            other => {
+                                unreachable!("ICE: expected Tuple or Unit in fmtstr; got {other}")
+                            }
+                        },
+                        other => {
+                            check_msg_compat(other)?;
+                        }
+                    }
+                }
+
+                ast::Expression::Constrain(
+                    Box::new(expr),
+                    location,
+                    assert_message.map(|(msg, typ, _)| (msg, typ)).map(Box::new),
+                )
             }
 
             HirExpression::Cast(cast) => {
@@ -797,12 +831,41 @@ impl<'interner> Monomorphizer<'interner> {
             MonomorphizationError::UnknownArrayLength { location, err, length }
         })?;
 
-        let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
-        if is_slice {
-            Ok(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
+        // Represent `[expr; n]` as:
+        //
+        // ```
+        // let repeated_element = expr;
+        // [repeated_element, repeated_element, ..., repeated_element]
+        // ```
+        //
+        // That is, `expr` is only evaluated once, assigned to a local variable,
+        // and the array consists of references to that local variable.
+        let element = self.expr(repeated_element)?;
+        let local_id = self.next_local_id();
+
+        let name = "repeated_element".to_string();
+        let let_expr = ast::Expression::Let(ast::Let {
+            id: local_id,
+            mutable: false,
+            name: name.clone(),
+            expression: Box::new(element),
+        });
+
+        let contents = vecmap(0..length, |_| {
+            let definition = Definition::Local(local_id);
+            let id = self.next_ident_id();
+            let typ = typ.clone();
+            let name = name.clone();
+            let ident =
+                ast::Ident { location: Some(location), definition, mutable: false, name, typ, id };
+            ast::Expression::Ident(ident)
+        });
+        let array = if is_slice {
+            ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ }))
         } else {
-            Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
-        }
+            ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
+        };
+        Ok(ast::Expression::Block(vec![let_expr, array]))
     }
 
     fn index(

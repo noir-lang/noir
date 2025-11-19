@@ -51,7 +51,7 @@ impl TypeDefinition {
 
     /// Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
     /// with any generic arguments unchanged. Unless the field types are not needed,
-    /// users should generally prefer to use `TypeDefinition::fields` over this
+    /// users should generally prefer to use [`TypeDefinition::fields`][Self::fields] over this
     /// function if possible.
     #[builtin(type_def_fields_as_written)]
     // docs:start:fields_as_written

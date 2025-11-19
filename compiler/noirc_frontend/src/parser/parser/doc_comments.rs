@@ -1,4 +1,5 @@
 use crate::{
+    ast::DocComment,
     parser::ParserErrorReason,
     token::{DocStyle, Token, TokenKind},
 };
@@ -7,29 +8,47 @@ use super::{Parser, parse_many::without_separator};
 
 impl Parser<'_> {
     /// InnerDocComments = inner_doc_comment*
-    pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
+    pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<DocComment> {
         self.parse_many("inner doc comments", without_separator(), Self::parse_inner_doc_comment)
     }
 
-    fn parse_inner_doc_comment(&mut self) -> Option<String> {
-        self.eat_kind(TokenKind::InnerDocComment).map(|token| match token.into_token() {
-            Token::LineComment(comment, Some(DocStyle::Inner)) => fix_line_comment(comment),
-            Token::BlockComment(comment, Some(DocStyle::Inner)) => fix_block_comment(comment),
-            _ => unreachable!(),
+    fn parse_inner_doc_comment(&mut self) -> Option<DocComment> {
+        self.eat_kind(TokenKind::InnerDocComment).map(|token| {
+            let location = token.location();
+            match token.into_token() {
+                Token::LineComment(comment, Some(DocStyle::Inner)) => {
+                    let comment = fix_line_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                Token::BlockComment(comment, Some(DocStyle::Inner)) => {
+                    let comment = fix_block_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                _ => unreachable!(),
+            }
         })
     }
 
     /// OuterDocComments = OuterDocComment*
-    pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<String> {
+    pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<DocComment> {
         self.parse_many("outer doc comments", without_separator(), Self::parse_outer_doc_comment)
     }
 
     /// OuterDocComment = outer_doc_comment
-    pub(super) fn parse_outer_doc_comment(&mut self) -> Option<String> {
-        self.eat_kind(TokenKind::OuterDocComment).map(|token| match token.into_token() {
-            Token::LineComment(comment, Some(DocStyle::Outer)) => fix_line_comment(comment),
-            Token::BlockComment(comment, Some(DocStyle::Outer)) => fix_block_comment(comment),
-            _ => unreachable!(),
+    pub(super) fn parse_outer_doc_comment(&mut self) -> Option<DocComment> {
+        self.eat_kind(TokenKind::OuterDocComment).map(|token| {
+            let location = token.location();
+            match token.into_token() {
+                Token::LineComment(comment, Some(DocStyle::Outer)) => {
+                    let comment = fix_line_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                Token::BlockComment(comment, Some(DocStyle::Outer)) => {
+                    let comment = fix_block_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                _ => unreachable!(),
+            }
         })
     }
 
@@ -103,8 +122,8 @@ mod tests {
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
-        assert_eq!(comments[0], "Hello");
-        assert_eq!(comments[1], "World");
+        assert_eq!(comments[0].contents, "Hello");
+        assert_eq!(comments[1].contents, "World");
     }
 
     #[test]
@@ -114,7 +133,7 @@ mod tests {
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
-        assert_eq!(comments[0], "Hello\nWorld\n\n!");
+        assert_eq!(comments[0].contents, "Hello\nWorld\n\n!");
     }
 
     #[test]
@@ -124,7 +143,7 @@ mod tests {
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
-        assert_eq!(comments[0], "Hello\nWorld\n\n!");
+        assert_eq!(comments[0].contents, "Hello\nWorld\n\n!");
     }
 
     #[test]
@@ -134,8 +153,8 @@ mod tests {
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
-        assert_eq!(comments[0], "Hello");
-        assert_eq!(comments[1], "World");
+        assert_eq!(comments[0].contents, "Hello");
+        assert_eq!(comments[1].contents, "World");
     }
 
     #[test]
@@ -145,7 +164,7 @@ mod tests {
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
-        assert_eq!(comments[0], "Hello\nWorld\n\n!");
+        assert_eq!(comments[0].contents, "Hello\nWorld\n\n!");
     }
 
     #[test]
@@ -155,6 +174,6 @@ mod tests {
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
-        assert_eq!(comments[0], "Hello\n* World\nOops\n* !");
+        assert_eq!(comments[0].contents, "Hello\n* World\nOops\n* !");
     }
 }

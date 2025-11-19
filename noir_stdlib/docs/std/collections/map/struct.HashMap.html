@@ -98,7 +98,7 @@ assert(map.is_empty());
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if the hashmap contains the given key. Unlike <code>get</code>, this will not also return
+<p>Returns <code>true</code> if the hashmap contains the given key. Unlike <a href="../../../std/collections/map/struct.HashMap.html#get"><code>get</code></a>, this will not also return
 the value associated with the key.</p>
 <p>Example:</p>
 <pre><code class="language-noir">if map.contains_key(7) {
@@ -107,8 +107,7 @@ the value associated with the key.</p>
 } else {
     println(&quot;No value for key 7!&quot;);
 }
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="is_empty" class="code-header">pub fn <span class="fn">is_empty</span>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -184,15 +183,14 @@ for i in 0..values.max_len() {
 <p>Iterates through each key-value pair of the HashMap, setting each key-value pair to the
 result returned from the given function.</p>
 <p>Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
-through. If this is not desired, use <code>iter_values_mut</code> if only values need to be mutated,
-or <code>entries</code> if neither keys nor values need to be mutated.</p>
+through. If this is not desired, use <a href="../../../std/collections/map/struct.HashMap.html#iter_values_mut"><code>iter_values_mut</code></a> if only values need to be mutated,
+or <a href="../../../std/collections/map/struct.HashMap.html#entries"><code>entries</code></a> if neither keys nor values need to be mutated.</p>
 <p>The iteration order is left unspecified. As a result, if two keys are mutated to become
 equal, which of the two values that will be present for the key in the resulting map is also unspecified.</p>
 <p>Example:</p>
 <pre><code class="language-noir">// Add 1 to each key in the map, and double the value associated with that key.
 map.iter_mut(|k, v| (k + 1, v * 2));
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="iter_keys_mut" class="code-header">pub fn <span class="fn">iter_keys_mut</span>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
@@ -204,25 +202,23 @@ map.iter_mut(|k, v| (k + 1, v * 2));
 the given function.</p>
 <p>Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
 through. If only iteration is desired and the keys are not intended to be mutated,
-prefer using <code>entries</code> instead.</p>
+prefer using <a href="../../../std/collections/map/struct.HashMap.html#entries"><code>entries</code></a> instead.</p>
 <p>The iteration order is left unspecified. As a result, if two keys are mutated to become
 equal, which of the two values that will be present for the key in the resulting map is also unspecified.</p>
 <p>Example:</p>
 <pre><code class="language-noir">// Double each key, leaving the value associated with that key untouched
 map.iter_keys_mut(|k| k * 2);
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="iter_values_mut" class="code-header">pub fn <span class="fn">iter_values_mut</span>(&mut self, f: fn(V) -> V)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Iterates through the HashMap, applying the given function to each value and mutating the
-value to equal the result. This function is more efficient than <code>iter_mut</code> and <code>iter_keys_mut</code>
+value to equal the result. This function is more efficient than <a href="../../../std/collections/map/struct.HashMap.html#iter_mut"><code>iter_mut</code></a> and <a href="../../../std/collections/map/struct.HashMap.html#iter_keys_mut"><code>iter_keys_mut</code></a>
 because the keys are untouched and the underlying hashmap thus does not need to be reordered.</p>
 <p>Example:</p>
 <pre><code class="language-noir">// Halve each value
 map.iter_values_mut(|v| v / 2);
-</code></pre>
-</div>
+</code></pre></div>
 </div><code id="retain" class="code-header">pub fn <span class="fn">retain</span>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
 <div class="padded-description"><div class="comments">

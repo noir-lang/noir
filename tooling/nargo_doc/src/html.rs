@@ -15,9 +15,9 @@ use crate::{
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Id, Impl, Item,
-        Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait, TraitBound,
-        TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
+        Comments, Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item,
+        ItemId, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
+        StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
     },
 };
 
@@ -46,9 +46,9 @@ struct HTMLCreator {
     current_path: Vec<String>,
     current_crate_version: Option<String>,
     workspace_name: String,
-    id_to_info: HashMap<Id, ItemInfo>,
+    id_to_info: HashMap<ItemId, ItemInfo>,
     /// Maps a trait ID to all its implementations across all crates.
-    all_trait_impls: HashMap<Id, HashSet<TraitImpl>>,
+    all_trait_impls: HashMap<ItemId, HashSet<TraitImpl>>,
     self_type: Option<Type>,
 }
 
@@ -201,7 +201,7 @@ impl HTMLCreator {
         self.sidebar_end();
         self.main_start(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
-        self.render_comments(&krate.root_module.comments, 1);
+        self.render_comments(krate.root_module.comments.as_ref(), 1);
         self.render_items(&krate.root_module.items, false, 0);
         self.main_end();
         self.html_end();
@@ -368,9 +368,16 @@ impl HTMLCreator {
             if !sidebar {
                 self.output.push_str("</div>");
                 self.output.push_str("<div class=\"item-description\">");
-                if let Some(comments) = item.comments() {
-                    let summary = markdown_summary(comments);
-                    self.output.push_str(&summary);
+                if let Some((comments, links)) = item.comments() {
+                    let comments = self.process_comments_links(links, comments.clone());
+
+                    let summary = markdown_summary(&comments);
+
+                    let markdown = markdown::to_html(&summary);
+                    let markdown = markdown.trim_start_matches("<p>");
+                    let summary = markdown.trim().trim_end_matches("</p>").trim();
+
+                    self.output.push_str(summary);
                 }
             }
             self.output.push_str("</div>");
@@ -386,10 +393,6 @@ impl HTMLCreator {
         self.output.push_str("<ul class=\"item-list\">\n");
 
         for reexport in reexports {
-            if !self.id_to_info.contains_key(&reexport.id) {
-                println!("{} {} {}", reexport.id, reexport.name, reexport.item_name);
-            }
-
             let info = &self.id_to_info[&reexport.id];
             let path = info.path.join("::");
             let path = if path.is_empty() { String::new() } else { format!("{path}::") };
@@ -450,7 +453,7 @@ impl HTMLCreator {
         self.sidebar_end();
         self.main_start(false);
         self.h1(&format!("{kind} <span id=\"mod\" class=\"module\">{}</span>", module.name));
-        self.render_comments(&module.comments, 1);
+        self.render_comments(module.comments.as_ref(), 1);
         self.render_items(&module.items, false, 0);
         self.main_end();
         self.html_end();
@@ -520,7 +523,7 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Struct <span id=\"struct\" class=\"struct\">{}</span>", struct_.name));
         self.render_struct_code(struct_);
-        self.render_comments(&struct_.comments, 1);
+        self.render_comments(struct_.comments.as_ref(), 1);
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
 
@@ -547,7 +550,10 @@ impl HTMLCreator {
             self.output.push_str("<ul class=\"sidebar-list\">\n");
             for field in fields {
                 self.output.push_str("<li>");
-                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", field.name, field.name));
+                self.output.push_str(&format!(
+                    "<a href=\"#structfield.{}\">{}</a>", // cspell:disable
+                    field.name, field.name
+                ));
                 self.output.push_str("</li>\n");
             }
             self.output.push_str("</ul>\n");
@@ -579,7 +585,7 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
-        self.render_comments(&trait_.comments, 1);
+        self.render_comments(trait_.comments.as_ref(), 1);
         self.render_trait_methods("Required methods", &trait_.required_methods);
         self.render_trait_methods("Provided methods", &trait_.provided_methods);
 
@@ -668,7 +674,7 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Type alias <span class=\"type\">{}</span>", alias.name));
         self.render_type_alias_code(alias);
-        self.render_comments(&alias.comments, 1);
+        self.render_comments(alias.comments.as_ref(), 1);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(alias.uri()));
@@ -697,7 +703,7 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Global <span class=\"global\">{}</span>", global.name));
         self.render_global_code(global);
-        self.render_comments(&global.comments, 1);
+        self.render_comments(global.comments.as_ref(), 1);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(global.uri()));
@@ -714,7 +720,7 @@ impl HTMLCreator {
             "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
             primitive.kind
         ));
-        self.render_comments(&primitive.comments, 1);
+        self.render_comments(primitive.comments.as_ref(), 1);
         self.render_impls(&primitive.impls);
 
         let mut trait_impls = primitive.trait_impls.clone();
@@ -783,7 +789,7 @@ impl HTMLCreator {
 
         for field in fields {
             self.output.push_str(&format!(
-                "<div id=\"{}\" class=\"struct-field\"><code class=\"code-header\">",
+                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">", // cspell:disable
                 field.name
             ));
             self.output.push_str(&field.name);
@@ -791,7 +797,7 @@ impl HTMLCreator {
             self.render_type(&field.r#type);
             self.output.push_str("</code></div>\n");
             self.output.push_str("<div class=\"padded-description\">");
-            self.render_comments(&field.comments, 3);
+            self.render_comments(field.comments.as_ref(), 3);
             self.output.push_str("</div>");
         }
     }
@@ -840,7 +846,7 @@ impl HTMLCreator {
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
-        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name);
+        self.render_id_reference(&trait_impl.trait_id, &trait_impl.trait_name);
         self.render_generic_types(&trait_impl.trait_generics);
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
@@ -1012,7 +1018,7 @@ impl HTMLCreator {
             if as_header {
                 self.output.push_str("<div class=\"padded-description\">");
             }
-            self.render_comments(&function.comments, current_heading_level);
+            self.render_comments(function.comments.as_ref(), current_heading_level);
             if as_header {
                 self.output.push_str("</div>");
             }
@@ -1155,13 +1161,13 @@ impl HTMLCreator {
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
-        self.render_id_reference(bound.trait_id, &bound.trait_name);
+        self.render_id_reference(&bound.trait_id, &bound.trait_name);
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: Id, name: &str) {
+    fn render_id_reference(&mut self, id: &ItemId, name: &str) {
         if let Some(ItemInfo { path: _, uri, class, visibility: ItemVisibility::Public }) =
-            self.id_to_info.get(&id)
+            self.id_to_info.get(id)
         {
             let nesting = self.current_path.len();
             self.output.push_str(&format!(
@@ -1254,11 +1260,11 @@ impl HTMLCreator {
                 self.render_type(r#type);
             }
             Type::Struct { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(id, name);
                 self.render_generic_types(generics);
             }
             Type::TypeAlias { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(id, name);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -1299,7 +1305,7 @@ impl HTMLCreator {
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id_reference(*trait_id, trait_name);
+                self.render_id_reference(trait_id, trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -1354,16 +1360,67 @@ impl HTMLCreator {
     /// Markdown headers that are less or equal than `current_heading_level` will be rendered
     /// as smaller headers (i.e., `###` becomes `####` if `current_heading_level` is 3)
     /// to ensure proper nesting.
-    fn render_comments(&mut self, comments: &Option<String>, current_heading_level: usize) {
-        let Some(comments) = comments else {
+    fn render_comments(&mut self, comments: Option<&Comments>, current_heading_level: usize) {
+        let Some((comments, links)) = comments else {
             return;
         };
 
         let comments = fix_markdown(comments, current_heading_level);
+        let comments = self.process_comments_links(links, comments);
+
         let html = markdown::to_html(&comments);
         self.output.push_str("<div class=\"comments\">\n");
         self.output.push_str(&html);
         self.output.push_str("</div>\n");
+    }
+
+    /// Replace links in the given comments with proper HTML links to pages and anchors
+    /// related to target items.
+    fn process_comments_links(&self, links: &Links, comments: String) -> String {
+        if links.is_empty() {
+            return comments;
+        }
+
+        let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
+        for link in links.iter().rev() {
+            let target = &link.target;
+            let name = &link.name;
+            let id = target.id();
+            let anchor = target
+                .name()
+                .map(|name| {
+                    if matches!(target, LinkTarget::StructMember(..)) {
+                        format!("#structfield.{name}") // cspell:disable
+                    } else {
+                        format!("#{name}")
+                    }
+                })
+                .unwrap_or_default();
+            let mut line = lines[link.line].to_string();
+            if let Some(id) = id {
+                if let Some(ItemInfo {
+                    path: _,
+                    uri,
+                    class: _,
+                    visibility: ItemVisibility::Public,
+                }) = self.id_to_info.get(id)
+                {
+                    let nesting = "../".repeat(self.current_path.len());
+                    let replacement = format!("[{name}]({nesting}{uri}{anchor})");
+                    line.replace_range(link.start..link.end, &replacement);
+                }
+            }
+            if let Some(primitive_type) = target.primitive_type() {
+                let nesting = "../".repeat(self.current_path.len());
+                let uri = primitive_type.uri();
+                let replacement = format!("[{name}]({nesting}std/{uri}{anchor})");
+                line.replace_range(link.start..link.end, &replacement);
+            }
+
+            lines[link.line] = line;
+        }
+
+        lines.join("\n")
     }
 
     fn render_breadcrumbs(&mut self, last_is_link: bool) {
