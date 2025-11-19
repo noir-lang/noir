@@ -15,7 +15,7 @@ enum Visit {
     Last,
 }
 
-/// In the post-order, a block is visited before its successors.
+/// In the post-order, each block is visited after all of its successors.
 #[derive(Default, Clone)]
 pub(crate) struct PostOrder(Vec<BasicBlockId>);
 
@@ -44,8 +44,10 @@ impl PostOrder {
 
     /// Return blocks in reverse-post-order (RPO).
     ///
-    /// In RPO, each block is visited before any of its successors, however this is not
-    /// the same as topological sorting. Take this CFG for example:
+    /// In RPO, each block is visited before any of its successors.
+    /// Notably, this is not the same as topological sorting.
+    ///
+    /// Take this CFG for example:
     /// ```text
     ///      b0
     ///      |
