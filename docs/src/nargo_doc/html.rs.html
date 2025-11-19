@@ -1890,7 +1890,25 @@
 <a href="#1889" id="1889">1889</a>
 <a href="#1890" id="1890">1890</a>
 <a href="#1891" id="1891">1891</a>
-<a href="#1892" id="1892">1892</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
@@ -1907,9 +1925,10 @@
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Comments, Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item,
-        ItemId, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
-        StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
+        Comments, Crate, Function, FunctionParam, Generic, Global, Impl, Item, ItemId,
+        ItemProperties, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport,
+        Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+        Workspace,
     },
 };
 
@@ -2225,7 +2244,7 @@
         }
     }
 
-    <span class="kw">fn </span>render_list&lt;T: HasNameAndComments + HasUri + HasClass&gt;(
+    <span class="kw">fn </span>render_list&lt;T: ItemProperties + HasUri + HasClass&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         title: <span class="kw-2">&amp;</span>str,
         anchor: <span class="kw-2">&amp;</span>str,
@@ -2258,6 +2277,9 @@
                 item.name(),
             ));
             <span class="kw">if </span>!sidebar {
+                <span class="kw">if </span>item.is_deprecated() {
+                    <span class="self">self</span>.output.push_str(<span class="string">"\n&lt;span class=\"deprecated\"&gt;Deprecated&lt;/span&gt;\n"</span>);
+                }
                 <span class="self">self</span>.output.push_str(<span class="string">"&lt;/div&gt;"</span>);
                 <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"item-description\"&gt;"</span>);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>((comments, links)) = item.comments() {
@@ -2906,14 +2928,28 @@
         output_id: bool,
     ) {
         <span class="self">self</span>.render_function_signature(function, as_header, output_id);
+
+        <span class="kw">let </span>pad = as_header &amp;&amp; (function.is_deprecated() || function.comments.is_some());
+        <span class="kw">if </span>pad {
+            <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"padded-description\"&gt;"</span>);
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(deprecated) = <span class="kw-2">&amp;</span>function.deprecated {
+            <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"deprecated\"&gt;\n"</span>);
+            <span class="self">self</span>.output.push_str(<span class="string">"&lt;span class=\"emoji\"&gt;👎&lt;/span&gt;\nDeprecated"</span>);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(msg) = deprecated {
+                <span class="self">self</span>.output.push_str(<span class="string">": "</span>);
+                <span class="self">self</span>.output.push_str(msg);
+            }
+            <span class="self">self</span>.output.push_str(<span class="string">"\n&lt;/div&gt;\n"</span>);
+        }
+
         <span class="kw">if </span>function.comments.is_some() {
-            <span class="kw">if </span>as_header {
-                <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"padded-description\"&gt;"</span>);
-            }
             <span class="self">self</span>.render_comments(function.comments.as_ref(), current_heading_level);
-            <span class="kw">if </span>as_header {
-                <span class="self">self</span>.output.push_str(<span class="string">"&lt;/div&gt;"</span>);
-            }
+        }
+
+        <span class="kw">if </span>pad {
+            <span class="self">self</span>.output.push_str(<span class="string">"&lt;/div&gt;"</span>);
         }
     }
 
