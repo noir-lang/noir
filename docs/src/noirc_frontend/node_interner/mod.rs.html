@@ -1515,7 +1515,8 @@
 <a href="#1514" id="1514">1514</a>
 <a href="#1515" id="1515">1515</a>
 <a href="#1516" id="1516">1516</a>
-<a href="#1517" id="1517">1517</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1526,6 +1527,7 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::QuotedType;
+<span class="kw">use </span><span class="kw">crate</span>::ast::DocComment;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
     UnresolvedTypeExpression,
@@ -1799,7 +1801,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) comptime_scopes: Vec&lt;HashMap&lt;DefinitionId, comptime::Value&gt;&gt;,
 
     <span class="doccomment">/// Captures the documentation comments for each module, struct, trait, function, etc.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) doc_comments: HashMap&lt;ReferenceId, Vec&lt;String&gt;&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) doc_comments: HashMap&lt;ReferenceId, Vec&lt;DocComment&gt;&gt;,
 
     <span class="doccomment">/// A map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// This is used to offer importing the item via one of these exports if
@@ -1809,7 +1811,7 @@
     <span class="doccomment">/// Contains the docs comments of primitive types.
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
-    </span><span class="kw">pub </span>primitive_docs: HashMap&lt;String, Vec&lt;String&gt;&gt;,
+    </span><span class="kw">pub </span>primitive_docs: HashMap&lt;String, Vec&lt;DocComment&gt;&gt;,
 }
 
 <span class="doccomment">/// A trait implementation is either a normal implementation that is present in the source
@@ -2946,13 +2948,13 @@
         bindings
     }
 
-    <span class="kw">pub fn </span>set_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ReferenceId, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">pub fn </span>set_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ReferenceId, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="kw">if </span>!doc_comments.is_empty() {
             <span class="self">self</span>.doc_comments.insert(id, doc_comments);
         }
     }
 
-    <span class="kw">pub fn </span>doc_comments(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;String&gt;&gt; {
+    <span class="kw">pub fn </span>doc_comments(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;DocComment&gt;&gt; {
         <span class="self">self</span>.doc_comments.get(<span class="kw-2">&amp;</span>id)
     }
 

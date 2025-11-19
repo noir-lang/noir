@@ -1321,33 +1321,11 @@
 <a href="#1320" id="1320">1320</a>
 <a href="#1321" id="1321">1321</a>
 <a href="#1322" id="1322">1322</a>
-<a href="#1323" id="1323">1323</a>
-<a href="#1324" id="1324">1324</a>
-<a href="#1325" id="1325">1325</a>
-<a href="#1326" id="1326">1326</a>
-<a href="#1327" id="1327">1327</a>
-<a href="#1328" id="1328">1328</a>
-<a href="#1329" id="1329">1329</a>
-<a href="#1330" id="1330">1330</a>
-<a href="#1331" id="1331">1331</a>
-<a href="#1332" id="1332">1332</a>
-<a href="#1333" id="1333">1333</a>
-<a href="#1334" id="1334">1334</a>
-<a href="#1335" id="1335">1335</a>
-<a href="#1336" id="1336">1336</a>
-<a href="#1337" id="1337">1337</a>
-<a href="#1338" id="1338">1338</a>
-<a href="#1339" id="1339">1339</a>
-<a href="#1340" id="1340">1340</a>
-<a href="#1341" id="1341">1341</a>
-<a href="#1342" id="1342">1342</a>
-<a href="#1343" id="1343">1343</a>
-<a href="#1344" id="1344">1344</a>
-<a href="#1345" id="1345">1345</a>
-<a href="#1346" id="1346">1346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap, HashSet};
+<a href="#1323" id="1323">1323</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap, HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::printer::items::ItemBuilder;
+<span class="kw">use </span><span class="kw">crate</span>::hir::resolution::visibility::module_def_id_visibility;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::TraitImplId;
 <span class="kw">use crate</span>::{
     DataType, Generics, Kind, NamedGeneric, Type,
@@ -1522,7 +1500,8 @@
             <span class="kw">return</span>;
         };
 
-        <span class="kw">for </span>comment <span class="kw">in </span>doc_comments {
+        <span class="kw">for </span>located_comment <span class="kw">in </span>doc_comments {
+            <span class="kw">let </span>comment = <span class="kw-2">&amp;</span>located_comment.contents;
             <span class="kw">if </span>comment.contains(<span class="string">'\n'</span>) {
                 <span class="kw">let </span>ends_with_newline = comment.ends_with(<span class="string">'\n'</span>);
 
@@ -2628,32 +2607,7 @@
     }
 
     <span class="kw">fn </span>module_def_id_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>, module_def_id: ModuleDefId) -&gt; ItemVisibility {
-        <span class="kw">match </span>module_def_id {
-            ModuleDefId::ModuleId(module_id) =&gt; {
-                <span class="kw">let </span>attributes = <span class="self">self</span>.interner.try_module_attributes(module_id);
-                attributes.map_or(ItemVisibility::Private, |a| a.visibility)
-            }
-            ModuleDefId::FunctionId(func_id) =&gt; {
-                <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).visibility
-            }
-            ModuleDefId::TypeId(type_id) =&gt; {
-                <span class="kw">let </span>data_type = <span class="self">self</span>.interner.get_type(type_id);
-                data_type.borrow().visibility
-            }
-            ModuleDefId::TypeAliasId(type_alias_id) =&gt; {
-                <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
-                type_alias.borrow().visibility
-            }
-            ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; ItemVisibility::Public,
-            ModuleDefId::TraitId(trait_id) =&gt; {
-                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-                trait_.visibility
-            }
-            ModuleDefId::GlobalId(global_id) =&gt; {
-                <span class="kw">let </span>global_info = <span class="self">self</span>.interner.get_global(global_id);
-                global_info.visibility
-            }
-        }
+        module_def_id_visibility(module_def_id, <span class="self">self</span>.interner)
     }
 
     <span class="kw">fn </span>show_separated_by_comma&lt;Item, F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, items: <span class="kw-2">&amp;</span>[Item], f: F)

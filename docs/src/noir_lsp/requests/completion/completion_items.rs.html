@@ -718,10 +718,12 @@
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
 <a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::{
     QuotedType, Type,
     ast::AttributeTarget,
@@ -1233,7 +1235,7 @@
         completion_item: CompletionItem,
     ) -&gt; CompletionItem {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(doc_comments) = <span class="self">self</span>.interner.doc_comments(id) {
-            <span class="kw">let </span>docs = doc_comments.join(<span class="string">"\n"</span>);
+            <span class="kw">let </span>docs = vecmap(doc_comments, |comment| comment.contents.clone()).join(<span class="string">"\n"</span>);
             CompletionItem {
                 documentation: <span class="prelude-val">Some</span>(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,

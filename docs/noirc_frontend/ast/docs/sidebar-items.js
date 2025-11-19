@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Documented"]};
+window.SIDEBAR_ITEMS = {"struct":["Documented"],"type":["DocComment"]};

@@ -91,8 +91,7 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="doccomment">/// Fixes a Markdown string by:
+<a href="#93" id="93">93</a></pre></div><pre class="rust"><code><span class="doccomment">/// Fixes a Markdown string by:
 /// - adjusting headers that exceed `current_heading_level` by making them smaller,
 ///   so headers in user comments aren't larger than the surrounding document's headers.
 /// - ensures code blocks are properly closed.
@@ -147,10 +146,9 @@
     }
     <span class="kw">let </span>string = string.trim().to_string();
     <span class="comment">// Avoid having a header as a summary
-    </span><span class="kw">let </span>string = string.trim_start_matches(<span class="string">'#'</span>);
-    <span class="kw">let </span>markdown = markdown::to_html(string);
-    <span class="kw">let </span>markdown = markdown.trim_start_matches(<span class="string">"&lt;p&gt;"</span>);
-    markdown.trim_end_matches(<span class="string">"&lt;/p&gt;"</span>).trim().to_string()
+    </span><span class="kw">let </span>string =
+        <span class="kw">if </span>string.starts_with(<span class="string">'#'</span>) { string.trim_start_matches(<span class="string">'#'</span>).trim_start() } <span class="kw">else </span>{ <span class="kw-2">&amp;</span>string };
+    string.to_string()
 }
 
 <span class="attr">#[cfg(test)]

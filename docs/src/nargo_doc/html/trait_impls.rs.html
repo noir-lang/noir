@@ -50,10 +50,10 @@
 
 <span class="kw">use </span>noirc_frontend::ast::ItemVisibility;
 
-<span class="kw">use </span><span class="kw">crate</span>::items::{Id, Item, TraitImpl, Workspace};
+<span class="kw">use </span><span class="kw">crate</span>::items::{Item, ItemId, TraitImpl, Workspace};
 
 <span class="doccomment">/// Gather all trait impls in the workspace, grouped by the trait they implement.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gather_all_trait_impls(workspace: <span class="kw-2">&amp;</span>Workspace) -&gt; HashMap&lt;Id, HashSet&lt;TraitImpl&gt;&gt; {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gather_all_trait_impls(workspace: <span class="kw-2">&amp;</span>Workspace) -&gt; HashMap&lt;ItemId, HashSet&lt;TraitImpl&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = HashMap::new();
 
     <span class="kw">for </span>krate <span class="kw">in </span>workspace.all_crates() {
@@ -67,7 +67,7 @@
     trait_impls
 }
 
-<span class="kw">fn </span>gather_trait_impls_in_item(item: <span class="kw-2">&amp;</span>Item, trait_impls: <span class="kw-2">&amp;mut </span>HashMap&lt;Id, HashSet&lt;TraitImpl&gt;&gt;) {
+<span class="kw">fn </span>gather_trait_impls_in_item(item: <span class="kw-2">&amp;</span>Item, trait_impls: <span class="kw-2">&amp;mut </span>HashMap&lt;ItemId, HashSet&lt;TraitImpl&gt;&gt;) {
     <span class="kw">match </span>item {
         Item::Module(module) =&gt; {
             <span class="kw">for </span>(visibility, item) <span class="kw">in </span><span class="kw-2">&amp;</span>module.items {
@@ -78,17 +78,17 @@
         }
         Item::Struct(struct_) =&gt; {
             <span class="kw">for </span>impl_ <span class="kw">in </span><span class="kw-2">&amp;</span>struct_.trait_impls {
-                trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
+                trait_impls.entry(impl_.trait_id.clone()).or_default().insert(impl_.clone());
             }
         }
         Item::Trait(trait_) =&gt; {
             <span class="kw">for </span>impl_ <span class="kw">in </span><span class="kw-2">&amp;</span>trait_.trait_impls {
-                trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
+                trait_impls.entry(impl_.trait_id.clone()).or_default().insert(impl_.clone());
             }
         }
         Item::PrimitiveType(primitive_type) =&gt; {
             <span class="kw">for </span>impl_ <span class="kw">in </span><span class="kw-2">&amp;</span>primitive_type.trait_impls {
-                trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
+                trait_impls.entry(impl_.trait_id.clone()).or_default().insert(impl_.clone());
             }
         }
         Item::TypeAlias(<span class="kw">_</span>) | Item::Function(<span class="kw">_</span>) | Item::Global(<span class="kw">_</span>) | Item::Reexport(<span class="kw">_</span>) =&gt; {}

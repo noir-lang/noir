@@ -89,13 +89,24 @@
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>noirc_frontend::ast::ItemVisibility;
 
 <span class="kw">use crate</span>::{
     html::{HasClass, has_uri::HasUri},
-    items::{Id, Item, Workspace},
+    items::{Item, ItemId, Workspace},
 };
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ItemInfo {
@@ -109,7 +120,7 @@
 }
 
 <span class="doccomment">/// Computes an ItemInfo for every item in the workspace, indexed by its Id.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compute_id_to_info(workspace: <span class="kw-2">&amp;</span>Workspace) -&gt; HashMap&lt;Id, ItemInfo&gt; {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compute_id_to_info(workspace: <span class="kw-2">&amp;</span>Workspace) -&gt; HashMap&lt;ItemId, ItemInfo&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>id_to_info = HashMap::new();
     <span class="kw">let </span><span class="kw-2">mut </span>path = Vec::new();
 
@@ -118,7 +129,7 @@
         <span class="kw">let </span>uri = krate.uri();
         <span class="kw">let </span>class = module.class();
         <span class="kw">let </span>visibility = ItemVisibility::Public;
-        id_to_info.insert(module.id, ItemInfo { path: Vec::new(), uri, class, visibility });
+        id_to_info.insert(module.id.clone(), ItemInfo { path: Vec::new(), uri, class, visibility });
 
         path.push(krate.name.to_string());
 
@@ -135,14 +146,15 @@
 <span class="kw">fn </span>compute_id_to_info_in_item(
     item: <span class="kw-2">&amp;</span>Item,
     visibility: ItemVisibility,
-    id_to_info: <span class="kw-2">&amp;mut </span>HashMap&lt;Id, ItemInfo&gt;,
+    id_to_info: <span class="kw-2">&amp;mut </span>HashMap&lt;ItemId, ItemInfo&gt;,
     path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 ) {
     <span class="kw">match </span>item {
         Item::Module(module) =&gt; {
             <span class="kw">let </span>uri = <span class="macro">format!</span>(<span class="string">"{}/{}"</span>, path.join(<span class="string">"/"</span>), module.uri());
             <span class="kw">let </span>class = module.class();
-            id_to_info.insert(module.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info
+                .insert(module.id.clone(), ItemInfo { path: path.clone(), uri, class, visibility });
 
             path.push(module.name.clone());
             <span class="kw">for </span>(item_visibility, item) <span class="kw">in </span><span class="kw-2">&amp;</span>module.items {
@@ -154,28 +166,38 @@
         Item::Struct(struct_) =&gt; {
             <span class="kw">let </span>uri = <span class="macro">format!</span>(<span class="string">"{}/{}"</span>, path.join(<span class="string">"/"</span>), struct_.uri());
             <span class="kw">let </span>class = struct_.class();
-            id_to_info.insert(struct_.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info.insert(
+                struct_.id.clone(),
+                ItemInfo { path: path.clone(), uri, class, visibility },
+            );
         }
         Item::Trait(trait_) =&gt; {
             <span class="kw">let </span>uri = <span class="macro">format!</span>(<span class="string">"{}/{}"</span>, path.join(<span class="string">"/"</span>), trait_.uri());
             <span class="kw">let </span>class = trait_.class();
-            id_to_info.insert(trait_.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info
+                .insert(trait_.id.clone(), ItemInfo { path: path.clone(), uri, class, visibility });
         }
         Item::TypeAlias(type_alias) =&gt; {
             <span class="kw">let </span>uri = <span class="macro">format!</span>(<span class="string">"{}/{}"</span>, path.join(<span class="string">"/"</span>), type_alias.uri());
             <span class="kw">let </span>class = type_alias.class();
-            id_to_info
-                .insert(type_alias.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info.insert(
+                type_alias.id.clone(),
+                ItemInfo { path: path.clone(), uri, class, visibility },
+            );
         }
         Item::Function(function) =&gt; {
             <span class="kw">let </span>uri = <span class="macro">format!</span>(<span class="string">"{}/{}"</span>, path.join(<span class="string">"/"</span>), function.uri());
             <span class="kw">let </span>class = function.class();
-            id_to_info.insert(function.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info.insert(
+                function.id.clone(),
+                ItemInfo { path: path.clone(), uri, class, visibility },
+            );
         }
         Item::Global(global) =&gt; {
             <span class="kw">let </span>uri = <span class="macro">format!</span>(<span class="string">"{}/{}"</span>, path.join(<span class="string">"/"</span>), global.uri());
             <span class="kw">let </span>class = global.class();
-            id_to_info.insert(global.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info
+                .insert(global.id.clone(), ItemInfo { path: path.clone(), uri, class, visibility });
         }
         Item::PrimitiveType(<span class="kw">_</span>) | Item::Reexport(<span class="kw">_</span>) =&gt; {}
     }

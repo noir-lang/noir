@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["current_module_and_type"]};

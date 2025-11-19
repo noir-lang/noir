@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_semantic_tokens_full_request"],"struct":["SemanticTokenCollector"]};

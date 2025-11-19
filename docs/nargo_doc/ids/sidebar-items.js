@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_function_id","get_global_id","get_module_def_id","get_module_id","get_trait_id","get_type_alias_id","get_type_id"]};

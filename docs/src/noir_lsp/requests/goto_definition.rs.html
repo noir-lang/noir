@@ -286,10 +286,19 @@
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
-<span class="kw">use </span><span class="kw">crate</span>::attribute_reference_finder::AttributeReferenceFinder;
 <span class="kw">use </span><span class="kw">crate</span>::utils;
+<span class="kw">use </span><span class="kw">crate</span>::visitor_reference_finder::VisitorReferenceFinder;
 <span class="kw">use crate</span>::{LspState, types::GotoDefinitionResult};
 <span class="kw">use </span>async_lsp::ResponseError;
 
@@ -329,12 +338,7 @@
                 <span class="kw">let </span>source = file.source();
                 <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                <span class="kw">let </span><span class="kw-2">mut </span>finder = AttributeReferenceFinder::new(
-                    file_id,
-                    byte_index,
-                    args.crate_id,
-                    args.def_maps,
-                );
+                <span class="kw">let </span><span class="kw-2">mut </span>finder = VisitorReferenceFinder::new(file_id, source, byte_index, <span class="kw-2">&amp;</span>args);
                 finder.find(<span class="kw-2">&amp;</span>parsed_module)
             });
         <span class="kw">let </span>location = <span class="kw">if let </span><span class="prelude-val">Some</span>(reference_id) = reference_id {
@@ -569,6 +573,20 @@
             Range {
                 start: Position { line: <span class="number">34</span>, character: <span class="number">12 </span>},
                 end: Position { line: <span class="number">34</span>, character: <span class="number">16 </span>},
+            },
+        )
+        .<span class="kw">await</span>;
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>goto_reference_in_doc_comment() {
+        expect_goto(
+            <span class="string">"go_to_definition"</span>,
+            Position { line: <span class="number">38</span>, character: <span class="number">10 </span>},
+            <span class="string">"src/main.nr"</span>,
+            Range {
+                start: Position { line: <span class="number">21</span>, character: <span class="number">7 </span>},
+                end: Position { line: <span class="number">21</span>, character: <span class="number">10 </span>},
             },
         )
         .<span class="kw">await</span>;

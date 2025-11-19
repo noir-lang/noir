@@ -291,11 +291,16 @@
 <a href="#290" id="290">290</a>
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
-    SignatureHelpOptions, TextDocumentIdentifier, TypeDefinitionProviderCapability,
-    WorkspaceSymbolOptions,
+    SemanticTokensOptions, SemanticTokensRegistrationOptions, SignatureHelpOptions,
+    TextDocumentIdentifier, TypeDefinitionProviderCapability, WorkspaceSymbolOptions,
 };
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -478,6 +483,11 @@
     <span class="doccomment">/// The server provides folding range support.
     </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) folding_range_provider: <span class="prelude-ty">Option</span>&lt;bool&gt;,
+
+    <span class="doccomment">/// The server provides semantic token support.
+    </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) semantic_tokens_provider:
+        <span class="prelude-ty">Option</span>&lt;OneOf&lt;SemanticTokensOptions, SemanticTokensRegistrationOptions&gt;&gt;,
 }
 
 <span class="attr">#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]

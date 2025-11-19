@@ -875,7 +875,50 @@
 <a href="#874" id="874">874</a>
 <a href="#875" id="875">875</a>
 <a href="#876" id="876">876</a>
-<a href="#877" id="877">877</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
@@ -908,7 +951,9 @@
 <span class="kw">use </span>noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="kw">use </span>async_lsp::lsp_types;
+<span class="kw">use </span>async_lsp::lsp_types::{
+    <span class="self">self</span>, SemanticTokenType, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+};
 
 <span class="kw">use crate</span>::{
     LspState,
@@ -939,6 +984,7 @@
 <span class="kw">mod </span>inlay_hint;
 <span class="kw">mod </span>references;
 <span class="kw">mod </span>rename;
+<span class="kw">mod </span>semantic_tokens;
 <span class="kw">mod </span>signature_help;
 <span class="kw">mod </span>std_source_code;
 <span class="kw">mod </span>test_run;
@@ -953,9 +999,9 @@
     goto_definition::on_goto_type_definition_request, hover::on_hover_request,
     inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
-    signature_help::on_signature_help_request, std_source_code::on_std_source_code_request,
-    test_run::on_test_run_request, tests::on_tests_request,
-    workspace_symbol::on_workspace_symbol_request,
+    semantic_tokens::on_semantic_tokens_full_request, signature_help::on_signature_help_request,
+    std_source_code::on_std_source_code_request, test_run::on_test_run_request,
+    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
 };
 
 <span class="doccomment">/// LSP client will send initialization request after the server has started.
@@ -978,6 +1024,9 @@
 
     <span class="attr">#[serde(rename = <span class="string">"enableCodeActions"</span>, default = <span class="string">"default_enable_code_actions"</span>)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) enable_code_actions: bool,
+
+    <span class="attr">#[serde(rename = <span class="string">"enableSemanticTokens"</span>, default = <span class="string">"default_enable_semantic_tokens"</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) enable_semantic_tokens: bool,
 
     <span class="doccomment">/// Lightweight mode disables code lens, inlay hints, completions, signature help and code actions
     </span><span class="attr">#[serde(rename = <span class="string">"enableLightweightMode"</span>, default = <span class="string">"default_enable_lightweight_mode"</span>)]
@@ -1052,6 +1101,10 @@
     <span class="bool-val">true
 </span>}
 
+<span class="kw">fn </span>default_enable_semantic_tokens() -&gt; bool {
+    <span class="bool-val">true
+</span>}
+
 <span class="kw">fn </span>default_enable_parsing_cache() -&gt; bool {
     <span class="bool-val">true
 </span>}
@@ -1118,6 +1171,7 @@
             enable_completions: default_enable_completions(),
             enable_signature_help: default_enable_signature_help(),
             enable_code_actions: default_enable_code_actions(),
+            enable_semantic_tokens: default_enable_semantic_tokens(),
             enable_lightweight_mode: default_enable_lightweight_mode(),
         }
     }
@@ -1145,6 +1199,8 @@
         &amp;&amp; initialization_options.enable_signature_help;
     <span class="kw">let </span>enable_code_actions = !initialization_options.enable_lightweight_mode
         &amp;&amp; initialization_options.enable_code_actions;
+    <span class="kw">let </span>enable_semantic_tokens = !initialization_options.enable_lightweight_mode
+        &amp;&amp; initialization_options.enable_semantic_tokens;
 
     <span class="kw">async move </span>{
         <span class="prelude-val">Ok</span>(InitializeResult {
@@ -1239,10 +1295,40 @@
                     },
                 )),
                 folding_range_provider: <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
+                semantic_tokens_provider: enable_semantic_tokens.then_some(lsp_types::OneOf::Left(
+                    SemanticTokensOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: <span class="prelude-val">None</span>,
+                        },
+                        legend: SemanticTokensLegend {
+                            token_types: semantic_token_types().to_vec(),
+                            token_modifiers: <span class="macro">vec!</span>[],
+                        },
+                        range: <span class="prelude-val">None</span>,
+                        full: <span class="prelude-val">Some</span>(SemanticTokensFullOptions::Bool(<span class="bool-val">true</span>)),
+                    },
+                )),
             },
             server_info: <span class="prelude-val">None</span>,
         })
     }
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>semantic_token_types() -&gt; [SemanticTokenType; <span class="number">8</span>] {
+    [
+        SemanticTokenType::NAMESPACE,
+        SemanticTokenType::STRUCT,
+        SemanticTokenType::INTERFACE,
+        SemanticTokenType::ENUM,
+        SemanticTokenType::FUNCTION,
+        SemanticTokenType::METHOD,
+        SemanticTokenType::VARIABLE,
+        SemanticTokenType::PROPERTY,
+    ]
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>semantic_token_types_map() -&gt; HashMap&lt;SemanticTokenType, usize&gt; {
+    semantic_token_types().iter().enumerate().map(|(i, typ)| (typ.clone(), i)).collect()
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>on_formatting(
@@ -1396,17 +1482,17 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ProcessRequestCallbackArgs&lt;<span class="lifetime">'a</span>&gt; {
-    location: noirc_errors::Location,
-    workspace: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Workspace,
-    package: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Package,
-    files: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FileMap,
-    interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
-    package_cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;PathBuf, PackageCacheData&gt;,
-    crate_id: CrateId,
-    crate_name: String,
-    crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
-    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
-    usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>UsageTracker,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) location: noirc_errors::Location,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) workspace: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Workspace,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) package: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Package,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) files: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FileMap,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) package_cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;PathBuf, PackageCacheData&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) crate_id: CrateId,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) crate_name: String,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>UsageTracker,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ProcessRequestCallbackArgs&lt;<span class="lifetime">'a</span>&gt; {

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["crate_module","to_html"],"mod":["html","items"],"struct":["ConvertedItem","DocItemBuilder","ItemId"],"type":["ItemIds"]};
+window.SIDEBAR_ITEMS = {"fn":["convert_primitive_type","crate_module","to_html"],"mod":["html","ids","items","links"],"struct":["ConvertedItem","DocItemBuilder"]};

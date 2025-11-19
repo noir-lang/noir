@@ -315,9 +315,9 @@
 </span><span class="kw">mod </span>parser;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
-    Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl,
-    UseTree,
+    DocComment, Documented, Ident, ImportStatement, ItemVisibility, LetStatement,
+    ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    TypeAlias, TypeImpl, UseTree,
 };
 <span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 
@@ -347,7 +347,7 @@
     </span><span class="kw">pub </span>submodules: Vec&lt;Documented&lt;SortedSubModule&gt;&gt;,
 
     <span class="kw">pub </span>inner_attributes: Vec&lt;SecondaryAttribute&gt;,
-    <span class="kw">pub </span>inner_doc_comments: Vec&lt;String&gt;,
+    <span class="kw">pub </span>inner_doc_comments: Vec&lt;DocComment&gt;,
 }
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>SortedModule {
@@ -407,7 +407,7 @@
 </span><span class="attr">#[derive(Clone, Debug, Default)]
 </span><span class="kw">pub struct </span>ParsedModule {
     <span class="kw">pub </span>items: Vec&lt;Item&gt;,
-    <span class="kw">pub </span>inner_doc_comments: Vec&lt;String&gt;,
+    <span class="kw">pub </span>inner_doc_comments: Vec&lt;DocComment&gt;,
 }
 
 <span class="kw">impl </span>ParsedModule {
@@ -449,7 +449,7 @@
 </span><span class="kw">pub struct </span>Item {
     <span class="kw">pub </span>kind: ItemKind,
     <span class="kw">pub </span>location: Location,
-    <span class="kw">pub </span>doc_comments: Vec&lt;String&gt;,
+    <span class="kw">pub </span>doc_comments: Vec&lt;DocComment&gt;,
 }
 
 <span class="attr">#[derive(Clone, Debug)]
@@ -543,19 +543,19 @@
 }
 
 <span class="kw">impl </span>SortedModule {
-    <span class="kw">fn </span>push_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: NoirFunction, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: NoirFunction, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.functions.push(Documented::new(func, doc_comments));
     }
 
-    <span class="kw">fn </span>push_struct(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: NoirStruct, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_struct(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: NoirStruct, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.structs.push(Documented::new(typ, doc_comments));
     }
 
-    <span class="kw">fn </span>push_enum(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: NoirEnumeration, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_enum(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: NoirEnumeration, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.enums.push(Documented::new(typ, doc_comments));
     }
 
-    <span class="kw">fn </span>push_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_trait: NoirTrait, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_trait: NoirTrait, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.traits.push(Documented::new(noir_trait, doc_comments));
     }
 
@@ -567,7 +567,7 @@
         <span class="self">self</span>.impls.push(r#impl);
     }
 
-    <span class="kw">fn </span>push_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_alias: TypeAlias, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_alias: TypeAlias, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 
@@ -575,11 +575,11 @@
         <span class="self">self</span>.imports.extend(import_stmt.desugar(<span class="prelude-val">None</span>, visibility));
     }
 
-    <span class="kw">fn </span>push_module_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, mod_decl: ModuleDeclaration, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_module_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, mod_decl: ModuleDeclaration, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.module_decls.push(Documented::new(mod_decl, doc_comments));
     }
 
-    <span class="kw">fn </span>push_submodule(<span class="kw-2">&amp;mut </span><span class="self">self</span>, submodule: SortedSubModule, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_submodule(<span class="kw-2">&amp;mut </span><span class="self">self</span>, submodule: SortedSubModule, doc_comments: Vec&lt;DocComment&gt;) {
         <span class="self">self</span>.submodules.push(Documented::new(submodule, doc_comments));
     }
 
@@ -587,7 +587,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         global: LetStatement,
         visibility: ItemVisibility,
-        doc_comments: Vec&lt;String&gt;,
+        doc_comments: Vec&lt;DocComment&gt;,
     ) {
         <span class="self">self</span>.globals.push((Documented::new(global, doc_comments), visibility));
     }

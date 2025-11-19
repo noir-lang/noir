@@ -763,41 +763,89 @@
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_driver::CrateId;
-<span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
-<span class="kw">use </span>noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
+<span class="kw">use </span>noirc_frontend::graph::CrateGraph;
+<span class="kw">use </span>noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 <span class="kw">use </span>noirc_frontend::hir::printer::items <span class="kw">as </span>expand_items;
 <span class="kw">use </span>noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 <span class="kw">use </span>noirc_frontend::hir_def::traits::ResolvedTraitBound;
-<span class="kw">use </span>noirc_frontend::node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId};
+<span class="kw">use </span>noirc_frontend::node_interner::{FuncId, ReferenceId};
 <span class="kw">use </span>noirc_frontend::shared::Signedness;
 <span class="kw">use </span>noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
-<span class="kw">use </span>noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
+<span class="kw">use </span>noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
 
-<span class="kw">use </span><span class="kw">crate</span>::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Id, Impl, Item,
-    ItemKind, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
-    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+<span class="kw">use </span><span class="kw">crate</span>::ids::{
+    get_function_id, get_global_id, get_module_def_id, get_module_id, get_trait_id,
+    get_type_alias_id, get_type_id,
 };
+<span class="kw">use </span><span class="kw">crate</span>::items::{
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item, Link,
+    LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
+    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+};
+<span class="kw">use </span><span class="kw">crate</span>::links::{CurrentType, LinkFinder};
+<span class="kw">pub use </span>html::to_html;
 
 <span class="kw">mod </span>html;
+<span class="kw">mod </span>ids;
 <span class="kw">pub mod </span>items;
-<span class="kw">pub use </span>html::to_html;
+<span class="kw">pub mod </span>links;
 
 <span class="doccomment">/// Returns the root module in a crate.
 </span><span class="kw">pub fn </span>crate_module(
     crate_id: CrateId,
-    _crate_graph: <span class="kw-2">&amp;</span>CrateGraph,
+    crate_graph: <span class="kw-2">&amp;</span>CrateGraph,
     def_maps: <span class="kw-2">&amp;</span>DefMaps,
     interner: <span class="kw-2">&amp;</span>NodeInterner,
-    ids: <span class="kw-2">&amp;mut </span>ItemIds,
 ) -&gt; Module {
     <span class="kw">let </span>module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    <span class="kw">let </span><span class="kw-2">mut </span>builder = DocItemBuilder::new(interner, ids);
+    <span class="kw">let </span><span class="kw-2">mut </span>builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps);
     <span class="kw">let </span><span class="kw-2">mut </span>module = builder.convert_module(module);
     builder.process_module_reexports(<span class="kw-2">&amp;mut </span>module);
     module
@@ -805,7 +853,11 @@
 
 <span class="kw">struct </span>DocItemBuilder&lt;<span class="lifetime">'a</span>&gt; {
     interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
-    ids: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>ItemIds,
+    crate_id: CrateId,
+    crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
+    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DefMaps,
+    current_module_id: LocalModuleId,
+    current_type: <span class="prelude-ty">Option</span>&lt;CurrentType&gt;,
     <span class="doccomment">/// The minimum visibility of the current module. For example,
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
@@ -820,17 +872,30 @@
     <span class="doccomment">/// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     </span>trait_constraints: Vec&lt;TraitConstraint&gt;,
+    link_finder: LinkFinder,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; DocItemBuilder&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">fn </span>new(interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner, ids: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>ItemIds) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(
+        interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
+        crate_id: CrateId,
+        crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
+        def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DefMaps,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>current_module_id = def_maps[<span class="kw-2">&amp;</span>crate_id].root();
+        <span class="kw">let </span>link_finder = LinkFinder::default();
         <span class="self">Self </span>{
             interner,
-            ids,
+            crate_id,
+            crate_graph,
+            def_maps,
+            current_module_id,
+            current_type: <span class="prelude-val">None</span>,
             visibility: ItemVisibility::Public,
             module_def_id_to_item: HashMap::new(),
             module_imports: HashMap::new(),
             trait_constraints: Vec::new(),
+            link_finder,
         }
     }
 }
@@ -842,22 +907,6 @@
     // struct B will have `pub(crate)` visibility here as it can't be publicly
     // reached.
     </span>visibility: ItemVisibility,
-}
-
-<span class="doccomment">/// Maps an ItemId to a unique identifier.
-</span><span class="kw">pub type </span>ItemIds = HashMap&lt;ItemId, usize&gt;;
-
-<span class="doccomment">/// Uniquely identifies an item.
-/// This is done by using a type's name, location in source code and kind.
-/// With macros, two types might end up being defined in the same location but they will likely
-/// have different names.
-/// This is just a temporary solution until we have a better way to uniquely identify items
-/// across crates.
-</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-</span><span class="kw">pub struct </span>ItemId {
-    <span class="kw">pub </span>location: Location,
-    <span class="kw">pub </span>kind: ItemKind,
-    <span class="kw">pub </span>name: String,
 }
 
 <span class="kw">impl </span>DocItemBuilder&lt;<span class="lifetime">'_</span>&gt; {
@@ -872,45 +921,54 @@
                 <span class="kw">let </span>old_visibility = <span class="self">self</span>.visibility;
                 <span class="self">self</span>.visibility = old_visibility.min(visibility);
 
+                <span class="kw">let </span>old_module_id = <span class="self">self</span>.current_module_id;
+                <span class="self">self</span>.current_module_id = module.id.local_id;
+
                 <span class="kw">let </span>module = <span class="self">self</span>.convert_module(module);
 
                 <span class="self">self</span>.visibility = old_visibility;
+                <span class="self">self</span>.current_module_id = old_module_id;
 
                 Item::Module(module)
             }
             expand_items::Item::DataType(item_data_type) =&gt; {
                 <span class="kw">let </span>type_id = item_data_type.id;
+                <span class="self">self</span>.current_type = <span class="prelude-val">Some</span>(CurrentType::Type(type_id));
                 <span class="kw">let </span>shared_data_type = <span class="self">self</span>.interner.get_type(type_id);
                 <span class="kw">let </span>data_type = shared_data_type.borrow();
-                <span class="kw">if </span>data_type.is_enum() {
-                    <span class="macro">panic!</span>(<span class="string">"Enums are not supported yet"</span>);
-                }
                 <span class="kw">let </span>comments = <span class="self">self</span>.doc_comments(ReferenceId::Type(type_id));
                 <span class="kw">let </span><span class="kw-2">mut </span>has_private_fields = <span class="bool-val">false</span>;
-                <span class="kw">let </span>fields = data_type
-                    .get_fields_as_written()
-                    .unwrap()
-                    .iter()
-                    .enumerate()
-                    .filter(|(<span class="kw">_</span>, field)| {
-                        <span class="kw">if </span>field.visibility == ItemVisibility::Public {
-                            <span class="bool-val">true
-                        </span>} <span class="kw">else </span>{
-                            has_private_fields = <span class="bool-val">true</span>;
-                            <span class="bool-val">false
-                        </span>}
-                    })
-                    .map(|(index, field)| {
-                        <span class="kw">let </span>comments = <span class="self">self</span>.doc_comments(ReferenceId::StructMember(type_id, index));
-                        <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>field.typ);
-                        StructField { name: field.name.to_string(), r#type, comments }
-                    })
-                    .collect();
+                <span class="kw">let </span>fields = <span class="kw">if </span>data_type.is_enum() {
+                    <span class="comment">// Enums are shown as structs for now
+                    </span>Vec::new()
+                } <span class="kw">else </span>{
+                    data_type
+                        .get_fields_as_written()
+                        .unwrap()
+                        .iter()
+                        .enumerate()
+                        .filter(|(<span class="kw">_</span>, field)| {
+                            <span class="kw">if </span>field.visibility == ItemVisibility::Public {
+                                <span class="bool-val">true
+                            </span>} <span class="kw">else </span>{
+                                has_private_fields = <span class="bool-val">true</span>;
+                                <span class="bool-val">false
+                            </span>}
+                        })
+                        .map(|(index, field)| {
+                            <span class="kw">let </span>comments =
+                                <span class="self">self</span>.doc_comments(ReferenceId::StructMember(type_id, index));
+                            <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>field.typ);
+                            StructField { name: field.name.to_string(), r#type, comments }
+                        })
+                        .collect()
+                };
                 <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span>data_type.generics, |generic| <span class="self">self</span>.convert_generic(generic));
                 <span class="kw">let </span>impls = vecmap(item_data_type.impls, |impl_| <span class="self">self</span>.convert_impl(impl_));
                 <span class="kw">let </span>trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| <span class="self">self</span>.convert_trait_impl(impl_));
-                <span class="kw">let </span>id = <span class="self">self</span>.get_type_id(type_id);
+                <span class="kw">let </span>id = get_type_id(type_id, <span class="self">self</span>.interner);
+                <span class="self">self</span>.current_type = <span class="prelude-val">None</span>;
                 Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
@@ -924,6 +982,7 @@
             }
             expand_items::Item::Trait(item_trait) =&gt; {
                 <span class="kw">let </span>trait_id = item_trait.id;
+                <span class="self">self</span>.current_type = <span class="prelude-val">Some</span>(CurrentType::Trait(trait_id));
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="kw">let </span>name = trait_.name.to_string();
                 <span class="kw">let </span>comments = <span class="self">self</span>.doc_comments(ReferenceId::Trait(trait_id));
@@ -972,7 +1031,10 @@
                     }
                 }
 
-                <span class="kw">let </span>id = <span class="self">self</span>.get_trait_id(trait_id);
+                <span class="kw">let </span>id = get_trait_id(trait_id, <span class="self">self</span>.interner);
+
+                <span class="self">self</span>.current_type = <span class="prelude-val">None</span>;
+
                 Item::Trait(Trait {
                     id,
                     name,
@@ -995,7 +1057,7 @@
                 <span class="kw">let </span>comments = <span class="self">self</span>.doc_comments(ReferenceId::Alias(type_alias_id));
                 <span class="kw">let </span>generics =
                     vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| <span class="self">self</span>.convert_generic(generic));
-                <span class="kw">let </span>id = <span class="self">self</span>.get_type_alias_id(type_alias_id);
+                <span class="kw">let </span>id = get_type_alias_id(type_alias_id, <span class="self">self</span>.interner);
                 Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
             expand_items::Item::PrimitiveType(primitive_type) =&gt; {
@@ -1011,15 +1073,19 @@
                         kind
                     }
                 };
+                <span class="self">self</span>.current_type = <span class="prelude-val">Some</span>(CurrentType::PrimitiveType(kind));
                 <span class="kw">let </span>impls = vecmap(primitive_type.impls, |impl_| <span class="self">self</span>.convert_impl(impl_));
                 <span class="kw">let </span>trait_impls =
                     vecmap(primitive_type.trait_impls, |impl_| <span class="self">self</span>.convert_trait_impl(impl_));
-                <span class="kw">let </span>comments = <span class="self">self
-                    </span>.interner
-                    .primitive_docs
-                    .get(<span class="kw-2">&amp;</span>kind.to_string())
-                    .cloned()
-                    .map(|comments| comments.join(<span class="string">"\n"</span>).trim().to_string());
+                <span class="kw">let </span>comments =
+                    <span class="self">self</span>.interner.primitive_docs.get(<span class="kw-2">&amp;</span>kind.to_string()).cloned().map(|comments| {
+                        vecmap(comments, |comment| comment.contents).join(<span class="string">"\n"</span>).trim().to_string()
+                    });
+                <span class="kw">let </span>comments = comments.map(|comments| {
+                    <span class="kw">let </span>links = <span class="self">self</span>.find_links_in_comments(<span class="kw-2">&amp;</span>comments);
+                    (comments, links)
+                });
+                <span class="self">self</span>.current_type = <span class="prelude-val">None</span>;
                 Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
             }
             expand_items::Item::Global(global_id) =&gt; {
@@ -1035,7 +1101,7 @@
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(definition_id);
                 <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>typ);
                 <span class="kw">let </span>comments = <span class="self">self</span>.doc_comments(ReferenceId::Global(global_id));
-                <span class="kw">let </span>id = <span class="self">self</span>.get_global_id(global_id);
+                <span class="kw">let </span>id = get_global_id(global_id, <span class="self">self</span>.interner);
                 Item::Global(Global { id, name, comments, comptime, mutable, r#type })
             }
             expand_items::Item::Function(func_id) =&gt; Item::Function(<span class="self">self</span>.convert_function(func_id)),
@@ -1059,7 +1125,7 @@
             .collect();
         <span class="self">self</span>.module_imports.insert(module.id, module.imports);
         <span class="kw">let </span>is_contract = module.is_contract;
-        <span class="kw">let </span>id = <span class="self">self</span>.get_module_id(module.id);
+        <span class="kw">let </span>id = get_module_id(module.id, <span class="self">self</span>.interner);
         Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
@@ -1097,14 +1163,14 @@
 
         <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_impl.trait_id);
         <span class="kw">let </span>trait_name = trait_.name.to_string();
-        <span class="kw">let </span>trait_id = <span class="self">self</span>.get_trait_id(trait_.id);
+        <span class="kw">let </span>trait_id = get_trait_id(trait_.id, <span class="self">self</span>.interner);
         <span class="kw">let </span>trait_generics = vecmap(<span class="kw-2">&amp;</span>trait_impl.trait_generics, |typ| <span class="self">self</span>.convert_type(typ));
         <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>trait_impl.typ);
         TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
     }
 
     <span class="kw">fn </span>convert_trait_constraint(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         constraint: <span class="kw-2">&amp;</span>noirc_frontend::hir_def::traits::TraitConstraint,
     ) -&gt; TraitConstraint {
         <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>constraint.typ);
@@ -1112,16 +1178,16 @@
         TraitConstraint { r#type, bound }
     }
 
-    <span class="kw">fn </span>convert_trait_bound(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound) -&gt; TraitBound {
+    <span class="kw">fn </span>convert_trait_bound(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound) -&gt; TraitBound {
         <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
         <span class="kw">let </span>trait_name = trait_.name.to_string();
-        <span class="kw">let </span>trait_id = <span class="self">self</span>.get_trait_id(trait_.id);
+        <span class="kw">let </span>trait_id = get_trait_id(trait_.id, <span class="self">self</span>.interner);
         <span class="kw">let </span>(ordered_generics, named_generics) =
             <span class="self">self</span>.convert_trait_generics(<span class="kw-2">&amp;</span>trait_bound.trait_generics);
         TraitBound { trait_id, trait_name, ordered_generics, named_generics }
     }
 
-    <span class="kw">fn </span>convert_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>noirc_frontend::Type) -&gt; Type {
+    <span class="kw">fn </span>convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>noirc_frontend::Type) -&gt; Type {
         <span class="kw">match </span>typ {
             noirc_frontend::Type::Unit =&gt; Type::Unit,
             noirc_frontend::Type::FieldElement =&gt; Type::Primitive(PrimitiveTypeKind::Field),
@@ -1195,17 +1261,15 @@
             }
             noirc_frontend::Type::DataType(data_type, generics) =&gt; {
                 <span class="kw">let </span>data_type = data_type.borrow();
-                <span class="kw">if </span>data_type.is_enum() {
-                    <span class="macro">panic!</span>(<span class="string">"Enums are not supported yet"</span>);
-                }
-                <span class="kw">let </span>id = <span class="self">self</span>.get_type_id(data_type.id);
+                <span class="comment">// Enums are shown as structs for now
+                </span><span class="kw">let </span>id = get_type_id(data_type.id, <span class="self">self</span>.interner);
                 <span class="kw">let </span>name = data_type.name.to_string();
                 <span class="kw">let </span>generics = vecmap(generics, |typ| <span class="self">self</span>.convert_type(typ));
                 Type::Struct { id, name, generics }
             }
             noirc_frontend::Type::Alias(type_alias, generics) =&gt; {
                 <span class="kw">let </span>type_alias = type_alias.borrow();
-                <span class="kw">let </span>id = <span class="self">self</span>.get_type_alias_id(type_alias.id);
+                <span class="kw">let </span>id = get_type_alias_id(type_alias.id, <span class="self">self</span>.interner);
                 <span class="kw">let </span>name = type_alias.name.to_string();
                 <span class="kw">let </span>generics = vecmap(generics, |typ| <span class="self">self</span>.convert_type(typ));
                 Type::TypeAlias { id, name, generics }
@@ -1219,7 +1283,7 @@
             }
             noirc_frontend::Type::TraitAsType(trait_id, <span class="kw">_</span>, trait_generics) =&gt; {
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
-                <span class="kw">let </span>trait_id = <span class="self">self</span>.get_trait_id(trait_.id);
+                <span class="kw">let </span>trait_id = get_trait_id(trait_.id, <span class="self">self</span>.interner);
                 <span class="kw">let </span>trait_name = trait_.name.to_string();
                 <span class="kw">let </span>(ordered_generics, named_generics) =
                     <span class="self">self</span>.convert_trait_generics(trait_generics);
@@ -1262,7 +1326,7 @@
     }
 
     <span class="kw">fn </span>convert_trait_generics(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         trait_generics: <span class="kw-2">&amp;</span>noirc_frontend::hir::type_check::generics::TraitGenerics,
     ) -&gt; (Vec&lt;Type&gt;, std::collections::BTreeMap&lt;String, Type&gt;) {
         <span class="kw">let </span>ordered_generics = vecmap(<span class="kw-2">&amp;</span>trait_generics.ordered, |typ| <span class="self">self</span>.convert_type(typ));
@@ -1318,7 +1382,7 @@
             .cloned()
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="kw">let </span>id = <span class="self">self</span>.get_function_id(func_id);
+        <span class="kw">let </span>id = get_function_id(func_id, <span class="self">self</span>.interner);
 
         Function {
             id,
@@ -1333,13 +1397,13 @@
         }
     }
 
-    <span class="kw">fn </span>convert_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>ResolvedGeneric) -&gt; Generic {
+    <span class="kw">fn </span>convert_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>ResolvedGeneric) -&gt; Generic {
         <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(generic.kind());
         <span class="kw">let </span>name = generic.name.to_string();
         Generic { name, numeric }
     }
 
-    <span class="kw">fn </span>kind_to_numeric(<span class="kw-2">&amp;mut </span><span class="self">self</span>, kind: Kind) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+    <span class="kw">fn </span>kind_to_numeric(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: Kind) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">match </span>kind {
             Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer =&gt; <span class="prelude-val">None</span>,
             Kind::Numeric(typ) =&gt; <span class="prelude-val">Some</span>(<span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>typ)),
@@ -1378,7 +1442,7 @@
             }
 
             <span class="comment">// This is an internal or external re-export
-            </span><span class="kw">let </span>id = <span class="self">self</span>.get_module_def_id(import.id);
+            </span><span class="kw">let </span>id = get_module_def_id(import.id, <span class="self">self</span>.interner);
             module.items.push((
                 import.visibility,
                 Item::Reexport(Reexport {
@@ -1390,8 +1454,62 @@
         }
     }
 
-    <span class="kw">fn </span>doc_comments(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="self">self</span>.interner.doc_comments(id).map(|comments| comments.join(<span class="string">"\n"</span>).trim().to_string())
+    <span class="kw">fn </span>doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;(String, Links)&gt; {
+        <span class="kw">let </span>comments = <span class="self">self</span>.interner.doc_comments(id)<span class="question-mark">?</span>;
+        <span class="kw">let </span>comments =
+            vecmap(comments, |comment| comment.contents.clone()).join(<span class="string">"\n"</span>).trim().to_string();
+        <span class="kw">let </span>links = <span class="self">self</span>.find_links_in_comments(<span class="kw-2">&amp;</span>comments);
+        <span class="prelude-val">Some</span>((comments, links))
+    }
+
+    <span class="doccomment">/// The idea of this method is to find occurrences of markdown links and references in comments.
+    /// For each of these we try to resolve them to a ModuleDefId of sort, which
+    /// is actually represented as a Link to a type, method, module, etc.
+    ///
+    /// The doc generator ([html::to_html]) will then replace occurrences of these links
+    /// with resolved HTML links.
+    </span><span class="kw">fn </span>find_links_in_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>, comments: <span class="kw-2">&amp;</span>str) -&gt; Links {
+        <span class="kw">let </span>current_module_id = ModuleId { krate: <span class="self">self</span>.crate_id, local_id: <span class="self">self</span>.current_module_id };
+        <span class="self">self</span>.link_finder.reset();
+        <span class="kw">let </span>links = <span class="self">self</span>.link_finder.find_links(
+            comments,
+            current_module_id,
+            <span class="self">self</span>.current_type,
+            <span class="self">self</span>.interner,
+            <span class="self">self</span>.def_maps,
+            <span class="self">self</span>.crate_graph,
+        );
+        vecmap(links, |link| {
+            <span class="kw">let </span>target = <span class="kw">match </span>link.target {
+                links::LinkTarget::TopLevelItem(module_def_id) =&gt; {
+                    LinkTarget::TopLevelItem(get_module_def_id(module_def_id, <span class="self">self</span>.interner))
+                }
+                links::LinkTarget::Method(module_def_id, func_id) =&gt; {
+                    <span class="kw">let </span>name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>func_id).to_string();
+                    LinkTarget::Method(get_module_def_id(module_def_id, <span class="self">self</span>.interner), name)
+                }
+                links::LinkTarget::StructMember(type_id, index) =&gt; {
+                    <span class="kw">let </span>data_type = <span class="self">self</span>.interner.get_type(type_id);
+                    <span class="kw">let </span>name = data_type.borrow().field_at(index).name.to_string();
+                    LinkTarget::StructMember(get_type_id(type_id, <span class="self">self</span>.interner), name)
+                }
+                links::LinkTarget::PrimitiveType(primitive_type_kind) =&gt; {
+                    LinkTarget::PrimitiveType(primitive_type_kind)
+                }
+                links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) =&gt; {
+                    <span class="kw">let </span>name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>func_id).to_string();
+                    LinkTarget::PrimitiveTypeFunction(primitive_type_kind, name)
+                }
+            };
+            Link {
+                name: link.name,
+                path: link.path,
+                target,
+                line: link.line,
+                start: link.start,
+                end: link.end,
+            }
+        })
     }
 
     <span class="kw">fn </span>pattern_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>HirPattern) -&gt; String {
@@ -1416,7 +1534,7 @@
         }
     }
 
-    <span class="kw">fn </span>get_module_def_id_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ModuleDefId) -&gt; String {
+    <span class="kw">fn </span>get_module_def_id_name(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ModuleDefId) -&gt; String {
         <span class="kw">match </span>id {
             ModuleDefId::ModuleId(module_id) =&gt; {
                 <span class="kw">let </span>attributes = <span class="self">self</span>.interner.try_module_attributes(module_id);
@@ -1447,84 +1565,50 @@
             }
         }
     }
+}
 
-    <span class="kw">fn </span>get_module_def_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ModuleDefId) -&gt; Id {
-        <span class="kw">match </span>id {
-            ModuleDefId::ModuleId(id) =&gt; <span class="self">self</span>.get_module_id(id),
-            ModuleDefId::FunctionId(id) =&gt; <span class="self">self</span>.get_function_id(id),
-            ModuleDefId::TypeId(id) =&gt; <span class="self">self</span>.get_type_id(id),
-            ModuleDefId::TypeAliasId(id) =&gt; <span class="self">self</span>.get_type_alias_id(id),
-            ModuleDefId::TraitId(id) =&gt; <span class="self">self</span>.get_trait_id(id),
-            ModuleDefId::GlobalId(id) =&gt; <span class="self">self</span>.get_global_id(id),
-            ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"Trait associated types cannot be re-exported"</span>)
-            }
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_primitive_type(
+    primitive_type: noirc_frontend::elaborator::PrimitiveType,
+) -&gt; PrimitiveTypeKind {
+    <span class="kw">match </span>primitive_type {
+        noirc_frontend::elaborator::PrimitiveType::Field =&gt; PrimitiveTypeKind::Field,
+        noirc_frontend::elaborator::PrimitiveType::Bool =&gt; PrimitiveTypeKind::Bool,
+        noirc_frontend::elaborator::PrimitiveType::U1 =&gt; PrimitiveTypeKind::U1,
+        noirc_frontend::elaborator::PrimitiveType::U8 =&gt; PrimitiveTypeKind::U8,
+        noirc_frontend::elaborator::PrimitiveType::U16 =&gt; PrimitiveTypeKind::U16,
+        noirc_frontend::elaborator::PrimitiveType::U32 =&gt; PrimitiveTypeKind::U32,
+        noirc_frontend::elaborator::PrimitiveType::U64 =&gt; PrimitiveTypeKind::U64,
+        noirc_frontend::elaborator::PrimitiveType::U128 =&gt; PrimitiveTypeKind::U128,
+        noirc_frontend::elaborator::PrimitiveType::I8 =&gt; PrimitiveTypeKind::I8,
+        noirc_frontend::elaborator::PrimitiveType::I16 =&gt; PrimitiveTypeKind::I16,
+        noirc_frontend::elaborator::PrimitiveType::I32 =&gt; PrimitiveTypeKind::I32,
+        noirc_frontend::elaborator::PrimitiveType::I64 =&gt; PrimitiveTypeKind::I64,
+        noirc_frontend::elaborator::PrimitiveType::Str =&gt; PrimitiveTypeKind::Str,
+        noirc_frontend::elaborator::PrimitiveType::Fmtstr =&gt; PrimitiveTypeKind::Fmtstr,
+        noirc_frontend::elaborator::PrimitiveType::Expr =&gt; PrimitiveTypeKind::Expr,
+        noirc_frontend::elaborator::PrimitiveType::Quoted =&gt; PrimitiveTypeKind::Quoted,
+        noirc_frontend::elaborator::PrimitiveType::Type =&gt; PrimitiveTypeKind::Type,
+        noirc_frontend::elaborator::PrimitiveType::TypedExpr =&gt; PrimitiveTypeKind::TypedExpr,
+        noirc_frontend::elaborator::PrimitiveType::TypeDefinition =&gt; {
+            PrimitiveTypeKind::TypeDefinition
         }
-    }
-
-    <span class="kw">fn </span>get_module_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ModuleId) -&gt; Id {
-        <span class="kw">let </span>module = <span class="self">self</span>.interner.module_attributes(id);
-        <span class="kw">let </span>location = module.location;
-        <span class="kw">let </span>name = module.name.clone();
-        <span class="kw">let </span>kind = ItemKind::Module;
-        <span class="kw">let </span>id = ItemId { location, kind, name };
-        <span class="self">self</span>.get_id(id)
-    }
-
-    <span class="kw">fn </span>get_type_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TypeId) -&gt; Id {
-        <span class="kw">let </span>data_type = <span class="self">self</span>.interner.get_type(id);
-        <span class="kw">let </span>data_type = data_type.borrow();
-        <span class="kw">let </span>location = data_type.location;
-        <span class="kw">let </span>name = data_type.name.to_string();
-        <span class="kw">let </span>kind = ItemKind::Struct;
-        <span class="kw">let </span>id = ItemId { location, kind, name };
-        <span class="self">self</span>.get_id(id)
-    }
-
-    <span class="kw">fn </span>get_trait_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TraitId) -&gt; Id {
-        <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(id);
-        <span class="kw">let </span>location = trait_.location;
-        <span class="kw">let </span>name = trait_.name.to_string();
-        <span class="kw">let </span>kind = ItemKind::Trait;
-        <span class="kw">let </span>id = ItemId { location, kind, name };
-        <span class="self">self</span>.get_id(id)
-    }
-
-    <span class="kw">fn </span>get_type_alias_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TypeAliasId) -&gt; Id {
-        <span class="kw">let </span>alias = <span class="self">self</span>.interner.get_type_alias(id);
-        <span class="kw">let </span>alias = alias.borrow();
-        <span class="kw">let </span>location = alias.location;
-        <span class="kw">let </span>name = alias.name.to_string();
-        <span class="kw">let </span>kind = ItemKind::TypeAlias;
-        <span class="kw">let </span>id = ItemId { location, kind, name };
-        <span class="self">self</span>.get_id(id)
-    }
-
-    <span class="kw">fn </span>get_function_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId) -&gt; Id {
-        <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>id);
-        <span class="kw">let </span>name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>id).to_owned();
-        <span class="kw">let </span>location = func_meta.location;
-        <span class="kw">let </span>kind = ItemKind::Function;
-        <span class="kw">let </span>id = ItemId { location, kind, name };
-        <span class="self">self</span>.get_id(id)
-    }
-
-    <span class="kw">fn </span>get_global_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalId) -&gt; Id {
-        <span class="kw">let </span>global_info = <span class="self">self</span>.interner.get_global(id);
-        <span class="kw">let </span>location = global_info.location;
-        <span class="kw">let </span>name = global_info.ident.to_string();
-        <span class="kw">let </span>kind = ItemKind::Global;
-        <span class="kw">let </span>id = ItemId { location, kind, name };
-        <span class="self">self</span>.get_id(id)
-    }
-
-    <span class="kw">fn </span>get_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: ItemId) -&gt; Id {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(existing_id) = <span class="self">self</span>.ids.get(<span class="kw-2">&amp;</span>key) {
-            <span class="kw-2">*</span>existing_id
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>new_id = <span class="self">self</span>.ids.len();
-            <span class="self">self</span>.ids.insert(key, new_id);
-            new_id
+        noirc_frontend::elaborator::PrimitiveType::TraitConstraint =&gt; {
+            PrimitiveTypeKind::TraitConstraint
+        }
+        noirc_frontend::elaborator::PrimitiveType::CtString =&gt; PrimitiveTypeKind::CtString,
+        noirc_frontend::elaborator::PrimitiveType::FunctionDefinition =&gt; {
+            PrimitiveTypeKind::FunctionDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::Module =&gt; PrimitiveTypeKind::Module,
+        noirc_frontend::elaborator::PrimitiveType::StructDefinition =&gt; {
+            PrimitiveTypeKind::TypeDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitDefinition =&gt; {
+            PrimitiveTypeKind::TraitDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitImpl =&gt; PrimitiveTypeKind::TraitImpl,
+        noirc_frontend::elaborator::PrimitiveType::UnresolvedType =&gt; {
+            PrimitiveTypeKind::UnresolvedType
         }
     }
 }

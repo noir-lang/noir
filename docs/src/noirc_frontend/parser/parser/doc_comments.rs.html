@@ -158,7 +158,27 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    ast::DocComment,
     parser::ParserErrorReason,
     token::{DocStyle, Token, TokenKind},
 };
@@ -167,29 +187,47 @@
 
 <span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// InnerDocComments = inner_doc_comment*
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_inner_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;String&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_inner_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;DocComment&gt; {
         <span class="self">self</span>.parse_many(<span class="string">"inner doc comments"</span>, without_separator(), <span class="self">Self</span>::parse_inner_doc_comment)
     }
 
-    <span class="kw">fn </span>parse_inner_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="self">self</span>.eat_kind(TokenKind::InnerDocComment).map(|token| <span class="kw">match </span>token.into_token() {
-            Token::LineComment(comment, <span class="prelude-val">Some</span>(DocStyle::Inner)) =&gt; fix_line_comment(comment),
-            Token::BlockComment(comment, <span class="prelude-val">Some</span>(DocStyle::Inner)) =&gt; fix_block_comment(comment),
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+    <span class="kw">fn </span>parse_inner_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;DocComment&gt; {
+        <span class="self">self</span>.eat_kind(TokenKind::InnerDocComment).map(|token| {
+            <span class="kw">let </span>location = token.location();
+            <span class="kw">match </span>token.into_token() {
+                Token::LineComment(comment, <span class="prelude-val">Some</span>(DocStyle::Inner)) =&gt; {
+                    <span class="kw">let </span>comment = fix_line_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                Token::BlockComment(comment, <span class="prelude-val">Some</span>(DocStyle::Inner)) =&gt; {
+                    <span class="kw">let </span>comment = fix_block_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            }
         })
     }
 
     <span class="doccomment">/// OuterDocComments = OuterDocComment*
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;String&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;DocComment&gt; {
         <span class="self">self</span>.parse_many(<span class="string">"outer doc comments"</span>, without_separator(), <span class="self">Self</span>::parse_outer_doc_comment)
     }
 
     <span class="doccomment">/// OuterDocComment = outer_doc_comment
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="self">self</span>.eat_kind(TokenKind::OuterDocComment).map(|token| <span class="kw">match </span>token.into_token() {
-            Token::LineComment(comment, <span class="prelude-val">Some</span>(DocStyle::Outer)) =&gt; fix_line_comment(comment),
-            Token::BlockComment(comment, <span class="prelude-val">Some</span>(DocStyle::Outer)) =&gt; fix_block_comment(comment),
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;DocComment&gt; {
+        <span class="self">self</span>.eat_kind(TokenKind::OuterDocComment).map(|token| {
+            <span class="kw">let </span>location = token.location();
+            <span class="kw">match </span>token.into_token() {
+                Token::LineComment(comment, <span class="prelude-val">Some</span>(DocStyle::Outer)) =&gt; {
+                    <span class="kw">let </span>comment = fix_line_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                Token::BlockComment(comment, <span class="prelude-val">Some</span>(DocStyle::Outer)) =&gt; {
+                    <span class="kw">let </span>comment = fix_block_comment(comment);
+                    DocComment::from(location, comment)
+                }
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            }
         })
     }
 
@@ -263,8 +301,8 @@
         <span class="kw">let </span>comments = parser.parse_inner_doc_comments();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         <span class="macro">assert_eq!</span>(comments.len(), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>], <span class="string">"Hello"</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">1</span>], <span class="string">"World"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>].contents, <span class="string">"Hello"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">1</span>].contents, <span class="string">"World"</span>);
     }
 
     <span class="attr">#[test]
@@ -274,7 +312,7 @@
         <span class="kw">let </span>comments = parser.parse_inner_doc_comments();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         <span class="macro">assert_eq!</span>(comments.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>], <span class="string">"Hello\nWorld\n\n!"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>].contents, <span class="string">"Hello\nWorld\n\n!"</span>);
     }
 
     <span class="attr">#[test]
@@ -284,7 +322,7 @@
         <span class="kw">let </span>comments = parser.parse_inner_doc_comments();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         <span class="macro">assert_eq!</span>(comments.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>], <span class="string">"Hello\nWorld\n\n!"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>].contents, <span class="string">"Hello\nWorld\n\n!"</span>);
     }
 
     <span class="attr">#[test]
@@ -294,8 +332,8 @@
         <span class="kw">let </span>comments = parser.parse_outer_doc_comments();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         <span class="macro">assert_eq!</span>(comments.len(), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>], <span class="string">"Hello"</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">1</span>], <span class="string">"World"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>].contents, <span class="string">"Hello"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">1</span>].contents, <span class="string">"World"</span>);
     }
 
     <span class="attr">#[test]
@@ -305,7 +343,7 @@
         <span class="kw">let </span>comments = parser.parse_outer_doc_comments();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         <span class="macro">assert_eq!</span>(comments.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>], <span class="string">"Hello\nWorld\n\n!"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>].contents, <span class="string">"Hello\nWorld\n\n!"</span>);
     }
 
     <span class="attr">#[test]
@@ -315,7 +353,7 @@
         <span class="kw">let </span>comments = parser.parse_outer_doc_comments();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         <span class="macro">assert_eq!</span>(comments.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>], <span class="string">"Hello\n* World\nOops\n* !"</span>);
+        <span class="macro">assert_eq!</span>(comments[<span class="number">0</span>].contents, <span class="string">"Hello\n* World\nOops\n* !"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

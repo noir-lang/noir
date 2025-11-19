@@ -159,16 +159,7 @@
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
 <a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fs};
+<a href="#161" id="161">161</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fs};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::FileManager;
@@ -177,7 +168,7 @@
     ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
     workspace::Workspace,
 };
-<span class="kw">use </span>nargo_doc::{ItemIds, crate_module, items::Crate};
+<span class="kw">use </span>nargo_doc::{crate_module, items::Crate};
 <span class="kw">use </span>nargo_toml::{PackageConfig, PackageSelection};
 <span class="kw">use </span>noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 <span class="kw">use </span>noirc_frontend::hir::{Context, ParsedFiles};
@@ -217,14 +208,12 @@
     <span class="kw">let </span><span class="kw-2">mut </span>crates = Vec::new();
     <span class="comment">// Maps a crate's root file to its crate
     </span><span class="kw">let </span><span class="kw-2">mut </span>dependencies = HashMap::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>ids = HashMap::new();
     <span class="kw">for </span>package <span class="kw">in </span><span class="kw-2">&amp;</span>workspace {
         <span class="kw">let </span>krate = package_crate(
             <span class="kw-2">&amp;</span>workspace_file_manager,
             <span class="kw-2">&amp;</span>parsed_files,
             package,
             <span class="kw-2">&amp;</span>args.compile_options,
-            <span class="kw-2">&amp;mut </span>ids,
             <span class="kw-2">&amp;mut </span>dependencies,
         )<span class="question-mark">?</span>;
         crates.push(krate);
@@ -266,7 +255,6 @@
     parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
     package: <span class="kw-2">&amp;</span>Package,
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
-    ids: <span class="kw-2">&amp;mut </span>ItemIds,
     dependencies: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Crate&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Crate, CompileError&gt; {
     <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = prepare_package(file_manager, parsed_files, package);
@@ -274,9 +262,9 @@
     check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>module =
-        crate_module(crate_id, <span class="kw-2">&amp;</span>context.crate_graph, <span class="kw-2">&amp;</span>context.def_maps, <span class="kw-2">&amp;</span>context.def_interner, ids);
+        crate_module(crate_id, <span class="kw-2">&amp;</span>context.crate_graph, <span class="kw-2">&amp;</span>context.def_maps, <span class="kw-2">&amp;</span>context.def_interner);
 
-    collect_dependencies(<span class="kw-2">&amp;</span>context, <span class="prelude-val">Some</span>(package), crate_id, file_manager, dependencies, ids)<span class="question-mark">?</span>;
+    collect_dependencies(<span class="kw-2">&amp;</span>context, <span class="prelude-val">Some</span>(package), crate_id, file_manager, dependencies)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>root_file = <span class="kw-2">&amp;</span>context.crate_graph[crate_id].root_file_id;
     <span class="kw">let </span>root_file = file_manager.path(<span class="kw-2">*</span>root_file).unwrap().display().to_string();
@@ -293,7 +281,6 @@
     crate_id: CrateId,
     file_manager: <span class="kw-2">&amp;</span>FileManager,
     dependencies: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Crate&gt;,
-    ids: <span class="kw-2">&amp;mut </span>ItemIds,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompileError&gt; {
     <span class="kw">for </span>dependency <span class="kw">in </span><span class="kw-2">&amp;</span>context.crate_graph[crate_id].dependencies {
         <span class="kw">let </span>crate_id = dependency.crate_id;
@@ -304,13 +291,8 @@
             <span class="kw">continue</span>;
         }
 
-        <span class="kw">let </span>module = crate_module(
-            crate_id,
-            <span class="kw-2">&amp;</span>context.crate_graph,
-            <span class="kw-2">&amp;</span>context.def_maps,
-            <span class="kw-2">&amp;</span>context.def_interner,
-            ids,
-        );
+        <span class="kw">let </span>module =
+            crate_module(crate_id, <span class="kw-2">&amp;</span>context.crate_graph, <span class="kw-2">&amp;</span>context.def_maps, <span class="kw-2">&amp;</span>context.def_interner);
         <span class="kw">let </span>name = dependency.name.to_string();
         <span class="comment">// The `graph::Dependency` type doesn't carry a version. Instead, we can get it from the
         // `Package's` dependencies by finding the dependency with the same name.
@@ -334,7 +316,7 @@
         <span class="kw">let </span>krate = Crate { name, version, root_module: module, root_file: root_file.clone() };
         dependencies.insert(root_file, krate);
 
-        collect_dependencies(context, package, crate_id, file_manager, dependencies, ids)<span class="question-mark">?</span>;
+        collect_dependencies(context, package, crate_id, file_manager, dependencies)<span class="question-mark">?</span>;
     }
     <span class="prelude-val">Ok</span>(())
 }
