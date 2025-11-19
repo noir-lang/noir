@@ -1018,6 +1018,12 @@ impl HTMLCreator {
         output_id: bool,
     ) {
         self.render_function_signature(function, as_header, output_id);
+
+        let pad = as_header && (function.is_deprecated() || function.comments.is_some());
+        if pad {
+            self.output.push_str("<div class=\"padded-description\">");
+        }
+
         if let Some(deprecated) = &function.deprecated {
             self.output.push_str("<div class=\"deprecated\">\n");
             self.output.push_str("<span class=\"emoji\">👎</span>\nDeprecated");
@@ -1029,13 +1035,11 @@ impl HTMLCreator {
         }
 
         if function.comments.is_some() {
-            if as_header {
-                self.output.push_str("<div class=\"padded-description\">");
-            }
             self.render_comments(function.comments.as_ref(), current_heading_level);
-            if as_header {
-                self.output.push_str("</div>");
-            }
+        }
+
+        if pad {
+            self.output.push_str("</div>");
         }
     }
 
