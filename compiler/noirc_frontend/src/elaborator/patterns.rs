@@ -5,9 +5,9 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, Shared, Type, TypeAlias,
+    DataType, Kind, Type, TypeAlias,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
-    elaborator::Turbofish,
+    elaborator::{Turbofish, types::WildcardAllowed},
     hir::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError},
@@ -125,9 +125,11 @@ impl Elaborator<'_> {
             }
             // e.g. let (<pattern 0>, <pattern 1>, ...) = ...;
             Pattern::Tuple(fields, location) => {
+                // Returns Some for valid tuple types (where arity checking makes sense),
+                // None when we've already issued an error or have an invalid type.
                 let field_types = match expected_type.follow_bindings() {
-                    Type::Tuple(fields) => fields,
-                    Type::Error => Vec::new(),
+                    Type::Tuple(fields) => Some(fields),
+                    Type::Error => None,
                     expected_type => {
                         let tuple =
                             Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
@@ -138,20 +140,27 @@ impl Elaborator<'_> {
                             location,
                             source: Source::Assignment,
                         });
-                        Vec::new()
+                        None
                     }
                 };
 
-                if fields.len() != field_types.len() {
-                    self.push_err(TypeCheckError::TupleMismatch {
-                        tuple_types: field_types.clone(),
-                        actual_count: fields.len(),
-                        location,
-                    });
+                // Only check tuple arity if the expected type was actually a tuple.
+                // If it wasn't, we've already issued a type mismatch error above.
+                if let Some(field_types) = &field_types {
+                    if fields.len() != field_types.len() {
+                        self.push_err(TypeCheckError::TupleMismatch {
+                            tuple_types: field_types.clone(),
+                            actual_count: fields.len(),
+                            location,
+                        });
+                    }
                 }
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
-                    let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
+                    let field_type = field_types
+                        .as_ref()
+                        .and_then(|types| types.get(i).cloned())
+                        .unwrap_or(Type::Error);
                     self.elaborate_pattern_mut(
                         field,
                         field_type,
@@ -255,12 +264,10 @@ impl Elaborator<'_> {
             source: Source::Assignment,
         });
 
-        let typ = struct_type.clone();
         let fields = self.resolve_constructor_pattern_fields(
-            typ,
             fields,
             location,
-            expected_type.clone(),
+            actual_type.clone(),
             definition,
             mutable,
             new_definitions,
@@ -275,32 +282,33 @@ impl Elaborator<'_> {
             self.interner.add_struct_member_reference(struct_id, field_index, reference_location);
         }
 
-        HirPattern::Struct(expected_type, fields, location)
+        HirPattern::Struct(actual_type, fields, location)
     }
 
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_constructor_pattern_fields(
         &mut self,
-        struct_type: Shared<DataType>,
         fields: Vec<(Ident, Pattern)>,
         location: Location,
-        expected_type: Type,
+        typ: Type,
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
+        let Type::DataType(struct_type, _) = &typ else {
+            unreachable!("Should be validated as struct before getting here")
+        };
         let mut unseen_fields = struct_type
             .borrow()
             .field_names()
             .expect("This type should already be validated to be a struct");
 
         for (field, pattern) in fields {
-            let (field_type, visibility) = expected_type
+            let (field_type, visibility) = typ
                 .get_field_type_and_visibility(field.as_str())
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
@@ -606,7 +614,7 @@ impl Elaborator<'_> {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
-                let wildcard_allowed = true;
+                let wildcard_allowed = WildcardAllowed::Yes;
                 let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })

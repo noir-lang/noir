@@ -578,7 +578,10 @@ impl Value {
                 if value < 0 {
                     vec![
                         Token::Minus,
-                        Token::Int((-value as u128).into(), Some(IntegerTypeSuffix::I8)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I8),
+                        ),
                     ]
                 } else {
                     vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I8))]
@@ -588,7 +591,10 @@ impl Value {
                 if value < 0 {
                     vec![
                         Token::Minus,
-                        Token::Int((-value as u128).into(), Some(IntegerTypeSuffix::I16)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I16),
+                        ),
                     ]
                 } else {
                     vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I16))]
@@ -598,7 +604,10 @@ impl Value {
                 if value < 0 {
                     vec![
                         Token::Minus,
-                        Token::Int((-value as u128).into(), Some(IntegerTypeSuffix::I32)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I32),
+                        ),
                     ]
                 } else {
                     vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I32))]
@@ -608,7 +617,10 @@ impl Value {
                 if value < 0 {
                     vec![
                         Token::Minus,
-                        Token::Int((-value as u128).into(), Some(IntegerTypeSuffix::I64)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I64),
+                        ),
                     ]
                 } else {
                     vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I64))]
@@ -620,6 +632,9 @@ impl Value {
                 } else {
                     vec![Token::Int(value.absolute_value(), None)]
                 }
+            }
+            Value::String(value) | Value::CtString(value) | Value::FormatString(value, _) => {
+                vec![Token::Str(unwrap_rc(value))]
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };

@@ -4,7 +4,6 @@ use crate::{
     ast::{
         Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
-        UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token},
@@ -155,18 +154,12 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
-            let location = self.location_at_previous_token_end();
             let name = self.unknown_ident_at_previous_token_end();
-            let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            let alias = None;
             return Some(TraitImplItemKind::Type { name, alias });
         };
 
-        let alias = if self.eat_assign() {
-            self.parse_type_or_error()
-        } else {
-            let location = self.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Error, location }
-        };
+        let alias = if self.eat_assign() { Some(self.parse_type_or_error()) } else { None };
 
         self.eat_semicolon_or_error();
 
@@ -188,13 +181,13 @@ impl Parser<'_> {
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type_or_error()
+            Some(self.parse_type_or_error())
         } else {
             self.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 self.previous_token_location,
             );
-            self.unspecified_type_at_previous_token_end()
+            None
         };
 
         let expr = if self.eat_assign() {
@@ -517,7 +510,7 @@ mod tests {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Foo");
-        assert_eq!(alias.to_string(), "i32");
+        assert_eq!(alias.unwrap().to_string(), "i32");
     }
 
     #[test]
@@ -537,7 +530,7 @@ mod tests {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
-        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
         assert_eq!(expr.to_string(), "1");
     }
 

@@ -285,12 +285,8 @@ struct ConditionalBranch {
     ///
     /// It starts out empty, then gets filled in when we finish the branch.
     last_block: Option<BasicBlockId>,
-    /// The unresolved condition of the branch
-    old_condition: ValueId,
     /// The resolved condition of the branch, AND-ed with all outer branch conditions.
     condition: ValueId,
-    /// The allocations accumulated before processing the branch.
-    local_allocations: HashSet<ValueId>,
 }
 
 struct ConditionalContext {
@@ -312,6 +308,8 @@ struct ConditionalContext {
     ///
     /// We use this information to reset the values to their originals when we exit from branches.
     predicated_values: HashMap<ValueId, ValueId>,
+    /// The allocations accumulated before processing the branch.
+    local_allocations: HashSet<ValueId>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -570,19 +568,15 @@ impl<'f> Context<'f> {
         if_entry: &BasicBlockId,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
-        // manage conditions
-        let old_condition = *condition;
-        let then_condition = self.inserter.resolve(old_condition);
+        let then_condition = self.inserter.resolve(*condition);
 
         // Take the current allocations: everything for the new branch is non-local.
-        let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
-            old_condition,
             condition: self.link_condition(then_condition),
             // To be filled in by `then_stop`.
             last_block: None,
-            local_allocations: old_allocations,
         };
+        let local_allocations = std::mem::take(&mut self.local_allocations);
         let cond_context = ConditionalContext {
             condition: then_condition,
             entry_block: *if_entry,
@@ -591,6 +585,7 @@ impl<'f> Context<'f> {
             else_branch: None,
             call_stack,
             predicated_values: HashMap::default(),
+            local_allocations,
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -625,13 +620,7 @@ impl<'f> Context<'f> {
         let else_condition = self.link_condition(else_condition);
 
         // Pass on the local allocations that came before the 'then_branch' to the 'else_branch'.
-        let old_allocations = std::mem::take(&mut cond_context.then_branch.local_allocations);
-        let else_branch = ConditionalBranch {
-            old_condition: cond_context.then_branch.old_condition,
-            condition: else_condition,
-            last_block: None,
-            local_allocations: old_allocations,
-        };
+        let else_branch = ConditionalBranch { condition: else_condition, last_block: None };
         // All local allocations on the stopped 'then_branch' go out of scope.
         self.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
@@ -671,7 +660,7 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
-        self.reset_local_allocations(&mut else_branch);
+        self.local_allocations = std::mem::take(&mut cond_context.local_allocations);
         else_branch.last_block = Some(*block);
         cond_context.else_branch = Some(else_branch);
 
@@ -725,10 +714,8 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let else_condition = if let Some(branch) = cond_context.else_branch {
-            branch.condition
-        } else {
-            self.inserter.function.dfg.make_constant(FieldElement::zero(), NumericType::bool())
+        let Some(else_branch) = cond_context.else_branch else {
+            unreachable!("malformed branch");
         };
         let block = self.target_block;
 
@@ -737,7 +724,7 @@ impl<'f> Context<'f> {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
-                else_condition,
+                else_condition: else_branch.condition,
                 else_value: else_arg,
             };
             let call_stack = cond_context.call_stack;
@@ -769,11 +756,6 @@ impl<'f> Context<'f> {
         for (value, old_mapping) in conditional_context.predicated_values.drain() {
             self.inserter.map_value(value, old_mapping);
         }
-    }
-
-    /// Restore the previously known local allocations after a branch is finished.
-    fn reset_local_allocations(&mut self, conditional_branch: &mut ConditionalBranch) {
-        self.local_allocations = std::mem::take(&mut conditional_branch.local_allocations);
     }
 
     /// Insert a new instruction into the target block.

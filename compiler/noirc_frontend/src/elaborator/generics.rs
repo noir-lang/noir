@@ -12,6 +12,7 @@ use crate::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
     },
+    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::resolution::errors::ResolverError,
     node_interner::{DefinitionKind, NodeInterner, QuotedTypeId},
 };
@@ -138,7 +139,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::NumericGeneric);
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
                     unresolved_typ.clone(),

@@ -31,6 +31,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
+        // Leaving it at 1 for CI
+        min_functions: 0,
+        max_functions: 1,
         ..default_config(u)?
     };
 

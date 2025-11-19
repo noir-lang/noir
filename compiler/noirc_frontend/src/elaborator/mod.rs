@@ -58,6 +58,7 @@ use std::{
 use crate::{
     Type,
     ast::UnresolvedGenerics,
+    elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
         Context,
@@ -224,8 +225,8 @@ pub struct Elaborator<'context> {
     function_context: Vec<FunctionContext>,
 
     /// The current module this elaborator is in.
-    /// Initially empty, it is set whenever a new top-level item is resolved.
-    local_module: LocalModuleId,
+    /// Initially None, it is set whenever a new top-level item is resolved.
+    local_module: Option<LocalModuleId>,
 
     /// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
@@ -306,7 +307,7 @@ impl<'context> Elaborator<'context> {
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
-            local_module: LocalModuleId::dummy_id(),
+            local_module: None,
             crate_id,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
@@ -320,6 +321,10 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
         }
+    }
+
+    pub(crate) fn local_module(&self) -> LocalModuleId {
+        self.local_module.expect("local_module is unset")
     }
 
     pub fn from_context(
@@ -456,9 +461,8 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
         match self.resolve_path_as_type(path) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
-                if errors.is_empty() =>
-            {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                self.push_errors(errors);
                 Some(module_id)
             }
             _ => None,
@@ -565,7 +569,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
@@ -576,7 +580,7 @@ impl<'context> Elaborator<'context> {
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, noir_function) in &trait_impl.methods.functions {
-            self.local_module = *module;
+            self.local_module = Some(*module);
             let errors = check_trait_impl_method_matches_declaration(
                 self.interner,
                 *function,
@@ -603,7 +607,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.local_module = alias.module_id;
+        self.local_module = Some(alias.module_id);
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
@@ -611,7 +615,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let wildcard_allowed = false;
+        let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
