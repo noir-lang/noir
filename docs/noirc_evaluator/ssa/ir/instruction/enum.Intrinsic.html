@@ -14,7 +14,7 @@
     StrAsBytes,
     ToBits(<a class="enum" href="enum.Endian.html" title="enum noirc_evaluator::ssa::ir::instruction::Endian">Endian</a>),
     ToRadix(<a class="enum" href="enum.Endian.html" title="enum noirc_evaluator::ssa::ir::instruction::Endian">Endian</a>),
-    BlackBox(<a class="enum" href="../../../../acir/circuit/black_box_functions/enum.BlackBoxFunc.html" title="enum acir::circuit::black_box_functions::BlackBoxFunc">BlackBoxFunc</a>),
+    BlackBox(BlackBoxFunc),
     Hint(<a class="enum" href="enum.Hint.html" title="enum noirc_evaluator::ssa::ir::instruction::Hint">Hint</a>),
     AsWitness,
     IsUnconstrained,
@@ -77,7 +77,7 @@ The type of the result gives the number of limbs to use for the decomposition.</
 arguments: a field element (value id), the radix to use (constant, a power of 2 between 2 and 256)
 result: an array whose elements are the decomposition of the argument into the <code>radix</code> base, in the endian order depending on the chosen variant.
 The type of the result gives the number of limbs to use for the decomposition.</p>
-</div><section id="variant.BlackBox" class="variant"><a href="#variant.BlackBox" class="anchor">§</a><h3 class="code-header">BlackBox(<a class="enum" href="../../../../acir/circuit/black_box_functions/enum.BlackBoxFunc.html" title="enum acir::circuit::black_box_functions::BlackBoxFunc">BlackBoxFunc</a>)</h3></section><div class="docblock"><p>BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]</p>
+</div><section id="variant.BlackBox" class="variant"><a href="#variant.BlackBox" class="anchor">§</a><h3 class="code-header">BlackBox(BlackBoxFunc)</h3></section><div class="docblock"><p>BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]</p>
 </div><section id="variant.Hint" class="variant"><a href="#variant.Hint" class="anchor">§</a><h3 class="code-header">Hint(<a class="enum" href="enum.Hint.html" title="enum noirc_evaluator::ssa::ir::instruction::Hint">Hint</a>)</h3></section><div class="docblock"><p>Hint(Hint) - Avoid its arguments to be removed by DIE.
 arguments: … value id
 result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations</p>
