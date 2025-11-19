@@ -75,7 +75,11 @@ impl Ssa {
         }
         let mut interpreter = Interpreter::new_from_functions(
             &brillig_functions,
-            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+            InterpreterOptions {
+                no_foreign_calls: true,
+                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+                ..Default::default()
+            },
             std::io::empty(),
         );
         // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
