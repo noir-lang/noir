@@ -354,7 +354,9 @@
 <a href="#353" id="353">353</a>
 <a href="#354" id="354">354</a>
 <a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
@@ -371,7 +373,7 @@
     Last,
 }
 
-<span class="doccomment">/// In the post-order, a block is visited before its successors.
+<span class="doccomment">/// In the post-order, each block is visited after all of its successors.
 </span><span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PostOrder(Vec&lt;BasicBlockId&gt;);
 
@@ -400,8 +402,10 @@
 
     <span class="doccomment">/// Return blocks in reverse-post-order (RPO).
     ///
-    /// In RPO, each block is visited before any of its successors, however this is not
-    /// the same as topological sorting. Take this CFG for example:
+    /// In RPO, each block is visited before any of its successors.
+    /// Notably, this is not the same as topological sorting.
+    ///
+    /// Take this CFG for example:
     /// ```text
     ///      b0
     ///      |
