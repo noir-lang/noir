@@ -380,10 +380,10 @@ pub enum UnaryOp {
         mutable: bool,
     },
 
-    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// If `implicitly_added` is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
     /// the reference later turns out to be needed (e.g. passing a field by reference to a function
-    /// requiring an &mut parameter).
+    /// requiring an `&mut` parameter).
     Dereference {
         implicitly_added: bool,
     },
@@ -447,8 +447,8 @@ pub struct MatchExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Lambda {
-    pub parameters: Vec<(Pattern, UnresolvedType)>,
-    pub return_type: UnresolvedType,
+    pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
+    pub return_type: Option<UnresolvedType>,
     pub body: Expression,
 }
 
@@ -577,6 +577,8 @@ pub enum ConstrainKind {
 }
 
 impl ConstrainKind {
+    /// The number of arguments expected by the constraint,
+    /// not counting the optional assertion message.
     pub fn required_arguments_count(&self) -> usize {
         match self {
             ConstrainKind::Assert | ConstrainKind::Constrain => 1,
@@ -806,9 +808,16 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
+        let parameters = vecmap(&self.parameters, |(name, r#type)| {
+            if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
+        });
 
-        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
+        let parameters = parameters.join(", ");
+        if let Some(return_type) = &self.return_type {
+            write!(f, "|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+        } else {
+            write!(f, "|{}| {{ {} }}", parameters, self.body)
+        }
     }
 }
 

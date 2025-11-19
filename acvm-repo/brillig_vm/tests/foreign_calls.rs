@@ -6,7 +6,10 @@ use acir::{
     },
 };
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use brillig_vm::{FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, VM, VMStatus};
+use brillig_vm::{
+    FREE_MEMORY_POINTER_ADDRESS, FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
+    VM, VMStatus, offsets,
+};
 
 /// Set up for a foreign call test
 ///
@@ -27,7 +30,7 @@ fn run_foreign_call_test<F: AcirField>(
 
     vm.resolve_foreign_call(ForeignCallResult { values: foreign_call_result });
     let status = vm.process_opcode();
-    assert_eq!(status, expected_final_status);
+    assert_eq!(*status, expected_final_status);
     let counter = vm.foreign_call_counter();
     (vm.take_memory(), counter)
 }
@@ -163,11 +166,15 @@ fn foreign_call_opcode_memory_result() {
 /// Calling a simple foreign call function that takes any string input, concatenates it with itself, and reverses the concatenation
 #[test]
 fn foreign_call_opcode_vector_input_and_output() {
-    let r_input_pointer = MemoryAddress::direct(0);
-    let r_input_size = MemoryAddress::direct(1);
-    // We need to pass a location of appropriate size
-    let r_output_pointer = MemoryAddress::direct(2);
-    let r_output_size = MemoryAddress::direct(3);
+    // Address 0 and 1 are reserved; using slots 2, 3, ... for variables.
+    // The input is going to be a HeapVector; these register will hold the addresses of items and size on the heap.
+    let r_input_pointer = MemoryAddress::direct(2);
+    let r_input_size = MemoryAddress::direct(3);
+    // The output is going to be a MemoryAddress to hold the vector address on the heap.
+    let r_output_pointer = MemoryAddress::direct(4);
+
+    // Address where we copy the input data.
+    let r_input_addr = MemoryAddress::direct(5);
 
     // Our first string to use the identity function with
     let input_string: Vec<FieldElement> =
@@ -178,54 +185,51 @@ fn foreign_call_opcode_vector_input_and_output() {
     // Reverse the concatenated string
     output_string.reverse();
 
+    // The free memory starts where the input data ends.
+    let free_memory_start = r_input_addr.to_usize() + input_string.len();
+
     // First call:
     let string_double_program = vec![
+        // @100 = length of the input
         Opcode::Const {
             destination: MemoryAddress::direct(100),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(input_string.len() as u32),
         },
+        // @101 = offset of the input (an parameter for calldata copy)
         Opcode::Const {
             destination: MemoryAddress::direct(101),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         },
+        // copy the input string from calldata at offset 0 to memory
         Opcode::CalldataCopy {
-            destination_address: MemoryAddress::direct(4),
+            destination_address: r_input_addr,
             size_address: MemoryAddress::direct(100),
             offset_address: MemoryAddress::direct(101),
         },
-        // input_pointer = 4
+        // input_pointer = input_addr
         Opcode::Const {
             destination: r_input_pointer,
-            value: (4u128).into(),
+            value: r_input_addr.to_usize().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
-        // input_size = input_string.len() (constant here)
+        // input_size = input_string.len() (constant here, rather than a pointer into a vector structure)
         Opcode::Const {
             destination: r_input_size,
             value: input_string.len().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
-        // output_pointer = 4 + input_size
+        // free_memory_pointer = input_addr + input_size
         Opcode::Const {
-            destination: r_output_pointer,
-            value: (4 + input_string.len()).into(),
-            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
-        },
-        // output_size = input_size * 2
-        Opcode::Const {
-            destination: r_output_size,
-            value: (input_string.len() * 2).into(),
+            destination: FREE_MEMORY_POINTER_ADDRESS,
+            value: free_memory_start.into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
         Opcode::ForeignCall {
             function: "string_double".into(),
-            destinations: vec![ValueOrArray::HeapVector(HeapVector {
-                pointer: r_output_pointer,
-                size: r_output_size,
-            })],
+            destinations: vec![ValueOrArray::MemoryAddress(r_output_pointer)],
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![HeapValueType::field()],
             }],
@@ -250,13 +254,24 @@ fn foreign_call_opcode_vector_input_and_output() {
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
     );
 
-    // Check result in memory
+    // Check result in memory: it should have been written to the free memory.
     let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(4 + input_string.len()), output_string.len())
+        .read_slice(
+            MemoryAddress::direct(free_memory_start + offsets::VECTOR_ITEMS),
+            output_string.len(),
+        )
         .iter()
         .map(|mem_val| mem_val.clone().to_field())
         .collect();
     assert_eq!(result_values, output_string);
+
+    // Check that the vector address has been updated.
+    let vector_addr = memory.read_ref(r_output_pointer);
+    assert_eq!(vector_addr.to_usize(), free_memory_start);
+
+    // Check that the vector size has been updated.
+    let vector_size = memory.read(vector_addr.offset(offsets::VECTOR_SIZE));
+    assert_eq!(vector_size.to_usize(), output_string.len());
 
     // Ensure the foreign call counter has been incremented
     assert_eq!(counter, 1);
@@ -463,6 +478,8 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 
 #[test]
 fn foreign_call_opcode_nested_arrays_and_slices_input() {
+    // This is the data we want to pass:
+    // [(Field, [Field], [Field; 1]); 2]
     // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
 
     let v2: Vec<MemoryValue<FieldElement>> = vec![
@@ -480,29 +497,38 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
         vec![MemoryValue::new_field(FieldElement::from(9u128))];
 
     // construct memory by declaring all inner arrays/vectors first
-    // Declare v2
+    // Declare v2: [RC, size, capacity, ...items]
     let v2_ptr: usize = 0usize;
-    let mut memory = vec![MemoryValue::from(1_u32), v2.len().into()];
+    let mut memory = vec![MemoryValue::from(1_u32), v2.len().into(), v2.len().into()];
     memory.extend(v2.clone());
+
+    // Declare a4: [RC, ...items]
     let a4_ptr = memory.len();
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a4.clone());
+
+    // Declare v6: [RC, size, capacity, ...items]
     let v6_ptr = memory.len();
-    memory.extend(vec![MemoryValue::from(1_u32), v6.len().into()]);
+    memory.extend(vec![MemoryValue::from(1_u32), v6.len().into(), v6.len().into()]);
     memory.extend(v6.clone());
+
+    // Declare a9: [RC, ...items]
     let a9_ptr = memory.len();
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a9.clone());
+
     // finally we add the contents of the outer array
+    // RC of the outer array
     memory.extend(vec![MemoryValue::from(1_u32)]);
+    // Start of outer array items
     let outer_start = memory.len();
     let outer_array = vec![
         MemoryValue::new_field(FieldElement::from(1u128)),
-        MemoryValue::from(v2.len() as u32),
+        MemoryValue::from(v2.len() as u32), // semantic length
         MemoryValue::from(v2_ptr),
         MemoryValue::from(a4_ptr),
         MemoryValue::new_field(FieldElement::from(5u128)),
-        MemoryValue::from(v6.len() as u32),
+        MemoryValue::from(v6.len() as u32), // semantic length
         MemoryValue::from(v6_ptr),
         MemoryValue::from(a9_ptr),
     ];
@@ -720,17 +746,16 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
 #[test]
 fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() {
     let opcodes = &[
+        // Set the free memory to start at slot 2.
         Opcode::Const {
-            destination: MemoryAddress::direct(0),
+            destination: FREE_MEMORY_POINTER_ADDRESS,
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(2u64),
         },
         Opcode::ForeignCall {
             function: "foo".to_string(),
-            destinations: vec![ValueOrArray::HeapVector(HeapVector {
-                pointer: MemoryAddress::Direct(0),
-                size: MemoryAddress::Direct(1),
-            })],
+            // We expect the heap address of the vector to be written to a variable @1
+            destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::Direct(1))],
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![
                     HeapValueType::Simple(BitSize::Field),

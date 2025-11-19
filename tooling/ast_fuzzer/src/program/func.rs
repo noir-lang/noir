@@ -1452,6 +1452,9 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((id, typ)))
+            // TODO(#10499): comptime function representations are at the moment just "(function)"
+            // (disable printing functions if comptime_friendly is on)
+            .filter(|(_, typ)| !types::is_function(typ) || !self.config().comptime_friendly)
             .collect::<Vec<_>>();
 
         if opts.is_empty() {
@@ -1460,17 +1463,30 @@ impl<'a> FunctionContext<'a> {
 
         // Print one of the variables as-is.
         let (id, typ) = u.choose_iter(opts)?;
+        let id = *id;
 
         // The print oracle takes 2 parameters: the newline marker and the value,
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
         let hir_type = types::to_hir_type(typ);
-        let ident = self.local_ident(*id);
+        let ident = self.local_ident(id);
+
+        // Functions need to be passed as a tuple.
+        let arg = if types::is_function(&ident.typ) {
+            Expression::Tuple(vec![
+                Expression::Ident(ident),
+                Expression::Ident(self.local_ident(id)),
+            ])
+        } else {
+            Expression::Ident(ident)
+        };
+
         let mut args = vec![
             expr::lit_bool(true), // include newline,
-            Expression::Ident(ident),
+            arg,
         ];
+
         append_printable_type_info_for_type(hir_type, &mut args);
 
         let print_oracle_ident = Ident {
@@ -1882,6 +1898,10 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
 
+        // Similar to an `if` statement, if the source variable is dynamic, we can't do certain things in the body.
+        let in_dynamic = self.in_dynamic || src_dyn;
+        let was_in_dynamic = std::mem::replace(&mut self.in_dynamic, in_dynamic);
+
         let mut match_expr = Match {
             variable_to_match: (src_id, src_name),
             cases: vec![],
@@ -1890,6 +1910,8 @@ impl<'a> FunctionContext<'a> {
         };
 
         let num_cases = u.int_in_range(0..=self.ctx.config.max_match_cases)?;
+
+        // The dynamic nature of the final expression depends on the source and the rules.
         let mut is_dyn = src_dyn;
 
         // Generate a number of rows, depending on what we can do with the source type.
@@ -1959,6 +1981,7 @@ impl<'a> FunctionContext<'a> {
             match_expr.default_case = Some(Box::new(default_expr));
         }
 
+        self.in_dynamic = was_in_dynamic;
         let match_expr = Expression::Match(match_expr);
         let expr = Expression::Block(vec![src_expr, match_expr]);
 

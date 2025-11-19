@@ -46,42 +46,41 @@ static ARTIFACTS_SUFFIX: OnceLock<String> = OnceLock::new();
 /// Placeholder for creating a base contract artifact to feed to the transpiler
 fn create_base_contract_artifact() -> Value {
     json!({
-        "noir_version": "1.0.0-beta.11+a92d049c8771332a383aec07474691764c4d90f0-aztec",
+        "noir_version": "1.0.0-beta.15+9eee29a37dc509be15e24777188d87ca38b522f7-aztec",
         "name": "AvmTest",
-        "functions": [{
-            "name": "main2",
-            "hash": "9106907505563584043",
-            "is_unconstrained": true,
-            "custom_attributes": ["public"],
-            "abi": {
-                "parameters": [{
-                    "name": "a",
-                    "type": {
-                        "kind": "integer",
-                        "sign": "unsigned",
-                        "width": 64
-                    },
-                    "visibility": "private"
-                }],
-                "return_type": {
-                    "abi_type": {
-                        "kind": "integer",
-                        "sign": "unsigned",
-                        "width": 64
-                    },
-                    "visibility": "public"
+        "functions": [
+            {
+                "name": "main2",
+                "hash": "11929022434097697943",
+                "is_unconstrained": true,
+                "custom_attributes": ["abi_public"],
+                "abi": {
+                    "parameters": [
+                        {
+                            "name": "a",
+                            "type": {
+                                "kind": "field"
+                            },
+                            "visibility": "private"
+                        }
+                    ],
+                    "return_type": null,
+                    "error_types": {
+                        "15764276373176857197": {
+                            "error_kind": "string",
+                            "string": "Stack too deep"
+                        }
+                    }
                 },
-                "error_types": {
-                    "17843811134343075018": {
-                        "error_kind": "string",
-                        "string": "Stack too deep"
+                "bytecode": "H4sIAAAAAAAA/71UTcrCQAxNderXzx9QN7pQ8QzeQNCNG49Qii0i2CqtirjyUF7BK7jwHu61mmiIIjMKPiiZSfJeMukwFtzQQOu63mYRjNwodifRIogjb5pcfOFsvEzSuIV5Ci3tOcjXBi1YBrmCpZmjc7gW5jhoM0wjq9+g5YjaZvxt35GCRny48lPON/0T5wM+5ND2GF/2kqKIe/4fifOHcVqXcO0Izo9nA9UX9Ukrj73WcV+4fGVce6twOB/N/KDr+3GQJPzMsp93MNHMamrSTBTztUELGdK30WHD83yUqMNjBrXuXNLjD5AtcijO82uijxzjmNyBCuOB0MrD4/1QH+mv+6RL/89maw45B8ppov1n9ckqjT6O+9NhN+iE8pwp+F0/A5sfcHo5BgAA",
+                "debug_symbols": "tZPBboQgEED/hbMHBkHRX9lsDCpuSAgaVps0xn/voGL14J7aCw8c5w1DYCatrqdXZVzXv0n5mEntjbXmVdm+UaPpHX6dCQ0DcFKmCQFByhyRkVIi8g1yQ7GC0Q2wgSGWJSFRWY1e62A81cDKg/LajaR0k7UJ+VJ2Wn96D8qtHJXHKE2Idi0ShZ2xOsyW5Deb3qcC5FLs6QCSikMBNL9I4INEUs6iBB1wSDJ5cbB7R8pEGvvAOc/uHJ+aYQx43AdLIb9tht9LWJoxuUtwzuUhyeHiEH9wINn/HogoYicZ5Ue+wNvxxJVqjL/c6SWYvFG11fuym1xzio7fQ4zENzH4vtHt5HUwnR4Gjg/GE1Y8l1DtBw==",
+                "expression_width": {
+                    "Bounded": {
+                        "width": 4
                     }
                 }
-            },
-            "bytecode": "",
-            "debug_symbols": "dVDNCoQgEH6XOXtIoVp6lYgwm0IQFdOFJXz3HaN228Ne5pvx+5GZHWac0jpqu7gNun6HKWhj9Doap2TUztLrDlUpvIGOM+AtQc4MLsUYA2IR3CwU5GVAG6GzyRgGT2nSIdq8tAdGGYitGKCdCSlw0QZLl9nXXf23cl43j9NOfSs+EaLOeaBJKh1+FsklLWg5GTzHJVl1Y+PLX8x1CB+cwjkFLEm3a1DtRcVEPeTy2xs=",
-            "expression_width": {"Bounded": {"width": 4}}
-        }],
+            }
+        ],
         "outputs": {},
         "file_map": {}
     })
@@ -389,14 +388,13 @@ libfuzzer_sys::fuzz_target!(
     // You can disable some instructions with bugs that are not fixed yet
     let modes = vec![FuzzerMode::NonConstant];
     let instruction_options = InstructionOptions {
-        // https://github.com/AztecProtocol/aztec-packages/issues/17182
-        // all of them use to_le_radix
+        // AVM does not support these instructions
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         blake2s_hash_enabled: false,
         blake3_hash_enabled: false,
         aes128_encrypt_enabled: false,
-        field_to_bytes_to_field_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/17182
         // https://github.com/AztecProtocol/aztec-packages/issues/16948
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,

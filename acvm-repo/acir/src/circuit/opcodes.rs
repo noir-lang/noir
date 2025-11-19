@@ -127,7 +127,8 @@ pub enum Opcode<F: AcirField> {
         inputs: Vec<BrilligInputs<F>>,
         /// Outputs to the function call
         outputs: Vec<BrilligOutputs>,
-        /// Predicate of the Brillig execution - indicates if it should be skipped
+        /// Predicate of the Brillig execution - when the predicate evaluates to 0, execution is skipped.
+        /// When the predicate evaluates to 1 or is None, execution proceeds.
         predicate: Option<Expression<F>>,
     },
 
@@ -141,7 +142,8 @@ pub enum Opcode<F: AcirField> {
         inputs: Vec<Witness>,
         /// Outputs of the function call
         outputs: Vec<Witness>,
-        /// Predicate of the circuit execution - indicates if it should be skipped
+        /// Predicate of the circuit execution - when the predicate evaluates to 0, execution is skipped.
+        /// When the predicate evaluates to 1 or is None, execution proceeds.
         predicate: Option<Expression<F>>,
     },
 }
@@ -258,7 +260,7 @@ mod tests {
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w3"
+            @"BLACKBOX::XOR lhs: w0, rhs: w1, output: w3, bits: 32"
         );
     }
 

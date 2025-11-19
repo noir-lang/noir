@@ -1,3 +1,5 @@
+//! Lint checks for function attributes, visibility, and usage restrictions.
+
 use crate::{
     Type,
     ast::{Ident, NoirFunction},

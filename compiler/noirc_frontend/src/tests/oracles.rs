@@ -1,4 +1,4 @@
-use crate::check_errors;
+use crate::tests::check_errors;
 
 #[test]
 fn deny_oracle_attribute_on_non_unconstrained() {
@@ -9,7 +9,7 @@ fn deny_oracle_attribute_on_non_unconstrained() {
                ~~~ Oracle functions must have the `unconstrained` keyword applied
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -22,5 +22,5 @@ fn errors_if_oracle_declaration_has_function_body() {
         assert(true);
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }

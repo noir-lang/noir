@@ -8,7 +8,11 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{MemoryValue, VM, VMStatus};
+use crate::{
+    FREE_MEMORY_POINTER_ADDRESS, MemoryValue, VM, VMStatus,
+    memory::{ArrayAddress, VectorAddress},
+    offsets,
+};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -18,8 +22,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
     ///    For vectors, the preceding `u32` length field is used to truncate the slice input to its semantic length.
     /// 2. If results are available, it writes them to memory, ensuring that the returned data
-    ///    matches the expected types and sizes. Nested arrays are reconstructed from flat
-    ///    outputs when necessary. Nested vectors are an unsupported return type and will trigger an error.
+    ///    matches the expected types and sizes:
+    ///     * Nested arrays are reconstructed from flat outputs when necessary.
+    ///     * Nested vectors are an unsupported return type and will trigger an error.
+    ///     * Vectors are written to the heap starting at the free memory pointer, and their address gets stored in the destination.
+    ///     * Update free memory pointer based on how much data (if any) was written to it.
     /// 3. Increments the foreign call counter and advances the program counter.
     ///
     /// # Parameters
@@ -46,11 +53,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         destination_value_types: &[HeapValueType],
         inputs: &[ValueOrArray],
         input_value_types: &[HeapValueType],
-    ) -> VMStatus<F> {
+    ) -> &VMStatus<F> {
         assert_eq!(inputs.len(), input_value_types.len());
         assert_eq!(destinations.len(), destination_value_types.len());
 
-        if self.foreign_call_counter >= self.foreign_call_results.len() {
+        if !self.has_unprocessed_foreign_call_result() {
             // When this opcode is called, it is possible that the results of a foreign call are
             // not yet known (not enough entries in `foreign_call_results`).
             // If that is the case, just resolve the inputs and pause the VM with a status
@@ -115,6 +122,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             return self.fail(e);
         }
 
+        // Mark the foreign call result as processed.
         self.foreign_call_counter += 1;
         self.increment_program_counter()
     }
@@ -126,14 +134,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         value_type: &HeapValueType,
     ) -> ForeignCallParam<F> {
         match (input, value_type) {
-            (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(_)) => {
-                ForeignCallParam::Single(self.memory.read(value_index).to_field())
+            (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(_)) => {
+                ForeignCallParam::Single(self.memory.read(value_addr).to_field())
             }
             (
-                ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                ValueOrArray::HeapArray(HeapArray { pointer, size }),
                 HeapValueType::Array { value_types, size: type_size },
             ) if *type_size == size => {
-                let start = self.memory.read_ref(pointer_index);
+                let start = self.memory.read_ref(pointer);
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -141,11 +149,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     .into()
             }
             (
-                ValueOrArray::HeapVector(HeapVector { pointer: pointer_index, size: size_index }),
+                ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
                 HeapValueType::Vector { value_types },
             ) => {
-                let start = self.memory.read_ref(pointer_index);
-                let size = self.memory.read(size_index).to_usize();
+                let start = self.memory.read_ref(pointer);
+                let size = self.memory.read(size_addr).to_usize();
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -166,7 +174,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         size: usize,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
-        assert!(!start.is_relative(), "read_slice_of_values_from_memory requires direct addresses");
+        assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
@@ -189,20 +197,22 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             vec![self.memory.read(value_address)]
                         }
                         HeapValueType::Array { value_types, size } => {
-                            let array_address = self.memory.read_ref(value_address);
+                            let array_address =
+                                ArrayAddress::from(self.memory.read_ref(value_address));
 
                             self.read_slice_of_values_from_memory(
-                                array_address.offset(1),
+                                array_address.items_start(),
                                 *size,
                                 value_types,
                             )
                         }
                         HeapValueType::Vector { value_types } => {
-                            let vector_address = self.memory.read_ref(value_address);
-                            let size_address =
-                                MemoryAddress::direct(vector_address.unwrap_direct() + 1);
-                            let items_start = vector_address.offset(2);
-                            let vector_size = self.memory.read(size_address).to_usize();
+                            let vector_address =
+                                VectorAddress::from(self.memory.read_ref(value_address));
+
+                            let side_addr = vector_address.size_addr();
+                            let items_start = vector_address.items_start();
+                            let vector_size = self.memory.read(side_addr).to_usize();
                             self.read_slice_of_values_from_memory(
                                 items_start,
                                 vector_size,
@@ -241,7 +251,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         &mut self,
         function: String,
         inputs: Vec<ForeignCallParam<F>>,
-    ) -> VMStatus<F> {
+    ) -> &VMStatus<F> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
@@ -259,6 +269,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         destination_value_types: &[HeapValueType],
         foreign_call_index: usize,
     ) -> Result<(), String> {
+        // Take ownership of values to allow calling mutating methods on self.
         let values = std::mem::take(&mut self.foreign_call_results[foreign_call_index].values);
 
         if destinations.len() != values.len() {
@@ -274,16 +285,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             destination_value_types.len(),
             "Number of destinations must match number of value types",
         );
-        debug_assert_eq!(
-            destinations.len(),
-            values.len(),
-            "Number of foreign call return values must match number of destinations",
-        );
+
         for ((destination, value_type), output) in
             destinations.iter().zip(destination_value_types).zip(&values)
         {
             match (destination, value_type) {
-                (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
+                (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {
                     let output_fields = output.fields();
                     if value_type
                         .flattened_size()
@@ -298,7 +305,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
                     match output {
                         ForeignCallParam::Single(value) => {
-                            self.write_value_to_memory(*value_index, value, *bit_size)?;
+                            self.write_value_to_memory(*value_addr, value, *bit_size)?;
                         }
                         _ => {
                             return Err(format!(
@@ -308,9 +315,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     }
                 }
                 (
-                    ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                    ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
-                ) if size == type_size => {
+                ) => {
+                    if size != type_size {
+                        return Err(format!(
+                            "Destination array size of {size} does not match the type size of {type_size}"
+                        ));
+                    }
                     let output_fields = output.fields();
                     if value_type
                         .flattened_size()
@@ -324,50 +336,39 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     }
 
                     if HeapValueType::all_simple(value_types) {
-                        match output {
-                            ForeignCallParam::Array(values) => {
-                                if values.len() != *size {
-                                    // foreign call returning flattened values into a nested type, so the sizes do not match
-                                    let destination = self.memory.read_ref(*pointer_index);
+                        let ForeignCallParam::Array(values) = output else {
+                            return Err("Foreign call returned a single value for an array type"
+                                .to_string());
+                        };
+                        if values.len() != *size {
+                            // foreign call returning flattened values into a nested type, so the sizes do not match
+                            let destination = self.memory.read_ref(*pointer);
 
-                                    let mut flatten_values_idx = 0; //index of values read from flatten_values
-                                    self.write_slice_of_values_to_memory(
-                                        destination,
-                                        &output_fields,
-                                        &mut flatten_values_idx,
-                                        value_type,
-                                    )?;
-                                    // Should be caught earlier but we want to be explicit.
-                                    debug_assert_eq!(
-                                        flatten_values_idx,
-                                        output_fields.len(),
-                                        "Not all values were written to memory"
-                                    );
-                                } else {
-                                    self.write_values_to_memory_slice(
-                                        *pointer_index,
-                                        values,
-                                        value_types,
-                                    )?;
-                                }
-                            }
-                            _ => {
-                                return Err(
-                                    "Function result size does not match brillig bytecode size"
-                                        .to_string(),
-                                );
-                            }
+                            let mut flatten_values_idx = 0; //index of values read from flatten_values
+                            self.write_flattened_values_to_memory(
+                                destination,
+                                &output_fields,
+                                &mut flatten_values_idx,
+                                value_type,
+                            )?;
+                            // Should be caught earlier but we want to be explicit.
+                            debug_assert_eq!(
+                                flatten_values_idx,
+                                output_fields.len(),
+                                "Not all values were written to memory"
+                            );
+                        } else {
+                            self.write_values_to_memory(*pointer, true, values, value_types)?;
                         }
                     } else {
                         // foreign call returning flattened values into a nested type, so the sizes do not match
-                        let destination = self.memory.read_ref(*pointer_index);
-                        let return_type = value_type;
+                        let destination = self.memory.read_ref(*pointer);
                         let mut flatten_values_idx = 0; //index of values read from flatten_values
-                        self.write_slice_of_values_to_memory(
+                        self.write_flattened_values_to_memory(
                             destination,
                             &output_fields,
                             &mut flatten_values_idx,
-                            return_type,
+                            value_type,
                         )?;
                         debug_assert_eq!(
                             flatten_values_idx,
@@ -377,34 +378,44 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     }
                 }
                 (
-                    ValueOrArray::HeapVector(HeapVector {
-                        pointer: pointer_index,
-                        size: size_index,
-                    }),
+                    ValueOrArray::MemoryAddress(vector_pointer),
                     HeapValueType::Vector { value_types },
                 ) => {
                     if HeapValueType::all_simple(value_types) {
-                        match output {
-                            ForeignCallParam::Array(values) => {
-                                if values.len() % value_types.len() != 0 {
-                                    return Err("Returned data does not match vector element size"
-                                        .to_string());
-                                }
-                                // Set our size in the size address
-                                self.memory.write(*size_index, values.len().into());
-                                self.write_values_to_memory_slice(
-                                    *pointer_index,
-                                    values,
-                                    value_types,
-                                )?;
-                            }
-                            _ => {
-                                return Err(
-                                    "Function result size does not match brillig bytecode size"
-                                        .to_string(),
-                                );
-                            }
+                        let ForeignCallParam::Array(values) = output else {
+                            return Err("Foreign call returned a single value for an vector type"
+                                .to_string());
+                        };
+                        if values.len() % value_types.len() != 0 {
+                            return Err(
+                                "Returned data does not match vector element size".to_string()
+                            );
                         }
+
+                        // We write the data to the current free memory pointer.
+                        let free_memory_addr = self.memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
+
+                        // Store the address itself back in the destination.
+                        self.memory.write_ref(*vector_pointer, free_memory_addr);
+
+                        // Set the size in the size address and write the data.
+                        // The RC and the capacity will be initialized in codegen after the call.
+                        let vector_address = VectorAddress::from(free_memory_addr);
+                        self.memory.write(vector_address.size_addr(), values.len().into());
+                        self.write_values_to_memory(
+                            vector_address.items_start(),
+                            false,
+                            values,
+                            value_types,
+                        )?;
+
+                        // Increase the free memory pointer by the amount of space taken by the vector, including metadata,
+                        // so the next vector can go to after where this was written.
+                        let total_size = offsets::VECTOR_META_COUNT + values.len();
+                        self.memory.write_ref(
+                            FREE_MEMORY_POINTER_ADDRESS,
+                            free_memory_addr.offset(total_size),
+                        );
                     } else {
                         unimplemented!("deflattening heap vectors from foreign calls");
                     }
@@ -422,6 +433,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         Ok(())
     }
 
+    /// Write a single numeric value to the destination address, ensuring that the bit size matches the expectation.
     fn write_value_to_memory(
         &mut self,
         destination: MemoryAddress,
@@ -440,9 +452,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         Ok(())
     }
 
-    fn write_values_to_memory_slice(
+    /// Write an array or slice either directly to an address, or indirectly to a destination pointed at by that address.
+    fn write_values_to_memory(
         &mut self,
-        pointer_index: MemoryAddress,
+        address: MemoryAddress,
+        is_pointer: bool,
         values: &[F],
         value_types: &[HeapValueType],
     ) -> Result<(), String> {
@@ -454,9 +468,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             })
             .cycle();
 
-        // Convert the destination pointer to a usize
-        let destination = self.memory.read_ref(pointer_index);
-        // Write to our destination memory
+        // Convert the destination pointer to an address.
+        let destination = if is_pointer { self.memory.read_ref(address) } else { address };
+
+        // Write to the destination memory.
         let memory_values: Option<Vec<_>> = values
             .iter()
             .zip(bit_sizes_iterator)
@@ -472,12 +487,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         Ok(())
     }
 
-    /// Writes flattened values to memory, using the provided type
-    /// Function calls itself recursively in order to work with recursive types (nested arrays)
-    /// values_idx is the current index in the values vector and is incremented every time
-    /// a value is written to memory
-    /// The function returns the address of the next value to be written
-    fn write_slice_of_values_to_memory(
+    /// Writes flattened values to memory, using the provided type.
+    ///
+    /// The method calls itself recursively in order to work with recursive types (nested arrays).
+    /// `values_idx` is the current index in the `values` vector and is incremented every time
+    /// a value is written to memory.
+    fn write_flattened_values_to_memory(
         &mut self,
         destination: MemoryAddress,
         values: &Vec<F>,
@@ -485,10 +500,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         value_type: &HeapValueType,
     ) -> Result<(), String> {
         assert!(
-            !destination.is_relative(),
-            "write_slice_of_values_to_memory requires direct addresses"
+            destination.is_direct(),
+            "write_flattened_values_to_memory requires direct addresses"
         );
-        let mut current_pointer = destination;
         match value_type {
             HeapValueType::Simple(bit_size) => {
                 self.write_value_to_memory(destination, &values[*values_idx], *bit_size)?;
@@ -496,26 +510,32 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 Ok(())
             }
             HeapValueType::Array { value_types, size } => {
+                let mut current_pointer = destination;
                 for _ in 0..*size {
                     for typ in value_types {
                         match typ {
-                            HeapValueType::Simple(len) => {
+                            HeapValueType::Simple(bit_size) => {
                                 self.write_value_to_memory(
                                     current_pointer,
                                     &values[*values_idx],
-                                    *len,
+                                    *bit_size,
                                 )?;
                                 *values_idx += 1;
                                 current_pointer = current_pointer.offset(1);
                             }
                             HeapValueType::Array { .. } => {
-                                let destination = self.memory.read_ref(current_pointer).offset(1);
-                                self.write_slice_of_values_to_memory(
-                                    destination,
+                                // The next memory destination is an array, somewhere else in memory where the pointer points to.
+                                let destination =
+                                    ArrayAddress::from(self.memory.read_ref(current_pointer));
+
+                                self.write_flattened_values_to_memory(
+                                    destination.items_start(),
                                     values,
                                     values_idx,
                                     typ,
                                 )?;
+
+                                // Move on to the next slot in *this* array.
                                 current_pointer = current_pointer.offset(1);
                             }
                             HeapValueType::Vector { .. } => {

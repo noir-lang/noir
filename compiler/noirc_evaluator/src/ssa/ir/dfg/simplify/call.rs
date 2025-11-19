@@ -11,6 +11,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
     instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+    integer::IntegerConstant,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -91,14 +92,17 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(u128::from(length));
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
-            } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
-                SimplifyResult::SimplifiedTo(arguments[0])
-            } else {
-                SimplifyResult::None
-            }
+            let length = match dfg.type_of_value(arguments[0]) {
+                Type::Array(_, length) => {
+                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
+                }
+                Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
+                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
+                    arguments[0]
+                }
+                _ => panic!("First argument to ArrayLen must be an array or a slice length"),
+            };
+            SimplifyResult::SimplifiedTo(length)
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
@@ -130,16 +134,28 @@ pub(super) fn simplify_call(
                 // TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
                 // This is reliant on dynamic indices of non-homogenous slices also being implemented.
                 if element_type.element_size() != 1 {
-                    // Old code before implementing multiple slice mergers
-                    for elem in &arguments[2..] {
-                        slice.push_back(*elem);
+                    if let Some(IntegerConstant::Unsigned { value: slice_len, .. }) =
+                        dfg.get_integer_constant(arguments[0])
+                    {
+                        // This simplification, which push back directly on the slice, only works if the real slice_len is the
+                        // the length of the slice.
+                        if slice_len as usize == slice.len() {
+                            // Old code before implementing multiple slice mergers
+                            for elem in &arguments[2..] {
+                                slice.push_back(*elem);
+                            }
+
+                            let new_slice_length =
+                                increment_slice_length(arguments[0], dfg, block, call_stack);
+
+                            let new_slice = make_array(dfg, slice, element_type, block, call_stack);
+                            return SimplifyResult::SimplifiedToMultiple(vec![
+                                new_slice_length,
+                                new_slice,
+                            ]);
+                        }
                     }
-
-                    let new_slice_length =
-                        increment_slice_length(arguments[0], dfg, block, call_stack);
-
-                    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                    return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
+                    return SimplifyResult::None;
                 }
 
                 simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
@@ -866,5 +882,56 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_array() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_len(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_slice() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [Field]):
+            v2 = call array_len(v0, v1) -> u32
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [Field]):
+            return v0
+        }
+        ");
+    }
+
+    #[should_panic(expected = "First argument to ArrayLen must be an array or a slice length")]
+    #[test]
+    fn panics_on_array_len_with_wrong_type() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u64):
+            v2 = call array_len(v0) -> u32
+            return v2
+        }
+        "#;
+        let _ = Ssa::from_str_simplifying(src).unwrap();
     }
 }

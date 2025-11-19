@@ -30,8 +30,7 @@
 //! ```text
 //! Let G be a control flow graph. Let X and Y be nodes in G. Y is
 //! control dependent on X iff
-//! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
-//! and Y) post-dominated by Y and
+//! (1) there exists a directed path P from X to Y with any Z in P (excluding X and Y) post-dominated by Y, and
 //! (2) X is not post-dominated by Y.
 //!
 //! If Y is control dependent on X then X must have two exits. Following one of the
@@ -852,7 +851,8 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
             let source_type = dfg.type_of_value(*source).unwrap_numeric();
-            (source_type.bit_size() <= target_type.bit_size()).into()
+            (source_type.bit_size::<FieldElement>() <= target_type.bit_size::<FieldElement>())
+                .into()
         }
 
         // These instructions can always be hoisted
@@ -892,11 +892,11 @@ mod test {
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
+    use crate::ssa::opt::Loops;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
-    use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use acvm::AcirField;
     use noirc_frontend::monomorphization::ast::InlineType;

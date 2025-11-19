@@ -3,18 +3,19 @@ use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.
 /// They are implemented as native functions in the VM.
+/// For more information, see the ACIR blackbox functions in acir::circuit::opcodes::BlackBoxFuncCall
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlackBoxOp {
-    /// Encrypts a message using AES128.
+    /// Encrypts a message using AES-128.
     AES128Encrypt { inputs: HeapVector, iv: HeapArray, key: HeapArray, outputs: HeapVector },
     /// Calculates the Blake2s hash of the inputs.
     Blake2s { message: HeapVector, output: HeapArray },
     /// Calculates the Blake3 hash of the inputs.
     Blake3 { message: HeapVector, output: HeapArray },
-    /// Keccak Permutation function of 1600 width
+    /// Keccak permutation function of 1600 width.
     Keccakf1600 { input: HeapArray, output: HeapArray },
-    /// Verifies a ECDSA signature over the secp256k1 curve.
+    /// Verifies an ECDSA signature over the secp256k1 curve.
     EcdsaSecp256k1 {
         hashed_msg: HeapVector,
         public_key_x: HeapArray,
@@ -22,7 +23,7 @@ pub enum BlackBoxOp {
         signature: HeapArray,
         result: MemoryAddress,
     },
-    /// Verifies a ECDSA signature over the secp256r1 curve.
+    /// Verifies an ECDSA signature over the secp256r1 curve.
     EcdsaSecp256r1 {
         hashed_msg: HeapVector,
         public_key_x: HeapArray,

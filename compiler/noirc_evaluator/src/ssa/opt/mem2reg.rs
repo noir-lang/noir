@@ -533,7 +533,6 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
 
                 let address_aliases = references.get_aliases_for_value(address);
-
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
                 if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
@@ -569,12 +568,21 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
 
-                    // An expression for the array might already exist, so try to fetch it first
+                    // An expression for the value might already exist, so try to fetch it first
                     let expression = references.expressions.get(&array).copied();
                     let expression = expression.unwrap_or(Expression::Other(array));
-
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
+                    }
+
+                    // Any aliases of the array need to be updated to also include the result of the array get in their alias sets.
+                    for alias in (*references.get_aliases_for_value(array)).clone().iter() {
+                        // An expression for the alias might already exist, so try to fetch it first
+                        let expression = references.expressions.get(&alias).copied();
+                        let expression = expression.unwrap_or(Expression::Other(alias));
+                        if let Some(aliases) = references.aliases.get_mut(&expression) {
+                            aliases.insert(result);
+                        }
                     }
 
                     // In this SSA:
@@ -608,11 +616,15 @@ impl<'f> PerFunctionContext<'f> {
                     } else {
                         AliasSet::unknown()
                     };
-
                     aliases.unify(&references.get_aliases_for_value(*value));
 
                     references.expressions.insert(result, expression);
-                    references.aliases.insert(expression, aliases);
+                    references.aliases.insert(expression, aliases.clone());
+
+                    // The value being stored in the array also needs its aliases updated to match the array itself
+                    let value_expression = references.expressions.get(value).copied();
+                    let value_expression = value_expression.unwrap_or(Expression::Other(*value));
+                    references.aliases.insert(value_expression, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
@@ -750,9 +762,7 @@ impl<'f> PerFunctionContext<'f> {
     }
 
     fn update_data_bus(&mut self) {
-        let mut databus = self.inserter.function.dfg.data_bus.clone();
-        databus.map_values_mut(|t| self.inserter.resolve(t));
-        self.inserter.function.dfg.data_bus = databus;
+        self.inserter.map_data_bus_in_place();
     }
 
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
@@ -2536,6 +2546,69 @@ mod tests {
         return Field 0
     }
         ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn regression_10070() {
+        // Here v6 and v7 aliases v2 expression.
+        // When storing to v3 we may modify value referenced by v2 depending on the taken branch
+        // This must invalidate v8's value previously set.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [&mut Field; 1], v1: u1):
+            v3 = allocate -> &mut Field
+            v4 = allocate -> &mut Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            v7 = array_set v0, index u32 0, value v3
+            jmp b3(v7)
+          b2():
+            v6 = array_set v0, index u32 0, value v4
+            jmp b3(v6)
+          b3(v2: [&mut Field; 1]):
+            v8 = array_get v2, index u32 0 -> &mut Field
+            store Field 1 at v8
+            store Field 2 at v3
+            store Field 3 at v4
+            v12 = load v8 -> Field
+            return v12
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn regression_10020() {
+        // v14 = add v12, v13 is NOT replaced by v13 = add v12, Field 1
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = allocate -> &mut Field
+            store Field 0 at v3
+            v4 = make_array [v1, v3] : [&mut Field; 2]
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v7 = eq v0, u32 0
+            jmpif v7 then: b2, else: b3
+          b2():
+            v9 = array_get v4, index v0 -> &mut Field
+            store Field 1 at v9
+            store Field 2 at v1
+            v12 = load v5 -> Field
+            v13 = load v9 -> Field
+            v14 = add v12, v13
+            store v14 at v5
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16)
+          b3():
+            v8 = load v5 -> Field
+            return v8
+        }";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }

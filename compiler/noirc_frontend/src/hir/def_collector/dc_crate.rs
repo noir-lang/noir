@@ -21,9 +21,8 @@ use crate::node_interner::{
 };
 
 use crate::ast::{
-    ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnsupportedNumericGenericType,
+    Ident, ItemVisibility, LetStatement, NoirFunction, NoirStruct, NoirTrait, Path, PathSegment,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
 use crate::elaborator::FrontendOptions;
@@ -91,8 +90,8 @@ pub struct UnresolvedTraitImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    pub associated_types: Vec<(Ident, UnresolvedType)>,
-    pub associated_constants: Vec<(Ident, UnresolvedType, Expression)>,
+    pub associated_types: Vec<(Ident, Option<UnresolvedType>)>,
+    pub associated_constants: Vec<(Ident, Option<UnresolvedType>, Expression)>,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
@@ -595,16 +594,4 @@ fn inject_prelude(
             }
         }
     }
-}
-
-/// Separate the globals Vec into two. The first element in the tuple will be the
-/// literal globals, except for arrays, and the second will be all other globals.
-/// We exclude array literals as they can contain complex types
-pub fn filter_literal_globals(
-    globals: Vec<UnresolvedGlobal>,
-) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
-    globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
-        ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
-        _ => false,
-    })
 }
