@@ -1,7 +1,6 @@
 name: stdlib docs
 
 on:
-  pull_request:
   push:
     branches:
       - master
@@ -39,7 +38,7 @@ jobs:
           retention-days: 3
 
   build-stdlib-docs:
-    name: Integration Tests (Node)
+    name: Build stdlib docs
     runs-on: ubuntu-24.04
     needs: [build-nargo]
     timeout-minutes: 30
@@ -65,7 +64,7 @@ jobs:
           retention-days: 3
 
   publish-stdlib-docs:
-    name: Publish Stdlib Docs
+    name: Publish stdlib Docs
     runs-on: ubuntu-24.04
     needs: [build-stdlib-docs]
     timeout-minutes: 30
