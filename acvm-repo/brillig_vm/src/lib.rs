@@ -549,11 +549,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Special handling for the increment of the _free memory pointer_.
     ///
-    /// Binary operations in Brillig wrap around on overflow, however,
-    /// there are usually other instruction in the SSA itself to make
-    /// sure the circuit fails when overflows occur.
+    /// Binary operations in Brillig wrap around on overflow,
+    /// but there are usually other instruction in the SSA itself
+    /// to make sure the circuit fails when overflows occur.
     ///
-    /// However, this is not the case for the _free memory pointer_ itself,
+    /// This is not the case for the _free memory pointer_ itself, however,
     /// which only exists in Brillig, and points at the first free memory
     /// slot on the heap where nothing has been allocated yet. If we allowed
     /// it to wrap around during an overflowing increment, then we could end
