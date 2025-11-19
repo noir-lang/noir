@@ -30,7 +30,7 @@ impl Elaborator<'_> {
     /// The `expected_type` is always known, because we can first infer the type of the `<expr>` and try to match it to
     /// the pattern.
     ///
-    /// `parameter_names_in_list` keeps track of parameter names, and their location, accross multiple
+    /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
     pub(super) fn elaborate_pattern(
         &mut self,
@@ -55,7 +55,7 @@ impl Elaborator<'_> {
     /// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new `DefinitionIds` that were created to the given `Vec`.
     ///
-    /// `parameter_names_in_list` keeps track of parameter names, and their location, accross multiple
+    /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
@@ -83,7 +83,7 @@ impl Elaborator<'_> {
     ///
     /// - `pattern_names` keeps track of parameter names within this single pattern (or an outer
     ///    one, when called recursively). If a name is found multiple times, an error is captured.
-    /// - `parameter_names_in_list` keeps track of parameter names, and their location, accross multiple
+    /// - `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     ///   patterns in a list. If a name is found multiple times, an error is captured.
     #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
