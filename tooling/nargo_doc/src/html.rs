@@ -15,9 +15,10 @@ use crate::{
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Comments, Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item,
-        ItemId, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
-        StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
+        Comments, Crate, Function, FunctionParam, Generic, Global, Impl, Item, ItemId,
+        ItemProperties, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport,
+        Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+        Workspace,
     },
 };
 
@@ -333,7 +334,7 @@ impl HTMLCreator {
         }
     }
 
-    fn render_list<T: HasNameAndComments + HasUri + HasClass>(
+    fn render_list<T: ItemProperties + HasUri + HasClass>(
         &mut self,
         title: &str,
         anchor: &str,
@@ -366,6 +367,9 @@ impl HTMLCreator {
                 item.name(),
             ));
             if !sidebar {
+                if item.is_deprecated() {
+                    self.output.push_str("\n<span class=\"deprecated\">Deprecated</span>\n");
+                }
                 self.output.push_str("</div>");
                 self.output.push_str("<div class=\"item-description\">");
                 if let Some((comments, links)) = item.comments() {
@@ -1014,6 +1018,16 @@ impl HTMLCreator {
         output_id: bool,
     ) {
         self.render_function_signature(function, as_header, output_id);
+        if let Some(deprecated) = &function.deprecated {
+            self.output.push_str("<div class=\"deprecated\">\n");
+            self.output.push_str("<span class=\"emoji\">👎</span>\nDeprecated");
+            if let Some(msg) = deprecated {
+                self.output.push_str(": ");
+                self.output.push_str(msg);
+            }
+            self.output.push_str("\n</div>\n");
+        }
+
         if function.comments.is_some() {
             if as_header {
                 self.output.push_str("<div class=\"padded-description\">");

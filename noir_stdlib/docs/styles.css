@@ -18,6 +18,7 @@
     --comment-color: light-dark(#8e908c, #8d8d8b);
     --target-color: light-dark(#fdffd3, #494a3d);
     --target-highlight-color: light-dark(#9b7b14, #ad7c37);
+    --deprecated-color: light-dark(#fff5d6, #314559);
 }
 
 body {
@@ -221,4 +222,18 @@ ul.item-list, ul.sidebar-list {
 .where-clause {
     font-size: 0.875rem;
     white-space: pre-wrap;
+}
+
+.deprecated {
+    background-color: var(--deprecated-color);
+    padding: 3px;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    width: fit-content;
+    font-family: "Source Serif 4", NanumBarunGothic, serif;
+}
+
+.emoji {
+    text-shadow:  0 0 black,-1px 0 0 black,0 1px 0 black,0 -1px 0 black;
+    margin-right: 0.3rem;
 }
