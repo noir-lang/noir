@@ -40,13 +40,13 @@ jobs:
 
       - name: Update lockfile
         run: |
-            cargo update --workspace
+          cargo update --workspace
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22.15.0
-          cache: 'yarn'
-          cache-dependency-path: 'yarn.lock'
+          cache: "yarn"
+          cache-dependency-path: "yarn.lock"
 
       - name: Update yarn.lock
         run: yarn

@@ -8,47 +8,49 @@ jobs:
   add_label:
     runs-on: ubuntu-22.04
     if: github.event_name == 'pull_request'
+    permissions:
+      issues: write
     outputs:
       has_label: ${{ steps.check-labels.outputs.result }}
     steps:
-    - name: Check if label is present
-      id: check-labels
-      uses: actions/github-script@v7.0.1
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const labels = context.payload.pull_request.labels.map(label => label.name);
-          if (labels.includes('documentation')) {
-            return true;
-          }
+      - name: Check if label is present
+        id: check-labels
+        uses: actions/github-script@v7.0.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            if (labels.includes('documentation')) {
+              return true;
+            }
 
-          // Fetch the list of files changed in the PR
-          const { data: files } = await github.rest.pulls.listFiles({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            pull_number: context.issue.number,
-            per_page: 100
-          });
-
-          // Check if any file is within the 'docs' folder
-          const docsChanged = files.some(file => file.filename.startsWith('docs/'));
-          return docsChanged;
-
-    - name: Add label if not present
-      if: steps.check-labels.outputs.result == 'true'
-      uses: actions/github-script@v7.0.1
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const labels = context.payload.pull_request.labels.map(label => label.name);
-          if (!labels.includes('documentation')) {
-            github.rest.issues.addLabels({
+            // Fetch the list of files changed in the PR
+            const { data: files } = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['documentation']
-            })
-          }
+              pull_number: context.issue.number,
+              per_page: 100
+            });
+
+            // Check if any file is within the 'docs' folder
+            const docsChanged = files.some(file => file.filename.startsWith('docs/'));
+            return docsChanged;
+
+      - name: Add label if not present
+        if: steps.check-labels.outputs.result == 'true'
+        uses: actions/github-script@v7.0.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            if (!labels.includes('documentation')) {
+              github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['documentation']
+              })
+            }
 
   build_preview:
     runs-on: ubuntu-22.04
@@ -92,7 +94,6 @@ jobs:
           path: ./docs/build/
           retention-days: 3
 
-
   deploy_preview:
     needs: [build_preview, add_label]
     runs-on: ubuntu-22.04
@@ -112,7 +113,7 @@ jobs:
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:
-          publish-dir: './docs/build'
+          publish-dir: "./docs/build"
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
           deploy-message: "Deploy from GitHub Actions for PR ${{ github.event.number }}"
