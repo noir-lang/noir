@@ -105,8 +105,7 @@
 
 <span class="kw">comptime</span> <span class="kw">fn</span> attr(module: Module) {
     println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
-}
-</pre></code>
+}</code></pre>
 <p>It can also be obtained using <a href="../std/primitive.Quoted.html#as_module"><code>Quoted::as_module</code></a>:</p>
 <pre><code><span class="kw">mod</span> foo {}
 
@@ -115,8 +114,7 @@
         <span class="kw">let</span> module = <span class="kw">quote</span> { foo }.as_module().unwrap();
         println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
     }
-}
-</pre></code></div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 

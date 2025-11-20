@@ -111,8 +111,7 @@
         <span class="kw">let</span> typ = <span class="kw">quote</span> { i32 }.as_type();
         println(typ); <span class="comment">// outputs "i32"</span>
     }
-}
-</pre></code></div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 
@@ -127,8 +126,7 @@
 
     <span class="kw">assert</span>(field_type.is_field());
     <span class="kw">assert_eq</span>(three_type.as_constant().unwrap(), <span class="number">3</span>);
-}
-</pre></code></div>
+}</code></pre></div>
 </div><code id="as_constant" class="code-header">pub comptime fn <span class="fn">as_constant</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
@@ -188,8 +186,7 @@ whether a type implements a trait, use <code>implements</code> instead.</p>
 
     <span class="kw">let</span> the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
     <span class="kw">assert</span>(the_impl.methods().len(), <span class="number">1</span>);
-}
-</pre></code></div>
+}</code></pre></div>
 </div><code id="implements" class="code-header">pub comptime fn <span class="fn">implements</span>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -206,8 +203,7 @@ in scope.</p>
         <span class="kw">let</span> t = <span class="kw">quote</span> { T }.as_type();
         <span class="kw">assert</span>(t.implements(default));
     }
-}
-</pre></code></div>
+}</code></pre></div>
 </div><code id="is_bool" class="code-header">pub comptime fn <span class="fn">is_bool</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
