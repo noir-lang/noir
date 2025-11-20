@@ -1,0 +1,250 @@
+/* Hero Email Subscription - Inspired by the uploaded design */
+
+.heroContainer {
+  background: linear-gradient(135deg, #4a2c2a 0%, #2d4a2a 50%, #1a3a1a 100%);
+  padding: 4rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add subtle texture overlay */
+.heroContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(204, 36, 195, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(169, 204, 31, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.heroContent {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.heroTitle {
+  font-family: "Oracle", sans-serif;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 600;
+  color: #a9cc1f;
+  margin: 0 0 2rem 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.heroSubtitle {
+  font-size: 1.25rem;
+  color: rgba(242, 238, 225, 0.8);
+  margin: 0 0 3rem 0;
+  line-height: 1.4;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.heroForm {
+  margin-top: 3rem;
+}
+
+.inputContainer {
+  display: flex;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+  position: relative;
+  gap: 1rem;
+}
+
+.heroInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid rgba(242, 238, 225, 0.3);
+  padding: 1rem 0;
+  font-size: 1.1rem;
+  font-family: "Oracle", sans-serif;
+  color: #f2eee1;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.heroInput::placeholder {
+  color: rgba(242, 238, 225, 0.5);
+  font-style: italic;
+}
+
+.heroInput:focus {
+  border-bottom-color: #a9cc1f;
+  box-shadow: 0 2px 0 0 rgba(169, 204, 31, 0.3);
+}
+
+.heroInput:not(:placeholder-shown) {
+  border-bottom-color: rgba(242, 238, 225, 0.6);
+}
+
+.heroButton {
+  background: transparent;
+  border: 2px solid rgba(242, 238, 225, 0.3);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f2eee1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.heroButton:hover:not(:disabled) {
+  border-color: #a9cc1f;
+  background: rgba(169, 204, 31, 0.1);
+  transform: translateX(4px);
+}
+
+.heroButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.heroButton svg {
+  transition: transform 0.2s ease;
+}
+
+.heroButton:hover:not(:disabled) svg {
+  transform: translateX(2px);
+}
+
+.loadingSpinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(242, 238, 225, 0.3);
+  border-top: 2px solid #a9cc1f;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.errorMessage {
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+/* Success state */
+.successState {
+  padding: 2rem 0;
+}
+
+.successMessage {
+  font-size: 1.1rem;
+  color: rgba(242, 238, 225, 0.8);
+  margin: 1rem 0 0 0;
+  line-height: 1.5;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .heroContainer {
+    padding: 3rem 1.5rem;
+  }
+  
+  .heroTitle {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .inputContainer {
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 300px;
+  }
+  
+  .heroInput {
+    text-align: center;
+    font-size: 1rem;
+  }
+  
+  .heroButton {
+    align-self: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroContainer {
+    padding: 2rem 1rem;
+  }
+  
+  .heroTitle {
+    font-size: 2rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1rem;
+  }
+}
+
+/* Dark theme specific adjustments */
+[data-theme="light"] .heroContainer {
+  background: linear-gradient(135deg, #f2eee1 0%, #e6dcc4 50%, #d4c4a8 100%);
+}
+
+[data-theme="light"] .heroTitle {
+  color: #1a1400;
+}
+
+[data-theme="light"] .heroSubtitle {
+  color: rgba(26, 20, 0, 0.7);
+}
+
+[data-theme="light"] .heroInput {
+  color: #1a1400;
+  border-bottom-color: rgba(26, 20, 0, 0.3);
+}
+
+[data-theme="light"] .heroInput::placeholder {
+  color: rgba(26, 20, 0, 0.5);
+}
+
+[data-theme="light"] .heroInput:focus {
+  border-bottom-color: #cc24c3;
+  box-shadow: 0 2px 0 0 rgba(204, 36, 195, 0.3);
+}
+
+[data-theme="light"] .heroButton {
+  border-color: rgba(26, 20, 0, 0.3);
+  color: #1a1400;
+}
+
+[data-theme="light"] .heroButton:hover:not(:disabled) {
+  border-color: #cc24c3;
+  background: rgba(204, 36, 195, 0.1);
+}
+
+[data-theme="light"] .loadingSpinner {
+  border-color: rgba(26, 20, 0, 0.3);
+  border-top-color: #cc24c3;
+}
+
+[data-theme="light"] .successMessage {
+  color: rgba(26, 20, 0, 0.7);
+}
