@@ -28,7 +28,7 @@ pub(super) fn colorize_markdown_code_blocks(comments: String) -> String {
         }
 
         // We assume code blocks without a name are for Noir.
-        // We also colorize Rust because the two langauges are very similar, and because some
+        // We also colorize Rust because the two languages are very similar, and because some
         // of our stdlib docs use Rust code blocks.
         if in_code_block
             && (trimmed_line == "```" || trimmed_line == "```noir" || trimmed_line == "```rust")
@@ -122,7 +122,7 @@ fn colorize_token(token: &LocatedToken, line: &str, result: &mut String) {
         Token::Keyword(_) => Some("kw"),
         Token::AttributeStart { .. } => None,
         Token::LineComment(_, doc_style) | Token::BlockComment(_, doc_style) => match doc_style {
-            Some(..) => Some("doccomment"),
+            Some(..) => Some("doccomment"), // cSpell:disable-line
             None => Some("comment"),
         },
         Token::Quote(tokens) => {
@@ -233,6 +233,7 @@ let bool_var = true;
 ```
         "#;
         let colorized = colorize_markdown_code_blocks(markdown.to_string());
+        // cSpell:disable
         assert_snapshot!(colorized, @r#"
         Colorized:
 
@@ -258,6 +259,7 @@ let bool_var = true;
         let bool_var = true;
         ```
         "#);
+        // cSpell:enable
     }
 
     #[test]
