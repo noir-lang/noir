@@ -177,7 +177,8 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow slices for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
@@ -303,8 +304,8 @@ impl Elaborator<'_> {
 
     /// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool) -> bool {
-        func.is_entry_point(in_contract) || func.attributes().is_foldable()
+    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
+        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -317,11 +318,12 @@ impl Elaborator<'_> {
         generics: &mut Vec<TypeVariable>,
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> ResolvedParametersInfo {
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         let is_test_or_fuzz = func.is_test_or_fuzz();
 
         let has_inline_attribute = func.has_inline_attribute();
-        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract());
+        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract(), is_crate_root);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
