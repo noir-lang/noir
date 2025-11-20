@@ -104,13 +104,11 @@
 <p>A compile-time type which represents a type definition such as <code>struct Foo { ... }</code>.</p>
 <p>A <code>TypeDefinition</code> is passed as the first argument to a macro attribute on top of a struct:</p>
 <pre><code>#[attr]
-struct Foo {}
+<span class="kw">struct</span> Foo {}
 
-comptime fn attr(type_definition: TypeDefinition) {
-    println(type_definition.name()); // outputs &quot;Foo&quot;
-}
-</code></pre>
-</div>
+<span class="kw">comptime</span> <span class="kw">fn</span> attr(type_definition: TypeDefinition) {
+    println(type_definition.name()); <span class="comment">// outputs "Foo"</span>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a></code></h3>
 
@@ -138,7 +136,7 @@ Otherwise, this function returns Some with the resulting type inside.</p>
 <code id="generics" class="code-header">pub comptime fn <span class="fn">generics</span>(self) -> [(<a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;)]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Return (type, option&lt;type&gt;) pairs of each generic in this type definition.
+<p>Return (type, option<type>) pairs of each generic in this type definition.
 If a generic is numeric, the second element of the pair will contain the numeric type.</p>
 </div>
 </div><code id="fields" class="code-header">pub comptime fn <span class="fn">fields</span>(self, generic_args: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>

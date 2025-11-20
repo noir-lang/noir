@@ -110,13 +110,11 @@
 <p>A <code>FunctionDefinition</code> is passed as the first argument to a macro attribute on
 top of a function:</p>
 <pre><code>#[attr]
-fn foo() {}
+<span class="kw">fn</span> foo() {}
 
-comptime fn attr(function: FunctionDefinition) {
-    println(function.name()); // prints &quot;quote { foo }&quot;
-}
-</code></pre>
-</div>
+<span class="kw">comptime</span> <span class="kw">fn</span> attr(function: FunctionDefinition) {
+    println(function.name()); <span class="comment">// prints "quote { foo }"</span>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
 

@@ -19,3 +19,4 @@ markdown = "1.0.0"
 regex.workspace = true
 
 [dev-dependencies]
+insta.workspace = true
