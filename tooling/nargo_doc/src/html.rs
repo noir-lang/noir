@@ -8,6 +8,7 @@ use noirc_frontend::ast::ItemVisibility;
 use crate::{
     html::{
         all_items::AllItems,
+        colorize::colorize_code_blocks,
         has_class::HasClass,
         has_uri::HasUri,
         id_to_info::{ItemInfo, compute_id_to_info},
@@ -23,6 +24,7 @@ use crate::{
 };
 
 mod all_items;
+mod colorize;
 mod has_class;
 mod has_uri;
 mod id_to_info;
@@ -374,10 +376,11 @@ impl HTMLCreator {
                 self.output.push_str("<div class=\"item-description\">");
                 if let Some((comments, links)) = item.comments() {
                     let comments = self.process_comments_links(links, comments.clone());
+                    let comments = colorize_code_blocks(comments);
 
                     let summary = markdown_summary(&comments);
 
-                    let markdown = markdown::to_html(&summary);
+                    let markdown = markdown_utils::to_html(&summary);
                     let markdown = markdown.trim_start_matches("<p>");
                     let summary = markdown.trim().trim_end_matches("</p>").trim();
 
@@ -1385,8 +1388,9 @@ impl HTMLCreator {
 
         let comments = fix_markdown(comments, current_heading_level);
         let comments = self.process_comments_links(links, comments);
+        let comments = colorize_code_blocks(comments);
 
-        let html = markdown::to_html(&comments);
+        let html = markdown_utils::to_html(&comments);
         self.output.push_str("<div class=\"comments\">\n");
         self.output.push_str(&html);
         self.output.push_str("</div>\n");
@@ -1905,6 +1909,6 @@ fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
     }
 }
 
-fn escape_html(input: &str) -> String {
+pub(super) fn escape_html(input: &str) -> String {
     input.replace('<', "&lt;").replace('>', "&gt;")
 }
