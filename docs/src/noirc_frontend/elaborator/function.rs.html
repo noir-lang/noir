@@ -568,7 +568,9 @@
 <a href="#567" id="567">567</a>
 <a href="#568" id="568">568</a>
 <a href="#569" id="569">569</a>
-<a href="#570" id="570">570</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -747,7 +749,8 @@
         </span><span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.use_type(func.return_type(), wildcard_allowed));
 
-        <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract());
+        <span class="kw">let </span>is_crate_root = <span class="self">self</span>.is_at_crate_root();
+        <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract(), is_crate_root);
         <span class="comment">// Temporary allow slices for contract functions, until contracts are re-factored.
         </span><span class="kw">if </span>!func.attributes().has_contract_library_method() {
             <span class="self">self</span>.check_if_type_is_valid_for_program_output(
@@ -873,8 +876,8 @@
 
     <span class="doccomment">/// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    </span><span class="kw">fn </span>pub_allowed(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>NoirFunction, in_contract: bool) -&gt; bool {
-        func.is_entry_point(in_contract) || func.attributes().is_foldable()
+    </span><span class="kw">fn </span>pub_allowed(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>NoirFunction, in_contract: bool, is_crate_root: bool) -&gt; bool {
+        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
     }
 
     <span class="doccomment">/// Resolves function parameters and validates their types for entry points.
@@ -887,11 +890,12 @@
         generics: <span class="kw-2">&amp;mut </span>Vec&lt;TypeVariable&gt;,
         trait_constraints: <span class="kw-2">&amp;mut </span>Vec&lt;TraitConstraint&gt;,
     ) -&gt; ResolvedParametersInfo {
-        <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract());
+        <span class="kw">let </span>is_crate_root = <span class="self">self</span>.is_at_crate_root();
+        <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract(), is_crate_root);
         <span class="kw">let </span>is_test_or_fuzz = func.is_test_or_fuzz();
 
         <span class="kw">let </span>has_inline_attribute = func.has_inline_attribute();
-        <span class="kw">let </span>is_pub_allowed = <span class="self">self</span>.pub_allowed(func, <span class="self">self</span>.is_function_in_contract());
+        <span class="kw">let </span>is_pub_allowed = <span class="self">self</span>.pub_allowed(func, <span class="self">self</span>.is_function_in_contract(), is_crate_root);
 
         <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();

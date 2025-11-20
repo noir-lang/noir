@@ -1794,7 +1794,8 @@
 <a href="#1793" id="1793">1793</a>
 <a href="#1794" id="1794">1794</a>
 <a href="#1795" id="1795">1795</a>
-<a href="#1796" id="1796">1796</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2848,6 +2849,7 @@
         }
     }
 
+    <span class="kw">let </span>is_crate_root = def_map.root() == module.local_id;
     <span class="kw">let </span>module_data = <span class="kw-2">&amp;mut </span>def_map[module.local_id];
 
     <span class="kw">let </span>test_attribute = function.def.attributes.as_test_function();
@@ -2857,7 +2859,7 @@
     <span class="kw">let </span>is_entry_point_function = <span class="kw">if </span>module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } <span class="kw">else </span>{
-        function.name() == MAIN_FUNCTION
+        is_crate_root &amp;&amp; function.name() == MAIN_FUNCTION
     };
     <span class="kw">let </span>has_export = function.def.attributes.has_export();
     <span class="kw">let </span>has_allow_dead_code = function.def.attributes.has_allow(<span class="string">"dead_code"</span>);

@@ -207,11 +207,11 @@
         <span class="kw">let </span>attributes = <span class="self">self</span>.attributes();
         attributes.is_no_predicates() || attributes.is_foldable()
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_entry_point(<span class="kw-2">&amp;</span><span class="self">self</span>, in_contract: bool) -&gt; bool {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_entry_point(<span class="kw-2">&amp;</span><span class="self">self</span>, in_contract: bool, is_crate_root: bool) -&gt; bool {
         <span class="kw">if </span>in_contract {
             <span class="self">self</span>.attributes().is_contract_entry_point()
         } <span class="kw">else </span>{
-            <span class="self">self</span>.name() == MAIN_FUNCTION
+            is_crate_root &amp;&amp; <span class="self">self</span>.name() == MAIN_FUNCTION
         }
     }
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_test_or_fuzz(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
