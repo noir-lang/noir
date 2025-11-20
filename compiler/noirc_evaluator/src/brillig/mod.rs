@@ -5,6 +5,7 @@
 //!
 //! Brillig generation is performed by calling the [Ssa::to_brillig] method.
 //! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
+mod brillig_check;
 pub(crate) mod brillig_gen;
 pub mod brillig_ir;
 
@@ -127,7 +128,7 @@ impl Brillig {
             );
         }
 
-        brillig_context.artifact()
+        brillig_context.into_artifact()
     }
 
     pub fn call_stacks(&self) -> &CallStackHelper {

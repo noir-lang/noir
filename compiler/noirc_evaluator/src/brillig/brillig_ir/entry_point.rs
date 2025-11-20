@@ -39,7 +39,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(&arguments, &return_parameters);
-        (context.artifact(), stack_start)
+        (context.into_artifact(), stack_start)
     }
 
     fn calldata_start_offset(&self) -> usize {

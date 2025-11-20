@@ -233,7 +233,7 @@ mod tests {
         let (sources, destinations) = movements_to_source_and_destinations(movements);
         context.codegen_mov_registers_to_registers(&sources, &destinations);
 
-        let opcodes = context.artifact().byte_code;
+        let opcodes = context.into_artifact().byte_code;
 
         assert_eq!(opcodes, generate_opcodes(expected_moves));
     }
@@ -352,7 +352,7 @@ mod tests {
                 context.set_allocated_registers(all_registers);
 
                 context.codegen_mov_registers_to_registers(&sources, &destinations);
-                context.artifact().byte_code
+                context.into_artifact().byte_code
             };
 
             // Execute the opcodes.

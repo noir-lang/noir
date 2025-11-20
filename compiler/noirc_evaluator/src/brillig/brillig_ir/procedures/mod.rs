@@ -164,5 +164,5 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     };
 
     brillig_context.return_instruction();
-    brillig_context.artifact()
+    brillig_context.into_artifact()
 }
