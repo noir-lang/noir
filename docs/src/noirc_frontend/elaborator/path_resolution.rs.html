@@ -916,8 +916,7 @@
 <a href="#915" id="915">915</a>
 <a href="#916" id="916">916</a>
 <a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
+<a href="#918" id="918">918</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
@@ -1043,8 +1042,7 @@
     </span>FoundMethod(PerNs),
     <span class="doccomment">/// Found a trait method and it's currently in scope.
     </span>FoundTraitMethod(PerNs, Ident),
-    <span class="doccomment">/// There's only one trait method that matches, but it's not in scope
-    /// (we'll warn about this to avoid introducing a large breaking change)
+    <span class="doccomment">/// There's only one trait method that matches, but it's not in scope.
     </span>FoundOneTraitMethodButNotInScope(PerNs, TraitId),
     <span class="doccomment">/// Multiple trait method matches were found and they are all in scope.
     </span>FoundMultipleTraitMethods(Vec&lt;(TraitId, Ident)&gt;),
