@@ -1,9 +1,6 @@
 use crate::elaborator::UnstableFeature;
-use crate::{hir::def_collector::dc_crate::CompilationError, parser::ParserErrorReason};
 
-use crate::tests::{
-    assert_no_errors, check_errors, check_errors_using_features, get_program_using_features,
-};
+use crate::tests::{assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn error_with_duplicate_enum_variant() {
@@ -37,26 +34,17 @@ fn errors_on_unspecified_unstable_enum() {
 
 #[test]
 fn errors_on_unspecified_unstable_match() {
-    // TODO: update this test. Right now it's hard to test because the span happens in the entire
-    // `match` node but ideally it would be nice if it only happened in the `match` keyword.
-    // Enums are experimental - this will need to be updated when they are stabilized
     let src = r#"
     fn main() {
         match 3 {
+        ^^^^^ This requires the unstable feature 'enums' which is not enabled
+        ~~~~~ Pass -Zenums to nargo to enable this feature at your own risk.
             _ => (),
         }
     }
     "#;
-
     let no_features = &[];
-    let errors = get_program_using_features(src, no_features).2;
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ParseError(error) = &errors[0] else {
-        panic!("Expected a ParseError experimental feature error");
-    };
-
-    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
+    check_errors_using_features(src, no_features);
 }
 
 #[test]
