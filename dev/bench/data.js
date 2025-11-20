@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763574497022,
+  "lastUpdate": 1763633329977,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23026,48 +23026,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1bbaffe34b868226cd95d4282a668b7e57feac9d",
-          "message": "fix(acir-gen): Use the side effect variable in `slice_pop_back` (#10455)",
-          "timestamp": "2025-11-10T19:34:08Z",
-          "tree_id": "e401b06f01a14a5f8b67ba42a8fa92fa086d1159",
-          "url": "https://github.com/noir-lang/noir/commit/1bbaffe34b868226cd95d4282a668b7e57feac9d"
-        },
-        "date": 1762806912805,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263353,
-            "range": "± 1072",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233716,
-            "range": "± 1644",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2803430,
-            "range": "± 8470",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25119,6 +25077,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783028,
             "range": "± 3458",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e5ec245e8c4966e7a0cc962c7048fa33543212c",
+          "message": "fix: only entry-point main is special (#10545)",
+          "timestamp": "2025-11-20T09:45:22Z",
+          "tree_id": "af16117d6b17fe61ce30dd6077899e920c753de9",
+          "url": "https://github.com/noir-lang/noir/commit/5e5ec245e8c4966e7a0cc962c7048fa33543212c"
+        },
+        "date": 1763633302788,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252748,
+            "range": "± 702",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223266,
+            "range": "± 2160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781927,
+            "range": "± 6671",
             "unit": "ns/iter"
           }
         ]
