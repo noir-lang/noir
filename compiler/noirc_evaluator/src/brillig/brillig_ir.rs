@@ -144,6 +144,20 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         }
         self.globals_memory_size = new_size;
     }
+
+    /// Returns the artifact, discarding the rest of the context.
+    pub(crate) fn into_artifact(self) -> BrilligArtifact<F> {
+        self.obj
+    }
+
+    /// Returns the artifact.
+    pub(crate) fn artifact(&self) -> &BrilligArtifact<F> {
+        &self.obj
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.obj.name
+    }
 }
 
 /// Regular brillig context to codegen user defined functions
@@ -308,20 +322,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Adds a brillig instruction to the brillig byte code
     fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
         self.obj.push_opcode(opcode);
-    }
-
-    /// Returns the artifact, discarding the rest of the context.
-    pub(crate) fn into_artifact(self) -> BrilligArtifact<F> {
-        self.obj
-    }
-
-    /// Returns the artifact.
-    pub(crate) fn artifact(&self) -> &BrilligArtifact<F> {
-        &self.obj
-    }
-
-    pub(crate) fn name(&self) -> &str {
-        &self.obj.name
     }
 
     /// Sets a current call stack that the next pushed opcodes will be associated with.
