@@ -1908,7 +1908,11 @@
 <a href="#1907" id="1907">1907</a>
 <a href="#1908" id="1908">1908</a>
 <a href="#1909" id="1909">1909</a>
-<a href="#1910" id="1910">1910</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
@@ -1918,6 +1922,7 @@
 <span class="kw">use crate</span>::{
     html::{
         all_items::AllItems,
+        colorize::colorize_markdown_code_blocks,
         has_class::HasClass,
         has_uri::HasUri,
         id_to_info::{ItemInfo, compute_id_to_info},
@@ -1933,6 +1938,7 @@
 };
 
 <span class="kw">mod </span>all_items;
+<span class="kw">mod </span>colorize;
 <span class="kw">mod </span>has_class;
 <span class="kw">mod </span>has_uri;
 <span class="kw">mod </span>id_to_info;
@@ -2284,10 +2290,11 @@
                 <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"item-description\"&gt;"</span>);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>((comments, links)) = item.comments() {
                     <span class="kw">let </span>comments = <span class="self">self</span>.process_comments_links(links, comments.clone());
+                    <span class="kw">let </span>comments = colorize_markdown_code_blocks(comments);
 
                     <span class="kw">let </span>summary = markdown_summary(<span class="kw-2">&amp;</span>comments);
 
-                    <span class="kw">let </span>markdown = markdown::to_html(<span class="kw-2">&amp;</span>summary);
+                    <span class="kw">let </span>markdown = markdown_utils::to_html(<span class="kw-2">&amp;</span>summary);
                     <span class="kw">let </span>markdown = markdown.trim_start_matches(<span class="string">"&lt;p&gt;"</span>);
                     <span class="kw">let </span>summary = markdown.trim().trim_end_matches(<span class="string">"&lt;/p&gt;"</span>).trim();
 
@@ -2465,7 +2472,7 @@
             <span class="kw">for </span>field <span class="kw">in </span>fields {
                 <span class="self">self</span>.output.push_str(<span class="string">"&lt;li&gt;"</span>);
                 <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                    <span class="string">"&lt;a href=\"#structfield.{}\"&gt;{}&lt;/a&gt;"</span>, <span class="comment">// cspell:disable
+                    <span class="string">"&lt;a href=\"#structfield.{}\"&gt;{}&lt;/a&gt;"</span>, <span class="comment">// cSpell:disable-line
                     </span>field.name, field.name
                 ));
                 <span class="self">self</span>.output.push_str(<span class="string">"&lt;/li&gt;\n"</span>);
@@ -2703,7 +2710,7 @@
 
         <span class="kw">for </span>field <span class="kw">in </span>fields {
             <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                <span class="string">"&lt;div id=\"structfield.{}\" class=\"struct-field\"&gt;&lt;code class=\"code-header\"&gt;"</span>, <span class="comment">// cspell:disable
+                <span class="string">"&lt;div id=\"structfield.{}\" class=\"struct-field\"&gt;&lt;code class=\"code-header\"&gt;"</span>, <span class="comment">// cSpell:disable-line
                 </span>field.name
             ));
             <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span>field.name);
@@ -3295,8 +3302,9 @@
 
         <span class="kw">let </span>comments = fix_markdown(comments, current_heading_level);
         <span class="kw">let </span>comments = <span class="self">self</span>.process_comments_links(links, comments);
+        <span class="kw">let </span>comments = colorize_markdown_code_blocks(comments);
 
-        <span class="kw">let </span>html = markdown::to_html(<span class="kw-2">&amp;</span>comments);
+        <span class="kw">let </span>html = markdown_utils::to_html(<span class="kw-2">&amp;</span>comments);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"comments\"&gt;\n"</span>);
         <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span>html);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/div&gt;\n"</span>);
@@ -3318,7 +3326,7 @@
                 .name()
                 .map(|name| {
                     <span class="kw">if </span><span class="macro">matches!</span>(target, LinkTarget::StructMember(..)) {
-                        <span class="macro">format!</span>(<span class="string">"#structfield.{name}"</span>) <span class="comment">// cspell:disable
+                        <span class="macro">format!</span>(<span class="string">"#structfield.{name}"</span>) <span class="comment">// cSpell:disable
                     </span>} <span class="kw">else </span>{
                         <span class="macro">format!</span>(<span class="string">"#{name}"</span>)
                     }
@@ -3815,7 +3823,7 @@
     }
 }
 
-<span class="kw">fn </span>escape_html(input: <span class="kw-2">&amp;</span>str) -&gt; String {
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>escape_html(input: <span class="kw-2">&amp;</span>str) -&gt; String {
     input.replace(<span class="string">'&lt;'</span>, <span class="string">"&amp;lt;"</span>).replace(<span class="string">'&gt;'</span>, <span class="string">"&amp;gt;"</span>)
 }
 </code></pre></div></section></main></body></html>

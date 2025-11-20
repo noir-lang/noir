@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["fix_markdown","markdown_summary"]};
+window.SIDEBAR_ITEMS = {"fn":["fix_markdown","markdown_summary","to_html"]};

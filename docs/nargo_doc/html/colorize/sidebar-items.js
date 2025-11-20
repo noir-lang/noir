@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["colorize_code","colorize_markdown_code_blocks","colorize_token"]};
