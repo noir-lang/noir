@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763634635567,
+  "lastUpdate": 1763650288582,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23036,48 +23036,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "2ff4d11df5fecff666e9e60dbfef1255d11c73c9",
-          "message": "chore: lock Cargo.lock in cargo-binstall (#10459)",
-          "timestamp": "2025-11-10T20:42:33Z",
-          "tree_id": "7e8881e080c6aa9f6fa8da098f335f2509612963",
-          "url": "https://github.com/noir-lang/noir/commit/2ff4d11df5fecff666e9e60dbfef1255d11c73c9"
-        },
-        "date": 1762811516205,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264944,
-            "range": "± 894",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236733,
-            "range": "± 4520",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2815100,
-            "range": "± 2316",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "050f9785ba8d109d355360de27428e79b2d7d604",
           "message": "feat: remove unnecessary mutation of blackbox functions during flattening (#10182)\n\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
           "timestamp": "2025-11-10T22:05:20Z",
@@ -25119,6 +25077,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781927,
             "range": "± 6671",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b37e91f264b92dc64af9096b91c79d1c504ca022",
+          "message": "chore: error on match keyword when enums are not enabled (#10549)",
+          "timestamp": "2025-11-20T14:20:43Z",
+          "tree_id": "509ba9a37169f453e28951278fc8663ad2a478d9",
+          "url": "https://github.com/noir-lang/noir/commit/b37e91f264b92dc64af9096b91c79d1c504ca022"
+        },
+        "date": 1763650261238,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253598,
+            "range": "± 1801",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225399,
+            "range": "± 3820",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783671,
+            "range": "± 2340",
             "unit": "ns/iter"
           }
         ]
