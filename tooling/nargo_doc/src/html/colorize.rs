@@ -30,7 +30,11 @@ pub(super) fn colorize_code_blocks(comments: String) -> String {
             result.push_str("<pre><code>");
             highlighting = true;
         } else if !in_code_block && trimmed_line == "```" {
-            result.push_str("</pre></code>");
+            if highlighting {
+                result.push_str("</pre></code>");
+            } else {
+                result.push_str("```");
+            }
             highlighting = false;
         } else {
             if highlighting {
@@ -166,5 +170,80 @@ fn colorize_token(token: &LocatedToken, line: &str, result: &mut String) {
         result.push_str(&format!("<span class=\"{class}\">{}</span>", escape_html(token_str)));
     } else {
         result.push_str(&escape_html(token_str));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use insta::assert_snapshot;
+
+    use crate::html::colorize_code_blocks;
+
+    #[test]
+    fn test_colorize_code_blocks() {
+        let markdown = r#"
+Colorized:
+
+```
+let bool_var = true;
+let number = 1;
+let string = "hello";
+let f = f"Interpolated {string} and {number}";
+let quoted = quote { 1 + 2 };
+
+// Line comment
+/// Doc comment
+#[attribute]
+fn foo() {}
+```
+
+Also colorized:
+
+```noir
+let bool_var = true;
+```
+
+Also colorized:
+
+```rust
+let bool_var = true;
+```
+
+Not colorized:
+
+```text
+let bool_var = true;
+```
+
+        "#;
+        let colorized = colorize_code_blocks(markdown.to_string());
+        assert_snapshot!(colorized, @r#"
+        Colorized:
+
+        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;
+        <span class="kw">let</span> number = <span class="number">1</span>;
+        <span class="kw">let</span> string = <span class="string">"hello"</span>;
+        <span class="kw">let</span> f = <span class="string">f"</span><span class="string">Interpolated </span><span class="interpolation">{string}</span><span class="string"> and </span><span class="interpolation">{number}</span><span class="string">"</span>;
+        <span class="kw">let</span> quoted = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> };
+
+        <span class="comment">// Line comment</span>
+        <span class="doccomment">/// Doc comment</span>
+        #[attribute]
+        <span class="kw">fn</span> foo() {}
+        </pre></code>
+        Also colorized:
+
+        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;
+        </pre></code>
+        Also colorized:
+
+        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;
+        </pre></code>
+        Not colorized:
+
+        ```text
+        let bool_var = true;
+        ```
+        "#);
     }
 }
