@@ -5,7 +5,8 @@ use noirc_frontend::{
 
 use crate::html::escape_html;
 
-pub(super) fn colorize_code_blocks(comments: String) -> String {
+/// Colorizes code blocks in the given Markdown.
+pub(super) fn colorize_markdown_code_blocks(comments: String) -> String {
     if !comments.contains("```") {
         return comments;
     }
@@ -13,6 +14,11 @@ pub(super) fn colorize_code_blocks(comments: String) -> String {
     let mut in_code_block = false; // Are we inside a code block?
     let mut highlighting = false; // Do we need to highlight code?
     let mut result = String::new();
+
+    // Accumulates lines of code inside a code block for later colorization.
+    // We could colorize line by line, but for example `quote { ... }` can span
+    // multiple lines and, if it does, the lexer will choke on it on a line-by-line basis.
+    let mut current_code_block = String::new();
 
     let lines = comments.lines().collect::<Vec<_>>();
     for (index, line) in lines.iter().enumerate() {
@@ -27,48 +33,59 @@ pub(super) fn colorize_code_blocks(comments: String) -> String {
         if in_code_block
             && (trimmed_line == "```" || trimmed_line == "```noir" || trimmed_line == "```rust")
         {
-            result.push_str("<pre><code>");
+            // This is a code block start
             highlighting = true;
         } else if !in_code_block && trimmed_line == "```" {
+            // This is a code block end
             if highlighting {
-                result.push_str("</pre></code>");
+                result.push_str("<pre><code>");
+                result.push_str(&colorize_code(&current_code_block));
+                result.push_str("</code></pre>");
+                current_code_block.clear();
             } else {
                 result.push_str("```");
             }
             highlighting = false;
         } else {
+            // This is text inside or outside a code block
             if highlighting {
-                result.push_str(&colorize_code_line(line));
+                if !current_code_block.is_empty() {
+                    current_code_block.push('\n');
+                }
+                current_code_block.push_str(line);
             } else {
                 result.push_str(line);
-            }
-            if index != lines.len() - 1 {
-                result.push('\n');
+                if index != lines.len() - 1 {
+                    result.push('\n');
+                }
             }
         }
     }
 
     if in_code_block && highlighting {
-        result.push_str("</pre></code>");
+        result.push_str("<pre><code>");
+        result.push_str(&colorize_code(&current_code_block));
+        result.push_str("</code></pre>");
     }
 
     result
 }
 
-fn colorize_code_line(line: &str) -> String {
+/// Colorizes the given code as a standalone snippet (unrelated to Markdown).
+fn colorize_code(code: &str) -> String {
     let mut result = String::new();
-    let lexer = Lexer::new_with_dummy_file(line).skip_comments(false).skip_whitespaces(false);
+    let lexer = Lexer::new_with_dummy_file(code).skip_comments(false).skip_whitespaces(false);
 
     for token in lexer {
         let Ok(token) = token else {
             // If lexing fails, give up and return the original line
-            return line.to_string();
+            return code.to_string();
         };
         if matches!(token.token(), Token::EOF) {
             break;
         }
 
-        colorize_token(&token, line, &mut result);
+        colorize_token(&token, code, &mut result);
     }
 
     result
@@ -177,7 +194,7 @@ fn colorize_token(token: &LocatedToken, line: &str, result: &mut String) {
 mod tests {
     use insta::assert_snapshot;
 
-    use crate::html::colorize_code_blocks;
+    use crate::html::colorize_markdown_code_blocks;
 
     #[test]
     fn test_colorize_code_blocks() {
@@ -214,9 +231,8 @@ Not colorized:
 ```text
 let bool_var = true;
 ```
-
         "#;
-        let colorized = colorize_code_blocks(markdown.to_string());
+        let colorized = colorize_markdown_code_blocks(markdown.to_string());
         assert_snapshot!(colorized, @r#"
         Colorized:
 
@@ -229,21 +245,39 @@ let bool_var = true;
         <span class="comment">// Line comment</span>
         <span class="doccomment">/// Doc comment</span>
         #[attribute]
-        <span class="kw">fn</span> foo() {}
-        </pre></code>
+        <span class="kw">fn</span> foo() {}</code></pre>
         Also colorized:
 
-        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;
-        </pre></code>
+        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;</code></pre>
         Also colorized:
 
-        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;
-        </pre></code>
+        <pre><code><span class="kw">let</span> bool_var = <span class="bool-var">true</span>;</code></pre>
         Not colorized:
 
         ```text
         let bool_var = true;
         ```
+        "#);
+    }
+
+    #[test]
+    fn test_colorize_quote_across_lines() {
+        let markdown = r#"
+Colorized:
+
+```
+let quoted = quote { 
+  1 + 2 
+};
+```
+        "#;
+        let colorized = colorize_markdown_code_blocks(markdown.to_string());
+        assert_snapshot!(colorized, @r#"
+        Colorized:
+
+        <pre><code><span class="kw">let</span> quoted = <span class="kw">quote</span> { 
+          <span class="number">1</span> + <span class="number">2</span> 
+        };</code></pre>
         "#);
     }
 }

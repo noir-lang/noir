@@ -8,7 +8,7 @@ use noirc_frontend::ast::ItemVisibility;
 use crate::{
     html::{
         all_items::AllItems,
-        colorize::colorize_code_blocks,
+        colorize::colorize_markdown_code_blocks,
         has_class::HasClass,
         has_uri::HasUri,
         id_to_info::{ItemInfo, compute_id_to_info},
@@ -376,7 +376,7 @@ impl HTMLCreator {
                 self.output.push_str("<div class=\"item-description\">");
                 if let Some((comments, links)) = item.comments() {
                     let comments = self.process_comments_links(links, comments.clone());
-                    let comments = colorize_code_blocks(comments);
+                    let comments = colorize_markdown_code_blocks(comments);
 
                     let summary = markdown_summary(&comments);
 
@@ -1388,7 +1388,7 @@ impl HTMLCreator {
 
         let comments = fix_markdown(comments, current_heading_level);
         let comments = self.process_comments_links(links, comments);
-        let comments = colorize_code_blocks(comments);
+        let comments = colorize_markdown_code_blocks(comments);
 
         let html = markdown_utils::to_html(&comments);
         self.output.push_str("<div class=\"comments\">\n");
