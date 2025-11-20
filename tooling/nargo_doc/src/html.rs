@@ -796,7 +796,7 @@ impl HTMLCreator {
 
         for field in fields {
             self.output.push_str(&format!(
-                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">", // cSpell:disable
+                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">", // cSpell:disable-line
                 field.name
             ));
             self.output.push_str(&field.name);
