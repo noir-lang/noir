@@ -41,51 +41,18 @@ use acir::{
 use indexmap::IndexMap;
 
 mod csat;
+mod merge_expressions;
 
-pub(crate) use csat::CSatTransformer;
-pub use csat::MIN_EXPRESSION_WIDTH;
+use csat::CSatTransformer;
+use merge_expressions::MergeExpressionsOptimizer;
+
 use std::hash::BuildHasher;
 use tracing::info;
 
-use super::{
-    AcirTransformationMap,
-    optimizers::{MergeExpressionsOptimizer, RangeOptimizer},
-    transform_assert_messages,
-};
+use super::RangeOptimizer;
 
 /// We use multiple passes to stabilize the output in many cases
 const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 3;
-
-/// Applies backend specific optimizations to a [`Circuit`].
-///
-/// Pre-Conditions:
-/// - General Optimizer must run before this pass,
-///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
-/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
-pub fn transform<F: AcirField>(
-    acir: Circuit<F>,
-    expression_width: ExpressionWidth,
-    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-    max_transformer_passes_or_default: Option<usize>,
-) -> (Circuit<F>, AcirTransformationMap) {
-    // Track original acir opcode positions throughout the transformation passes of the compilation
-    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-
-    let (mut acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
-        acir,
-        expression_width,
-        acir_opcode_positions,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    );
-
-    let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
-
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
-
-    (acir, transformation_map)
-}
 
 /// Applies backend specific optimizations to a [`Circuit`].
 ///
@@ -289,7 +256,7 @@ fn transform_internal_once<F: AcirField>(
     let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
     let (opcodes, new_acir_opcode_positions) =
-        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+        merge_optimizer.eliminate_intermediate_variable(&acir, acir_opcode_positions);
 
     // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
     acir = Circuit {
@@ -555,7 +522,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::{CircuitSimulator, transform_internal};
+    use super::transform_internal;
+    use crate::compiler::CircuitSimulator;
     use acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
     use std::collections::BTreeMap;
 

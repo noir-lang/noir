@@ -313,9 +313,7 @@ mod tests {
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
+        assert!(err.to_string().contains("3"));
     }
 
     #[test]
