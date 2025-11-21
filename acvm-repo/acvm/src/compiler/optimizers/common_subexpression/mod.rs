@@ -256,7 +256,7 @@ fn transform_internal_once<F: AcirField>(
     let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
     let (opcodes, new_acir_opcode_positions) =
-        merge_optimizer.eliminate_intermediate_variable(&acir, acir_opcode_positions);
+        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
 
     // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
     acir = Circuit {
