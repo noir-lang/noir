@@ -1,3 +1,4 @@
+// With Brillig VM v1, we can return multiple vectors from a foreign call.
 use std::test::OracleMock;
 
 #[oracle(void_to_array_and_vector)]

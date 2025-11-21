@@ -108,7 +108,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 ];
 
 /// Some tests need extra CLI flags.
-const EXTRA_CLI_ARGS: [(&str, &str); 1] = [("oracle_return_vector", "--brillig-vm-version 1")];
+const EXTRA_CLI_ARGS: [(&str, &str); 1] = [("oracle_return_vector_v1", "--brillig-vm-version 1")];
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
