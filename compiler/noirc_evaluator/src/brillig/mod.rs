@@ -37,12 +37,13 @@ use std::{borrow::Cow, collections::BTreeSet};
 pub use self::brillig_ir::procedures::ProcedureId;
 
 /// Options that affect Brillig code generation.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
     pub enable_array_copy_counter: bool,
     pub layout: LayoutConfig,
+    pub vm_version: acvm::brillig_vm::Version,
 }
 
 /// Context structure for the Brillig pass.

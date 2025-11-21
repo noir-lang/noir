@@ -36,6 +36,7 @@ fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
         initial_witness.clone(),
         &B::default(),
         &mut DefaultForeignCallBuilder::default().build(),
+        Default::default(),
     )
 }
 

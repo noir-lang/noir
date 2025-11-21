@@ -20,6 +20,7 @@ acir.workspace = true
 acvm_blackbox_solver.workspace = true
 num-bigint.workspace = true
 num-traits.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

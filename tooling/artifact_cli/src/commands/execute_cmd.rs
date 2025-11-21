@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use acvm::brillig_vm;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -8,8 +9,9 @@ use crate::{
     errors::CliError,
     execution::{self, ExecutionResults},
 };
-use nargo::foreign_calls::{
-    DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
+use nargo::{
+    foreign_calls::{DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor},
+    ops::ExecuteOptions,
 };
 use noirc_driver::CompiledProgram;
 
@@ -66,6 +68,10 @@ pub struct ExecuteCommand {
     /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
     #[clap(long, default_value_t = false)]
     pub pedantic_solving: bool,
+
+    /// The expected behavior of the target Brillig VM.
+    #[arg(long, hide = true, default_value_t = brillig_vm::Version::default())]
+    pub brillig_vm_version: brillig_vm::Version,
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
@@ -131,5 +137,11 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
 
     let blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
 
-    execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, &args.prover_file)
+    execution::execute(
+        circuit,
+        &blackbox_solver,
+        &mut foreign_call_executor,
+        &args.prover_file,
+        ExecuteOptions { brillig_vm_version: args.brillig_vm_version },
+    )
 }

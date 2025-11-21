@@ -109,6 +109,7 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
                         black_box(initial_witness.clone()),
                         &solver,
                         &mut foreign_call_executor,
+                        Default::default(),
                     ))
                     .expect("failed to execute program");
                 }

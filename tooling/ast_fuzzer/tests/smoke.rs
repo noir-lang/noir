@@ -94,6 +94,7 @@ fn arb_program_can_be_executed() {
             initial_witness,
             &blackbox_solver,
             &mut foreign_call_executor,
+            Default::default(),
         );
 
         match res {

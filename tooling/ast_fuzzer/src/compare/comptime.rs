@@ -251,6 +251,7 @@ impl CompareComptime {
             initial_witness,
             &blackbox_solver,
             &mut foreign_call_executor,
+            Default::default(),
         );
         let print = Self::decode_print(output);
 

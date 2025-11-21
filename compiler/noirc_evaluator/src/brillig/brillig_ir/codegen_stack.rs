@@ -214,6 +214,7 @@ mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            vm_version: Default::default(),
             layout: LayoutConfig::default(),
         };
         let mut context = BrilligContext::new("test", &options);

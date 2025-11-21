@@ -5,6 +5,7 @@ use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
+use acvm::brillig_vm;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
@@ -230,6 +231,10 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+
+    /// The expected behavior of the target Brillig VM.
+    #[arg(long, hide = true, default_value_t = brillig_vm::Version::default())]
+    pub brillig_vm_version: brillig_vm::Version,
 }
 
 impl Default for CompileOptions {
@@ -269,6 +274,7 @@ impl Default for CompileOptions {
             unstable_features: Vec::new(),
             no_unstable_features: false,
             disable_comptime_printing: false,
+            brillig_vm_version: brillig_vm::Version::default(),
         }
     }
 }
@@ -287,7 +293,8 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
-                ..Default::default()
+                layout: Default::default(),
+                vm_version: self.brillig_vm_version,
             },
             print_codegen_timings: self.benchmark_codegen,
             expression_width: if self.bounded_codegen {

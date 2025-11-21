@@ -37,6 +37,7 @@ pub(crate) fn run_snippet(
         initial_witness,
         &blackbox_solver,
         &mut *foreign_call_executor,
+        Default::default(),
     )
     .expect("failed to execute");
 
@@ -57,7 +58,7 @@ fn comptime_check_field_expression(
         comptime fn comptime_code() -> Field {{
             {comptime_expr}
         }}
-        
+
         fn runtime_code(a: Field, b: Field) -> Field {{
             {runtime_expr}
         }}
