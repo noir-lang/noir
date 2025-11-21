@@ -37,10 +37,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
     ///
     /// # Panics
-    /// If there is a vector among the output variables _and_ it's followed by another array or vector:
+    /// If there is a vector among the output variables _and_ it's followed by another vector:
     /// when we allocate memory for a vector, we don't know its length, so it just points at the current
-    /// free memory pointer without increasing it; anything else that needs the free memory pointer would
-    /// risk pointing at the same memory region.
+    /// free memory pointer without increasing it; a second vector gets allocated at the same memory slot.
+    ///
+    /// This panic only occurs when the target Brillig VM version is V0; V1 handles multiple outputs.
     fn allocate_external_call_results(
         &mut self,
         results: &[ValueId],
