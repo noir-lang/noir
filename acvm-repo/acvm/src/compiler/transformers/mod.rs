@@ -170,8 +170,6 @@ fn transform_internal_once<F: AcirField>(
     acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
-    (acir, acir_opcode_positions)
-
     // // 1. CSAT transformation
     // // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
     // // to the required width by creating intermediate variables.
@@ -287,27 +285,27 @@ fn transform_internal_once<F: AcirField>(
     //     ..acir
     // };
 
-    // // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
-    // let mut merge_optimizer = MergeExpressionsOptimizer::new();
+    // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
+    let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
-    // let (opcodes, new_acir_opcode_positions) =
-    //     merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+    let (opcodes, new_acir_opcode_positions) =
+        merge_optimizer.eliminate_intermediate_variable(&acir, acir_opcode_positions);
 
-    // // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
-    // acir = Circuit {
-    //     opcodes,
-    //     // The optimizer does not add new public inputs
-    //     ..acir
-    // };
+    // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
+    acir = Circuit {
+        opcodes,
+        // The optimizer does not add new public inputs
+        ..acir
+    };
 
-    // // 3. Remove redundant range constraints.
-    // // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
-    // // so we run the `RangeOptimizer` afterwards to clear these up.
-    // let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
-    // let (acir, new_acir_opcode_positions) =
-    //     range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
+    // 3. Remove redundant range constraints.
+    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
+    // so we run the `RangeOptimizer` afterwards to clear these up.
+    let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
+    let (acir, new_acir_opcode_positions) =
+        range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
 
-    // (acir, new_acir_opcode_positions)
+    (acir, new_acir_opcode_positions)
 }
 
 /// Find the witness with the highest ID in the circuit.
