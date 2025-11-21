@@ -1,14 +1,16 @@
 //! Handles LSP semantic tokens requests.
 //!
-//! Semantic tokens in Noir are provided for links inside doc comments. For example,
-//! a doc comment that has `[println]` in it will be colorized as a function reference.
-
+//! Semantic tokens in Noir are provided in two contexts:
+//! - links inside doc comments. For example,a doc comment that has `[println]` in it will
+//!   be colorized as a function reference (only if such function actually exists).
+//! - code blocks inside doc comments. If these are Noir or Rust code blocks, a Lexer
+//!   will be used to colorize keywords and such.
 use std::{collections::HashMap, future};
 
 use async_lsp::{
     ResponseError,
     lsp_types::{
-        Position, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensParams,
+        self, Position, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensParams,
         SemanticTokensResult, TextDocumentPositionParams,
     },
 };
@@ -16,9 +18,12 @@ use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, TypeAlias, Visitor},
+    elaborator::PrimitiveType,
     hir::def_map::ModuleDefId,
+    lexer::Lexer,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
+    token::{Keyword, LocatedToken, Token},
 };
 
 use crate::{
@@ -56,9 +61,16 @@ struct SemanticTokenCollector<'args> {
     args: &'args ProcessRequestCallbackArgs<'args>,
     link_finder: LinkFinder,
     tokens: Vec<SemanticToken>,
-    /// The last token that was added, without delta adjustments.
-    last_token: Option<SemanticToken>,
+    previous_line: u32,
+    previous_char: u32,
     token_types: HashMap<SemanticTokenType, usize>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum CodeBlock {
+    None,
+    Noir,
+    Other,
 }
 
 impl<'args> SemanticTokenCollector<'args> {
@@ -66,7 +78,15 @@ impl<'args> SemanticTokenCollector<'args> {
         let link_finder = LinkFinder::default();
         let tokens = Vec::new();
         let token_types = semantic_token_types_map();
-        SemanticTokenCollector { source, args, link_finder, tokens, last_token: None, token_types }
+        SemanticTokenCollector {
+            source,
+            args,
+            link_finder,
+            tokens,
+            previous_line: 0,
+            previous_char: 0,
+            token_types,
+        }
     }
 
     fn collect(&mut self, parsed_module: &noirc_frontend::ParsedModule) -> Vec<SemanticToken> {
@@ -85,8 +105,31 @@ impl<'args> SemanticTokenCollector<'args> {
             return;
         };
 
+        let mut code_block = CodeBlock::None;
+
         self.link_finder.reset();
         for located_comment in doc_comments {
+            let contents = located_comment.contents.trim();
+            let mut fence = false;
+
+            match code_block {
+                CodeBlock::None => {
+                    if contents == "```" || contents == "```noir" || contents == "```rust" {
+                        code_block = CodeBlock::Noir;
+                        fence = true;
+                    } else if contents.starts_with("```") {
+                        code_block = CodeBlock::Other;
+                        fence = true;
+                    }
+                }
+                CodeBlock::Noir | CodeBlock::Other => {
+                    if contents == "```" {
+                        code_block = CodeBlock::None;
+                        fence = true;
+                    }
+                }
+            }
+
             let location = located_comment.location();
             let Some(lsp_location) = to_lsp_location(self.args.files, location.file, location.span)
             else {
@@ -99,6 +142,10 @@ impl<'args> SemanticTokenCollector<'args> {
             // have been slightly adjusted.
             let comments =
                 &self.source[location.span.start() as usize..location.span.end() as usize];
+
+            if code_block == CodeBlock::Noir && !fence {
+                self.colorize_code_block_line(lsp_location, comments);
+            }
 
             let links = self.link_finder.find_links(
                 comments,
@@ -129,6 +176,199 @@ impl<'args> SemanticTokenCollector<'args> {
         }
     }
 
+    fn colorize_code_block_line(&mut self, lsp_location: lsp_types::Location, line: &str) {
+        // The code block line will start with either "///", "//!", or optionally "*".
+        // We remove it, but then we'll need to add an offset when calculating the character position.
+        let (line, offset) = if let Some(line) = line.strip_prefix("///") {
+            (line, 3)
+        } else if let Some(line) = line.strip_prefix("//!") {
+            (line, 3)
+        } else if let Some(line) = line.strip_prefix("*") {
+            (line, 1)
+        } else {
+            (line, 0)
+        };
+        let lexer = Lexer::new_with_dummy_file(line);
+        let mut tokens = Vec::new();
+
+        for token in lexer {
+            let Ok(token) = token else {
+                // If lexing fails, give up
+                return;
+            };
+            if matches!(token.token(), Token::EOF) {
+                break;
+            }
+
+            tokens.push(token);
+        }
+
+        for (index, token) in tokens.iter().enumerate() {
+            let previous_token = if index == 0 { None } else { Some(&tokens[index - 1]) };
+            let next_token = tokens.get(index + 1);
+            let next_next_token = tokens.get(index + 2);
+            self.colorize_token(
+                token,
+                previous_token,
+                next_token,
+                next_next_token,
+                &lsp_location,
+                offset,
+            );
+        }
+    }
+
+    fn colorize_token(
+        &mut self,
+        token: &LocatedToken,
+        previous_token: Option<&LocatedToken>,
+        next_token: Option<&LocatedToken>,
+        next_next_token: Option<&LocatedToken>,
+        location: &lsp_types::Location,
+        offset: usize,
+    ) {
+        let span = token.span();
+        let token = token.token();
+        let semantic_token_type = match token {
+            Token::Int(..) => SemanticTokenType::NUMBER,
+            Token::Bool(_) => SemanticTokenType::KEYWORD,
+            Token::Str(_) | Token::RawStr(_, _) | Token::FmtStr(..) => SemanticTokenType::STRING,
+            Token::Keyword(_) => SemanticTokenType::KEYWORD,
+            Token::LineComment(..) | Token::BlockComment(..) => SemanticTokenType::COMMENT,
+            Token::Quote(tokens) => {
+                // Colorize "quote"
+                let semantic_token_type = self.token_types[&SemanticTokenType::KEYWORD] as u32;
+                let sematic_token = SemanticToken {
+                    delta_line: location.range.start.line,
+                    delta_start: location.range.start.character + span.start() + offset as u32,
+                    length: 5,
+                    token_type: semantic_token_type,
+                    token_modifiers_bitset: 0,
+                };
+                self.push_token(sematic_token);
+
+                for (index, token) in tokens.0.iter().enumerate() {
+                    let previous_token = if index == 0 { None } else { Some(&tokens.0[index - 1]) };
+                    let next_token = tokens.0.get(index + 1);
+                    let next_next_token = tokens.0.get(index + 2);
+                    self.colorize_token(
+                        token,
+                        previous_token,
+                        next_token,
+                        next_next_token,
+                        location,
+                        offset,
+                    );
+                }
+                return;
+            }
+            Token::Ident(name) => {
+                if name == "self" {
+                    SemanticTokenType::KEYWORD
+                } else if name.chars().next().is_some_and(|char| char.is_ascii_uppercase())
+                    || PrimitiveType::lookup_by_name(name).is_some()
+                {
+                    // Heuristic: if the name starts with an uppercase letter, or it denotes a primitive type,
+                    // colorize it as a struct
+                    SemanticTokenType::STRUCT
+                } else if next_token.is_some_and(|token| matches!(token.token(), Token::LeftParen))
+                    || previous_token
+                        .is_some_and(|token| matches!(token.token(), Token::Keyword(Keyword::Fn)))
+                {
+                    // Heuristic colorize "foo" in "foo(" and "fn foo" as a function
+                    SemanticTokenType::FUNCTION
+                } else if next_token
+                    .is_some_and(|token| matches!(token.token(), Token::DoubleColon))
+                {
+                    // Heuristic: colorize "foo" in "foo::" as a module.
+                    // However, if it's "foo::<", colorize it as either a struct or a function depending
+                    // on whether it starts with uppercase or not.
+                    if next_next_token.is_some_and(|token| matches!(token.token(), Token::Less)) {
+                        if name.chars().next().is_some_and(|char| char.is_ascii_uppercase()) {
+                            SemanticTokenType::STRUCT
+                        } else {
+                            SemanticTokenType::FUNCTION
+                        }
+                    } else {
+                        SemanticTokenType::NAMESPACE
+                    }
+                } else if previous_token.is_some_and(|token| {
+                    matches!(
+                        token.token(),
+                        Token::Keyword(Keyword::Struct)
+                            | Token::Keyword(Keyword::Enum)
+                            | Token::Keyword(Keyword::Impl)
+                            | Token::Keyword(Keyword::Trait)
+                            | Token::Keyword(Keyword::Type)
+                    )
+                }) {
+                    // Heurisitc: colorize "foo" in "struct foo", "enum foo", etc., as a struct
+                    SemanticTokenType::STRUCT
+                } else {
+                    SemanticTokenType::VARIABLE
+                }
+            }
+            Token::Less
+            | Token::LessEqual
+            | Token::Greater
+            | Token::GreaterEqual
+            | Token::Equal
+            | Token::NotEqual
+            | Token::Plus
+            | Token::Minus
+            | Token::Star
+            | Token::Slash
+            | Token::Percent
+            | Token::Ampersand
+            | Token::Caret
+            | Token::ShiftLeft
+            | Token::ShiftRight
+            | Token::LeftParen
+            | Token::RightParen
+            | Token::LeftBrace
+            | Token::RightBrace
+            | Token::LeftBracket
+            | Token::RightBracket
+            | Token::SliceStart
+            | Token::Pipe
+            | Token::Assign
+            | Token::Arrow
+            | Token::FatArrow
+            | Token::LogicalAnd
+            | Token::Comma
+            | Token::AttributeStart { .. }
+            | Token::Semicolon => SemanticTokenType::OPERATOR,
+            Token::QuotedType(_) => SemanticTokenType::STRUCT,
+            Token::InternedExpr(..)
+            | Token::InternedStatement(..)
+            | Token::InternedLValue(..)
+            | Token::InternedUnresolvedTypeData(..)
+            | Token::InternedPattern(..)
+            | Token::InternedCrate(..)
+            | Token::Dot
+            | Token::DoubleDot
+            | Token::DoubleDotEqual
+            | Token::Pound
+            | Token::Colon
+            | Token::DoubleColon
+            | Token::Bang
+            | Token::DollarSign
+            | Token::EOF
+            | Token::Whitespace(_)
+            | Token::UnquoteMarker(_)
+            | Token::Invalid(_) => return,
+        };
+        let semantic_token_type = self.token_types[&semantic_token_type] as u32;
+        let sematic_token = SemanticToken {
+            delta_line: location.range.start.line,
+            delta_start: location.range.start.character + span.start() + offset as u32,
+            length: span.end() - span.start(),
+            token_type: semantic_token_type,
+            token_modifiers_bitset: 0,
+        };
+        self.push_token(sematic_token);
+    }
+
     fn link_target_token_type(&self, target: &LinkTarget) -> Option<SemanticTokenType> {
         let token_type = match target {
             LinkTarget::TopLevelItem(module_def_id) => match module_def_id {
@@ -156,16 +396,15 @@ impl<'args> SemanticTokenCollector<'args> {
     }
 
     fn push_token(&mut self, mut token: SemanticToken) {
-        let last_token = self.last_token.replace(token);
+        let previous_line = std::mem::replace(&mut self.previous_line, token.delta_line);
+        let previous_char = std::mem::replace(&mut self.previous_char, token.delta_start);
 
         // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
         // for an explanation of delta_line and delta_start.
-        if let Some(last_token) = last_token {
-            let same_line = token.delta_line == last_token.delta_line;
-            token.delta_line -= last_token.delta_line;
-            if same_line {
-                token.delta_start -= last_token.delta_start;
-            }
+        let same_line = token.delta_line == previous_line;
+        token.delta_line -= previous_line;
+        if same_line {
+            token.delta_start -= previous_char;
         }
 
         self.tokens.push(token);
@@ -256,6 +495,7 @@ mod tests {
         DidOpenTextDocumentParams, PartialResultParams, SemanticToken, SemanticTokensParams,
         SemanticTokensResult, TextDocumentIdentifier, TextDocumentItem, WorkDoneProgressParams,
     };
+    use insta::assert_snapshot;
     use tokio::test;
 
     use crate::{
@@ -297,11 +537,20 @@ mod tests {
 
     #[test]
     async fn test_doc_comments() {
+        // This is mainly a regression test. You can check the snapshot to match
+        // highlighted tokens with their positions in the source code.
         let src = "
         /// See also [Bar] and [Bar].
         /// 
-        /// ```
+        /// ```text
         /// This is not a link: [Bar].
+        /// ```
+        /// 
+        /// ```noir
+        /// fn foo() {
+        ///     let x: i32 = 1;
+        ///     let y: Foo = foo::foo();
+        /// }
         /// ```
         /// 
         /// And also [Bar].
@@ -311,7 +560,9 @@ mod tests {
         ";
 
         let tokens = get_semantic_tokens(src).await;
-        let expected = vec![
+        let tokens = format!("{tokens:#?}");
+        assert_snapshot!(tokens, @r"
+        [
             SemanticToken {
                 delta_line: 1,
                 delta_start: 21,
@@ -320,20 +571,167 @@ mod tests {
                 token_modifiers_bitset: 0,
             },
             SemanticToken {
-                delta_line: 0,   // The second link is on the same line, so no delta
-                delta_start: 10, // 10 chars after the previous token start char
+                delta_line: 0,
+                delta_start: 10,
                 length: 5,
                 token_type: 1,
                 token_modifiers_bitset: 0,
             },
             SemanticToken {
-                delta_line: 6,   // It's on line 8, so six more than before.
-                delta_start: 21, // This isn't relative anymore as it's on a new line
+                delta_line: 7,
+                delta_start: 12,
+                length: 2,
+                token_type: 9,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 3,
+                length: 3,
+                token_type: 4,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 3,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 1,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 2,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 1,
+                delta_start: 16,
+                length: 3,
+                token_type: 9,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 4,
+                length: 1,
+                token_type: 6,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 3,
+                length: 3,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 4,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 2,
+                length: 1,
+                token_type: 8,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 1,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 1,
+                delta_start: 16,
+                length: 3,
+                token_type: 9,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 4,
+                length: 1,
+                token_type: 6,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 3,
+                length: 3,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 4,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 2,
+                length: 3,
+                token_type: 0,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 5,
+                length: 3,
+                token_type: 4,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 3,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 1,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 0,
+                delta_start: 1,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 1,
+                delta_start: 12,
+                length: 1,
+                token_type: 11,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 3,
+                delta_start: 21,
                 length: 5,
                 token_type: 1,
                 token_modifiers_bitset: 0,
             },
-        ];
-        assert_eq!(tokens, expected);
+        ]
+        ");
     }
 }
