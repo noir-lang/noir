@@ -394,7 +394,7 @@ pub(crate) fn on_initialize(
     }
 }
 
-pub(crate) fn semantic_token_types() -> [SemanticTokenType; 8] {
+pub(crate) fn semantic_token_types() -> [SemanticTokenType; 12] {
     [
         SemanticTokenType::NAMESPACE,
         SemanticTokenType::STRUCT,
@@ -404,6 +404,10 @@ pub(crate) fn semantic_token_types() -> [SemanticTokenType; 8] {
         SemanticTokenType::METHOD,
         SemanticTokenType::VARIABLE,
         SemanticTokenType::PROPERTY,
+        SemanticTokenType::NUMBER,
+        SemanticTokenType::KEYWORD,
+        SemanticTokenType::STRING,
+        SemanticTokenType::OPERATOR,
     ]
 }
 

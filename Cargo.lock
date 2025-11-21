@@ -3628,6 +3628,7 @@ dependencies = [
  "convert_case",
  "fm",
  "fuzzy-matcher",
+ "insta",
  "iter-extended",
  "nargo",
  "nargo_doc",
