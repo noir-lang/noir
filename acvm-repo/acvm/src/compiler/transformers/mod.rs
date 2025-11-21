@@ -170,142 +170,144 @@ fn transform_internal_once<F: AcirField>(
     acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
-    // 1. CSAT transformation
-    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
-    // to the required width by creating intermediate variables.
-    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
+    (acir, acir_opcode_positions)
 
-    // If the expression width is unbounded, we don't need to do anything.
-    let mut transformer = match &expression_width {
-        ExpressionWidth::Unbounded => {
-            return (acir, acir_opcode_positions);
-        }
-        ExpressionWidth::Bounded { width } => {
-            let mut csat = CSatTransformer::new(*width);
-            for value in acir.circuit_arguments() {
-                csat.mark_solvable(value);
-            }
-            csat
-        }
-    };
+    // // 1. CSAT transformation
+    // // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
+    // // to the required width by creating intermediate variables.
+    // // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
 
-    let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
-    // Optimize the assert-zero gates by reducing them into the correct width and
-    // creating intermediate variables when necessary
-    let mut transformed_opcodes = Vec::new();
+    // // If the expression width is unbounded, we don't need to do anything.
+    // let mut transformer = match &expression_width {
+    //     ExpressionWidth::Unbounded => {
+    //         return (acir, acir_opcode_positions);
+    //     }
+    //     ExpressionWidth::Bounded { width } => {
+    //         let mut csat = CSatTransformer::new(*width);
+    //         for value in acir.circuit_arguments() {
+    //             csat.mark_solvable(value);
+    //         }
+    //         csat
+    //     }
+    // };
 
-    let mut next_witness_index = acir.current_witness_index + 1;
-    // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
-    // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
-    let mut intermediate_variables: IndexMap<Expression<F>, (F, Witness)> = IndexMap::new();
-    for (index, opcode) in acir.opcodes.into_iter().enumerate() {
-        match opcode {
-            Opcode::AssertZero(arith_expr) => {
-                let len = intermediate_variables.len();
+    // let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
+    // // Optimize the assert-zero gates by reducing them into the correct width and
+    // // creating intermediate variables when necessary
+    // let mut transformed_opcodes = Vec::new();
 
-                let arith_expr = transformer.transform(
-                    arith_expr,
-                    &mut intermediate_variables,
-                    &mut next_witness_index,
-                );
+    // let mut next_witness_index = acir.current_witness_index + 1;
+    // // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
+    // // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
+    // let mut intermediate_variables: IndexMap<Expression<F>, (F, Witness)> = IndexMap::new();
+    // for (index, opcode) in acir.opcodes.into_iter().enumerate() {
+    //     match opcode {
+    //         Opcode::AssertZero(arith_expr) => {
+    //             let len = intermediate_variables.len();
 
-                let mut new_opcodes = Vec::new();
-                for (g, (norm, w)) in intermediate_variables.iter().skip(len) {
-                    // de-normalize
-                    let mut intermediate_opcode = g * *norm;
-                    // constrain the intermediate opcode to the intermediate variable
-                    intermediate_opcode.linear_combinations.push((-F::one(), *w));
-                    intermediate_opcode.sort();
-                    new_opcodes.push(intermediate_opcode);
-                }
-                new_opcodes.push(arith_expr);
-                for opcode in new_opcodes {
-                    new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                    transformed_opcodes.push(Opcode::AssertZero(opcode));
-                }
-            }
-            Opcode::BlackBoxFuncCall(ref func) => {
-                for witness in func.get_outputs_vec() {
-                    transformer.mark_solvable(witness);
-                }
+    //             let arith_expr = transformer.transform(
+    //                 arith_expr,
+    //                 &mut intermediate_variables,
+    //                 &mut next_witness_index,
+    //             );
 
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
-            Opcode::MemoryInit { .. } => {
-                // `MemoryInit` does not write values to the `WitnessMap`
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
-            Opcode::MemoryOp { ref op, .. } => {
-                for (_, witness1, witness2) in &op.value.mul_terms {
-                    transformer.mark_solvable(*witness1);
-                    transformer.mark_solvable(*witness2);
-                }
-                for (_, witness) in &op.value.linear_combinations {
-                    transformer.mark_solvable(*witness);
-                }
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
-            Opcode::BrilligCall { ref outputs, .. } => {
-                for output in outputs {
-                    match output {
-                        BrilligOutputs::Simple(witness) => transformer.mark_solvable(*witness),
-                        BrilligOutputs::Array(witnesses) => {
-                            for witness in witnesses {
-                                transformer.mark_solvable(*witness);
-                            }
-                        }
-                    }
-                }
+    //             let mut new_opcodes = Vec::new();
+    //             for (g, (norm, w)) in intermediate_variables.iter().skip(len) {
+    //                 // de-normalize
+    //                 let mut intermediate_opcode = g * *norm;
+    //                 // constrain the intermediate opcode to the intermediate variable
+    //                 intermediate_opcode.linear_combinations.push((-F::one(), *w));
+    //                 intermediate_opcode.sort();
+    //                 new_opcodes.push(intermediate_opcode);
+    //             }
+    //             new_opcodes.push(arith_expr);
+    //             for opcode in new_opcodes {
+    //                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
+    //                 transformed_opcodes.push(Opcode::AssertZero(opcode));
+    //             }
+    //         }
+    //         Opcode::BlackBoxFuncCall(ref func) => {
+    //             for witness in func.get_outputs_vec() {
+    //                 transformer.mark_solvable(witness);
+    //             }
 
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
-            Opcode::Call { ref outputs, .. } => {
-                for witness in outputs {
-                    transformer.mark_solvable(*witness);
-                }
+    //             new_acir_opcode_positions.push(acir_opcode_positions[index]);
+    //             transformed_opcodes.push(opcode);
+    //         }
+    //         Opcode::MemoryInit { .. } => {
+    //             // `MemoryInit` does not write values to the `WitnessMap`
+    //             new_acir_opcode_positions.push(acir_opcode_positions[index]);
+    //             transformed_opcodes.push(opcode);
+    //         }
+    //         Opcode::MemoryOp { ref op, .. } => {
+    //             for (_, witness1, witness2) in &op.value.mul_terms {
+    //                 transformer.mark_solvable(*witness1);
+    //                 transformer.mark_solvable(*witness2);
+    //             }
+    //             for (_, witness) in &op.value.linear_combinations {
+    //                 transformer.mark_solvable(*witness);
+    //             }
+    //             new_acir_opcode_positions.push(acir_opcode_positions[index]);
+    //             transformed_opcodes.push(opcode);
+    //         }
+    //         Opcode::BrilligCall { ref outputs, .. } => {
+    //             for output in outputs {
+    //                 match output {
+    //                     BrilligOutputs::Simple(witness) => transformer.mark_solvable(*witness),
+    //                     BrilligOutputs::Array(witnesses) => {
+    //                         for witness in witnesses {
+    //                             transformer.mark_solvable(*witness);
+    //                         }
+    //                     }
+    //                 }
+    //             }
 
-                // `Call` does not write values to the `WitnessMap`
-                // A separate ACIR function should have its own respective `WitnessMap`
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
-        }
-    }
+    //             new_acir_opcode_positions.push(acir_opcode_positions[index]);
+    //             transformed_opcodes.push(opcode);
+    //         }
+    //         Opcode::Call { ref outputs, .. } => {
+    //             for witness in outputs {
+    //                 transformer.mark_solvable(*witness);
+    //             }
 
-    let current_witness_index = next_witness_index - 1;
+    //             // `Call` does not write values to the `WitnessMap`
+    //             // A separate ACIR function should have its own respective `WitnessMap`
+    //             new_acir_opcode_positions.push(acir_opcode_positions[index]);
+    //             transformed_opcodes.push(opcode);
+    //         }
+    //     }
+    // }
 
-    acir = Circuit {
-        current_witness_index,
-        opcodes: transformed_opcodes,
-        // The transformer does not add new public inputs
-        ..acir
-    };
+    // let current_witness_index = next_witness_index - 1;
 
-    // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
-    let mut merge_optimizer = MergeExpressionsOptimizer::new();
+    // acir = Circuit {
+    //     current_witness_index,
+    //     opcodes: transformed_opcodes,
+    //     // The transformer does not add new public inputs
+    //     ..acir
+    // };
 
-    let (opcodes, new_acir_opcode_positions) =
-        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+    // // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
+    // let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
-    // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
-    acir = Circuit {
-        opcodes,
-        // The optimizer does not add new public inputs
-        ..acir
-    };
+    // let (opcodes, new_acir_opcode_positions) =
+    //     merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
 
-    // 3. Remove redundant range constraints.
-    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
-    // so we run the `RangeOptimizer` afterwards to clear these up.
-    let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
-    let (acir, new_acir_opcode_positions) =
-        range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
+    // // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
+    // acir = Circuit {
+    //     opcodes,
+    //     // The optimizer does not add new public inputs
+    //     ..acir
+    // };
 
-    (acir, new_acir_opcode_positions)
+    // // 3. Remove redundant range constraints.
+    // // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
+    // // so we run the `RangeOptimizer` afterwards to clear these up.
+    // let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
+    // let (acir, new_acir_opcode_positions) =
+    //     range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
+
+    // (acir, new_acir_opcode_positions)
 }
 
 /// Find the witness with the highest ID in the circuit.
