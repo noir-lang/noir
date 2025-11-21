@@ -107,6 +107,9 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
     ("reference_counts_slices_inliner_0", 0),
 ];
 
+/// Some tests need extra CLI flags.
+const EXTRA_CLI_ARGS: [(&str, &str); 1] = [("oracle_return_vector", "--brillig-vm-version 1")];
+
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
 const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
@@ -342,6 +345,16 @@ fn generate_test_cases(
     }
     let test_cases = test_cases.join("\n");
 
+    let extra_args = EXTRA_CLI_ARGS
+        .iter()
+        .find_map(|(name, args)| {
+            (*name == test_name).then(|| {
+                let args: Vec<_> = args.split(' ').map(|arg| format!("arg(\"{arg}\")")).collect();
+                format!("nargo.{};", args.join("."))
+            })
+        })
+        .unwrap_or_default();
+
     write!(
         test_file,
         r#"
@@ -351,7 +364,7 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
 
     #[allow(unused_mut)]
     let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
-
+    {extra_args}
     {test_content}
 }}
 "#

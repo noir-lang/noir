@@ -6,6 +6,7 @@ use clap::Args;
 use color_eyre::eyre::{self, Context};
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
+use nargo::ops::BrilligVmVersion;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_artifacts::program::ProgramArtifact;
@@ -47,8 +48,8 @@ pub(crate) struct ExecutionFlamegraphCommand {
     verbose: bool,
 
     /// The expected behavior of the target Brillig VM.
-    #[arg(long, hide = true, default_value_t = brillig_vm::Version::default())]
-    brillig_vm_version: brillig_vm::Version,
+    #[arg(long, hide = true, default_value_t = BrilligVmVersion::default())]
+    brillig_vm_version: BrilligVmVersion,
 }
 
 pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
@@ -60,9 +61,11 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         args.pedantic_solving,
         args.sample_count,
         args.verbose,
+        args.brillig_vm_version,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_with_generator(
     artifact_path: &Path,
     prover_toml_path: &Path,
@@ -71,6 +74,7 @@ fn run_with_generator(
     pedantic_solving: bool,
     print_sample_count: bool,
     verbose: bool,
+    brillig_vm_version: BrilligVmVersion,
 ) -> eyre::Result<()> {
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
@@ -96,7 +100,7 @@ fn run_with_generator(
         initial_witness,
         &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
-        args.brillig_vm_version,
+        brillig_vm_version,
     );
     let mut profiling_samples = match solved_witness_stack_err {
         Ok((_, profiling_samples)) => profiling_samples,
@@ -198,6 +202,7 @@ mod tests {
     use acir::circuit::{Circuit, Program, brillig::BrilligBytecode};
     use color_eyre::eyre;
     use fm::codespan_files::Files;
+    use nargo::ops::BrilligVmVersion;
     use noirc_artifacts::program::ProgramArtifact;
     use noirc_driver::CrateName;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
@@ -271,7 +276,8 @@ mod tests {
                 &Some(temp_dir.keep()),
                 false,
                 false,
-                false
+                false,
+                BrilligVmVersion::default()
             )
             .is_err()
         );

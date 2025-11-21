@@ -7,6 +7,7 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
+use std::fmt::Display;
 use std::str::FromStr;
 
 use acir::AcirField;
@@ -58,9 +59,9 @@ impl Version {
     }
 }
 
-impl ToString for Version {
-    fn to_string(&self) -> String {
-        (*self as usize).to_string()
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", *self as usize)
     }
 }
 
