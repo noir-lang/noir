@@ -24,13 +24,10 @@ fn run_foreign_call_test<F: AcirField>(
     min_version: Option<Version>,
 ) -> (Memory<F>, usize) {
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
-    if let Some(version) = min_version {
-        if vm.version() < version {
-            vm = vm.with_version(version);
-        }
-    }
+    let version = min_version.filter(|v| v > Version::default()).unwrap_or_default();
+
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None, version);
 
     let status = vm.process_opcodes();
     assert_eq!(status, expected_foreign_call_status);

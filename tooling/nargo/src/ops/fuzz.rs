@@ -138,6 +138,7 @@ where
                         initial_witness,
                         &B::default(),
                         &mut foreign_call_executor,
+                        compile_config.brillig_vm_version,
                     )
                     .map_err(|(nargo_err, witness)| {
                         (
@@ -165,6 +166,7 @@ where
                     &B::default(),
                     &mut foreign_call_executor,
                     Some(location_to_feature_map),
+                    compile_config.brillig_vm_version,
                 )
                 .map_err(|(nargo_err, brillig_coverage)| {
                     (
@@ -240,6 +242,7 @@ where
                         initial_witness,
                         &B::default(),
                         &mut foreign_call_executor,
+                        compile_config.brillig_vm_version,
                     );
                     match execution_failure {
                         Err(err) => FuzzingRunStatus::ExecutionFailure {
@@ -273,6 +276,7 @@ where
                                 initial_witness,
                                 &B::default(),
                                 &mut foreign_call_executor,
+                                compile_config.brillig_vm_version,
                             );
                             match execution_failure {
                                 Err(err) => FuzzingRunStatus::ExecutionFailure {

@@ -344,7 +344,7 @@ pub(crate) mod tests {
         ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VM, VMStatus, offsets};
+    use acvm::brillig_vm::{VM, VMStatus, Version, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::BrilligOptions;
@@ -444,7 +444,14 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
+        let mut vm = VM::new(
+            calldata,
+            bytecode,
+            &DummyBlackBoxSolver,
+            profiling_active,
+            None,
+            Version::default(),
+        );
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -522,7 +529,8 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+        let mut vm =
+            VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None, Version::default());
 
         // Run the VM up to the foreign call. Assert the expected call parameters.
         let status = vm.process_opcodes();

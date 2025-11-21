@@ -7,6 +7,8 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
+use std::str::FromStr;
+
 use acir::AcirField;
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, IntegerBitSize, MemoryAddress,
@@ -36,7 +38,7 @@ mod memory;
 use strum_macros::FromRepr;
 
 /// VM version is used to govern a set of expectations on the Brillig VM implementation,
-/// (ie. this repo and the AVM), which can influence codegen.
+/// (ie. this repo and the AVM), which can influence codegen as well as opcode execution.
 #[derive(Debug, FromRepr, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Default)]
 pub enum Version {
     /// Pre-audit behavior.
@@ -53,6 +55,23 @@ impl Version {
     /// and the VM is expected to know about and adjust the _free memory pointer_ on its own.
     pub fn enable_foreign_call_multi_vector_output(&self) -> bool {
         *self >= Self::V1
+    }
+}
+
+impl ToString for Version {
+    fn to_string(&self) -> String {
+        (*self as usize).to_string()
+    }
+}
+
+impl FromStr for Version {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        let s = s.trim_start_matches("v");
+        let v = usize::from_str(s).map_err(|_| format!("not a version number: {s}"))?;
+        Version::from_repr(v).ok_or_else(|| format!("unsupported version: {v}"))
     }
 }
 
@@ -181,6 +200,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         black_box_solver: &'a B,
         profiling_active: bool,
         with_branch_to_feature_map: Option<&BranchToFeatureMap>,
+        version: Version,
     ) -> Self {
         let fuzzing_trace = with_branch_to_feature_map.cloned().map(FuzzingTrace::new);
 
@@ -197,17 +217,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
             fuzzing_trace,
-            version: Version::V0,
+            version,
         }
     }
 
     pub fn version(&self) -> Version {
         self.version
-    }
-
-    pub fn with_version(mut self, version: Version) -> Self {
-        self.version = version;
-        self
     }
 
     pub fn is_profiling_active(&self) -> bool {

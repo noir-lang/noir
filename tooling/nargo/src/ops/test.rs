@@ -166,6 +166,7 @@ where
         WitnessMap::new(),
         blackbox_solver,
         &mut foreign_call_executor,
+        config.brillig_vm_version,
     );
 
     let status = test_status_program_compile_pass(

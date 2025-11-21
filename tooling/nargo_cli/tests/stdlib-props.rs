@@ -3,7 +3,7 @@ mod common;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use acvm::{FieldElement, acir::native_types::WitnessStack};
+use acvm::{FieldElement, acir::native_types::WitnessStack, brillig_vm};
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
 use proptest::prelude::*;
@@ -52,6 +52,7 @@ fn run_snippet_proptest(
             initial_witness,
             &blackbox_solver,
             &mut *foreign_call_executor,
+            brillig_vm::Version::default()
         )
         .expect("failed to execute");
 

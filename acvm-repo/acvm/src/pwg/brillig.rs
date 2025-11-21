@@ -75,6 +75,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_function_id: BrilligFunctionId,
         profiling_active: bool,
         with_branch_to_feature_map: Option<&BranchToFeatureMap>,
+        version: brillig_vm::Version,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm = Self::setup_brillig_vm(
             initial_witness,
@@ -84,6 +85,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             bb_solver,
             profiling_active,
             with_branch_to_feature_map,
+            version,
         )?;
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
@@ -99,6 +101,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         bb_solver: &'b B,
         profiling_active: bool,
         with_branch_to_feature_map: Option<&BranchToFeatureMap>,
+        version: brillig_vm::Version,
     ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<F> = Vec::new();
@@ -146,6 +149,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             bb_solver,
             profiling_active,
             with_branch_to_feature_map,
+            version,
         );
         Ok(vm)
     }
@@ -425,6 +429,7 @@ mod tests {
             BrilligFunctionId::default(),
             false,
             None,
+            brillig_vm::Version::default(),
         )
         .unwrap();
         solver.solve().unwrap();

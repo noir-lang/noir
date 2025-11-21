@@ -45,6 +45,10 @@ pub(crate) struct ExecutionFlamegraphCommand {
     /// Enables additional logging
     #[clap(long, default_value = "false")]
     verbose: bool,
+
+    /// The expected behavior of the target Brillig VM.
+    #[arg(long, hide = true, default_value_t = brillig_vm::Version::default())]
+    brillig_vm_version: brillig_vm::Version,
 }
 
 pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
@@ -92,6 +96,7 @@ fn run_with_generator(
         initial_witness,
         &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
+        args.brillig_vm_version,
     );
     let mut profiling_samples = match solved_witness_stack_err {
         Ok((_, profiling_samples)) => profiling_samples,

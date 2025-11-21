@@ -4,6 +4,7 @@ use acvm::{
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
+    brillig_vm,
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::errors::NargoError;
@@ -36,6 +37,7 @@ fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
         initial_witness.clone(),
         &B::default(),
         &mut DefaultForeignCallBuilder::default().build(),
+        brillig_vm::Version::default(),
     )
 }
 

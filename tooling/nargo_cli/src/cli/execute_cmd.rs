@@ -73,6 +73,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
             oracle_root_dir: Some(workspace.root_dir.clone()),
             oracle_package_name: Some(package.name.to_string()),
             pedantic_solving: args.compile_options.pedantic_solving,
+            brillig_vm_version: args.compile_options.brillig_vm_version,
         };
 
         noir_artifact_cli::commands::execute_cmd::run(cmd)?;

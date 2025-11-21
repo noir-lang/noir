@@ -2,7 +2,10 @@
 use std::collections::BTreeMap;
 
 use acir::{FieldElement, native_types::WitnessStack};
-use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
+use acvm::{
+    brillig_vm,
+    pwg::{OpcodeResolutionError, ResolvedAssertionPayload},
+};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
@@ -272,6 +275,7 @@ impl<P> CompareCompiled<P> {
                 initial_witness.clone(),
                 &blackbox_solver,
                 &mut foreign_call_executor,
+                brillig_vm::Version::default(),
             );
 
             let print = String::from_utf8(print).expect("should be valid utf8 string");
