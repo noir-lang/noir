@@ -110,7 +110,6 @@ where
             compiled_program,
             test_function,
             output,
-            config,
             build_foreign_call_executor,
         ),
         Err(err) => test_status_program_compile_fail(err, test_function),
@@ -122,7 +121,6 @@ fn run_test_impl<'a, W, B, F, E>(
     compiled_program: CompiledProgram,
     test_function: &TestFunction,
     output: W,
-    config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where

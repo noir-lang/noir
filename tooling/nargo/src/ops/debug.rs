@@ -68,7 +68,6 @@ pub fn get_test_function_for_debug(
 pub fn compile_test_fn_for_debugging(
     test_def: &TestDefinition,
     context: &mut Context,
-    package: &Package,
     compile_options: CompileOptions,
 ) -> Result<CompiledProgram, noirc_driver::CompileError> {
     let compiled_program =

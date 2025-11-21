@@ -342,7 +342,7 @@ pub fn optimize_ssa_builder_into_acir(
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(&brillig, &options.brillig_options)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
