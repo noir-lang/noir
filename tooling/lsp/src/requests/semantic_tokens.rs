@@ -156,7 +156,7 @@ impl<'args> SemanticTokenCollector<'args> {
     }
 
     fn push_token(&mut self, mut token: SemanticToken) {
-        let last_token = std::mem::replace(&mut self.last_token, Some(token));
+        let last_token = self.last_token.replace(token);
 
         // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
         // for an explanation of delta_line and delta_start.
