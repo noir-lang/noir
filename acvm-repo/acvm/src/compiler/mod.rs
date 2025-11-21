@@ -19,8 +19,7 @@ use std::collections::{BTreeMap, HashMap};
 use acir::{
     AcirField,
     circuit::{
-        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
-        brillig::BrilligFunctionId,
+        AcirOpcodeLocation, AssertionPayload, Circuit, OpcodeLocation, brillig::BrilligFunctionId,
     },
 };
 
@@ -134,7 +133,6 @@ fn transform_assert_messages<F: Clone>(
 /// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
-    _expression_width: ExpressionWidth,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
     optimize(acir, brillig_side_effects)

@@ -3,8 +3,8 @@ use std::path::Path;
 use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use noirc_driver::{
-    CompileOptions, CompiledProgram, CrateId, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
-    file_manager_with_stdlib, link_to_debug_crate,
+    CompileOptions, CompiledProgram, CrateId, compile_no_check, file_manager_with_stdlib,
+    link_to_debug_crate,
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
@@ -12,13 +12,11 @@ use noirc_frontend::{
 };
 
 use crate::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
-    parse_all, prepare_package, workspace::Workspace,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::optimize_program,
+    package::Package, parse_all, prepare_package, workspace::Workspace,
 };
 
-use super::{
-    compile_program, compile_program_with_debug_instrumenter, report_errors, transform_program,
-};
+use super::{compile_program, compile_program_with_debug_instrumenter, report_errors};
 
 pub struct TestDefinition {
     pub name: String,
@@ -75,9 +73,7 @@ pub fn compile_test_fn_for_debugging(
 ) -> Result<CompiledProgram, noirc_driver::CompileError> {
     let compiled_program =
         compile_no_check(context, &compile_options, test_def.function.id, None, false)?;
-    let expression_width =
-        get_target_width(package.expression_width, compile_options.expression_width);
-    let compiled_program = transform_program(compiled_program, expression_width);
+    let compiled_program = optimize_program(compiled_program);
     Ok(compiled_program)
 }
 
@@ -87,9 +83,6 @@ pub fn compile_bin_package_for_debugging(
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let (workspace_file_manager, mut parsed_files) = load_workspace_files(workspace);
-
-    let expression_width =
-        get_target_width(package.expression_width, compile_options.expression_width);
 
     let compilation_result = if compile_options.instrument_debug {
         let debug_state =
@@ -121,7 +114,7 @@ pub fn compile_bin_package_for_debugging(
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
-    .map(|compiled_program| transform_program(compiled_program, expression_width))
+    .map(optimize_program)
 }
 
 pub fn compile_options_for_debugging(
@@ -197,16 +190,4 @@ fn instrument_package_files(
     }
 
     debug_instrumenter
-}
-
-// This is the same as in compile_cmd, perhaps we should move it to ops::compile?
-fn get_target_width(
-    package_default_width: Option<ExpressionWidth>,
-    compile_options_width: Option<ExpressionWidth>,
-) -> ExpressionWidth {
-    if let (Some(manifest_default_width), None) = (package_default_width, compile_options_width) {
-        manifest_default_width
-    } else {
-        compile_options_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-    }
 }
