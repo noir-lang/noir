@@ -33,6 +33,28 @@ mod cast;
 mod foreign_call;
 pub mod fuzzing;
 mod memory;
+use strum_macros::FromRepr;
+
+/// VM version is used to govern a set of expectations on the Brillig VM implementation,
+/// (ie. this repo and the AVM), which can influence codegen.
+#[derive(Debug, FromRepr, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Default)]
+pub enum Version {
+    /// Pre-audit behavior.
+    #[default]
+    V0 = 0,
+    /// Post-alpha behavior.
+    V1 = 1,
+}
+
+impl Version {
+    /// Whether to expect multiple vectors returned from foreign calls.
+    ///
+    /// When this is enabled, vector destinations appear in opcodes as [MemoryAddress], rather than a [HeapVector][acir::brillig::HeapVector],
+    /// and the VM is expected to know about and adjust the _free memory pointer_ on its own.
+    pub fn enable_foreign_call_multi_vector_output(&self) -> bool {
+        *self >= Self::V1
+    }
+}
 
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
@@ -146,6 +168,9 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     /// Fuzzing trace structure.
     /// If the field is `None` then fuzzing is inactive.
     fuzzing_trace: Option<FuzzingTrace>,
+
+    /// Expected or supported behavior.
+    version: Version,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -172,7 +197,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
             fuzzing_trace,
+            version: Version::V0,
         }
+    }
+
+    pub fn version(&self) -> Version {
+        self.version
+    }
+
+    pub fn with_version(mut self, version: Version) -> Self {
+        self.version = version;
+        self
     }
 
     pub fn is_profiling_active(&self) -> bool {

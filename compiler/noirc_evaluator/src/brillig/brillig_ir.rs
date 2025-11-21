@@ -37,7 +37,7 @@ use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stac
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS},
+    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS, Version as VmVersion},
 };
 use debug_show::DebugShow;
 
@@ -99,6 +99,8 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
+    /// Expected version of the target VM.
+    vm_version: VmVersion,
     /// Count the number of arrays that are copied, and output this to stdout
     count_arrays_copied: bool,
 
@@ -109,6 +111,11 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// Memory layout information. See [self::registers] for more information about the memory layout.
     pub(crate) fn layout(&self) -> LayoutConfig {
         self.registers().layout()
+    }
+
+    /// Expected version of the target VM.
+    pub(crate) fn vm_version(&self) -> VmVersion {
+        self.vm_version
     }
 
     /// Enable the insertion of bytecode with extra assertions during testing.
@@ -159,6 +166,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            vm_version: options.vm_version,
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: true,
             globals_memory_size: None,
@@ -269,6 +277,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            vm_version: options.vm_version,
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
@@ -291,6 +300,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            vm_version: options.vm_version,
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,

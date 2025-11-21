@@ -47,6 +47,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) -> Vec<BrilligVariable> {
         let mut variables = Vec::new();
+        let mut vector_allocated = false;
 
         for result in results {
             let result = *result;
@@ -68,22 +69,49 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     );
                     let array = variable.extract_array();
 
+                    assert!(
+                        !vector_allocated,
+                        "a vector of unknown length has already been allocated at the free memory pointer"
+                    );
+
                     self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                     variable
                 }
                 Type::Slice(_) => {
-                    // Not initializing the vector pointer to any particular value; it's output only.
-                    // The foreign call handler is expected to write the vector data to the free memory pointer,
-                    // storing its value back into this variable. The caller of this method will also generate
-                    // code to initialize the vector metadata after the foreign call has been handled.
-                    // The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
-                    self.variables.define_variable(
+                    let variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         result,
                         dfg,
-                    )
+                    );
+
+                    // If we allow multiple vectors to be returned:
+                    //  We don't initialize the vector pointer to any particular value; it's output only.
+                    //  The foreign call handler is expected to write the vector data to the free memory pointer,
+                    //  storing its value back into this variable. The caller of this method will also generate
+                    //  code to initialize the vector metadata after the foreign call has been handled.
+                    //  The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
+                    let should_init_to_free_mem = !self
+                        .brillig_context
+                        .vm_version()
+                        .enable_foreign_call_multi_vector_output();
+
+                    if should_init_to_free_mem {
+                        // Set its pointer to the free memory address, and expect the VM to write the data where the vector points to.
+                        // We can only support one vector output this way, otherwise the next vector would overwrite it.
+                        // The vector also has to be the last output of the function, there cannot be any arrays following it.
+                        assert!(
+                            !vector_allocated,
+                            "a previous vector has already been allocated at the free memory pointer"
+                        );
+                        vector_allocated = true;
+
+                        let vector = variable.extract_vector();
+                        self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+                    }
+
+                    variable
                 }
                 _ => {
                     unreachable!("ICE: unsupported return type for black box call {typ:?}")

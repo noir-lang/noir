@@ -380,7 +380,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 (
                     ValueOrArray::MemoryAddress(vector_pointer),
                     HeapValueType::Vector { value_types },
-                ) => {
+                ) if self.version().enable_foreign_call_multi_vector_output() => {
                     if HeapValueType::all_simple(value_types) {
                         let ForeignCallParam::Array(values) = output else {
                             return Err("Foreign call returned a single value for an vector type"
@@ -416,6 +416,28 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             FREE_MEMORY_POINTER_ADDRESS,
                             free_memory_addr.offset(total_size),
                         );
+                    } else {
+                        unimplemented!("deflattening heap vectors from foreign calls");
+                    }
+                }
+                // Legacy way of handling output vectors, that doesn't require the VM to know about the Free Memory Pointer.
+                (
+                    ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
+                    HeapValueType::Vector { value_types },
+                ) if !self.version().enable_foreign_call_multi_vector_output() => {
+                    if HeapValueType::all_simple(value_types) {
+                        let ForeignCallParam::Array(values) = output else {
+                            return Err("Foreign call returned a single value for an vector type"
+                                .to_string());
+                        };
+                        if values.len() % value_types.len() != 0 {
+                            return Err(
+                                "Returned data does not match vector element size".to_string()
+                            );
+                        }
+                        // Set the size in the size address
+                        self.memory.write(*size_addr, values.len().into());
+                        self.write_values_to_memory(*pointer, true, values, value_types)?;
                     } else {
                         unimplemented!("deflattening heap vectors from foreign calls");
                     }

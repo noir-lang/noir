@@ -8,10 +8,10 @@ use acir::{
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::{
     FREE_MEMORY_POINTER_ADDRESS, FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
-    VM, VMStatus, offsets,
+    VM, VMStatus, Version, offsets,
 };
 
-/// Set up for a foreign call test
+/// Set up for a foreign call test, optionally specifying the minimum VM version.
 ///
 /// # Returns
 /// Tuple of (finished VM memory, internal VM foreign call counter)
@@ -21,9 +21,16 @@ fn run_foreign_call_test<F: AcirField>(
     expected_foreign_call_status: VMStatus<F>,
     foreign_call_result: Vec<ForeignCallParam<F>>,
     expected_final_status: VMStatus<F>,
+    min_version: Option<Version>,
 ) -> (Memory<F>, usize) {
     let solver = StubbedBlackBoxSolver::default();
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
+
+    if let Some(version) = min_version {
+        if vm.version() < version {
+            vm = vm.with_version(version);
+        }
+    }
 
     let status = vm.process_opcodes();
     assert_eq!(status, expected_foreign_call_status);
@@ -70,6 +77,7 @@ fn foreign_call_opcode_simple_result() {
         },
         vec![FieldElement::from(10u128).into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        None,
     );
 
     // Check result address
@@ -152,6 +160,7 @@ fn foreign_call_opcode_memory_result() {
         },
         vec![expected_result.clone().into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        None,
     );
 
     // Check result in memory
@@ -252,6 +261,7 @@ fn foreign_call_opcode_vector_input_and_output() {
         },
         vec![ForeignCallParam::Array(output_string.clone())],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        Some(Version::V1),
     );
 
     // Check result in memory: it should have been written to the free memory.
@@ -349,6 +359,7 @@ fn foreign_call_opcode_memory_alloc_result() {
         },
         vec![expected_result.clone().into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        None,
     );
 
     // Check initial memory still in place
@@ -462,6 +473,7 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
         },
         vec![expected_result.clone().into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        None,
     );
 
     // Check result in memory
@@ -614,6 +626,7 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
         },
         vec![FieldElement::from(45u128).into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        None,
     );
 
     // Check result
@@ -653,6 +666,7 @@ fn handles_foreign_calls_returning_empty_arrays() {
         VMStatus::ForeignCallWait { function: "foo".to_string(), inputs: Vec::new() },
         vec![ForeignCallParam::Array(vec![])],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        None,
     );
 }
 
@@ -697,6 +711,7 @@ fn aborts_when_foreign_call_returns_too_much_data() {
             },
             call_stack: vec![1],
         },
+        None,
     );
 }
 
@@ -740,6 +755,7 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
             },
             call_stack: vec![1],
         },
+        None,
     );
 }
 
@@ -787,5 +803,6 @@ fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() 
             },
             call_stack: vec![1],
         },
+        Some(Version::V1),
     );
 }
