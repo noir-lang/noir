@@ -592,12 +592,21 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
         output: &ValueOrArray,
     ) -> Allocated<SingleAddrVariable, Registers> {
-        let size_var = if let ValueOrArray::HeapVector(HeapVector { size, .. }) = output {
-            // If the result is a heap vector, the size is in a register on the stack.
-            // We need to write it to the heap now, into the vector data structure.
-            Allocated::pure(SingleAddrVariable::new_usize(*size))
-        } else {
-            self.codegen_read_vector_size(vector)
+        let size_var = match output {
+            ValueOrArray::HeapVector(HeapVector { size, .. }) => {
+                // V0 behavior.
+                // If the result is a heap vector, the size is in a register on the stack.
+                // We need to write it to the heap now, into the vector data structure.
+                Allocated::pure(SingleAddrVariable::new_usize(*size))
+            }
+            ValueOrArray::MemoryAddress(_) => {
+                // V1 behavior.
+                // The address is the vector address itself, not a pointer, so we just need to offset it.
+                self.codegen_read_vector_size(vector)
+            }
+            ValueOrArray::HeapArray(_) => {
+                unreachable!("ICE: A BrilligVector destination should not be a HeapArray");
+            }
         };
 
         // For externally returned vectors, capacity equals size.
