@@ -7,6 +7,7 @@ use color_eyre::eyre::{self, Context};
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::ops::BrilligVmVersion;
+use nargo::ops::ExecuteOptions;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_artifacts::program::ProgramArtifact;
@@ -61,7 +62,7 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         args.pedantic_solving,
         args.sample_count,
         args.verbose,
-        args.brillig_vm_version,
+        ExecuteOptions { brillig_vm_version: args.brillig_vm_version },
     )
 }
 
@@ -74,7 +75,7 @@ fn run_with_generator(
     pedantic_solving: bool,
     print_sample_count: bool,
     verbose: bool,
-    brillig_vm_version: BrilligVmVersion,
+    options: ExecuteOptions,
 ) -> eyre::Result<()> {
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
@@ -100,7 +101,7 @@ fn run_with_generator(
         initial_witness,
         &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
-        brillig_vm_version,
+        options,
     );
     let mut profiling_samples = match solved_witness_stack_err {
         Ok((_, profiling_samples)) => profiling_samples,
@@ -202,7 +203,6 @@ mod tests {
     use acir::circuit::{Circuit, Program, brillig::BrilligBytecode};
     use color_eyre::eyre;
     use fm::codespan_files::Files;
-    use nargo::ops::BrilligVmVersion;
     use noirc_artifacts::program::ProgramArtifact;
     use noirc_driver::CrateName;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
@@ -277,7 +277,7 @@ mod tests {
                 false,
                 false,
                 false,
-                BrilligVmVersion::default()
+                Default::default()
             )
             .is_err()
         );

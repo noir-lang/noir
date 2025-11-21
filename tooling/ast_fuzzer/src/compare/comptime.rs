@@ -6,7 +6,6 @@ use std::{cell::RefCell, collections::BTreeMap};
 
 use acir::FieldElement;
 use acir::native_types::WitnessMap;
-use acvm::brillig_vm;
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
@@ -252,7 +251,7 @@ impl CompareComptime {
             initial_witness,
             &blackbox_solver,
             &mut foreign_call_executor,
-            brillig_vm::Version::default(),
+            Default::default(),
         );
         let print = Self::decode_print(output);
 

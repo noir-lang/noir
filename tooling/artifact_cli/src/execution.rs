@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use acir::{AcirField, FieldElement, native_types::WitnessStack};
-use acvm::{BlackBoxFunctionSolver, brillig_vm};
+use acvm::BlackBoxFunctionSolver;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, Sign, input_parser::InputValue};
 use noirc_artifacts::debug::DebugArtifact;
@@ -34,7 +34,7 @@ pub fn execute<B, E>(
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     prover_file: &Path,
-    brillig_vm_version: brillig_vm::Version,
+    options: nargo::ops::ExecuteOptions,
 ) -> Result<ExecutionResults, CliError>
 where
     B: BlackBoxFunctionSolver<FieldElement>,
@@ -49,7 +49,7 @@ where
         initial_witness,
         blackbox_solver,
         foreign_call_executor,
-        brillig_vm_version,
+        options,
     )?;
 
     let main_witness =

@@ -10,10 +10,24 @@ type NargoErrorAndCoverage<F> = (NargoError<F>, Option<Vec<u32>>);
 type NargoErrorAndWitnessStack<F> = (NargoError<F>, WitnessStack<F>);
 type WitnessAndCoverage<F> = (WitnessStack<F>, Option<Vec<u32>>);
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use noirc_driver::CompileOptions;
 
 use crate::NargoError;
 use crate::errors::{ExecutionError, ResolvedOpcodeLocation, execution_error_from};
 use crate::foreign_calls::ForeignCallExecutor;
+
+/// Options that affect execution behavior.
+#[derive(Debug, Clone, Default, Copy)]
+pub struct ExecuteOptions {
+    /// Specify the expected VM behavior.
+    pub brillig_vm_version: brillig_vm::Version,
+}
+
+impl From<&CompileOptions> for ExecuteOptions {
+    fn from(value: &CompileOptions) -> Self {
+        Self { brillig_vm_version: value.brillig_vm_version }
+    }
+}
 
 struct ProgramExecutor<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>> {
     functions: &'a [Circuit<F>],
@@ -55,8 +69,7 @@ struct ProgramExecutor<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: Foreig
     // Partial witness on failure
     failing_partial_witness: Option<WitnessMap<F>>,
 
-    // Specify the expected VM behavior.
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -68,7 +81,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
         profiling_active: bool,
-        brillig_vm_version: brillig_vm::Version,
+        options: ExecuteOptions,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -84,7 +97,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             last_fuzzing_trace: None,
             return_witness_on_failure: false,
             failing_partial_witness: None,
-            brillig_vm_version,
+            options,
         }
     }
 
@@ -119,7 +132,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         );
         acvm.with_profiler(self.profiling_active);
         acvm.with_brillig_fuzzing(self.brillig_branch_to_feature_map);
-        acvm.with_brillig_vm_version(self.brillig_vm_version);
+        acvm.with_brillig_vm_version(self.options.brillig_vm_version);
 
         loop {
             let solver_status = acvm.solve();
@@ -223,12 +236,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     }
 }
 
+/// Execute a [Program], returning the [WitnessStack].
 pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 ) -> Result<WitnessStack<F>, NargoError<F>> {
     let profiling_active = false;
     let (witness_stack, profiling_samples) = execute_program_inner(
@@ -237,13 +251,14 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        brillig_vm_version,
+        options,
     )?;
     assert!(profiling_samples.is_empty(), "Expected no profiling samples");
 
     Ok(witness_stack)
 }
 
+/// Execute a [Program] with profiling turned on, returning the [WitnessStack] along with the [ProfilingSamples].
 pub fn execute_program_with_profiling<
     F: AcirField,
     B: BlackBoxFunctionSolver<F>,
@@ -253,7 +268,7 @@ pub fn execute_program_with_profiling<
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
     execute_program_inner(
@@ -262,7 +277,7 @@ pub fn execute_program_with_profiling<
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        brillig_vm_version,
+        options,
     )
 }
 pub(crate) fn execute_program_with_brillig_fuzzing<
@@ -275,7 +290,7 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 ) -> Result<WitnessAndCoverage<F>, NargoErrorAndCoverage<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
@@ -283,7 +298,7 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
         blackbox_solver,
         foreign_call_executor,
         false,
-        brillig_vm_version,
+        options,
     );
     assert!(brillig_branch_to_feature_map.is_some());
     executor.with_brillig_fuzzing(brillig_branch_to_feature_map);
@@ -307,7 +322,7 @@ pub(crate) fn execute_program_with_acir_fuzzing<
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 ) -> Result<WitnessStack<F>, NargoErrorAndWitnessStack<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
@@ -315,7 +330,7 @@ pub(crate) fn execute_program_with_acir_fuzzing<
         blackbox_solver,
         foreign_call_executor,
         false,
-        brillig_vm_version,
+        options,
     );
     executor.with_partial_witness_on_failure(true);
     match executor.execute_circuit(initial_witness) {
@@ -344,7 +359,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     profiling_active: bool,
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
@@ -352,7 +367,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        brillig_vm_version,
+        options,
     );
     let (main_witness, profiling_samples) = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);

@@ -27,6 +27,7 @@ use crate::{
     foreign_calls::{
         ForeignCallError, ForeignCallExecutor, layers, transcript::LoggingForeignCallExecutor,
     },
+    ops::execute::ExecuteOptions,
 };
 
 use super::{
@@ -166,7 +167,7 @@ where
         WitnessMap::new(),
         blackbox_solver,
         &mut foreign_call_executor,
-        config.brillig_vm_version,
+        ExecuteOptions::from(config),
     );
 
     let status = test_status_program_compile_pass(

@@ -13,7 +13,6 @@ use noirc_driver::{CompileOptions, compile_no_check};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
 
-use crate::foreign_calls::ForeignCallExecutor;
 use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::layers,
@@ -22,6 +21,7 @@ use crate::{
         test::TestForeignCallExecutor,
     },
 };
+use crate::{foreign_calls::ForeignCallExecutor, ops::execute::ExecuteOptions};
 
 use super::execute_program;
 /// Configuration for fuzzing loop execution
@@ -138,7 +138,7 @@ where
                         initial_witness,
                         &B::default(),
                         &mut foreign_call_executor,
-                        compile_config.brillig_vm_version,
+                        ExecuteOptions::from(compile_config),
                     )
                     .map_err(|(nargo_err, witness)| {
                         (
@@ -166,7 +166,7 @@ where
                     &B::default(),
                     &mut foreign_call_executor,
                     Some(location_to_feature_map),
-                    compile_config.brillig_vm_version,
+                    ExecuteOptions::from(compile_config),
                 )
                 .map_err(|(nargo_err, brillig_coverage)| {
                     (
@@ -242,7 +242,7 @@ where
                         initial_witness,
                         &B::default(),
                         &mut foreign_call_executor,
-                        compile_config.brillig_vm_version,
+                        ExecuteOptions::from(compile_config),
                     );
                     match execution_failure {
                         Err(err) => FuzzingRunStatus::ExecutionFailure {
@@ -276,7 +276,7 @@ where
                                 initial_witness,
                                 &B::default(),
                                 &mut foreign_call_executor,
-                                compile_config.brillig_vm_version,
+                                ExecuteOptions::from(compile_config),
                             );
                             match execution_failure {
                                 Err(err) => FuzzingRunStatus::ExecutionFailure {

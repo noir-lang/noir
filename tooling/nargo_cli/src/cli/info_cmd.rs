@@ -1,7 +1,8 @@
-use acvm::{acir::circuit::ExpressionWidth, brillig_vm};
+use acvm::acir::circuit::ExpressionWidth;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use iter_extended::vecmap;
+use nargo::ops::ExecuteOptions;
 use nargo::{
     constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
     workspace::Workspace,
@@ -95,7 +96,7 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
             &args.prover_name,
             args.compile_options.expression_width,
             args.compile_options.pedantic_solving,
-            args.compile_options.brillig_vm_version,
+            ExecuteOptions::from(&args.compile_options),
         )?
     } else {
         binary_packages
@@ -145,7 +146,7 @@ fn profile_brillig_execution(
     prover_name: &str,
     expression_width: Option<ExpressionWidth>,
     pedantic_solving: bool,
-    brillig_vm_version: brillig_vm::Version,
+    options: ExecuteOptions,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
@@ -161,7 +162,7 @@ fn profile_brillig_execution(
             initial_witness,
             &Bn254BlackBoxSolver(pedantic_solving),
             &mut DefaultForeignCallBuilder::default().build(),
-            brillig_vm_version,
+            options,
         )
         .map_err(|e| {
             CliError::Generic(format!(

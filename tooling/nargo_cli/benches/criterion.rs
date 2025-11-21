@@ -1,5 +1,4 @@
 //! Select representative tests to bench with criterion
-use acvm::brillig_vm;
 use acvm::{FieldElement, acir::native_types::WitnessMap};
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -110,7 +109,7 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
                         black_box(initial_witness.clone()),
                         &solver,
                         &mut foreign_call_executor,
-                        brillig_vm::Version::default(),
+                        Default::default(),
                     ))
                     .expect("failed to execute program");
                 }

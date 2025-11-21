@@ -6,7 +6,7 @@ pub use self::compile::{
 pub use self::optimize::{optimize_contract, optimize_program};
 pub use self::transform::{transform_contract, transform_program};
 
-pub use self::execute::{execute_program, execute_program_with_profiling};
+pub use self::execute::{ExecuteOptions, execute_program, execute_program_with_profiling};
 pub use self::fuzz::{
     FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, run_fuzzing_harness,
 };

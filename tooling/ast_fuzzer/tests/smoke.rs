@@ -9,7 +9,6 @@
 use std::time::Duration;
 
 use acir::circuit::ExpressionWidth;
-use acvm::brillig_vm;
 use arbtest::arbtest;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
@@ -95,7 +94,7 @@ fn arb_program_can_be_executed() {
             initial_witness,
             &blackbox_solver,
             &mut foreign_call_executor,
-            brillig_vm::Version::default(),
+            Default::default(),
         );
 
         match res {

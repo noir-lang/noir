@@ -3,7 +3,6 @@ mod common;
 use std::sync::LazyLock;
 use std::{cell::RefCell, collections::BTreeMap};
 
-use acvm::brillig_vm;
 use acvm::{FieldElement, acir::native_types::WitnessStack};
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
@@ -38,7 +37,7 @@ pub(crate) fn run_snippet(
         initial_witness,
         &blackbox_solver,
         &mut *foreign_call_executor,
-        brillig_vm::Version::default(),
+        Default::default(),
     )
     .expect("failed to execute");
 

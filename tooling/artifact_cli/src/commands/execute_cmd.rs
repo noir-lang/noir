@@ -9,8 +9,9 @@ use crate::{
     errors::CliError,
     execution::{self, ExecutionResults},
 };
-use nargo::foreign_calls::{
-    DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
+use nargo::{
+    foreign_calls::{DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor},
+    ops::ExecuteOptions,
 };
 use noirc_driver::CompiledProgram;
 
@@ -141,6 +142,6 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
         &blackbox_solver,
         &mut foreign_call_executor,
         &args.prover_file,
-        args.brillig_vm_version,
+        ExecuteOptions { brillig_vm_version: args.brillig_vm_version },
     )
 }
