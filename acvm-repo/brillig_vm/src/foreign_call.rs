@@ -435,7 +435,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 "Returned data does not match vector element size".to_string()
                             );
                         }
-                        // Set the size in the size address
+                        // Set the size in the size address.
+                        // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
+                        // instead we expect the post-call codegen will copy it to the heap.
                         self.memory.write(*size_addr, values.len().into());
                         self.write_values_to_memory(*pointer, true, values, value_types)?;
                     } else {

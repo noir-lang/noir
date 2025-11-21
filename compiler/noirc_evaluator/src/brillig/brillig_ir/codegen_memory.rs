@@ -592,8 +592,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
         output: &ValueOrArray,
     ) -> Allocated<SingleAddrVariable, Registers> {
-        // Read the address of the size on the heap based on the vector pointer on the stack.
         let size_var = if let ValueOrArray::HeapVector(HeapVector { size, .. }) = output {
+            // If the result is a heap vector, the size is in a register on the stack.
+            // We need to write it to the heap now, into the vector data structure.
             Allocated::pure(SingleAddrVariable::new_usize(*size))
         } else {
             self.codegen_read_vector_size(vector)
