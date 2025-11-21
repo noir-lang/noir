@@ -475,12 +475,16 @@ pub(crate) mod tests {
         //   assert(the_sequence.len() == 12);
         // }
 
+        // This test has hand written opcodes which expect V1 behavior from the VM.
+        let vm_version = Version::V1;
+
         // Enable debug trace so we can see what the bytecode is if the test fails.
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
-            ..Default::default()
+            vm_version,
+            layout: Default::default(),
         };
         let mut context = BrilligContext::new("test", &options);
         let r_free = ReservedRegisters::free_memory_pointer();
@@ -529,8 +533,7 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm =
-            VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None, Version::default());
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None, vm_version);
 
         // Run the VM up to the foreign call. Assert the expected call parameters.
         let status = vm.process_opcodes();
