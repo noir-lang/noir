@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["on_semantic_tokens_full_request"],"struct":["SemanticTokenCollector"]};
+window.SIDEBAR_ITEMS = {"enum":["CodeBlock"],"fn":["on_semantic_tokens_full_request"],"struct":["SemanticTokenCollector"]};

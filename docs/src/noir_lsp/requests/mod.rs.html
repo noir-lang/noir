@@ -918,7 +918,11 @@
 <a href="#917" id="917">917</a>
 <a href="#918" id="918">918</a>
 <a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
@@ -1314,7 +1318,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>semantic_token_types() -&gt; [SemanticTokenType; <span class="number">8</span>] {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>semantic_token_types() -&gt; [SemanticTokenType; <span class="number">12</span>] {
     [
         SemanticTokenType::NAMESPACE,
         SemanticTokenType::STRUCT,
@@ -1324,6 +1328,10 @@
         SemanticTokenType::METHOD,
         SemanticTokenType::VARIABLE,
         SemanticTokenType::PROPERTY,
+        SemanticTokenType::NUMBER,
+        SemanticTokenType::KEYWORD,
+        SemanticTokenType::STRING,
+        SemanticTokenType::OPERATOR,
     ]
 }
 
