@@ -495,7 +495,7 @@
     }
 
     <span class="kw">fn </span>push_token(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>token: SemanticToken) {
-        <span class="kw">let </span>last_token = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.last_token, <span class="prelude-val">Some</span>(token));
+        <span class="kw">let </span>last_token = <span class="self">self</span>.last_token.replace(token);
 
         <span class="comment">// See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
         // for an explanation of delta_line and delta_start.

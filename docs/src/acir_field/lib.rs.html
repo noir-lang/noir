@@ -67,7 +67,7 @@
         <span class="kw-2">*</span>input
     } <span class="kw">else if </span>num_bits &lt; <span class="number">128 </span>{
         <span class="kw">let </span>mask = <span class="number">2u128</span>.pow(bits) - <span class="number">1</span>;
-        <span class="kw">return </span>F::from(input.to_u128() &amp; mask);
+        F::from(input.to_u128() &amp; mask)
     } <span class="kw">else </span>{
         <span class="kw">let </span>input_int = BigInt::from_bytes_be(num_bigint::Sign::Plus, <span class="kw-2">&amp;</span>input.to_be_bytes());
         <span class="kw">let </span>modulus = BigInt::from(<span class="number">2u32</span>).pow(bits);
