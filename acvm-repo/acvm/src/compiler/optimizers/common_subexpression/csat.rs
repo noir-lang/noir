@@ -7,7 +7,7 @@ use acir::{
 use indexmap::IndexMap;
 
 /// Minimum width accepted by the `CSatTransformer`.
-pub const MIN_EXPRESSION_WIDTH: usize = 3;
+pub(crate) const MIN_EXPRESSION_WIDTH: usize = 3;
 
 /// A transformer which processes any [`Expression`]s to break them up such that they
 /// fit within the backend's width.
