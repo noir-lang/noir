@@ -128,3 +128,12 @@ pub fn chain() {
         .any(|x| x > 5)
         .not();
 }
+
+fn fn_no_env_no_return() {
+    let _ = || {};
+}
+
+fn fn_env_and_return() {
+    let x: i32 = 1;
+    let _ = || { x };
+}
