@@ -1,15 +1,12 @@
 use iter_extended::vecmap;
 
+use crate::acir::{arrays, types::AcirValue};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Hint, Intrinsic},
     types::Type,
     value::ValueId,
-};
-use crate::{
-    acir::{arrays, types::AcirValue},
-    ssa::ir::types::NumericType,
 };
 
 use super::Context;
@@ -100,21 +97,6 @@ impl Context<'_> {
                     .bit_decompose(endian, field, array_length, numeric_type)
                     .map(|array| vec![array])
             }
-            Intrinsic::AsSlice => {
-                let array_contents = arguments[0];
-                let array_type = dfg.type_of_value(array_contents);
-                assert!(!array_type.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-                let Type::Array(_, slice_length) = array_type else {
-                    unreachable!("Expected Array input for `as_slice` intrinsic");
-                };
-                let slice_length = self.acir_context.add_constant(slice_length);
-                let acir_value = self.convert_value(array_contents, dfg);
-                let result = self.read_array(acir_value)?;
-                Ok(vec![
-                    AcirValue::Var(slice_length, NumericType::length_type()),
-                    AcirValue::Array(result),
-                ])
-            }
 
             Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg, result_ids),
             Intrinsic::SlicePushFront => self.convert_slice_push_front(arguments, dfg),
@@ -149,7 +131,8 @@ impl Context<'_> {
             | Intrinsic::StaticAssert
             | Intrinsic::AssertConstant
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount => {
+            | Intrinsic::SliceRefCount
+            | Intrinsic::AsSlice => {
                 unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
         }
