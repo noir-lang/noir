@@ -1399,7 +1399,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_i128(start_value).expect("Checked above that value is signed type");
             let end = to_i128(end_value).expect("Checked above that value is signed type");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            // Use inclusive range (`..=`) if the flag is set, otherwise use exclusive range (`..`).
+            // This handles comptime evaluation of for loops with inclusive ranges correctly.
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else if loop_index_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
@@ -1415,7 +1421,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
             let end = to_u128(end_value).expect("Checked above that value is unsigned type");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            // Use inclusive range (`..=`) if the flag is set, otherwise use exclusive range (`..`).
+            // This handles comptime evaluation of for loops with inclusive ranges correctly,
+            // including the edge case where end is the maximum value for the type.
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
             let typ = loop_index_type.into_owned();

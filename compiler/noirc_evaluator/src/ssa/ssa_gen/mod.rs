@@ -598,8 +598,15 @@ impl FunctionContext<'_> {
         if let (Some(start_constant), Some(end_constant)) =
             (range_bound(start_index), range_bound(end_index))
         {
-            // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
-            if start_constant >= end_constant {
+            // For inclusive ranges (e.g., `0..=255`), the loop should run if start <= end.
+            // For exclusive ranges (e.g., `0..256`), the loop should run if start < end.
+            // If the condition is false, skip the loop entirely.
+            let should_skip = if for_expr.inclusive {
+                start_constant > end_constant
+            } else {
+                start_constant >= end_constant
+            };
+            if should_skip {
                 return Ok(Self::unit_value());
             }
         }
@@ -624,11 +631,21 @@ impl FunctionContext<'_> {
         // Compile the loop entry block
         self.builder.switch_to_block(loop_entry);
 
-        // Set the location of the ending Lt instruction and the jmpif back-edge of the loop to the
+        // Set the location of the ending comparison instruction and the jmpif back-edge of the loop to the
         // end range. These are the instructions used to issue an error if the end of the range
         // cannot be determined at compile-time.
         self.builder.set_location(for_expr.end_range_location);
-        let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
+        // Generate the loop condition: continue if loop_index is within the range.
+        // For inclusive ranges (e.g., `0..=255`): use `loop_index <= end_index`
+        //   Since BinaryOp only has `Lt`, we implement `<=` as `!(end_index < loop_index)`
+        // For exclusive ranges (e.g., `0..256`): use `loop_index < end_index`
+        let jump_condition = if for_expr.inclusive {
+            // loop_index <= end_index is equivalent to !(end_index < loop_index)
+            let end_lt_loop = self.builder.insert_binary(end_index, BinaryOp::Lt, loop_index);
+            self.builder.insert_not(end_lt_loop)
+        } else {
+            self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index)
+        };
         self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
 
         // Compile the loop body
@@ -637,8 +654,26 @@ impl FunctionContext<'_> {
 
         let result = self.codegen_expression(&for_expr.block);
         self.codegen_unless_break_or_continue(result, |this, _| {
-            let new_loop_index = this.make_offset(loop_index, 1, true);
-            this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+            if for_expr.inclusive {
+                // For inclusive ranges, we need to check if we're at the end before incrementing
+                // to avoid overflow when end is the maximum value for the type.
+                // Example: for `0_u8..=255_u8`, when loop_index is 255, incrementing would
+                // overflow to 256, which doesn't fit in u8. Instead, we check if we're at
+                // the end and exit the loop without incrementing.
+                let at_end = this.builder.insert_binary(loop_index, BinaryOp::Eq, end_index);
+                let continue_block = this.builder.insert_block();
+                // If at_end is true, exit the loop. Otherwise, continue and increment.
+                this.builder.terminate_with_jmpif(at_end, loop_end, continue_block);
+
+                this.builder.switch_to_block(continue_block);
+                let new_loop_index = this.make_offset(loop_index, 1, true);
+                this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+            } else {
+                // For exclusive ranges, we can safely increment since we know loop_index < end_index
+                // (from the loop condition), so incrementing won't overflow past the end.
+                let new_loop_index = this.make_offset(loop_index, 1, true);
+                this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+            }
         })?;
 
         // Finish by switching back to the end of the loop
