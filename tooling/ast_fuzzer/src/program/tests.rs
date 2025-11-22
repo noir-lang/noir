@@ -79,6 +79,8 @@ fn test_modulo_of_negative_literals_in_range() {
         start_range: Box::new(start_range),
         end_range: Box::new(end_range),
         block: Box::new(Expression::Break),
+        // Use exclusive range for this test case.
+        inclusive: false,
         start_range_location: Location::dummy(),
         end_range_location: Location::dummy(),
     });

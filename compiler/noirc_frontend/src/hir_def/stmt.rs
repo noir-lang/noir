@@ -69,6 +69,11 @@ pub struct HirForStatement {
     pub start_range: ExprId,
     pub end_range: ExprId,
     pub block: ExprId,
+    /// Whether the range is inclusive (`..=`) or exclusive (`..`).
+    /// This flag is preserved through the compilation pipeline to avoid desugaring
+    /// `start..=end` to `start..end+1`, which would overflow when `end` is the maximum
+    /// value for the type (e.g., `0_u8..=255_u8` would become `0_u8..256_u8`, causing overflow).
+    pub inclusive: bool,
 }
 
 /// Corresponds to `lvalue = expression;` in the source code
