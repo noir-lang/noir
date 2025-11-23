@@ -20,9 +20,9 @@ pub(super) fn try_interpret_call(
     instruction: &Instruction,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
-    interpreter: Option<&mut Interpreter<Empty>>,
+    interpreter: &mut Interpreter<Empty>,
 ) -> Option<Vec<ValueId>> {
-    let evaluation_result = evaluate_const_argument_call(instruction, interpreter?, dfg);
+    let evaluation_result = evaluate_const_argument_call(instruction, interpreter, dfg);
 
     match evaluation_result {
         EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
