@@ -111,7 +111,7 @@ jobs:
           path: ./docs/build
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
+        uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: "./docs/build"
           github-token: ${{ secrets.GITHUB_TOKEN }}
