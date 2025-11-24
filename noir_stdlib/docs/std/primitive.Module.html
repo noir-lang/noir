@@ -101,23 +101,20 @@
 <p>A compile-time type which represents a module in this source program.</p>
 <p>A <code>Module</code> is passed as the first argument to a macro attribute on top of a module:</p>
 <pre><code>#[attr]
-mod foo {}
+<span class="kw">mod</span> foo {}
 
-comptime fn attr(module: Module) {
-    println(module.name()); // outputs &quot;quote { foo }&quot;
-}
-</code></pre>
-<p>It can also be obtained using <code>Quoted::as_module</code>:</p>
-<pre><code>mod foo {}
+<span class="kw">comptime</span> <span class="kw">fn</span> attr(module: Module) {
+    println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
+}</code></pre>
+<p>It can also be obtained using <a href="../std/primitive.Quoted.html#as_module"><code>Quoted::as_module</code></a>:</p>
+<pre><code><span class="kw">mod</span> foo {}
 
-fn main() {
-    comptime {
-        let module = quote { foo }.as_module().unwrap();
-        println(module.name()); // outputs &quot;quote { foo }&quot;
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> module = <span class="kw">quote</span> { foo }.as_module().unwrap();
+        println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
     }
-}
-</code></pre>
-</div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 

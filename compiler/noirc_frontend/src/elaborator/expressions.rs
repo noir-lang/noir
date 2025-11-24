@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location};
+use noirc_errors::{Located, Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -1283,7 +1283,12 @@ impl Elaborator<'_> {
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
-        self.use_unstable_feature(UnstableFeature::Enums, location);
+        // Show error on the `match` keyword
+        let match_location = Location::new(
+            Span::from(location.span.start()..location.span.start() + 5),
+            location.file,
+        );
+        self.use_unstable_feature(UnstableFeature::Enums, match_location);
 
         let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);

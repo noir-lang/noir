@@ -94,13 +94,11 @@
 <p>A compile-time type which represents a trait definition such as <code>trait Foo { .. }</code>.</p>
 <p>A <code>TraitDefinition</code> is passed as the first argument to a macro attribute on top of a trait:</p>
 <pre><code>#[attr]
-trait Foo {}
+<span class="kw">trait</span> Foo {}
 
-comptime fn attr(trait_definition: TraitDefinition) {
-    println(trait_definition); // outputs &quot;Foo&quot;
-}
-</code></pre>
-</div>
+<span class="kw">comptime</span> <span class="kw">fn</span> attr(trait_definition: TraitDefinition) {
+    println(trait_definition); <span class="comment">// outputs "Foo"</span>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TraitDefinition.html" class="primitive">TraitDefinition</a></code></h3>
 
