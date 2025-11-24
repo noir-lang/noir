@@ -32,7 +32,7 @@ jobs:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.65.0
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Update ACVM workspace root versions
         run: |
