@@ -58,8 +58,10 @@ pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
     #[serde(default)] // For backwards compatibility
     pub function_name: String,
-    /// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
-    /// will take on this value. (The value is cached here as an optimization.)
+    /// The current highest witness index in the circuit.
+    ///
+    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
+    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
     pub current_witness_index: u32,
     /// The circuit opcodes representing the relationship between witness values.
     ///
@@ -250,6 +252,7 @@ impl std::fmt::Display for BrilligOpcodeLocation {
 
 impl<F: AcirField> Circuit<F> {
     pub fn num_vars(&self) -> u32 {
+        // Increment by 1 to account for the zero witness
         self.current_witness_index + 1
     }
 
