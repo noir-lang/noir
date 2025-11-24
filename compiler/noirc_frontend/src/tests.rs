@@ -67,6 +67,12 @@ pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
     context
 }
 
+pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
+    let (_, context, errors) = get_program(src);
+    assert!(errors.is_empty(), "Expected no errors");
+    context
+}
+
 fn assert_no_errors_and_to_string(src: &str) -> String {
     let context = assert_no_errors(src);
     display_crate(

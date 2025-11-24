@@ -101,7 +101,7 @@ impl DefCollectorErrorKind {
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
-            | DefCollectorErrorKind::NonStructTypeInImpl { location, .. }
+            | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, .. }
             | DefCollectorErrorKind::ReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
@@ -193,7 +193,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.location())
             }
-            DefCollectorErrorKind::NonStructTypeInImpl { location, is_primitive } =>{
+            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, is_primitive } =>{
                 if *is_primitive {
                     Diagnostic::simple_error(
                         "Cannot define inherent `impl` for primitive types".into(),

@@ -5,8 +5,8 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
-        LoopStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
     elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{

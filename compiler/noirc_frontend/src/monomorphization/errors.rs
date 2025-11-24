@@ -114,6 +114,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::NestedSlices { .. } => {
                 "Nested slices, i.e. slices within an array or slice, are not supported".to_string()
+            }
             MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
                 let message = format!("Invalid type {typ} used in the error message");
                 let secondary = "Error message fragments must be ABI compatible".into();

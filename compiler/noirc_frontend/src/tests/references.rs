@@ -3,8 +3,6 @@ use crate::{
     tests::{assert_no_errors, check_errors, get_program_using_features},
 };
 
-use super::assert_no_errors;
-
 #[test]
 fn cannot_mutate_immutable_variable() {
     let src = r#"

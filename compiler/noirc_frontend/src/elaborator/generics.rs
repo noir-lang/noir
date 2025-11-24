@@ -72,7 +72,7 @@ impl Elaborator<'_> {
     pub(super) fn add_existing_generics(
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
-        generics: &Generics,
+        generics: &ResolvedGenerics,
     ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
