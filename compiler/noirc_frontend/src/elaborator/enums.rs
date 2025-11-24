@@ -14,7 +14,11 @@ use crate::{
         ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
         UnresolvedTypeData,
     },
-    elaborator::{UnstableFeature, path_resolution::PathResolutionItem},
+    elaborator::{
+        UnstableFeature,
+        path_resolution::PathResolutionItem,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::Value,
         def_collector::dc_crate::UnresolvedEnum,
@@ -24,7 +28,7 @@ use crate::{
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
-            HirIdent, HirMatch,
+            HirIdent, HirLiteral, HirMatch,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
@@ -116,7 +120,7 @@ impl Row {
 impl Elaborator<'_> {
     pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
-            self.local_module = typ.module_id;
+            self.local_module = Some(typ.module_id);
             self.generics.clear();
 
             let datatype = self.interner.get_type(*type_id);
@@ -136,7 +140,7 @@ impl Elaborator<'_> {
             datatype.borrow_mut().init_variants();
             self.resolving_ids.insert(*type_id);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::EnumVariant);
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
                 let types = parameters.map(|params| {
@@ -334,23 +338,23 @@ impl Elaborator<'_> {
             .ok();
     }
 
-    // Given:
-    // ```
-    // enum FooEnum { Foo(u32, u8), ... }
-    //
-    // fn Foo(a: u32, b: u8) -> FooEnum {}
-    // ```
-    // Create (pseudocode):
-    // ```
-    // fn Foo(a: u32, b: u8) -> FooEnum {
-    //     // This can't actually be written directly in Noir
-    //     FooEnum {
-    //         tag: Foo_tag,
-    //         Foo: (a, b),
-    //         // fields from other variants are zeroed in monomorphization
-    //     }
-    // }
-    // ```
+    /// Given:
+    /// ```ignore
+    /// enum FooEnum { Foo(u32, u8), ... }
+    ///
+    /// fn Foo(a: u32, b: u8) -> FooEnum {}
+    /// ```
+    /// Create (pseudocode):
+    /// ```ignore
+    /// fn Foo(a: u32, b: u8) -> FooEnum {
+    ///     // This can't actually be written directly in Noir
+    ///     FooEnum {
+    ///         tag: Foo_tag,
+    ///         Foo: (a, b),
+    ///         // fields from other variants are zeroed in monomorphization
+    ///     }
+    /// }
+    /// ```
     fn make_enum_variant_constructor(
         &mut self,
         self_type: &Shared<DataType>,
@@ -361,12 +365,11 @@ impl Elaborator<'_> {
         // Each parameter of the enum variant function is used as a parameter of the enum
         // constructor expression
         let arguments = vecmap(&parameters.0, |(pattern, typ, _)| match pattern {
-            HirPattern::Identifier(ident) => {
-                let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
-                self.interner.push_expr_type(id, typ.clone());
-                self.interner.push_expr_location(id, location);
-                id
-            }
+            HirPattern::Identifier(ident) => self.interner.push_expr_full(
+                HirExpression::Ident(ident.clone(), None),
+                location,
+                typ.clone(),
+            ),
             _ => unreachable!(),
         });
 
@@ -376,12 +379,9 @@ impl Elaborator<'_> {
             variant_index,
         });
 
-        let body = self.interner.push_expr(constructor);
         let enum_generics = self_type.borrow().generic_types();
         let typ = Type::DataType(self_type.clone(), enum_generics);
-        self.interner.push_expr_type(body, typ);
-        self.interner.push_expr_location(body, location);
-        body
+        self.interner.push_expr_full(constructor, location, typ)
     }
 
     fn make_enum_variant_parameters(
@@ -466,6 +466,12 @@ impl Elaborator<'_> {
                     None => self.interner.next_type_variable_with_kind(Kind::IntegerOrField),
                 };
                 unify_with_expected_type(self, &actual);
+
+                let expr = HirExpression::Literal(HirLiteral::Integer(value));
+                let location = expr_location;
+                let expr_id = self.interner.push_expr_full(expr, location, actual.clone());
+                self.push_integer_literal_expr_id(expr_id);
+
                 Pattern::Int(value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
@@ -613,7 +619,7 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
         let Some((struct_name, mut expected_field_types)) =
@@ -840,26 +846,13 @@ impl Elaborator<'_> {
             expr_location: location,
         });
 
-        // Convert a signed integer type like i32 to SignedField
-        macro_rules! signed_to_signed_field {
-            ($value:expr) => {{
-                let negative = $value < 0;
-                // Widen the value so that SignedType::MIN does not wrap to 0 when negated below
-                let mut widened = i128::from($value);
-                if negative {
-                    widened = -widened;
-                }
-                SignedField::new(widened.into(), negative)
-            }};
-        }
-
         let value = match constant {
             Value::Bool(value) => SignedField::positive(value),
             Value::Field(value) => value,
-            Value::I8(value) => signed_to_signed_field!(value),
-            Value::I16(value) => signed_to_signed_field!(value),
-            Value::I32(value) => signed_to_signed_field!(value),
-            Value::I64(value) => signed_to_signed_field!(value),
+            Value::I8(value) => SignedField::from_signed(value),
+            Value::I16(value) => SignedField::from_signed(value),
+            Value::I32(value) => SignedField::from_signed(value),
+            Value::I64(value) => SignedField::from_signed(value),
             Value::U1(value) => SignedField::positive(value),
             Value::U8(value) => SignedField::positive(u128::from(value)),
             Value::U16(value) => SignedField::positive(u128::from(value)),
@@ -1296,9 +1289,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         let variable = HirIdent::non_trait_method(variable, location);
 
         let rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), None);
-        let rhs = self.elaborator.interner.push_expr(rhs);
-        self.elaborator.interner.push_expr_type(rhs, rhs_type);
-        self.elaborator.interner.push_expr_location(rhs, location);
+        let rhs = self.elaborator.interner.push_expr_full(rhs, location, rhs_type);
 
         let let_ = HirStatement::Let(HirLetStatement {
             pattern: HirPattern::Identifier(variable),
@@ -1310,17 +1301,12 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         });
 
         let body_type = self.elaborator.interner.id_type(body);
-        let let_ = self.elaborator.interner.push_stmt(let_);
-        let body = self.elaborator.interner.push_stmt(HirStatement::Expression(body));
-
-        self.elaborator.interner.push_stmt_location(let_, location);
-        self.elaborator.interner.push_stmt_location(body, location);
+        let let_ = self.elaborator.interner.push_stmt_full(let_, location);
+        let body =
+            self.elaborator.interner.push_stmt_full(HirStatement::Expression(body), location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, body] });
-        let block = self.elaborator.interner.push_expr(block);
-        self.elaborator.interner.push_expr_type(block, body_type);
-        self.elaborator.interner.push_expr_location(block, location);
-        block
+        self.elaborator.interner.push_expr_full(block, location, body_type)
     }
 
     /// Any case that isn't branched to when the match is finished must be covered by another

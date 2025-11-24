@@ -39,6 +39,7 @@ iter-extended.workspace = true
 # and that is a different target, and for that the feature
 # aren't unified with this one.
 nargo = { workspace = true, features = ["rpc"] }
+nargo_doc.workspace = true
 nargo_expand.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true

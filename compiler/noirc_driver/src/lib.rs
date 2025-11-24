@@ -44,7 +44,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
-pub use stdlib::stdlib_paths_with_source;
+pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";

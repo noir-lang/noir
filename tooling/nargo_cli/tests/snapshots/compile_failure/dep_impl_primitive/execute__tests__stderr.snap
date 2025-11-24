@@ -9,11 +9,11 @@ warning: unused import bad_impl
   │     -------- unused import
   │
 
-error: Non-enum, non-struct type used in impl
+error: Cannot define inherent `impl` for primitive types
   ┌─ test_programs/test_libraries/bad_impl/src/lib.nr:1:6
   │
 1 │ impl Field {
-  │      ----- Only enum and struct types may have implementation methods
+  │      ----- Primitive types can only have implementation methods defined in the standard library
   │
 
 error: No method named 'something' found for type 'Field'

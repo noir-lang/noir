@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<title>Trait AsPrimitive documentation</title>
+</head>
+<body>
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2><a href="#trait">Trait AsPrimitive</a></h2>
+<h3>Required methods</h3>
+<ul class="sidebar-list">
+<li><a href="#as_">as_</a></li>
+</ul>
+<h3>Implementors</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-Field">Field</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-Field">Field</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-Field">Field</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-Field">Field</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-Field">Field</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-Field">Field</a></li>
+<li><a href="#impl-AsPrimitive&lt;Field&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-bool">bool</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-i16">i16</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-i32">i32</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-i64">i64</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-i8">i8</a></li>
+<li><a href="#impl-AsPrimitive&lt;Field&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-u128">u128</a></li>
+<li><a href="#impl-AsPrimitive&lt;Field&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-u16">u16</a></li>
+<li><a href="#impl-AsPrimitive&lt;Field&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-u32">u32</a></li>
+<li><a href="#impl-AsPrimitive&lt;Field&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-u64">u64</a></li>
+<li><a href="#impl-AsPrimitive&lt;Field&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;bool&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i16&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i32&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i64&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;i8&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u128&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u16&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u32&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u64&gt;-for-u8">u8</a></li>
+<li><a href="#impl-AsPrimitive&lt;u8&gt;-for-u8">u8</a></li>
+</ul>
+<h2>In module convert</h2>
+<h3>Traits</h3><ul class="item-list">
+<li><a href="trait.AsPrimitive.html">AsPrimitive</a></div></li>
+<li><a href="trait.From.html">From</a></div></li>
+<li><a href="trait.Into.html">Into</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">convert</a></div>
+<h1>Trait <span id="trait" class="trait">AsPrimitive</span></h1>
+<pre><code>pub trait AsPrimitive&lt;T&gt; {
+    <span class="comment">// Required methods</span>
+    pub fn <a href="#as_"><span class="fn">as_</span></a>(self) -> T;
+}</code></pre>
+
+<div class="comments">
+<p>A generic interface for casting between primitive types,
+equivalent of using the <code>as</code> keyword between values.</p>
+<h2>Example</h2>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">1234567890</span>;
+<span class="kw">let</span> y: u8 = x <span class="kw">as</span> u8;
+<span class="kw">let</span> z: u8 = x.as_();
+<span class="kw">assert_eq</span>(y, z);</code></pre></div>
+<h2>Required methods</h2>
+<div class="padded-methods"><code id="as_" class="code-header">pub fn <span class="fn">as_</span>(self) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>The equivalent of doing <code>self as T</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;Field&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.Field.html" class="primitive">Field</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-bool"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-i16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-i32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-i64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-i8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;Field&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.Field.html" class="primitive">Field</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-u128"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;Field&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.Field.html" class="primitive">Field</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-u16"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;Field&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.Field.html" class="primitive">Field</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-u32"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;Field&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.Field.html" class="primitive">Field</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-u64"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;Field&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.Field.html" class="primitive">Field</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;bool&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i16&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i16.html" class="primitive">i16</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i32&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i32.html" class="primitive">i32</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i64&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i64.html" class="primitive">i64</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;i8&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.i8.html" class="primitive">i8</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u128&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u128.html" class="primitive">u128</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u16&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u16.html" class="primitive">u16</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u32&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u64&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u64.html" class="primitive">u64</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+<h3 id="impl-AsPrimitive&lt;u8&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+</main>
+</body>
+</html>

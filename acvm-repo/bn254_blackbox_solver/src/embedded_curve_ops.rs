@@ -1,4 +1,3 @@
-// TODO(https://github.com/noir-lang/noir/issues/4932): rename this file to something more generic
 use ark_ec::AffineRepr;
 use ark_ff::MontConfig;
 use num_bigint::BigUint;
@@ -8,6 +7,19 @@ use acir::AcirField;
 use acir::BlackBoxFunc;
 
 use crate::BlackBoxResolutionError;
+
+/// Converts a field element to u128, returning an error if it doesn't fit.
+fn field_to_u128_limb(
+    limb: &FieldElement,
+    func: BlackBoxFunc,
+) -> Result<u128, BlackBoxResolutionError> {
+    limb.try_into_u128().ok_or_else(|| {
+        BlackBoxResolutionError::Failed(
+            func,
+            format!("Limb {} is not less than 2^128", limb.to_hex()),
+        )
+    })
+}
 
 /// Performs multi scalar multiplication of points with scalars.
 pub fn multi_scalar_mul(
@@ -33,19 +45,11 @@ pub fn multi_scalar_mul(
             create_point(points[i], points[i + 1], points[i + 2] == FieldElement::from(1_u128))
                 .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
 
-        let scalar_low: u128 = scalars_lo[i / 3].try_into_u128().ok_or_else(|| {
-            BlackBoxResolutionError::Failed(
-                BlackBoxFunc::MultiScalarMul,
-                format!("Limb {} is not less than 2^128", scalars_lo[i].to_hex()),
-            )
-        })?;
+        let scalar_low: u128 =
+            field_to_u128_limb(&scalars_lo[i / 3], BlackBoxFunc::MultiScalarMul)?;
 
-        let scalar_high: u128 = scalars_hi[i / 3].try_into_u128().ok_or_else(|| {
-            BlackBoxResolutionError::Failed(
-                BlackBoxFunc::MultiScalarMul,
-                format!("Limb {} is not less than 2^128", scalars_hi[i].to_hex()),
-            )
-        })?;
+        let scalar_high: u128 =
+            field_to_u128_limb(&scalars_hi[i / 3], BlackBoxFunc::MultiScalarMul)?;
 
         let mut bytes = scalar_high.to_be_bytes().to_vec();
         bytes.extend_from_slice(&scalar_low.to_be_bytes());
@@ -53,7 +57,7 @@ pub fn multi_scalar_mul(
         let grumpkin_integer = BigUint::from_bytes_be(&bytes);
 
         // Check if this is smaller than the grumpkin modulus
-        if pedantic_solving && grumpkin_integer >= ark_grumpkin::FrConfig::MODULUS.into() {
+        if grumpkin_integer >= ark_grumpkin::FrConfig::MODULUS.into() {
             return Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::MultiScalarMul,
                 format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),

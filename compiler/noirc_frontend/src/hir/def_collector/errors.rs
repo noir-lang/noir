@@ -35,7 +35,7 @@ pub enum DefCollectorErrorKind {
     #[error("Cannot re-export {item_name} because it has less visibility than this use statement")]
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-enum, non-struct type used in impl")]
-    NonEnumNonStructTypeInImpl { location: Location },
+    NonEnumNonStructTypeInImpl { location: Location, is_primitive: bool },
     #[error("Cannot implement trait on a reference type")]
     ReferenceInTraitImpl { location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
@@ -101,7 +101,7 @@ impl DefCollectorErrorKind {
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
-            | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location }
+            | DefCollectorErrorKind::NonStructTypeInImpl { location, .. }
             | DefCollectorErrorKind::ReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
@@ -193,11 +193,21 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.location())
             }
-            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location } => Diagnostic::simple_error(
-                "Non-enum, non-struct type used in impl".into(),
-                "Only enum and struct types may have implementation methods".into(),
-                *location,
-            ),
+            DefCollectorErrorKind::NonStructTypeInImpl { location, is_primitive } =>{
+                if *is_primitive {
+                    Diagnostic::simple_error(
+                        "Cannot define inherent `impl` for primitive types".into(),
+                        "Primitive types can only have implementation methods defined in the standard library".into(),
+                        *location,
+                    )
+                }else{
+                    Diagnostic::simple_error(
+                        "Non-enum, non-struct type used in impl".into(),
+                        "Only enum and struct types may have implementation methods".into(),
+                        *location,
+                    )
+                }
+            }
             DefCollectorErrorKind::ReferenceInTraitImpl { location } => Diagnostic::simple_error(
                 "Trait impls are not allowed on reference types".into(),
                 "Try using a struct or enum type here instead".into(),

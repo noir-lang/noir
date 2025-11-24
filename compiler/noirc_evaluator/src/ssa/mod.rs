@@ -395,7 +395,7 @@ pub fn create_program_with_minimal_passes(
     for func in &program.functions {
         assert!(
             func.unconstrained,
-            "The minimum SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
+            "The minimal SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
             func.name
         );
     }

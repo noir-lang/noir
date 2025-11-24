@@ -132,7 +132,7 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -148,10 +148,13 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     "pedersen_commitment",
     "simple_shield",
     "strings",
-    // The minimum SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    // The minimal SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
     "lambda_from_dynamic_if",
+    "regression_10156",
     // This relies on maximum inliner setting
     "reference_counts_inliner_max",
+    "reference_counts_inliner_min",
+    "reference_counts_inliner_0",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
@@ -167,12 +170,12 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     // bug
     "numeric_type_alias",
     "negative_associated_constants",
-    // bug
-    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
     "regression_9116",
+    // bug
+    "regression_10466",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work

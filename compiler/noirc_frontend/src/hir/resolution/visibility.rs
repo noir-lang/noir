@@ -2,7 +2,7 @@ use crate::Type;
 use crate::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
 
 use crate::ast::ItemVisibility;
-use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleDefId, ModuleId};
 
 /// Returns true if an item with the given visibility in the target module
 /// is visible from the current module. For example:
@@ -215,5 +215,35 @@ fn is_same_type_regardless_generics(type1: &Type, type2: &Type) -> bool {
         (Type::Reference(type1, _), _) => is_same_type_regardless_generics(&type1, type2),
         (_, Type::Reference(type2, _)) => is_same_type_regardless_generics(type1, &type2),
         _ => false,
+    }
+}
+
+pub fn module_def_id_visibility(
+    module_def_id: ModuleDefId,
+    interner: &NodeInterner,
+) -> ItemVisibility {
+    match module_def_id {
+        ModuleDefId::ModuleId(module_id) => {
+            let attributes = interner.try_module_attributes(module_id);
+            attributes.map_or(ItemVisibility::Private, |a| a.visibility)
+        }
+        ModuleDefId::FunctionId(func_id) => interner.function_modifiers(&func_id).visibility,
+        ModuleDefId::TypeId(type_id) => {
+            let data_type = interner.get_type(type_id);
+            data_type.borrow().visibility
+        }
+        ModuleDefId::TypeAliasId(type_alias_id) => {
+            let type_alias = interner.get_type_alias(type_alias_id);
+            type_alias.borrow().visibility
+        }
+        ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
+        ModuleDefId::TraitId(trait_id) => {
+            let trait_ = interner.get_trait(trait_id);
+            trait_.visibility
+        }
+        ModuleDefId::GlobalId(global_id) => {
+            let global_info = interner.get_global(global_id);
+            global_info.visibility
+        }
     }
 }

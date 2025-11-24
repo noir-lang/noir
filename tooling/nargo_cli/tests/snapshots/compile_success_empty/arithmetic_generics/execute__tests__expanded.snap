@@ -24,8 +24,8 @@ fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
 fn push<let N: u32>(array: [Field; N], element: Field) -> [Field; N + 1] {
     let mut result: [Field; N + 1] = std::mem::zeroed();
     {
-        let i_4521: u32 = array.len();
-        result[i_4521] = element;
+        let i_4526: u32 = array.len();
+        result[i_4526] = element;
     };
     for i in 0_u32..array.len() {
         result[i] = array[i];

@@ -21,6 +21,7 @@ pub enum MonomorphizationError {
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
     NestedSlices { location: Location },
+    InvalidTypeInErrorMessage { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -38,7 +39,8 @@ impl MonomorphizationError {
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
             | MonomorphizationError::NestedSlices { location }
-            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -112,6 +114,10 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::NestedSlices { .. } => {
                 "Nested slices, i.e. slices within an array or slice, are not supported".to_string()
+            MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
+                let message = format!("Invalid type {typ} used in the error message");
+                let secondary = "Error message fragments must be ABI compatible".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 

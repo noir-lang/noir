@@ -90,8 +90,8 @@ pub struct UnresolvedTraitImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    pub associated_types: Vec<(Ident, UnresolvedType)>,
-    pub associated_constants: Vec<(Ident, UnresolvedType, Expression)>,
+    pub associated_types: Vec<(Ident, Option<UnresolvedType>)>,
+    pub associated_constants: Vec<(Ident, Option<UnresolvedType>, Expression)>,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,

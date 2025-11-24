@@ -37,7 +37,7 @@ use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stac
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    brillig_vm::STACK_POINTER_ADDRESS,
+    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS},
 };
 use debug_show::DebugShow;
 
@@ -71,7 +71,7 @@ impl ReservedRegisters {
     /// This represents the heap, and we make sure during entry point generation that it is initialized
     /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::direct(1)
+        FREE_MEMORY_POINTER_ADDRESS
     }
 
     /// This register stores a 1_usize constant.
@@ -334,7 +334,7 @@ pub(crate) mod tests {
         ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VM, VMStatus};
+    use acvm::brillig_vm::{VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::BrilligOptions;
@@ -358,6 +358,7 @@ pub(crate) mod tests {
             _points: &[FieldElement],
             _scalars_lo: &[FieldElement],
             _scalars_hi: &[FieldElement],
+            _predicate: bool,
         ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
         }
@@ -370,6 +371,7 @@ pub(crate) mod tests {
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
             _input2_infinite: &FieldElement,
+            _predicate: bool,
         ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
@@ -455,6 +457,8 @@ pub(crate) mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
+
+        // Enable debug trace so we can see what the bytecode is if the test fails.
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
@@ -462,27 +466,28 @@ pub(crate) mod tests {
             ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
-        let r_stack = ReservedRegisters::free_memory_pointer();
-        // Start stack pointer at 0
-        context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
+        let r_free = ReservedRegisters::free_memory_pointer();
+        // Set the free memory pointer after the 2 variables allocated below.
+        let r_free_value = ReservedRegisters::len() + 2;
+        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
         let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        let r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + 1);
-        let r_output_size = MemoryAddress::direct(ReservedRegisters::len() + 2);
-        let r_equality = MemoryAddress::direct(ReservedRegisters::len() + 3);
+        let r_vector_ptr = r_input_size.offset(1);
+        let r_equality = r_input_size.offset(2);
+
+        // The vector size is going to be on the heap. It's easy here, since we know where it will start.
+        let r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
+
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
-        // copy our stack frame to r_array_ptr
-        context.mov_instruction(r_array_ptr, r_stack);
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
             &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+            &[ValueOrArray::MemoryAddress(r_vector_ptr)],
             &[HeapValueType::Vector {
                 value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             }],
         );
-        // push stack frame by r_returned_size
-        context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
+
         // check r_input_size == r_output_size
         context.memory_op_instruction(
             r_input_size,
@@ -498,22 +503,18 @@ pub(crate) mod tests {
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         });
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
-        context.push_opcode(BrilligOpcode::Trap {
-            revert_data: HeapVector {
-                pointer: MemoryAddress::direct(0),
-                size: MemoryAddress::direct(0),
-            },
-        });
-
-        context.stop_instruction(HeapVector {
-            pointer: MemoryAddress::direct(0),
-            size: MemoryAddress::direct(0),
-        });
+        // If we got the expected number of items, jump to the STOP, otherwise fall through to TRAP.
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
+        let empty_data =
+            HeapVector { pointer: MemoryAddress::direct(0), size: MemoryAddress::direct(0) };
+        context.push_opcode(BrilligOpcode::Trap { revert_data: empty_data });
+        context.stop_instruction(empty_data);
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+
+        // Run the VM up to the foreign call. Assert the expected call parameters.
         let status = vm.process_opcodes();
         assert_eq!(
             status,
@@ -522,12 +523,13 @@ pub(crate) mod tests {
                 inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
             }
         );
-
+        // Create the response.
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
         let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
         vm.resolve_foreign_call(response);
 
+        // The equality check should succeed
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
     }

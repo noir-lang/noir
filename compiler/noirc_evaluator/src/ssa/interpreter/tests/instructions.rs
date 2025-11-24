@@ -960,14 +960,14 @@ fn array_set_with_offset() {
     let v0 = values[0].as_array_or_slice().unwrap();
     let v1 = values[1].as_array_or_slice().unwrap();
 
-    assert_eq!(*v0.rc.borrow(), 2);
+    assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
     assert_eq!(*v1.rc.borrow(), 1);
 
     let one = from_constant(1u32.into(), NumericType::NativeField);
     let two = from_constant(2u32.into(), NumericType::NativeField);
     let five = from_constant(5u32.into(), NumericType::NativeField);
 
-    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two.clone()], "v0 should not be mutated");
+    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two], "v0 should not be mutated");
     assert_eq!(*v1.elements.borrow(), vec![one, five], "v1 should be mutated");
 }
 
