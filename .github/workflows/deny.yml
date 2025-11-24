@@ -3,10 +3,10 @@ name: deny
 on:
   push:
     branches: [master]
-    paths: [Cargo.lock]
+    paths: [Cargo.lock, .github/workflows/deny.yml]
   pull_request:
     branches: [master]
-    paths: [Cargo.lock]
+    paths: [Cargo.lock, .github/workflows/deny.yml]
   merge_group:
 
 env:
