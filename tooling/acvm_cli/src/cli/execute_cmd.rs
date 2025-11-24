@@ -4,12 +4,10 @@ use std::path::PathBuf;
 use acir::FieldElement;
 use acir::circuit::Program;
 use acir::native_types::{WitnessMap, WitnessStack};
-use acvm::brillig_vm;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::ops::ExecuteOptions;
 use noir_artifact_cli::errors::CliError;
 use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
@@ -48,10 +46,6 @@ pub(crate) struct ExecuteCommand {
     /// This is disabled by default.
     #[clap(long, default_value = "false")]
     pedantic_solving: bool,
-
-    /// The expected behavior of the target Brillig VM.
-    #[arg(long, hide = true, default_value_t = brillig_vm::Version::default())]
-    brillig_vm_version: brillig_vm::Version,
 }
 
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
@@ -62,7 +56,6 @@ fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
         &bytecode,
         args.pedantic_solving,
         args.oracle_resolver,
-        ExecuteOptions { brillig_vm_version: args.brillig_vm_version },
     )?;
     assert_eq!(output_witness.length(), 1, "ACVM CLI only supports a witness stack of size 1");
     let output_witness_string = create_output_witness_string(
@@ -92,7 +85,6 @@ pub(crate) fn execute_program_from_witness(
     bytecode: &[u8],
     pedantic_solving: bool,
     resolver_url: Option<String>,
-    options: ExecuteOptions,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let program: Program<FieldElement> =
         Program::deserialize_program(bytecode).map_err(CliError::CircuitDeserializationError)?;
@@ -108,7 +100,6 @@ pub(crate) fn execute_program_from_witness(
         inputs_map,
         &Bn254BlackBoxSolver(pedantic_solving),
         &mut foreign_call_executor,
-        options,
     )
     .map_err(CliError::CircuitExecutionError)
 }

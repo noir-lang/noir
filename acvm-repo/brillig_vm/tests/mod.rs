@@ -10,7 +10,7 @@ use acir::{
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::{
     FREE_MEMORY_POINTER_ADDRESS, FailureReason, MEMORY_ADDRESSING_BIT_SIZE, MemoryValue, VM,
-    VMStatus, Version,
+    VMStatus,
 };
 
 /// Helper to execute brillig code and return the VM
@@ -19,7 +19,7 @@ fn brillig_execute_and_get_vm<'a, F: AcirField>(
     opcodes: &'a [Opcode<F>],
     solver: &'a StubbedBlackBoxSolver,
 ) -> VM<'a, F, StubbedBlackBoxSolver> {
-    let mut vm = VM::new(calldata, opcodes, solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, solver, false, None);
     vm.process_opcodes();
     assert!(vm.get_call_stack_no_current_counter().is_empty());
     vm
@@ -37,7 +37,7 @@ fn add_single_step_smoke() {
 
     // Start VM
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, &opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
@@ -88,7 +88,7 @@ fn jmpif_opcode() {
     ];
 
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, &opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -267,7 +267,7 @@ fn cast_opcode() {
         },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -328,7 +328,7 @@ fn not_opcode() {
         },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -373,7 +373,7 @@ fn mov_opcode() {
         Opcode::Mov { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(0) },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -439,7 +439,7 @@ fn cmov_opcode() {
         },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -537,7 +537,7 @@ fn cmp_binary_ops() {
         .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
         .collect();
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, &opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     // Calldata copy
     let status = vm.process_opcode();
@@ -666,7 +666,7 @@ fn iconst_opcode() {
         },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(vec![], opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(vec![], opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -918,7 +918,7 @@ fn relative_addressing() {
     ];
 
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, &opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     vm.process_opcode();
     vm.process_opcode();
@@ -955,7 +955,7 @@ fn field_zero_division_regression() {
         },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
@@ -1017,7 +1017,7 @@ fn free_memory_pointer_out_of_memory() {
         },
     ];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None, Version::default());
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcodes();
     let memory = vm.take_memory();

@@ -582,54 +582,30 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.
     ///
-    /// If `enable_foreign_call_multi_vector_output` is `true`, the VM is expected to adjust the _free memory pointer_
-    /// to point beyond where the data was written, so we don't have to generate bytecode to increase it here.
-    /// Otherwise we do it here, because in that mode the VM is not expected to be aware of the _free memory pointer_.
-    ///
     /// Returns the size variable, which we can use to set the semantic length.
     pub(crate) fn codegen_initialize_externally_returned_vector(
         &mut self,
         vector: BrilligVector,
-        output: &ValueOrArray,
-    ) -> Allocated<SingleAddrVariable, Registers> {
-        let size_var = match output {
-            ValueOrArray::HeapVector(HeapVector { size, .. }) => {
-                // V0 behavior.
-                // If the result is a heap vector, the size is in a register on the stack.
-                // We need to write it to the heap now, into the vector data structure.
-                Allocated::pure(SingleAddrVariable::new_usize(*size))
-            }
-            ValueOrArray::MemoryAddress(_) => {
-                // V1 behavior.
-                // The address is the vector address itself, not a pointer, so we just need to offset it.
-                self.codegen_read_vector_size(vector)
-            }
-            ValueOrArray::HeapArray(_) => {
-                unreachable!("ICE: A BrilligVector destination should not be a HeapArray");
-            }
-        };
+        output: &HeapVector,
+    ) -> SingleAddrVariable {
+        // The size in the output is an address on the stack; copy it over to the heap.
+        let size_var = SingleAddrVariable::new_usize(output.size);
 
         // For externally returned vectors, capacity equals size.
-        self.codegen_initialize_vector_metadata(vector, *size_var, *size_var);
+        self.codegen_initialize_vector_metadata(vector, size_var, size_var);
 
-        // If we allow multiple output vectors, then we also expect the VM to increase the free memory pointer.
-        let should_increase_free_memory =
-            !self.vm_version().enable_foreign_call_multi_vector_output();
+        // The size in the heap vector only represents the items.
+        // Figure out how much memory we need to allocate to hold it, accounting for the metadata.
+        let total_size = self.allocate_register();
+        self.codegen_usize_op(
+            size_var.address,
+            *total_size,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_META_COUNT,
+        );
 
-        if should_increase_free_memory {
-            // The size in the heap vector only represents the items.
-            // Figure out how much memory we need to allocate to hold it, accounting for the metadata.
-            let total_size = self.allocate_register();
-            self.codegen_usize_op(
-                size_var.address,
-                *total_size,
-                BrilligBinaryOp::Add,
-                offsets::VECTOR_META_COUNT,
-            );
-
-            // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
-            self.increase_free_memory_pointer_instruction(*total_size);
-        }
+        // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
+        self.increase_free_memory_pointer_instruction(*total_size);
 
         size_var
     }

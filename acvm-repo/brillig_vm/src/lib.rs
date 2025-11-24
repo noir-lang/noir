@@ -7,8 +7,6 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
-use std::fmt::Display;
-use std::str::FromStr;
 
 use acir::AcirField;
 use acir::brillig::{
@@ -36,45 +34,6 @@ mod cast;
 mod foreign_call;
 pub mod fuzzing;
 mod memory;
-use strum_macros::FromRepr;
-
-/// VM version is used to govern a set of expectations on the Brillig VM implementation,
-/// (ie. this repo and the AVM), which can influence codegen as well as opcode execution.
-#[derive(Debug, FromRepr, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Default)]
-pub enum Version {
-    /// Pre-audit behavior.
-    #[default]
-    V0 = 0,
-    /// Post-alpha behavior.
-    V1 = 1,
-}
-
-impl Version {
-    /// Whether to expect multiple vectors returned from foreign calls.
-    ///
-    /// When this is enabled, vector destinations appear in opcodes as [MemoryAddress], rather than a [HeapVector][acir::brillig::HeapVector],
-    /// and the VM is expected to know about and adjust the _free memory pointer_ on its own.
-    pub fn enable_foreign_call_multi_vector_output(&self) -> bool {
-        *self >= Self::V1
-    }
-}
-
-impl Display for Version {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", *self as usize)
-    }
-}
-
-impl FromStr for Version {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.to_lowercase();
-        let s = s.trim_start_matches("v");
-        let v = usize::from_str(s).map_err(|_| format!("not a version number: {s}"))?;
-        Version::from_repr(v).ok_or_else(|| format!("unsupported version: {v}"))
-    }
-}
 
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
@@ -188,9 +147,6 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     /// Fuzzing trace structure.
     /// If the field is `None` then fuzzing is inactive.
     fuzzing_trace: Option<FuzzingTrace>,
-
-    /// Expected or supported behavior.
-    version: Version,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -201,7 +157,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         black_box_solver: &'a B,
         profiling_active: bool,
         with_branch_to_feature_map: Option<&BranchToFeatureMap>,
-        version: Version,
     ) -> Self {
         let fuzzing_trace = with_branch_to_feature_map.cloned().map(FuzzingTrace::new);
 
@@ -218,12 +173,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
             fuzzing_trace,
-            version,
         }
-    }
-
-    pub fn version(&self) -> Version {
-        self.version
     }
 
     pub fn is_profiling_active(&self) -> bool {
@@ -610,6 +560,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// it to wrap around during an overflowing increment, then we could end
     /// up overwriting parts of the memory reserved for globals, the stack,
     /// or other values on the heap.
+    ///
+    /// This special handling is not adopted by the AVM. Still, if it fails
+    /// here, at least we have a way to detect this unlikely edge case,
+    /// rather than go into undefined behavior by corrupting memory.
+    /// Detecting overflows with additional bytecode would be an overkill.
+    /// Perhaps in the future the AVM will offer checked operations instead.
     ///
     /// Returns:
     /// * `Ok(false)` if it's not a _free memory pointer_ increase

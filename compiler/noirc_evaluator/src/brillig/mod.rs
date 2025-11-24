@@ -43,7 +43,6 @@ pub struct BrilligOptions {
     pub enable_debug_assertions: bool,
     pub enable_array_copy_counter: bool,
     pub layout: LayoutConfig,
-    pub vm_version: acvm::brillig_vm::Version,
 }
 
 /// Context structure for the Brillig pass.

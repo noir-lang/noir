@@ -72,12 +72,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 continue;
             };
 
+            let ValueOrArray::HeapVector(heap_vector) = **output_value else {
+                unreachable!("ICE: a BrilligVector is expected to have a HeapVector as output");
+            };
+
             // Adjust the metadata of the result variable.
             // The items don't need to be copied, since we passed the pointer to the items of the
             // array/vector variable in the heap array/vector.
             let flattened_size_var = self
                 .brillig_context
-                .codegen_initialize_externally_returned_vector(vector, output_value);
+                .codegen_initialize_externally_returned_vector(vector, &heap_vector);
 
             // Update the dynamic slice length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
@@ -97,24 +101,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     }
 
     /// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
-    ///
-    /// [BrilligVariable::BrilligVector] has special handling: we didn't know the size when we allocated this variable
-    /// for a result variable in SSA, so it doesn't point at any particular address. For that reason we always turn it
-    /// into a [ValueOrArray::MemoryAddress], and we expect the foreign call handler to store at it the the address
-    /// of the output data written to the heap, once the foreign call returns.
-    ///
-    /// This special handling is only enabled if `enable_foreign_call_multi_vector_output` is `true`,
-    /// so that we can stay compatible with the AVM, until it's updated to handle the new scheme.
     fn output_variables_to_destinations(
         &mut self,
         output_variables: &[BrilligVariable],
     ) -> Vec<Allocated<ValueOrArray, Registers>> {
         vecmap(output_variables, |variable| {
-            if let BrilligVariable::BrilligVector(vector) = *variable {
-                if self.brillig_context.vm_version().enable_foreign_call_multi_vector_output() {
-                    return Allocated::pure(ValueOrArray::MemoryAddress(vector.pointer));
-                }
-            }
             self.brillig_context.variable_to_value_or_array(*variable)
         })
     }

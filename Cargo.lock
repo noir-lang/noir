@@ -863,7 +863,6 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "serde",
- "strum_macros",
  "thiserror 1.0.69",
 ]
 

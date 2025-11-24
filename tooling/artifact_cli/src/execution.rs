@@ -34,7 +34,6 @@ pub fn execute<B, E>(
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     prover_file: &Path,
-    options: nargo::ops::ExecuteOptions,
 ) -> Result<ExecutionResults, CliError>
 where
     B: BlackBoxFunctionSolver<FieldElement>,
@@ -49,7 +48,6 @@ where
         initial_witness,
         blackbox_solver,
         foreign_call_executor,
-        options,
     )?;
 
     let main_witness =

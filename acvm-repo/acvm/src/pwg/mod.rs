@@ -312,8 +312,6 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
 
     brillig_fuzzing_trace: Option<Vec<u32>>,
-
-    brillig_vm_version: brillig_vm::Version,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -342,18 +340,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             brillig_fuzzing_active: false,
             brillig_branch_to_feature_map: None,
             brillig_fuzzing_trace: None,
-            brillig_vm_version: brillig_vm::Version::default(),
         }
     }
 
     /// Enable profiling
     pub fn with_profiler(&mut self, profiling_active: bool) {
         self.profiling_active = profiling_active;
-    }
-
-    /// Set the Brillig VM version.
-    pub fn with_brillig_vm_version(&mut self, version: brillig_vm::Version) {
-        self.brillig_vm_version = version;
     }
 
     /// Enable brillig fuzzing
@@ -644,7 +636,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 *id,
                 self.profiling_active,
                 self.brillig_branch_to_feature_map,
-                self.brillig_vm_version,
             )?,
         };
 
@@ -729,7 +720,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             *id,
             self.profiling_active,
             self.brillig_branch_to_feature_map,
-            self.brillig_vm_version,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

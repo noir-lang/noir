@@ -82,29 +82,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         dfg,
                     );
 
-                    // If we allow multiple vectors to be returned:
-                    //  We don't initialize the vector pointer to any particular value; it's output only.
-                    //  The foreign call handler is expected to write the vector data to the free memory pointer,
-                    //  storing its value back into this variable. The caller of this method will also generate
-                    //  code to initialize the vector metadata after the foreign call has been handled.
-                    //  The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
-                    let should_init_to_free_mem = !self
-                        .brillig_context
-                        .vm_version()
-                        .enable_foreign_call_multi_vector_output();
-
-                    if should_init_to_free_mem {
-                        // Set its pointer to the free memory address, and expect the VM to write the data where the vector points to.
-                        // We can only support one vector output this way, otherwise the next vector would overwrite it.
-                        // The vector also has to be the last output of the function, there cannot be any arrays following it.
-                        assert!(
-                            vector_allocated.is_none(),
-                            "a previous vector has already been allocated at the free memory pointer"
-                        );
-                        // Remember the position of single vector we allocated; we will initialize it to the free memory pointer
-                        // after we have dealt with any other arrays in the output, otherwise they could overwrite it.
-                        vector_allocated = Some(variables.len());
-                    }
+                    // Set its pointer to the free memory address, and expect the VM to write the data where the vector points to.
+                    // We can only support one vector output this way, otherwise the next vector would overwrite it.
+                    // The vector also has to be the last output of the function, there cannot be any arrays following it.
+                    assert!(
+                        vector_allocated.is_none(),
+                        "a previous vector has already been allocated at the free memory pointer"
+                    );
+                    // Remember the position of single vector we allocated; we will initialize it to the free memory pointer
+                    // after we have dealt with any other arrays in the output, otherwise they could overwrite it.
+                    vector_allocated = Some(variables.len());
 
                     variable
                 }

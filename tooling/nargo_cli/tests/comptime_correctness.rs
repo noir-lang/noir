@@ -37,7 +37,6 @@ pub(crate) fn run_snippet(
         initial_witness,
         &blackbox_solver,
         &mut *foreign_call_executor,
-        Default::default(),
     )
     .expect("failed to execute");
 

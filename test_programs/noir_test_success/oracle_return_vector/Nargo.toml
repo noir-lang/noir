@@ -1,5 +1,5 @@
 [package]
-name = "oracle_return_vector_v0"
+name = "oracle_return_vector"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.23.0"

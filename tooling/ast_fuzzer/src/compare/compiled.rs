@@ -272,7 +272,6 @@ impl<P> CompareCompiled<P> {
                 initial_witness.clone(),
                 &blackbox_solver,
                 &mut foreign_call_executor,
-                Default::default(),
             );
 
             let print = String::from_utf8(print).expect("should be valid utf8 string");

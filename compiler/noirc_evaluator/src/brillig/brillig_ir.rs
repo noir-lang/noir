@@ -37,7 +37,7 @@ use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stac
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS, Version as VmVersion},
+    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS},
 };
 use debug_show::DebugShow;
 
@@ -99,8 +99,6 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
-    /// Expected version of the target VM.
-    vm_version: VmVersion,
     /// Count the number of arrays that are copied, and output this to stdout
     count_arrays_copied: bool,
 
@@ -111,11 +109,6 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// Memory layout information. See [self::registers] for more information about the memory layout.
     pub(crate) fn layout(&self) -> LayoutConfig {
         self.registers().layout()
-    }
-
-    /// Expected version of the target VM.
-    pub(crate) fn vm_version(&self) -> VmVersion {
-        self.vm_version
     }
 
     /// Enable the insertion of bytecode with extra assertions during testing.
@@ -166,7 +159,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            vm_version: options.vm_version,
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: true,
             globals_memory_size: None,
@@ -277,7 +269,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            vm_version: options.vm_version,
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
@@ -300,7 +291,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            vm_version: options.vm_version,
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
@@ -344,7 +334,7 @@ pub(crate) mod tests {
         ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VM, VMStatus, Version, offsets};
+    use acvm::brillig_vm::{VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::BrilligOptions;
@@ -444,14 +434,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(
-            calldata,
-            bytecode,
-            &DummyBlackBoxSolver,
-            profiling_active,
-            None,
-            Version::default(),
-        );
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -475,15 +458,11 @@ pub(crate) mod tests {
         //   assert(the_sequence.len() == 12);
         // }
 
-        // This test has hand written opcodes which expect V1 behavior from the VM.
-        let vm_version = Version::V1;
-
         // Enable debug trace so we can see what the bytecode is if the test fails.
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
-            vm_version,
             layout: Default::default(),
         };
         let mut context = BrilligContext::new("test", &options);
@@ -533,7 +512,7 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None, vm_version);
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
 
         // Run the VM up to the foreign call. Assert the expected call parameters.
         let status = vm.process_opcodes();
