@@ -16030,7 +16030,7 @@ __metadata:
     ts-node: "npm:^10.9.2"
     typedoc: "npm:^0.27.9"
     typedoc-plugin-frontmatter: "npm:^1.2.1"
-    typedoc-plugin-markdown: "npm:4.4.2"
+    typedoc-plugin-markdown: "npm:4.9.0"
     typedoc-plugin-merge-modules: "npm:^6.1.0"
     typescript: "npm:^5.8.3"
   languageName: unknown
@@ -29042,12 +29042,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc-plugin-markdown@npm:4.4.2":
-  version: 4.4.2
-  resolution: "typedoc-plugin-markdown@npm:4.4.2"
+"typedoc-plugin-markdown@npm:4.9.0":
+  version: 4.9.0
+  resolution: "typedoc-plugin-markdown@npm:4.9.0"
   peerDependencies:
-    typedoc: 0.27.x
-  checksum: 10/d6764c5341eeefb5f6c0c557477a3a782165816a18cf3417ba91131cd9d6f9522767e9122a01251fc2ba007a05f262093a35a90e2d2a109540ead87f20bae614
+    typedoc: 0.28.x
+  checksum: 10/69293e9cd1a5cecd9d2f92872472dbc48b3912c658d0a2d07b6d7bd96bd1efa9617e9bea6a4e6181482610733533b1b058dc1fc505cac7931875f081f0023a0c
   languageName: node
   linkType: hard
 
