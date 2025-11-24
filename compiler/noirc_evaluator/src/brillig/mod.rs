@@ -43,6 +43,7 @@ pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
     pub enable_array_copy_counter: bool,
+    pub show_opcode_advisories: bool,
     pub layout: LayoutConfig,
 }
 
@@ -126,6 +127,10 @@ impl Brillig {
                 globals,
                 hoisted_global_constants,
             );
+        }
+
+        if options.show_opcode_advisories {
+            brillig_check::show_opcode_advisories(&function_context, &brillig_context);
         }
 
         brillig_context.into_artifact()
