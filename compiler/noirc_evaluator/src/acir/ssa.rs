@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use acvm::{
     FieldElement,
-    acir::circuit::{ErrorSelector, ExpressionWidth, brillig::BrilligBytecode},
+    acir::circuit::{ErrorSelector, brillig::BrilligBytecode},
 };
 use noirc_frontend::Type as HirType;
 
@@ -26,9 +26,8 @@ impl Ssa {
         self,
         brillig: &Brillig,
         brillig_options: &BrilligOptions,
-        expression_width: ExpressionWidth,
     ) -> Result<Artifacts, RuntimeError> {
-        codegen_acir(self, brillig, BrilligStdLib::default(), brillig_options, expression_width)
+        codegen_acir(self, brillig, BrilligStdLib::default(), brillig_options)
     }
 }
 
@@ -37,7 +36,6 @@ pub(super) fn codegen_acir(
     brillig: &Brillig,
     brillig_stdlib: BrilligStdLib<FieldElement>,
     brillig_options: &BrilligOptions,
-    expression_width: ExpressionWidth,
 ) -> Result<Artifacts, RuntimeError> {
     let mut acirs = Vec::new();
 
@@ -47,13 +45,8 @@ pub(super) fn codegen_acir(
     let mut shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     for function in ssa.functions.values() {
-        let context = Context::new(
-            &mut shared_context,
-            expression_width,
-            brillig,
-            brillig_stdlib.clone(),
-            brillig_options,
-        );
+        let context =
+            Context::new(&mut shared_context, brillig, brillig_stdlib.clone(), brillig_options);
 
         if let Some(mut generated_acir) = context.convert_ssa_function(&ssa, function)? {
             // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
