@@ -9,7 +9,7 @@
 //!
 //! This tests the full metaprogramming pipeline that users rely on.
 
-use crate::tests::assert_no_errors;
+use crate::tests::{assert_no_errors, check_errors};
 use proptest::prelude::*;
 
 /// Helper to generate a roundtrip test program.
@@ -121,4 +121,164 @@ fn roundtrip_false() {
 fn roundtrip_true() {
     let src = make_roundtrip_test("bool", "true".to_string());
     assert_no_errors(&src);
+}
+
+// Nested Quoting Tests
+
+/// Test interpolating a quote which only contains literals declared within the inner quote
+#[test]
+fn nested_quote_basic() {
+    let src = r#"
+        fn main() {
+            comptime {
+                // Use a literal rather than splicing a value here
+                let inner = quote { 3 };
+                let nested = quote { $inner };
+                let got = unquote!(nested);
+                assert_eq(got, 3);
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Tests interpolating a quote that itself contains value interpolation.
+/// The value gets converted to tokens in the inner quote, then those tokens
+/// are spliced into the outer quote, and finally parsed back to the original value.
+#[test]
+fn nested_quote_basic_with_type_annotations() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let original: u8 = 5;
+                // Splice a value into our initial quote
+                let inner = quote { $original };
+                let nested = quote { $inner };
+                let got: u8 = unquote!(nested);
+                assert_eq(got, original);
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Type inference works correctly across quote boundaries
+#[test]
+fn nested_quote_basic_with_one_type_annotation() {
+    let src = r#"
+        fn main() {
+            comptime {
+                // Do not specify a type here
+                let original = 5;
+                // Splice a value into our initial quote
+                let inner = quote { $original };
+                let nested = quote { $inner };
+                let got: u8 = unquote!(nested);
+                // Note: This works because 'original' is inferred as u8.
+                // Using `assert_eq(got, 3)` would fail because the 
+                // literal 3 defaults to Field, causing a type mismatch
+                assert_eq(got, original);
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Tests that an interpolated quote can be used in an expression
+#[test]
+fn nested_quote_with_add() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let inner = quote { 3 };
+                let nested = quote { $inner + 1 };
+                let got = unquote!(nested);
+                assert_eq(got, 4);
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Tests that an interpolated quote can be used in an expression
+#[test]
+fn nested_quote_with_incorrect_add() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let inner = quote { 3 };
+                let nested = quote { $inner + 1 };
+                let got = unquote!(nested);
+                assert_eq(got, 5);
+                          ^^^^^^ Assertion failed
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    check_errors(src);
+}
+
+/// Multiple value interpolations at different nesting levels
+#[test]
+fn nested_quote_different_levels() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let a = 10;
+                let b = 20;
+                let inner = quote { $a };
+                let nested = quote { $inner + $b };
+                let got = unquote!(nested);
+                assert_eq(got, a + b);
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Verify recursive token splicing through three levels of quote nesting.
+/// Each level of nesting splices tokens from the previous level, and the final
+/// unquote should recover the original value through all the layers.
+#[test]
+fn triple_nested_quote() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let original = 1;
+                let q1 = quote { $original };
+                let q2 = quote { $q1 };
+                let q3 = quote { $q2 };
+                let got = unquote!(q3);
+                assert_eq(got, original);
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    assert_no_errors(src);
 }
