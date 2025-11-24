@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["profile_brillig_execution","run"],"struct":["ContractInfo","InfoCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["profile_brillig_execution","run"],"struct":["InfoCommand"]};
