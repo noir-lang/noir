@@ -102,6 +102,7 @@ pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
+serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
 sha3.workspace = true
