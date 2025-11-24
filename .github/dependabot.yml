@@ -7,3 +7,10 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    # Check the npm registry for updates every day (weekdays)
+    schedule:
+      interval: "weekly"
