@@ -32,7 +32,7 @@ use crate::BlackBoxResolutionError;
 /// - The public key point must lie on the Secp256r1 curve
 ///
 /// The function do not validate a signature if:
-/// - The signature must be "low S" normalized per BIP 0062 to prevent malleability
+/// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
 ///
 /// The function will panic if `hashed_msg >= p256::NistP256::ORDER`.
 /// According to ECDSA specification, the message hash leftmost bits should be truncated

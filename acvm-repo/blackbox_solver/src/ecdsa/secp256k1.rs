@@ -27,12 +27,14 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 ///
-/// The function panic if the following is not true:
+/// The function returns an error if the following is not true:
 /// - The signature components `r` and `s` must be non-zero
-/// - The public key point must lie on the Secp256k1 curve
-/// - The signature must be "low S" normalized per BIP 0062 to prevent malleability
+/// - The public key point must lie on the Secp256r1 curve
 ///
-/// The function will also panic if `hashed_msg >= k256::Secp256k1::ORDER`.
+/// The function do not validate a signature if:
+/// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
+///
+/// The function will panic if `hashed_msg >= k256::Secp256k1::ORDER`.
 /// According to ECDSA specification, the message hash leftmost bits should be truncated
 /// up to the curve order length, and then reduced modulo the curve order.
 pub(super) fn verify_signature(
