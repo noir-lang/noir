@@ -92,7 +92,7 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Download archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: nextest-archive
       - name: Run tests

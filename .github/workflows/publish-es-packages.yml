@@ -130,17 +130,17 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: acvm-js
           path: acvm-repo/acvm_js
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: noir_wasm
           path: compiler/wasm
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: noirc_abi_wasm
           path: tooling/noirc_abi_wasm

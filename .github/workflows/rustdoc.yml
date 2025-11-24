@@ -67,7 +67,7 @@ jobs:
         run: rm -rf ./docs
 
       - name: Download rustdoc output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: rustdoc
           path: ./docs
