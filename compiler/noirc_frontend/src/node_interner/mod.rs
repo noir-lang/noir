@@ -23,7 +23,7 @@ use crate::locations::AutoImportEntry;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
-use crate::Generics;
+use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
 use crate::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
@@ -525,8 +525,8 @@ impl NodeInterner {
         &mut self,
         type_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
-        generics: Generics,
-        associated_types: Generics,
+        generics: ResolvedGenerics,
+        associated_types: ResolvedGenerics,
         associated_constant_ids: HashMap<String, DefinitionId>,
     ) {
         let new_trait = Trait {
@@ -557,7 +557,7 @@ impl NodeInterner {
         name: Ident,
         span: Span,
         attributes: Vec<SecondaryAttribute>,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
@@ -575,7 +575,7 @@ impl NodeInterner {
     pub fn push_type_alias(
         &mut self,
         typ: &UnresolvedTypeAlias,
-        generics: Generics,
+        generics: ResolvedGenerics,
     ) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
@@ -627,7 +627,7 @@ impl NodeInterner {
         &mut self,
         type_id: TypeAliasId,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         let type_alias_type = &mut self.type_aliases[type_id.0];

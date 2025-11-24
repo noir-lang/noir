@@ -222,8 +222,8 @@ fn errors_on_impl_for_primitive_type_outside_stdlib() {
     let src = r#"
     // User code (not stdlib) cannot impl methods on primitive types
     impl Field {
-         ^^^^^ Non-struct type used in impl
-         ~~~~~ Only struct types may have implementation methods
+         ^^^^^ Non-enum, non-struct type used in impl
+         ~~~~~ Only enum and struct types may have implementation methods
         fn my_method(self) -> Field {
             self
         }

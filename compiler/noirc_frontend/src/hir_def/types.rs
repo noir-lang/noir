@@ -59,6 +59,7 @@ pub enum Type {
 
     /// `FmtString(N, Vec<E>)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
+    /// and where N is either a type variable of some kind or a Type::Constant
     FmtString(Box<Type>, Box<Type>),
 
     /// The unit type `()`.
@@ -78,7 +79,7 @@ pub enum Type {
     Alias(Shared<TypeAlias>, Vec<Type>),
 
     /// TypeVariables are stand-in variables for some type which is not yet known.
-    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// They are not to be confused with NamedGenerics. While the latter mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
     /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
@@ -116,7 +117,7 @@ pub enum Type {
     /// &T
     Reference(Box<Type>, /*mutable*/ bool),
 
-    /// A type generic over the given type variables.
+    /// A type that's generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
@@ -214,7 +215,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
+        Self::numeric(Type::u32())
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -369,7 +370,7 @@ pub struct DataType {
     /// since these will handle applying generic arguments to fields as well.
     body: TypeBody,
 
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub location: Location,
 
     pub must_use: MustUse,
@@ -424,7 +425,7 @@ pub type GenericTypeVars = Vec<TypeVariable>;
 /// Corresponds to generic lists such as `<T, U>` with additional
 /// information gathered during name resolution that is necessary
 /// correctly resolving types.
-pub type Generics = Vec<ResolvedGeneric>;
+pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
@@ -478,7 +479,7 @@ impl DataType {
         id: TypeId,
         name: Ident,
         location: Location,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
     ) -> DataType {
         DataType {
@@ -623,7 +624,11 @@ impl DataType {
         &self,
         generic_args: &[Type],
     ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
-        assert_eq!(self.generics.len(), generic_args.len());
+        assert_eq!(
+            self.generics.len(),
+            generic_args.len(),
+            "get_fields_substitutions: expected the number of generics to equal the number of generic_args"
+        );
 
         self.generics
             .iter()
@@ -729,7 +734,7 @@ pub struct TypeAlias {
     pub name: Ident,
     pub id: TypeAliasId,
     pub typ: Type,
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
@@ -773,7 +778,7 @@ impl TypeAlias {
         name: Ident,
         location: Location,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -> TypeAlias {
@@ -783,7 +788,7 @@ impl TypeAlias {
     pub fn set_type_and_generics(
         &mut self,
         new_typ: Type,
-        new_generics: Generics,
+        new_generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         assert_eq!(self.typ, Type::Error);
@@ -1229,6 +1234,10 @@ impl Type {
     }
 
     pub fn default_int_type() -> Type {
+        Self::u32()
+    }
+
+    pub fn u32() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
@@ -1269,7 +1278,8 @@ impl Type {
     }
 
     pub fn is_field(&self) -> bool {
-        matches!(self.follow_bindings_shallow().as_ref(), Type::FieldElement)
+        let value_level = true;
+        self.is_field_element(value_level)
     }
 
     pub fn is_bool(&self) -> bool {
@@ -1585,14 +1595,60 @@ impl Type {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
+
             Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            _ => false,
+            Type::FmtString(_size, elem) => elem.as_ref().is_nested_slice(),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.is_nested_slice()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_slice()) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    if typ.is_nested_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_nested_slice(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.is_nested_slice() || to.is_nested_slice(),
+            Type::Reference(element, _) => element.is_nested_slice(),
+            Type::Forall(_, typ) => typ.is_nested_slice(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
         }
     }
 
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1614,7 +1670,29 @@ impl Type {
                 }
                 false
             }
-            _ => false,
+            Type::FmtString(_size, elem) => elem.contains_slice(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_slice(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.contains_slice() || to.contains_slice(),
+            Type::Reference(element, _) => element.contains_slice(),
+            Type::Forall(_, typ) => typ.contains_slice(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
         }
     }
 
@@ -1629,7 +1707,6 @@ impl Type {
             | Type::Constant(..)
             | Type::Function(..)
             | Type::TraitAsType(..)
-            | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
             Type::Slice(length) => length.contains_reference(),
@@ -1664,6 +1741,7 @@ impl Type {
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.contains_reference() || rhs.contains_reference()
             }
+            Type::Forall(_, typ) => typ.contains_reference(),
             Type::Reference(..) => true,
         }
     }

@@ -4,11 +4,9 @@ use noirc_errors::Location;
 use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::PrintableType;
 
-use crate::ast::IntegerBitSize;
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
 use crate::node_interner::ExprId;
-use crate::shared::Signedness;
 use crate::signed_field::SignedField;
 
 use super::ast::{Expression, Ident};
@@ -183,8 +181,7 @@ impl Monomorphizer<'_> {
         let value = SignedField::positive(var_id.0);
         let var_id_literal = HirLiteral::Integer(value);
         let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
-        let u32 = crate::Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        self.interner.push_expr_type(expr_id, u32);
+        self.interner.push_expr_type(expr_id, crate::Type::u32());
         self.interner.push_expr_location(expr_id, *location);
         expr_id
     }

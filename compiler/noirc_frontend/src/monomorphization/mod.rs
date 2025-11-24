@@ -1332,6 +1332,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
@@ -1348,6 +1351,9 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Slice(element)
@@ -1532,8 +1538,18 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
-            HirType::Slice(element) => Self::check_type(element.as_ref(), location),
+            HirType::Array(_length, element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
+                Self::check_type(element.as_ref(), location)
+            }
+            HirType::Slice(element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
+                Self::check_type(element.as_ref(), location)
+            }
             HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::check_type(binding, location);
@@ -2184,7 +2200,7 @@ impl<'interner> Monomorphizer<'interner> {
             expression: Box::new(env_tuple),
         });
 
-        let location = None; // TODO: This should match the location of the lambda expression
+        let location = None; // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
         let mutable = true;
         let definition = Definition::Local(env_local_id);
 
@@ -2211,7 +2227,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_fn = ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
             mutable: false,
-            location: None, // TODO: This should match the location of the lambda expression
+            location: None, // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
             name: name.clone(),
             typ: lambda_fn_typ.clone(),
             id: self.next_ident_id(),
@@ -2279,7 +2295,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg = "match failure";
                 let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
 
-                let u32_type = HirType::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                let u32_type = HirType::u32();
                 let length = (msg.len() as u128).into();
                 let length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
                 let msg_type = HirType::String(Box::new(length));

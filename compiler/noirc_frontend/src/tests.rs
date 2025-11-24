@@ -56,7 +56,7 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program(src).2
 }
 
-fn assert_no_errors(src: &str) -> Context<'_, '_> {
+pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
     let (_, context, errors) = get_program(src);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
@@ -321,4 +321,53 @@ fn does_not_stack_overflow_on_many_comments_in_a_row() {
     let mut src = "//\n".repeat(10_000);
     src.push_str("fn main() { }");
     assert_no_errors(&src);
+}
+
+#[test]
+fn wildcard_with_generic_argument() {
+    let src = r#"
+    struct Foo<T> {}
+
+    pub fn println<T>(_input: T) { }
+    
+    fn main() {
+      let x: _<_> = "123";
+      let y: _<_> = Foo::<()> { };
+      println(x);
+      println(y);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10553() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+
+    fn main() {
+        let x = &[false];
+        let s = f"{x}";
+        let _ = &[s];
+                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_10554() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+
+    fn main() {
+        let x = &[false];
+        let t = &[x];
+                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+        let s = f"{t}";
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
 }

@@ -6,7 +6,7 @@ use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::{
-    Generics, Type, TypeBindings, TypeVariable,
+    ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -21,7 +21,7 @@ pub struct TraitFunction {
     pub default_impl: Option<Box<NoirFunction>>,
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
     pub trait_constraints: Vec<TraitConstraint>,
-    pub direct_generics: Generics,
+    pub direct_generics: ResolvedGenerics,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,11 +62,11 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
-    pub associated_types: Generics,
+    pub associated_types: ResolvedGenerics,
     pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub location: Location,
     pub visibility: ItemVisibility,
 
@@ -81,7 +81,7 @@ pub struct Trait {
 
     pub where_clause: Vec<TraitConstraint>,
 
-    pub all_generics: Generics,
+    pub all_generics: ResolvedGenerics,
 
     /// Map from each associated constant's name to a unique DefinitionId for that constant.
     pub associated_constant_ids: HashMap<String, DefinitionId>,
@@ -190,7 +190,7 @@ impl Trait {
         self.visibility = visibility;
     }
 
-    pub fn set_all_generics(&mut self, generics: Generics) {
+    pub fn set_all_generics(&mut self, generics: ResolvedGenerics) {
         self.all_generics = generics;
     }
 

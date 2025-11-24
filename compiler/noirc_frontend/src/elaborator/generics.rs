@@ -7,7 +7,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
@@ -30,7 +30,7 @@ impl Elaborator<'_> {
 
     /// Add the given generics to scope.
     /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
-    pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
+    pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             let mut is_error = false;
             let (type_var, name) = match self.resolve_generic(generic) {

@@ -252,7 +252,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
-            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            let expected = Type::u32();
             type_mismatch(value, expected, location)
         }
     }
