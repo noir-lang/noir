@@ -158,7 +158,16 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>k256::elliptic_curve::PrimeField;
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
+<span class="kw">use </span>k256::elliptic_curve::PrimeField;
 <span class="kw">use </span>k256::elliptic_curve::sec1::FromEncodedPoint;
 
 <span class="kw">use </span>blake2::digest::generic_array::GenericArray;
@@ -170,6 +179,8 @@
     },
 };
 <span class="kw">use </span>k256::{Scalar, ecdsa::Signature};
+
+<span class="kw">use </span><span class="kw">crate</span>::BlackBoxResolutionError;
 
 <span class="doccomment">/// Verifies an ECDSA signature over the Secp256k1 elliptic curve.
 ///
@@ -184,12 +195,14 @@
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 ///
-/// The function panic if the following is not true:
+/// The function returns an error if the following is not true:
 /// - The signature components `r` and `s` must be non-zero
-/// - The public key point must lie on the Secp256k1 curve
-/// - The signature must be "low S" normalized per BIP 0062 to prevent malleability
+/// - The public key point must lie on the Secp256r1 curve
 ///
-/// The function will also panic if `hashed_msg &gt;= k256::Secp256k1::ORDER`.
+/// The function do not validate a signature if:
+/// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
+///
+/// The function will panic if `hashed_msg &gt;= k256::Secp256k1::ORDER`.
 /// According to ECDSA specification, the message hash leftmost bits should be truncated
 /// up to the curve order length, and then reduced modulo the curve order.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>verify_signature(
@@ -197,12 +210,14 @@
     public_key_x_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
-) -&gt; bool {
+) -&gt; <span class="prelude-ty">Result</span>&lt;bool, BlackBoxResolutionError&gt; {
     <span class="comment">// Convert the inputs into k256 data structures
     </span><span class="kw">let </span><span class="prelude-val">Ok</span>(signature) = Signature::try_from(signature.as_slice()) <span class="kw">else </span>{
         <span class="comment">// Signature `r` and `s` are forbidden from being zero.
-        </span><span class="macro">log::warn!</span>(<span class="string">"Signature provided for ECDSA verification is zero"</span>);
-        <span class="kw">return </span><span class="bool-val">false</span>;
+        </span><span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256k1,
+            <span class="string">"Signature provided for ECDSA verification is zero"</span>.to_string(),
+        ));
     };
 
     <span class="kw">let </span>point = EncodedPoint::from_affine_coordinates(
@@ -214,8 +229,10 @@
     <span class="kw">let </span>pubkey = PublicKey::from_encoded_point(<span class="kw-2">&amp;</span>point);
     <span class="kw">if </span>pubkey.is_none().into() {
         <span class="comment">// Public key must sit on the Secp256k1 curve.
-        </span><span class="macro">log::warn!</span>(<span class="string">"Invalid public key provided for ECDSA verification"</span>);
-        <span class="kw">return </span><span class="bool-val">false</span>;
+        </span><span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256k1,
+            <span class="string">"Invalid public key provided for ECDSA verification"</span>.to_string(),
+        ));
     }
     <span class="kw">let </span>pubkey = pubkey.unwrap();
 
@@ -233,7 +250,7 @@
         <span class="macro">log::warn!</span>(
             <span class="string">"Signature provided for ECDSA verification is not properly normalized (high S value)"
         </span>);
-        <span class="kw">return </span><span class="bool-val">false</span>;
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
     }
 
     <span class="kw">let </span>s_inv = s.invert().unwrap();
@@ -246,7 +263,7 @@
         .to_affine();
 
     <span class="kw">match </span>R.to_encoded_point(<span class="bool-val">false</span>).coordinates() {
-        Coordinates::Uncompressed { x, y: <span class="kw">_ </span>} =&gt; Scalar::from_repr(<span class="kw-2">*</span>x).unwrap().eq(<span class="kw-2">&amp;</span>r),
+        Coordinates::Uncompressed { x, y: <span class="kw">_ </span>} =&gt; <span class="prelude-val">Ok</span>(Scalar::from_repr(<span class="kw-2">*</span>x).unwrap().eq(<span class="kw-2">&amp;</span>r)),
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Point is uncompressed"</span>),
     }
 }
@@ -284,38 +301,37 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>verifies_valid_signature_with_low_s_value() {
-        <span class="kw">let </span>valid = verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>PUB_KEY_Y, <span class="kw-2">&amp;</span>SIGNATURE);
+        <span class="kw">let </span>valid = verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>PUB_KEY_Y, <span class="kw-2">&amp;</span>SIGNATURE).unwrap();
 
         <span class="macro">assert!</span>(valid);
     }
 
     <span class="attr">#[test]
+    #[should_panic]
     </span><span class="kw">fn </span>rejects_signature_that_does_not_have_the_full_y_coordinate() {
         <span class="kw">let </span><span class="kw-2">mut </span>pub_key_y_bytes = [<span class="number">0u8</span>; <span class="number">32</span>];
         pub_key_y_bytes[<span class="number">31</span>] = PUB_KEY_Y[<span class="number">31</span>];
-        <span class="kw">let </span>valid = verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>pub_key_y_bytes, <span class="kw-2">&amp;</span>SIGNATURE);
 
-        <span class="macro">assert!</span>(!valid);
+        verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>pub_key_y_bytes, <span class="kw-2">&amp;</span>SIGNATURE).unwrap();
     }
 
     <span class="attr">#[test]
+    #[should_panic]
     </span><span class="kw">fn </span>rejects_invalid_signature() {
         <span class="comment">// This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         </span><span class="kw">let </span>invalid_signature: [u8; <span class="number">64</span>] = [<span class="number">0x00</span>; <span class="number">64</span>];
 
-        <span class="kw">let </span>valid = verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>PUB_KEY_Y, <span class="kw-2">&amp;</span>invalid_signature);
-        <span class="macro">assert!</span>(!valid);
+        verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>PUB_KEY_Y, <span class="kw-2">&amp;</span>invalid_signature).unwrap();
     }
 
     <span class="attr">#[test]
+    #[should_panic]
     </span><span class="kw">fn </span>rejects_invalid_public_key() {
         <span class="kw">let </span>invalid_pub_key_x: [u8; <span class="number">32</span>] = [<span class="number">0xff</span>; <span class="number">32</span>];
         <span class="kw">let </span>invalid_pub_key_y: [u8; <span class="number">32</span>] = [<span class="number">0xff</span>; <span class="number">32</span>];
 
-        <span class="kw">let </span>valid =
-            verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>invalid_pub_key_x, <span class="kw-2">&amp;</span>invalid_pub_key_y, <span class="kw-2">&amp;</span>SIGNATURE);
-
-        <span class="macro">assert!</span>(!valid);
+        verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>invalid_pub_key_x, <span class="kw-2">&amp;</span>invalid_pub_key_y, <span class="kw-2">&amp;</span>SIGNATURE)
+            .unwrap();
     }
 }
 </code></pre></div></section></main></body></html>

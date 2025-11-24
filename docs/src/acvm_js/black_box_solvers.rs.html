@@ -138,7 +138,7 @@
         public_key_y_bytes,
         signature,
     )
-    .unwrap()
+    .unwrap_or_default()
 }
 
 <span class="doccomment">/// Verifies a ECDSA signature over the secp256r1 curve.
@@ -160,6 +160,6 @@
         public_key_y_bytes,
         signature,
     )
-    .unwrap()
+    .unwrap_or_default()
 }
 </code></pre></div></section></main></body></html>

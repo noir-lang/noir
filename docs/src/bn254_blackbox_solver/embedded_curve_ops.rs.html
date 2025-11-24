@@ -389,7 +389,7 @@
         <span class="kw">let </span>grumpkin_integer = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>bytes);
 
         <span class="comment">// Check if this is smaller than the grumpkin modulus
-        </span><span class="kw">if </span>pedantic_solving &amp;&amp; grumpkin_integer &gt;= ark_grumpkin::FrConfig::MODULUS.into() {
+        </span><span class="kw">if </span>grumpkin_integer &gt;= ark_grumpkin::FrConfig::MODULUS.into() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::MultiScalarMul,
                 <span class="macro">format!</span>(<span class="string">"{} is not a valid grumpkin scalar"</span>, grumpkin_integer.to_str_radix(<span class="number">16</span>)),

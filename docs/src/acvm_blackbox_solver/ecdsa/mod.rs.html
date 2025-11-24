@@ -31,7 +31,7 @@
     public_key_y: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, BlackBoxResolutionError&gt; {
-    <span class="prelude-val">Ok</span>(secp256k1::verify_signature(hashed_msg, public_key_x, public_key_y, signature))
+    secp256k1::verify_signature(hashed_msg, public_key_x, public_key_y, signature)
 }
 
 <span class="kw">pub fn </span>ecdsa_secp256r1_verify(
@@ -40,6 +40,6 @@
     public_key_y: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, BlackBoxResolutionError&gt; {
-    <span class="prelude-val">Ok</span>(secp256r1::verify_signature(hashed_msg, public_key_x, public_key_y, signature))
+    secp256r1::verify_signature(hashed_msg, public_key_x, public_key_y, signature)
 }
 </code></pre></div></section></main></body></html>
