@@ -466,23 +466,32 @@ pub(crate) mod tests {
             layout: Default::default(),
         };
         let mut context = BrilligContext::new("test", &options);
-        let r_free = ReservedRegisters::free_memory_pointer();
-        // Set the free memory pointer after the 2 variables allocated below.
-        let r_free_value = ReservedRegisters::len() + 2;
-        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
-        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        let r_vector_ptr = r_input_size.offset(1);
-        let r_equality = r_input_size.offset(2);
 
-        // The vector size is going to be on the heap. It's easy here, since we know where it will start.
-        let r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
+        // Allocate variables
+        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        let r_output_ptr = r_input_size.offset(1);
+        let r_output_size = r_input_size.offset(2);
+        let r_equality = r_input_size.offset(3);
+
+        let r_free = ReservedRegisters::free_memory_pointer();
+        // Set the free memory pointer after the variables allocated above.
+        let r_free_value = ReservedRegisters::len() + 4;
+        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
+
+        // // The vector size is going to be on the heap. It's easy here, since we know where it will start.
+        // let r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
 
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
+        // The output pointer points at the heap.
+        context.usize_const_instruction(
+            r_output_ptr,
+            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+        );
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
             &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            &[ValueOrArray::MemoryAddress(r_vector_ptr)],
+            &[ValueOrArray::HeapVector(HeapVector { pointer: r_output_ptr, size: r_output_size })],
             &[HeapValueType::Vector {
                 value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             }],
