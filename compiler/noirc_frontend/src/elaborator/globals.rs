@@ -22,7 +22,7 @@
 
 use crate::{
     Type,
-    ast::{Pattern, UnresolvedTypeData},
+    ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
     node_interner::{DependencyId, GlobalId, GlobalValue},
@@ -54,7 +54,7 @@ impl Elaborator<'_> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = std::mem::replace(&mut self.local_module, Some(global.module_id));
+        let old_module = self.local_module.replace(global.module_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -70,11 +70,7 @@ impl Elaborator<'_> {
         };
 
         let location = let_stmt.pattern.location();
-        let type_location = if matches!(let_stmt.r#type.typ, UnresolvedTypeData::Unspecified) {
-            location
-        } else {
-            let_stmt.r#type.location
-        };
+        let type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
         // ABI attributes are only meaningful within contracts, so error if used elsewhere.
         if !self.in_contract() {

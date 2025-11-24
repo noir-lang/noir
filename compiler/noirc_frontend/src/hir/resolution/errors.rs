@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
-    elaborator::TypedPath,
+    elaborator::{TypedPath, types::WildcardDisallowedContext},
     hir::{comptime::Value, type_check::TypeCheckError},
     parser::ParserError,
     signed_field::SignedField,
@@ -189,7 +189,7 @@ pub enum ResolverError {
     #[error("Ambiguous associated type")]
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
-    WildcardTypeDisallowed { location: Location },
+    WildcardTypeDisallowed { location: Location, context: WildcardDisallowedContext },
     #[error("References are not allowed in globals")]
     ReferencesNotAllowedInGlobals { location: Location },
     #[error("Functions marked with #[oracle] must have no body")]
@@ -261,7 +261,7 @@ impl ResolverError {
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
-            | ResolverError::WildcardTypeDisallowed { location }
+            | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
             | ResolverError::BuiltinWithBody { location } => *location,
@@ -810,9 +810,26 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::WildcardTypeDisallowed { location } => {
+            ResolverError::WildcardTypeDisallowed { location, context: reason } => {
+                let context = match reason {
+                    WildcardDisallowedContext::AssociatedType => "associated type definitions",
+                    WildcardDisallowedContext::Cast => "casts",
+                    WildcardDisallowedContext::EnumVariant => "enum variant definitions",
+                    WildcardDisallowedContext::FunctionReturn => "function return types",
+                    WildcardDisallowedContext::FunctionParameter => "function parameter types",
+                    WildcardDisallowedContext::Global => "global definitions",
+                    WildcardDisallowedContext::ImplType => "impl types",
+                    WildcardDisallowedContext::NumericGeneric => "numeric generics",
+                    WildcardDisallowedContext::QuotedAsType => "the argument to Quoted::as_type",
+                    WildcardDisallowedContext::StructField => "struct field types",
+                    WildcardDisallowedContext::TraitAsType => "impl trait types",
+                    WildcardDisallowedContext::TraitBound => "trait bounds",
+                    WildcardDisallowedContext::TraitConstraint => "trait constraints",
+                    WildcardDisallowedContext::TraitImplType => "trait impl types",
+                    WildcardDisallowedContext::TypeAlias => "type alias definitions",
+                };
                 Diagnostic::simple_error(
-                    "The placeholder `_` is not allowed within types on item signatures for functions".to_string(),
+                    format!("The placeholder `_` is not allowed in {context}"),
                     String::new(),
                     *location,
                 )

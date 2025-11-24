@@ -16,7 +16,10 @@ use crate::{
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::lints,
+    elaborator::{
+        lints,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
         resolution::errors::ResolverError,
@@ -93,7 +96,7 @@ impl Elaborator<'_> {
             // Adds the impl generics to the generics state and resolve the impl's self type
             self.add_generics(generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
             function_set.self_type = Some(self_type.clone());
             self.self_type = Some(self_type);
@@ -171,10 +174,11 @@ impl Elaborator<'_> {
             self.resolve_function_parameters(func, &mut generics, &mut trait_constraints);
 
         // Resolve return type
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow slices for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
@@ -300,8 +304,8 @@ impl Elaborator<'_> {
 
     /// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool) -> bool {
-        func.is_entry_point(in_contract) || func.attributes().is_foldable()
+    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
+        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -314,16 +318,17 @@ impl Elaborator<'_> {
         generics: &mut Vec<TypeVariable>,
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> ResolvedParametersInfo {
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         let is_test_or_fuzz = func.is_test_or_fuzz();
 
         let has_inline_attribute = func.has_inline_attribute();
-        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract());
+        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract(), is_crate_root);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {

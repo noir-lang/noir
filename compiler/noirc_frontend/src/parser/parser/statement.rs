@@ -469,10 +469,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -511,7 +508,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -524,7 +521,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert_eq!(let_statement.r#type.to_string(), "Field");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "Field");
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -581,7 +578,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "mut x");
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
 

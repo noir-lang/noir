@@ -14,7 +14,11 @@ use crate::{
         ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
         UnresolvedTypeData,
     },
-    elaborator::{UnstableFeature, path_resolution::PathResolutionItem},
+    elaborator::{
+        UnstableFeature,
+        path_resolution::PathResolutionItem,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::Value,
         def_collector::dc_crate::UnresolvedEnum,
@@ -136,7 +140,7 @@ impl Elaborator<'_> {
             datatype.borrow_mut().init_variants();
             self.resolving_ids.insert(*type_id);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::EnumVariant);
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
                 let types = parameters.map(|params| {
@@ -615,7 +619,7 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
         let Some((struct_name, mut expected_field_types)) =

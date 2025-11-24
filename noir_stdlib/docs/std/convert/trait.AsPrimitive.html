@@ -150,12 +150,10 @@
 <p>A generic interface for casting between primitive types,
 equivalent of using the <code>as</code> keyword between values.</p>
 <h2>Example</h2>
-<pre><code>let x: Field = 1234567890;
-let y: u8 = x as u8;
-let z: u8 = x.as_();
-assert_eq(y, z);
-</code></pre>
-</div>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">1234567890</span>;
+<span class="kw">let</span> y: u8 = x <span class="kw">as</span> u8;
+<span class="kw">let</span> z: u8 = x.as_();
+<span class="kw">assert_eq</span>(y, z);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="as_" class="code-header">pub fn <span class="fn">as_</span>(self) -> T</code>
 

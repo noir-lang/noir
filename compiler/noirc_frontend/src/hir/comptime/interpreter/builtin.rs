@@ -27,7 +27,10 @@ use crate::{
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
         Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
+    elaborator::{
+        ElaborateReason, Elaborator, PrimitiveType,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::{
             InterpreterError, Value,
@@ -893,7 +896,7 @@ fn quoted_as_type(
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
-    let wildcard_allowed = false;
+    let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.use_type(typ, wildcard_allowed)
@@ -2010,11 +2013,7 @@ fn expr_as_lambda(
                 .into_iter()
                 .map(|(pattern, typ)| {
                     let pattern = Shared::new(Value::pattern(pattern));
-                    let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
-                        None
-                    } else {
-                        Some(Value::UnresolvedType(typ.typ))
-                    };
+                    let typ = typ.map(|typ| Value::UnresolvedType(typ.typ));
                     let typ = Shared::new(option(option_unresolved_type.clone(), typ, location));
                     Value::Tuple(vec![pattern, typ])
                 })
@@ -2027,13 +2026,7 @@ fn expr_as_lambda(
                 ]))),
             ));
 
-            let return_type = lambda.return_type.typ;
-            let return_type = if let UnresolvedTypeData::Unspecified = return_type {
-                None
-            } else {
-                Some(return_type)
-            };
-            let return_type = return_type.map(Value::UnresolvedType);
+            let return_type = lambda.return_type.map(|typ| Value::UnresolvedType(typ.typ));
             let return_type = Shared::new(option(option_unresolved_type, return_type, location));
 
             let body = Shared::new(Value::expression(lambda.body.kind));
@@ -2062,12 +2055,7 @@ fn expr_as_let(
             tuple_types.pop().unwrap();
             let option_type = tuple_types.pop().unwrap();
 
-            let typ = if let_statement.r#type.typ == UnresolvedTypeData::Unspecified {
-                None
-            } else {
-                Some(Value::UnresolvedType(let_statement.r#type.typ))
-            };
-
+            let typ = let_statement.r#type.map(|typ| Value::UnresolvedType(typ.typ));
             let typ = option(option_type, typ, location);
 
             Some(Value::Tuple(vec![

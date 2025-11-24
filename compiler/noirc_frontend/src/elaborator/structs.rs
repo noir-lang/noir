@@ -7,6 +7,7 @@ use iter_extended::vecmap;
 use crate::{
     StructField,
     ast::NoirStruct,
+    elaborator::{WildcardDisallowedContext, types::WildcardAllowed},
     hir::{def_collector::dc_crate::UnresolvedStruct, resolution::errors::ResolverError},
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
@@ -88,7 +89,7 @@ impl Elaborator<'_> {
             let struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
                 let name = field.item.name.clone();
                 let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);

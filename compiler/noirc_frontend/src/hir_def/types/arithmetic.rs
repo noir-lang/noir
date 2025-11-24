@@ -333,9 +333,15 @@ impl Type {
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
-                // We need to ensure the result divides evenly to preserve integer division semantics
-                let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
-                    && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
+                // We ensure the result divides evenly to preserve integer division semantics
+                // TODO: do the division simplification also in case of Field elements
+                let l_128: Option<i128> = l_const.try_to_signed();
+                let r_128: Option<i128> = r_const.try_to_signed();
+                let divides_evenly = if let (Some(l_128), Some(r_128)) = (l_128, r_128) {
+                    l_128.checked_rem(r_128) == Some(0)
+                } else {
+                    false
+                };
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const.is_zero() || !divides_evenly) {
@@ -654,5 +660,49 @@ mod proptests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn try_simplify_partial_constants_does_not_simplify_large_field_elements() {
+        // This test demonstrates that try_simplify_partial_constants() does not simplify
+        // expressions with FieldElements that don't fit in 128 bits, although
+        // this case should be handled (TODO).
+        use crate::{BinaryTypeOperator, TypeVariableId, signed_field::SignedField};
+        use acvm::FieldElement;
+
+        let typ = Type::FieldElement;
+        let kind = Kind::numeric(typ.clone());
+
+        // Create a type variable N
+        let var_n = TypeVariable::unbound(TypeVariableId(0), kind.clone());
+        let n = Type::TypeVariable(var_n);
+
+        // large_field ≈ 2^200
+        let large_field = SignedField::positive(FieldElement::from_be_bytes_reduce(&[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]));
+
+        let two = SignedField::positive(FieldElement::from(2_u128));
+        // Build expression: (N * large_field) / 2
+        let mul_expr = Type::infix_expr(
+            Box::new(n.clone()),
+            BinaryTypeOperator::Multiplication,
+            Box::new(Type::Constant(large_field, kind.clone())),
+        );
+
+        let div_expr = Type::infix_expr(
+            Box::new(mul_expr.clone()),
+            BinaryTypeOperator::Division,
+            Box::new(Type::Constant(two, kind.clone())),
+        );
+
+        // Canonicalize the expression
+        let canonicalized = div_expr.canonicalize();
+
+        // The expression should remain unchanged because try_simplify_partial_constants
+        // cannot simplify it when field elements don't fit in 128 bits
+        assert_eq!(canonicalized, div_expr);
     }
 }

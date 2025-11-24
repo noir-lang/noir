@@ -127,7 +127,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         self._len = 0;
     }
 
-    /// Returns `true` if the hashmap contains the given key. Unlike `get`, this will not also return
+    /// Returns `true` if the hashmap contains the given key. Unlike [`get`][Self::get], this will not also return
     /// the value associated with the key.
     ///
     /// Example:
@@ -288,8 +288,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// result returned from the given function.
     ///
     /// Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
-    /// through. If this is not desired, use `iter_values_mut` if only values need to be mutated,
-    /// or `entries` if neither keys nor values need to be mutated.
+    /// through. If this is not desired, use [`iter_values_mut`][Self::iter_values_mut] if only values need to be mutated,
+    /// or [`entries`][Self::entries] if neither keys nor values need to be mutated.
     ///
     /// The iteration order is left unspecified. As a result, if two keys are mutated to become
     /// equal, which of the two values that will be present for the key in the resulting map is also unspecified.
@@ -327,7 +327,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     ///
     /// Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
     /// through. If only iteration is desired and the keys are not intended to be mutated,
-    /// prefer using `entries` instead.
+    /// prefer using [`entries`][Self::entries] instead.
     ///
     /// The iteration order is left unspecified. As a result, if two keys are mutated to become
     /// equal, which of the two values that will be present for the key in the resulting map is also unspecified.
@@ -361,7 +361,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     }
 
     /// Iterates through the HashMap, applying the given function to each value and mutating the
-    /// value to equal the result. This function is more efficient than `iter_mut` and `iter_keys_mut`
+    /// value to equal the result. This function is more efficient than [`iter_mut`][Self::iter_mut] and [`iter_keys_mut`][Self::iter_keys_mut]
     /// because the keys are untouched and the underlying hashmap thus does not need to be reordered.
     ///
     /// Example:

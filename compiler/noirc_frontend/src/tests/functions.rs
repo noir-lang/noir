@@ -213,3 +213,33 @@ fn builtin_function_with_body() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn non_entry_point_main() {
+    let src = r#"
+    mod moo {
+        pub fn main() -> i32 {
+            1
+        }
+    }
+
+    pub struct Foo {}
+    impl Foo {
+        pub fn main() -> i32 {
+            1
+        }
+    }
+
+    pub trait Trait {
+        fn main() -> i32;
+    }
+    impl Trait for Foo {
+        fn main() -> i32 {
+            1
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

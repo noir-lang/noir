@@ -198,21 +198,6 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_type_level_field_element(&self) -> bool {
-        let type_level = false;
-        self.is_field_element(type_level)
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Kind::Numeric(typ) => typ.is_field_element(value_level),
-            Kind::IntegerOrField => value_level,
-            _ => false,
-        }
-    }
-
     pub(crate) fn u32() -> Self {
         Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
@@ -1035,15 +1020,6 @@ impl TypeVariable {
             _ => false,
         }
     }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match &*self.borrow() {
-            TypeBinding::Bound(binding) => binding.is_field_element(value_level),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(value_level),
-        }
-    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1280,17 +1256,6 @@ impl Type {
 
     pub fn is_integer(&self) -> bool {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Integer(_, _))
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Type::FieldElement => value_level,
-            Type::TypeVariable(var) => var.is_field_element(value_level),
-            Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
-            _ => false,
-        }
     }
 
     pub fn is_signed(&self) -> bool {
@@ -1719,6 +1684,55 @@ impl Type {
                 lhs.contains_reference() || rhs.contains_reference()
             }
             Type::Reference(..) => true,
+        }
+    }
+
+    pub(crate) fn contains_type_variable(&self) -> bool {
+        match self {
+            Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::FieldElement
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::Error => false,
+            Type::Forall(..) => true,
+            Type::Array(length, typ) => {
+                length.contains_type_variable() || typ.contains_type_variable()
+            }
+            Type::Slice(typ) => typ.contains_type_variable(),
+            Type::String(length) => length.contains_type_variable(),
+            Type::FmtString(length, typ) => {
+                length.contains_type_variable() || typ.contains_type_variable()
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter().any(|typ| typ.contains_type_variable())
+            }
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_type_variable(),
+                    TypeBinding::Unbound(_, _) => true,
+                }
+            }
+            Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
+                trait_generics.ordered.iter().any(|typ| typ.contains_type_variable())
+                    || trait_generics
+                        .named
+                        .iter()
+                        .any(|named_type| named_type.typ.contains_type_variable())
+            }
+            Type::CheckedCast { from, to } => {
+                from.contains_type_variable() || to.contains_type_variable()
+            }
+            Type::Function(args, ret, env, _) => {
+                args.iter().any(|typ| typ.contains_type_variable())
+                    || ret.contains_type_variable()
+                    || env.contains_type_variable()
+            }
+            Type::Reference(typ, _) => typ.contains_type_variable(),
+            Type::InfixExpr(lhs, _, rhs, _) => {
+                lhs.contains_type_variable() || rhs.contains_type_variable()
+            }
         }
     }
 
