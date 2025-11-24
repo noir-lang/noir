@@ -91,7 +91,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     /// Get a BrilligVM for executing the provided bytecode
     /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
     /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
-    #[allow(clippy::too_many_arguments)]
     fn setup_brillig_vm(
         initial_witness: &WitnessMap<F>,
         memory: &HashMap<BlockId, MemoryOpSolver<F>>,

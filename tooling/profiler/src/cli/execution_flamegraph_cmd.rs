@@ -59,7 +59,6 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn run_with_generator(
     artifact_path: &Path,
     prover_toml_path: &Path,
