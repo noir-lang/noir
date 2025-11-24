@@ -551,7 +551,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -597,7 +597,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -643,7 +643,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -689,7 +689,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -735,12 +735,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: in_progress_compilation_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: compilation_mem_report_*
           path: ./reports
@@ -786,12 +786,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: in_progress_execution_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: execution_mem_report_*
           path: ./reports
