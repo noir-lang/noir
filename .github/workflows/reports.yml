@@ -20,7 +20,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build list of projects
         id: get_bench_projects
@@ -79,7 +79,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -101,7 +101,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nargo
           path: ./dist/*
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -135,7 +135,7 @@ jobs:
           cp ./target/release/noir-inspector ./dist/noir-inspector
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: noir-inspector
           path: ./dist/*
@@ -150,7 +150,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Install `bb`
         run: |
@@ -195,7 +195,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -247,7 +247,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -299,7 +299,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -311,7 +311,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: in_progress_compilation_mem_report
           path: memory_report.json
@@ -325,7 +325,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload execution memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: in_progress_execution_mem_report
           path: memory_report.json
@@ -343,7 +343,7 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
@@ -353,7 +353,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -393,7 +393,7 @@ jobs:
           PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -436,7 +436,7 @@ jobs:
 
     name: External repo memory report - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           path: scripts
           sparse-checkout: |
@@ -449,7 +449,7 @@ jobs:
         uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -476,7 +476,7 @@ jobs:
           FLAGS: ${{ matrix.flags }}
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -501,7 +501,7 @@ jobs:
 
       - name: Upload execution memory report
         if: ${{ !matrix.cannot_execute }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.execution_report.outputs.report_name }}
           path: ${{ steps.execution_report.outputs.report_path }}
@@ -548,10 +548,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -594,10 +594,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -640,10 +640,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -686,10 +686,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: external_report_*
           path: ./reports
@@ -732,15 +732,15 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: in_progress_compilation_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: compilation_mem_report_*
           path: ./reports
@@ -783,15 +783,15 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: in_progress_execution_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: execution_mem_report_*
           path: ./reports
