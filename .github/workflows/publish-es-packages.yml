@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
@@ -126,7 +126,7 @@ jobs:
       issues: write # To alert on failure
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 

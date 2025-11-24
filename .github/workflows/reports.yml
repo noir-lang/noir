@@ -20,7 +20,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build list of projects
         id: get_bench_projects
@@ -79,7 +79,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -150,7 +150,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Install `bb`
         run: |
@@ -195,7 +195,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -247,7 +247,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -299,7 +299,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -343,7 +343,7 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
@@ -353,7 +353,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -436,7 +436,7 @@ jobs:
 
     name: External repo memory report - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           path: scripts
           sparse-checkout: |
@@ -449,7 +449,7 @@ jobs:
         uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -548,7 +548,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
@@ -594,7 +594,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
@@ -640,7 +640,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
@@ -686,7 +686,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
@@ -732,7 +732,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download initial memory report
         uses: actions/download-artifact@v4
@@ -783,7 +783,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download initial memory report
         uses: actions/download-artifact@v4
