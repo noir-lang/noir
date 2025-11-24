@@ -105,6 +105,29 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
         let mut infos: BTreeMap<Witness, RangeInfo> = BTreeMap::new();
         let mut memory_block_lengths_bit_size: HashMap<BlockId, u32> = HashMap::new();
 
+        let update_witness_entry = |infos: &mut BTreeMap<Witness, RangeInfo>,
+                                    witness: Witness,
+                                    num_bits: u32,
+                                    is_implied: bool,
+                                    idx: usize| {
+            infos
+                .entry(witness)
+                .and_modify(|info| {
+                    if num_bits < info.num_bits
+                        || num_bits == info.num_bits && is_implied && !info.is_implied
+                    {
+                        info.switch_points.insert(idx);
+                        info.num_bits = num_bits;
+                        info.is_implied = is_implied;
+                    }
+                })
+                .or_insert_with(|| RangeInfo {
+                    num_bits,
+                    is_implied,
+                    switch_points: BTreeSet::from_iter(std::iter::once(idx)),
+                });
+        };
+
         for (idx, opcode) in circuit.opcodes.iter().enumerate() {
             let Some((witness, num_bits, is_implied)) = (match opcode {
                 Opcode::AssertZero(expr) => {
@@ -155,7 +178,30 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                         )
                     })
                 }
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
+                    scalars,
+                    predicate,
+                    ..
+                }) => {
+                    if predicate == &FunctionInput::Constant(F::one()) {
+                        let mut scalar_iters = scalars.iter();
+                        let mut lo = scalar_iters.next();
+                        while lo.is_some() {
+                            let lo_input = lo.unwrap();
+                            let hi_input =
+                                scalar_iters.next().expect("Missing scalar hi value for MSM");
 
+                            if let FunctionInput::Witness(lo_witness) = lo_input {
+                                update_witness_entry(&mut infos, *lo_witness, 128, true, idx);
+                            }
+                            if let FunctionInput::Witness(hi_witness) = hi_input {
+                                update_witness_entry(&mut infos, *hi_witness, 126, true, idx);
+                            }
+                            lo = scalar_iters.next();
+                        }
+                    }
+                    None
+                }
                 _ => None,
             }) else {
                 continue;
@@ -163,22 +209,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
 
             // Check if the witness has already been recorded and if the witness'
             // recorded size is more than the current one, we replace it
-            infos
-                .entry(witness)
-                .and_modify(|info| {
-                    if num_bits < info.num_bits
-                        || num_bits == info.num_bits && is_implied && !info.is_implied
-                    {
-                        info.switch_points.insert(idx);
-                        info.num_bits = num_bits;
-                        info.is_implied = is_implied;
-                    }
-                })
-                .or_insert_with(|| RangeInfo {
-                    num_bits,
-                    is_implied,
-                    switch_points: BTreeSet::from_iter(std::iter::once(idx)),
-                });
+            update_witness_entry(&mut infos, witness, num_bits, is_implied, idx);
         }
         infos
     }
