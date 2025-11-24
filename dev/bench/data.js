@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764009920611,
+  "lastUpdate": 1764010394593,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6289e3cce0a3ffb41c1f41c55b12c28d855ebcc4",
-          "message": "chore: better error recovery for multiple mut in pattern (#10490)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-11-12T18:41:43Z",
-          "tree_id": "7d7a2bde6000230adf26894536e55fe14c2422b6",
-          "url": "https://github.com/noir-lang/noir/commit/6289e3cce0a3ffb41c1f41c55b12c28d855ebcc4"
-        },
-        "date": 1762974219553,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255067,
-            "range": "± 405",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232057,
-            "range": "± 2464",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2259231,
-            "range": "± 2305",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782284,
             "range": "± 16776",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "31b34070303bfa3355dff7ddb831ce8067492e50",
+          "message": "chore: add weekly dependency bumps for JS (#10572)",
+          "timestamp": "2025-11-24T18:50:13Z",
+          "tree_id": "93e7ee13c3574f43b28b5fa34c5e99adbed3bc22",
+          "url": "https://github.com/noir-lang/noir/commit/31b34070303bfa3355dff7ddb831ce8067492e50"
+        },
+        "date": 1764010367346,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252362,
+            "range": "± 1842",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222063,
+            "range": "± 4853",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783989,
+            "range": "± 7732",
             "unit": "ns/iter"
           }
         ]
