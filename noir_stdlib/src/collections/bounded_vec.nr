@@ -1,6 +1,6 @@
 use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 
-/// A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
+/// A `BoundedVec<T, MaxLen>` is a growable storage similar to a [`Vec`][crate::collections::vec::Vec]`<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
 /// via slices and thus is not subject to the same restrictions slices are (notably, nested
 /// slices - and thus nested vectors as well - are disallowed).
@@ -529,7 +529,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// This function will zero out any elements at or past index `len` of `array`.
     /// This incurs an extra runtime cost of O(MaxLen). If you are sure your array is
-    /// zeroed after that index, you can use `from_parts_unchecked` to remove the extra loop.
+    /// zeroed after that index, you can use [`from_parts_unchecked`][Self::from_parts_unchecked] to remove the extra loop.
     ///
     /// Example:
     ///

@@ -698,3 +698,307 @@ fn nested_child_modules_run_innermost_first() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn nested_comptime_blocks_all_local_variables() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let x = comptime { 5 };
+                assert_eq(x, 5);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_let_used_in_separate_comptime_block() {
+    let src = r#"
+        fn main() {
+            comptime let x = 5;
+            comptime {
+                let y = x + 1;
+                assert_eq(y, 6);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_let_mut_in_separate_comptime_block() {
+    let src = r#"
+        fn main() {
+            comptime let mut x = 0;
+            comptime {
+                x = 5;
+            }
+            assert_eq(x, 5);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn multiple_comptime_blocks_share_scope() {
+    let src = r#"
+        fn main() {
+            comptime let x = 10;
+            comptime { assert_eq(x, 10); }
+            comptime { assert_eq(x + 5, 15); }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+#[test]
+#[should_panic]
+fn nested_comptime_accesses_outer_comptime_variable() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let x = 5;
+                comptime {
+                    let y = x + 1;
+                    assert_eq(y, 6);
+                }
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+#[test]
+#[should_panic]
+fn nested_comptime_accesses_outer_comptime_func_variable() {
+    let src = r#"
+    comptime fn main() {
+        let x = 0;
+        comptime {
+            let y = x + 1;
+            assert_eq(y, 6);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+#[test]
+#[should_panic]
+fn nested_comptime_with_mut_variable() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let mut x = 0;
+                comptime {
+                    x = 5;
+                }
+                assert_eq(x, 5);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+#[test]
+#[should_panic]
+fn nested_comptime_mut_outer_comptime_func_variable() {
+    let src = r#"
+    comptime fn main() {
+        let mut x = 0;
+        comptime {
+            x = 5;
+        }
+        assert_eq(x, 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+#[test]
+#[should_panic]
+fn comptime_function_with_comptime_block_called_from_comptime() {
+    let src = r#"
+        comptime fn helper(x: Field) -> Field {
+            comptime {
+                assert_eq(x, 5);
+            }
+        }
+
+        fn main() {
+            comptime {
+                let x = 5;
+                let result = helper(x);
+                assert_eq(result, 6);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+#[test]
+#[should_panic]
+fn runtime_function_with_comptime_block_called_from_comptime() {
+    let src = r#"
+        fn helper(x: Field) -> Field {
+            comptime {
+                assert_eq(x, 5);
+            }
+        }
+
+        fn main() {
+            comptime {
+                let x = 5;
+                let result = helper(x);
+                assert_eq(result, 6);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn nested_comptime_with_trait_method_calls() {
+    let src = r#"
+        trait MyTrait {
+            fn foo() -> Field;
+        }
+
+        impl MyTrait for Field {
+            fn foo() -> Field { 42 }
+        }
+
+        fn main() {
+            comptime {
+                let x = comptime {
+                    Field::foo()
+                };
+                assert_eq(x, 42);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn nested_comptime_with_generics() {
+    let src = r#"
+        trait MyTrait { }
+
+        struct Foo { }
+
+        impl MyTrait for Foo { }
+
+        fn generic_fn<T>() -> Field where T: MyTrait {
+            5
+        }
+
+        fn main() {
+            comptime {
+                comptime {
+                    let x = generic_fn::<Foo>();
+                    assert_eq(x, 5);
+                }
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_if_expression() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let x = if true { 5 } else { 10 };
+                assert_eq(x, 5);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_for_loop() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let mut sum = 0;
+                for i in 0..3 {
+                    sum += i;
+                }
+                assert_eq(sum, 3);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_loop_with_break() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let mut i = 0;
+                loop {
+                    if i == 5 { break; }
+                    i += 1;
+                }
+                assert_eq(i, 5);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_shadows_runtime_variable() {
+    let src = r#"
+        fn main() {
+            let x = 10;
+            comptime let x = 5;
+            assert_eq(x, 5);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_shadows_comptime_variable() {
+    let src = r#"
+        fn main() {
+            comptime let x = 5;
+            comptime let x = 10;
+            assert_eq(x, 10);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_block_explicit_type_mismatch() {
+    let src = r#"
+        fn main() {
+            let _x: Field = comptime { true };
+                            ^^^^^^^^^^^^^^^^^ Expected type Field, found type bool
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn empty_comptime_block() {
+    let src = r#"
+        fn main() {
+            let _: () = comptime { };
+        }
+    "#;
+    assert_no_errors(src);
+}

@@ -31,7 +31,9 @@ use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
-use async_lsp::lsp_types;
+use async_lsp::lsp_types::{
+    self, SemanticTokenType, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+};
 
 use crate::{
     LspState,
@@ -62,6 +64,7 @@ mod hover;
 mod inlay_hint;
 mod references;
 mod rename;
+mod semantic_tokens;
 mod signature_help;
 mod std_source_code;
 mod test_run;
@@ -76,9 +79,9 @@ pub(crate) use {
     goto_definition::on_goto_type_definition_request, hover::on_hover_request,
     inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
-    signature_help::on_signature_help_request, std_source_code::on_std_source_code_request,
-    test_run::on_test_run_request, tests::on_tests_request,
-    workspace_symbol::on_workspace_symbol_request,
+    semantic_tokens::on_semantic_tokens_full_request, signature_help::on_signature_help_request,
+    std_source_code::on_std_source_code_request, test_run::on_test_run_request,
+    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -101,6 +104,9 @@ pub(crate) struct LspInitializationOptions {
 
     #[serde(rename = "enableCodeActions", default = "default_enable_code_actions")]
     pub(crate) enable_code_actions: bool,
+
+    #[serde(rename = "enableSemanticTokens", default = "default_enable_semantic_tokens")]
+    pub(crate) enable_semantic_tokens: bool,
 
     /// Lightweight mode disables code lens, inlay hints, completions, signature help and code actions
     #[serde(rename = "enableLightweightMode", default = "default_enable_lightweight_mode")]
@@ -175,6 +181,10 @@ fn default_enable_code_actions() -> bool {
     true
 }
 
+fn default_enable_semantic_tokens() -> bool {
+    true
+}
+
 fn default_enable_parsing_cache() -> bool {
     true
 }
@@ -241,6 +251,7 @@ impl Default for LspInitializationOptions {
             enable_completions: default_enable_completions(),
             enable_signature_help: default_enable_signature_help(),
             enable_code_actions: default_enable_code_actions(),
+            enable_semantic_tokens: default_enable_semantic_tokens(),
             enable_lightweight_mode: default_enable_lightweight_mode(),
         }
     }
@@ -268,6 +279,8 @@ pub(crate) fn on_initialize(
         && initialization_options.enable_signature_help;
     let enable_code_actions = !initialization_options.enable_lightweight_mode
         && initialization_options.enable_code_actions;
+    let enable_semantic_tokens = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_semantic_tokens;
 
     async move {
         Ok(InitializeResult {
@@ -362,10 +375,44 @@ pub(crate) fn on_initialize(
                     },
                 )),
                 folding_range_provider: Some(true),
+                semantic_tokens_provider: enable_semantic_tokens.then_some(lsp_types::OneOf::Left(
+                    SemanticTokensOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        legend: SemanticTokensLegend {
+                            token_types: semantic_token_types().to_vec(),
+                            token_modifiers: vec![],
+                        },
+                        range: None,
+                        full: Some(SemanticTokensFullOptions::Bool(true)),
+                    },
+                )),
             },
             server_info: None,
         })
     }
+}
+
+pub(crate) fn semantic_token_types() -> [SemanticTokenType; 12] {
+    [
+        SemanticTokenType::NAMESPACE,
+        SemanticTokenType::STRUCT,
+        SemanticTokenType::INTERFACE,
+        SemanticTokenType::ENUM,
+        SemanticTokenType::FUNCTION,
+        SemanticTokenType::METHOD,
+        SemanticTokenType::VARIABLE,
+        SemanticTokenType::PROPERTY,
+        SemanticTokenType::NUMBER,
+        SemanticTokenType::KEYWORD,
+        SemanticTokenType::STRING,
+        SemanticTokenType::OPERATOR,
+    ]
+}
+
+pub(crate) fn semantic_token_types_map() -> HashMap<SemanticTokenType, usize> {
+    semantic_token_types().iter().enumerate().map(|(i, typ)| (typ.clone(), i)).collect()
 }
 
 pub(crate) fn on_formatting(
@@ -519,17 +566,17 @@ pub(crate) fn on_shutdown(
 }
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
-    location: noirc_errors::Location,
-    workspace: &'a Workspace,
-    package: &'a Package,
-    files: &'a FileMap,
-    interner: &'a NodeInterner,
-    package_cache: &'a HashMap<PathBuf, PackageCacheData>,
-    crate_id: CrateId,
-    crate_name: String,
-    crate_graph: &'a CrateGraph,
-    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
-    usage_tracker: &'a UsageTracker,
+    pub(crate) location: noirc_errors::Location,
+    pub(crate) workspace: &'a Workspace,
+    pub(crate) package: &'a Package,
+    pub(crate) files: &'a FileMap,
+    pub(crate) interner: &'a NodeInterner,
+    pub(crate) package_cache: &'a HashMap<PathBuf, PackageCacheData>,
+    pub(crate) crate_id: CrateId,
+    pub(crate) crate_name: String,
+    pub(crate) crate_graph: &'a CrateGraph,
+    pub(crate) def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    pub(crate) usage_tracker: &'a UsageTracker,
 }
 
 impl<'a> ProcessRequestCallbackArgs<'a> {

@@ -156,9 +156,11 @@ impl Monomorphizer<'_> {
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
                     let integer = HirLiteral::Integer(SignedField::positive(field_index));
-                    let index_id = self.interner.push_expr(HirExpression::Literal(integer));
-                    self.interner.push_expr_type(index_id, crate::Type::FieldElement);
-                    self.interner.push_expr_location(index_id, call.location);
+                    let index_id = self.interner.push_expr_full(
+                        HirExpression::Literal(integer),
+                        call.location,
+                        crate::Type::FieldElement,
+                    );
                     arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id)?;
                 } else {
                     // array/string element using constant index
@@ -182,11 +184,8 @@ impl Monomorphizer<'_> {
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
         let value = SignedField::positive(var_id.0);
         let var_id_literal = HirLiteral::Integer(value);
-        let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
         let u32 = crate::Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        self.interner.push_expr_type(expr_id, u32);
-        self.interner.push_expr_location(expr_id, *location);
-        expr_id
+        self.interner.push_expr_full(HirExpression::Literal(var_id_literal), *location, u32)
     }
 }
 

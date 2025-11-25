@@ -22,3 +22,8 @@ pub fn stdlib_paths_with_source() -> Vec<(String, String)> {
         })
         .collect()
 }
+
+/// Returns the contents of the Nargo.toml file for the standard library as a string.
+pub fn stdlib_nargo_toml_source() -> String {
+    include_str!("../../../noir_stdlib/Nargo.toml").to_string()
+}

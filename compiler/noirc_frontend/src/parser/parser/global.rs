@@ -1,10 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{
-        Expression, ExpressionKind, Ident, LetStatement, Pattern, UnresolvedType,
-        UnresolvedTypeData,
-    },
+    ast::{Expression, ExpressionKind, Ident, LetStatement, Pattern},
     parser::ParserErrorReason,
     token::Attribute,
 };
@@ -31,7 +28,7 @@ impl Parser<'_> {
             let ident = self.unknown_ident_at_previous_token_end();
             return LetStatement {
                 pattern: ident_to_pattern(ident, mutable),
-                r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
+                r#type: None,
                 expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
@@ -72,7 +69,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern, UnresolvedTypeData},
+        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -102,7 +99,7 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert!(!let_statement.comptime);
         assert!(let_statement.is_global_let);
         assert_eq!(visibility, ItemVisibility::Private);
@@ -116,7 +113,7 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
-        assert_eq!(let_statement.r#type.typ.to_string(), "i32");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "i32");
     }
 
     #[test]

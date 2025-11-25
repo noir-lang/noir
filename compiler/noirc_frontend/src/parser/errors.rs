@@ -113,6 +113,8 @@ pub enum ParserErrorReason {
     MissingTypeForAssociatedConstant,
     #[error("Associated trait constant default values are not supported")]
     AssociatedTraitConstantDefaultValuesAreNotSupported,
+    #[error("`mut` on a binding cannot be repeated")]
+    MutOnABindingCannotBeRepeated,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
@@ -40,13 +40,13 @@ jobs:
 
       - name: Update lockfile
         run: |
-            cargo update --workspace
+          cargo update --workspace
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22.15.0
-          cache: 'yarn'
-          cache-dependency-path: 'yarn.lock'
+          cache: "yarn"
+          cache-dependency-path: "yarn.lock"
 
       - name: Update yarn.lock
         run: yarn
@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}

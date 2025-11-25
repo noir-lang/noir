@@ -92,10 +92,18 @@ impl Context {
                 };
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = element_size * len;
-                // let array_length = function.dfg.type_of_value(*array).flattened_size();
 
-                // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                let length_type = NumericType::length_type();
+                // If we are here it means the index is dynamic, so let's add a check that it's less than length.
+
+                // Normally the indexes are expected to be u32, however if the array element is a composite type,
+                // the value could have overflown due to the unchecked multiplication with the element size.
+                // In ACIR, we rely on the array operation itself to fail the circuit if it encounters an overflown value,
+                // however we are just removing the array operation and replacing it with a LessThan, which in ACIR gen
+                // lays down an RangeCheck that would fail if the value doesn't fit 32 bits. As a workaround,
+                // instead of finding the index instruction and changing into a checked multiplication,
+                // we cast to a higher bitsize, which we expect should fit any overflown index type.
+                let length_type = NumericType::unsigned(64);
+
                 let index = function.dfg.insert_instruction_and_results(
                     Instruction::Cast(*index, length_type),
                     block_id,

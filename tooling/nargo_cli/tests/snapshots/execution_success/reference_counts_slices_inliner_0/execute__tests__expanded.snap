@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 use std::mem::slice_refcount;
 
-fn main() {
+fn main(i: u32) {
     let mut slice: [Field] = &[0_Field, 1_Field, 2_Field];
     assert_refcount(slice, 1_u32, true);
     borrow(slice, slice_refcount(slice));
@@ -16,6 +16,8 @@ fn main() {
     let rc2: u32 = slice_refcount(u32_slice);
     borrow_mut_two_separate(&mut slice, &mut u32_slice, rc1, rc2);
     regression_7297();
+    // Safety: comment added by `nargo expand`
+    unsafe { regression_10335(i) };
 }
 
 fn borrow(slice: [Field], rc_before_call: u32) {
@@ -98,4 +100,14 @@ fn regression_7297() {
             "after refcount_1 we clone once in passing slice to copy_mut, once to slice_refcount after, and once within copy_mut",
         );
     }
+}
+
+unconstrained fn regression_10335(i: u32) {
+    let a: [Field] = &[0_Field, 1_Field, 2_Field];
+    let mut b: [Field] = a;
+    b[i] = 3_Field;
+    let rc_a: u32 = slice_refcount(a);
+    let rc_b: u32 = slice_refcount(b);
+    assert(rc_a == 2_u32);
+    assert(rc_b == 1_u32);
 }

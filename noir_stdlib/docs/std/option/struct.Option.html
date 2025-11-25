@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<title>Struct Option documentation</title>
+</head>
+<body>
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2><a href="#struct">Struct Option</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#and">and</a></li>
+<li><a href="#and_then">and_then</a></li>
+<li><a href="#expect">expect</a></li>
+<li><a href="#filter">filter</a></li>
+<li><a href="#flatten">flatten</a></li>
+<li><a href="#is_none">is_none</a></li>
+<li><a href="#is_some">is_some</a></li>
+<li><a href="#map">map</a></li>
+<li><a href="#map_or">map_or</a></li>
+<li><a href="#map_or_else">map_or_else</a></li>
+<li><a href="#none">none</a></li>
+<li><a href="#or">or</a></li>
+<li><a href="#or_else">or_else</a></li>
+<li><a href="#some">some</a></li>
+<li><a href="#unwrap">unwrap</a></li>
+<li><a href="#unwrap_or">unwrap_or</a></li>
+<li><a href="#unwrap_or_else">unwrap_or_else</a></li>
+<li><a href="#unwrap_unchecked">unwrap_unchecked</a></li>
+<li><a href="#xor">xor</a></li>
+</ul>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Default-for-Option<T>">Default</a></li>
+<li><a href="#impl-Eq-for-Option<T>">Eq</a></li>
+<li><a href="#impl-Hash-for-Option<T>">Hash</a></li>
+<li><a href="#impl-Ord-for-Option<T>">Ord</a></li>
+</ul>
+<h2>In module option</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.Option.html">Option</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">option</a></div>
+<h1>Struct <span id="struct" class="struct">Option</span></h1>
+<pre><code>pub struct Option&lt;T&gt;
+{ <span class="comment">/* private fields */</span> }
+</code></pre>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl&lt;T&gt; <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;</code></h3>
+
+<div class="padded-methods"><code id="none" class="code-header">pub fn <span class="fn">none</span>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Constructs a None value</p>
+</div>
+</div><code id="some" class="code-header">pub fn <span class="fn">some</span>(_value: T) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Constructs a Some wrapper around the given value</p>
+</div>
+</div><code id="is_none" class="code-header">pub fn <span class="fn">is_none</span>(self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>True if this Option is None</p>
+</div>
+</div><code id="is_some" class="code-header">pub fn <span class="fn">is_some</span>(self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>True if this Option is Some</p>
+</div>
+</div><code id="unwrap" class="code-header">pub fn <span class="fn">unwrap</span>(self) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>Asserts <code>self.is_some()</code> and returns the wrapped value.</p>
+</div>
+</div><code id="unwrap_unchecked" class="code-header">pub fn <span class="fn">unwrap_unchecked</span>(self) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the inner value without asserting <code>self.is_some()</code>
+Note that if <code>self</code> is <code>None</code>, there is no guarantee what value will be returned,
+only that it will be of type <code>T</code>.</p>
+</div>
+</div><code id="unwrap_or" class="code-header">pub fn <span class="fn">unwrap_or</span>(self, default: T) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the wrapped value if <code>self.is_some()</code>. Otherwise, returns the given default value.</p>
+</div>
+</div><code id="unwrap_or_else" class="code-header">pub fn <span class="fn">unwrap_or_else</span>&lt;Env&gt;(self, default: fn[Env]() -> T) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the wrapped value if <code>self.is_some()</code>. Otherwise, calls the given function to return
+a default value.</p>
+</div>
+</div><code id="expect" class="code-header">pub fn <span class="fn">expect</span>&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, MessageTypes&gt;(
+    self,
+    message: <a href="../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, MessageTypes&gt;,
+) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>Asserts <code>self.is_some()</code> with a provided custom message and returns the contained <code>Some</code> value</p>
+</div>
+</div><code id="map" class="code-header">pub fn <span class="fn">map</span>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;U&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>If self is <code>Some(x)</code>, this returns <code>Some(f(x))</code>. Otherwise, this returns <code>None</code>.</p>
+</div>
+</div><code id="map_or" class="code-header">pub fn <span class="fn">map_or</span>&lt;U, Env&gt;(self, default: U, f: fn[Env](T) -> U) -> U</code>
+
+<div class="padded-description"><div class="comments">
+<p>If self is <code>Some(x)</code>, this returns <code>f(x)</code>. Otherwise, this returns the given default value.</p>
+</div>
+</div><code id="map_or_else" class="code-header">pub fn <span class="fn">map_or_else</span>&lt;U, Env1, Env2&gt;(
+    self,
+    default: fn[Env1]() -> U,
+    f: fn[Env2](T) -> U,
+) -> U</code>
+
+<div class="padded-description"><div class="comments">
+<p>If self is <code>Some(x)</code>, this returns <code>f(x)</code>. Otherwise, this returns <code>default()</code>.</p>
+</div>
+</div><code id="and" class="code-header">pub fn <span class="fn">and</span>(self, other: Self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns None if self is None. Otherwise, this returns <code>other</code>.</p>
+</div>
+</div><code id="and_then" class="code-header">pub fn <span class="fn">and_then</span>&lt;U, Env&gt;(self, f: fn[Env](T) -> <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;U&gt;) -> <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;U&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>If self is None, this returns None. Otherwise, this calls the given function
+with the Some value contained within self, and returns the result of that call.</p>
+<p>In some languages this function is called <code>flat_map</code> or <code>bind</code>.</p>
+</div>
+</div><code id="or" class="code-header">pub fn <span class="fn">or</span>(self, other: Self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>If self is Some, return self. Otherwise, return <code>other</code>.</p>
+</div>
+</div><code id="or_else" class="code-header">pub fn <span class="fn">or_else</span>&lt;Env&gt;(self, default: fn[Env]() -> Self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>If self is Some, return self. Otherwise, return <code>default()</code>.</p>
+</div>
+</div><code id="xor" class="code-header">pub fn <span class="fn">xor</span>(self, other: Self) -> Self</code>
+
+<code id="filter" class="code-header">pub fn <span class="fn">filter</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>Some(x)</code> if self is <code>Some(x)</code> and <code>predicate(x)</code> is true.
+Otherwise, this returns <code>None</code></p>
+</div>
+</div><code id="flatten" class="code-header">pub fn <span class="fn">flatten</span>(option: <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Flattens an Option&lt;Option<T>&gt; into a Option<T>.
+This returns None if the outer Option is None. Otherwise, this returns the inner Option.</p>
+</div>
+</div></div><h2>Trait implementations</h2>
+<h3 id="impl-Default-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;</code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">default</span>() -> Self</code>
+
+</div><h3 id="impl-Eq-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;
+<div class="where-clause">where
+    T: <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+</div><h3 id="impl-Hash-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;
+<div class="where-clause">where
+    T: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">where
+    H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
+
+</div><h3 id="impl-Ord-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;
+<div class="where-clause">where
+    T: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a></div></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">cmp</span>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code>
+
+</div></main>
+</body>
+</html>

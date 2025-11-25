@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(input: [u8; 1]) -> pub [u8; 32] {
+    let fun: fn([u8; 1]) -> [u8; 32] = if input[0_u32] == 0_u8 {
+        std::hash::blake2s
+    } else {
+        |_: [u8; 1]| -> [u8; 32] [0_u8; 32]
+    };
+    fun(input)
+}

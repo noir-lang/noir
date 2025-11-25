@@ -3,8 +3,10 @@
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    elaborator::types::bind_ordered_generics,
-    graph::CrateId,
+    elaborator::{
+        PathResolutionMode, WildcardDisallowedContext,
+        types::{WildcardAllowed, bind_ordered_generics},
+    },
     hir::{
         def_collector::{
             dc_crate::{CompilationError, UnresolvedTraitImpl},
@@ -31,7 +33,7 @@ use super::Elaborator;
 
 impl Elaborator<'_> {
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
         self.current_trait_impl = trait_impl.impl_id;
 
         let self_type = trait_impl.methods.self_type.clone();
@@ -83,7 +85,8 @@ impl Elaborator<'_> {
                         // This can't be done in code, but it could happen with unquoted types.
                         continue;
                     };
-                    let wildcard_allowed = false;
+                    let wildcard_allowed =
+                        WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
                     let resolved_type = self.resolve_type_with_kind(
                         unresolved_type,
                         &associated_type.typ.kind(),
@@ -204,7 +207,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -405,15 +408,15 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::DataType(struct_type, _)) => struct_type.borrow().id.krate(),
-            _ => CrateId::Dummy,
+            Some(Type::DataType(struct_type, _)) => Some(struct_type.borrow().id.krate()),
+            _ => None,
         };
 
         let the_trait = self.interner.get_trait(trait_id);
-        if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
+        if self.crate_id != the_trait.crate_id && Some(self.crate_id) != object_crate {
             self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
                 location: trait_impl.object_type.location,
             });
@@ -426,8 +429,9 @@ impl Elaborator<'_> {
     ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
-            let wildcard_allowed = false;
-            let resolved_type = self.resolve_type(typ, wildcard_allowed);
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+            let resolved_type =
+                typ.map(|typ| self.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
             let kind = Kind::Numeric(Box::new(resolved_type));
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
@@ -440,6 +444,8 @@ impl Elaborator<'_> {
             associated_types.push((name, typ, kind));
         }
         for (name, typ) in trait_impl.associated_types.drain(..) {
+            let location = name.location();
+            let typ = typ.unwrap_or_else(|| UnresolvedTypeData::Error.with_location(location));
             associated_types.push((name, typ, Kind::Any));
         }
         associated_types
@@ -671,7 +677,7 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> Vec<(TraitConstraint, Location)> {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);
@@ -698,7 +704,7 @@ impl Elaborator<'_> {
                 .chain(new_generics_trait_constraints.iter().map(|(constraint, _)| constraint)),
         );
 
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitImplType);
         let unresolved_type = trait_impl.object_type.clone();
         let self_type = self.resolve_type(unresolved_type, wildcard_allowed);
         trait_impl.methods.self_type = Some(self_type.clone());
@@ -879,5 +885,26 @@ impl Elaborator<'_> {
         self.interner.set_associated_types_for_impl(impl_id, named_generics);
 
         trait_impl.unresolved_associated_types = associated_types;
+    }
+
+    /// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
+    /// associated types to be elided since trait impls must specify them.
+    fn resolve_trait_args_from_trait_impl(
+        &mut self,
+        args: GenericTypeArgs,
+        item: TraitId,
+        location: Location,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        let mode = PathResolutionMode::MarkAsReferenced;
+        let allow_implicit_named_args = false;
+        let wildcard_allowed = WildcardAllowed::Yes;
+        self.resolve_type_or_trait_args_inner(
+            args,
+            item,
+            location,
+            allow_implicit_named_args,
+            mode,
+            wildcard_allowed,
+        )
     }
 }

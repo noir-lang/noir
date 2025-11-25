@@ -88,7 +88,7 @@ impl<'context> Elaborator<'context> {
                 let meta = elaborator.interner.function_meta(&function);
                 elaborator.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = meta.source_crate;
-                elaborator.local_module = meta.source_module;
+                elaborator.local_module = Some(meta.source_module);
                 elaborator.introduce_generics_into_scope(meta.all_generics.clone());
             }
         })
@@ -106,7 +106,7 @@ impl<'context> Elaborator<'context> {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             elaborator.current_item = None;
             elaborator.crate_id = module.krate;
-            elaborator.local_module = module.local_id;
+            elaborator.local_module = Some(module.local_id);
         })
     }
 
@@ -318,7 +318,7 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
-        self.local_module = attribute_context.attribute_module;
+        self.local_module = Some(attribute_context.attribute_module);
 
         let kind = match &attribute.name {
             MetaAttributeName::Path(path) => ExpressionKind::Variable(path.clone()),
@@ -381,7 +381,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
-        self.local_module = attribute_context.module;
+        self.local_module = Some(attribute_context.module);
 
         let mut interpreter = self.setup_interpreter();
         let mut arguments = Self::handle_attribute_arguments(
@@ -447,7 +447,7 @@ impl<'context> Elaborator<'context> {
 
         if &parameters[0] != expected_type {
             return Err(InterpreterError::TypeMismatch {
-                expected: parameters[0].clone(),
+                expected: parameters[0].to_string(),
                 actual: expected_type.clone(),
                 location,
             }
@@ -504,7 +504,7 @@ impl<'context> Elaborator<'context> {
                     &mut errors,
                     || {
                         CompilationError::InterpreterError(InterpreterError::TypeMismatch {
-                            expected: param_type.clone(),
+                            expected: param_type.to_string(),
                             actual: expr_type.clone(),
                             location: arg_location,
                         })
@@ -551,6 +551,8 @@ impl<'context> Elaborator<'context> {
     /// (e.g., module declarations and submodules) would require additional def-map updates
     /// thus potentially affecting the source order of attributes and would not be safe during elaboration.
     fn add_item(&mut self, item: Item, generated_items: &mut CollectedItems, location: Location) {
+        let local_module = self.local_module();
+
         match item.kind {
             ItemKind::Function(function) => {
                 let module_id = self.module_id();
@@ -564,7 +566,7 @@ impl<'context> Elaborator<'context> {
                     item.doc_comments,
                     &mut self.errors,
                 ) {
-                    let functions = vec![(self.local_module, id, function)];
+                    let functions = vec![(local_module, id, function)];
                     generated_items.functions.push(UnresolvedFunctions {
                         file_id: location.file,
                         functions,
@@ -580,12 +582,12 @@ impl<'context> Elaborator<'context> {
                         &mut trait_impl,
                         self.crate_id,
                         location.file,
-                        self.local_module,
+                        local_module,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: location.file,
-                    module_id: self.local_module,
+                    module_id: local_module,
                     r#trait: trait_impl.r#trait,
                     object_type: trait_impl.object_type,
                     methods,
@@ -611,7 +613,7 @@ impl<'context> Elaborator<'context> {
                     Documented::new(global, item.doc_comments),
                     visibility,
                     location.file,
-                    self.local_module,
+                    local_module,
                     self.crate_id,
                 );
 
@@ -626,7 +628,7 @@ impl<'context> Elaborator<'context> {
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
-                    self.local_module,
+                    local_module,
                     self.crate_id,
                     &mut self.errors,
                 ) {
@@ -640,7 +642,7 @@ impl<'context> Elaborator<'context> {
                     self.usage_tracker,
                     Documented::new(enum_def, item.doc_comments),
                     location.file,
-                    self.local_module,
+                    local_module,
                     self.crate_id,
                     &mut self.errors,
                 ) {
@@ -682,7 +684,7 @@ impl<'context> Elaborator<'context> {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
-        Interpreter::new(self, self.crate_id, current_function)
+        Interpreter::new(self, current_function)
     }
 
     /// Debug helper to print comptime evaluation results.
