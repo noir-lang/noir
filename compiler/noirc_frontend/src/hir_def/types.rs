@@ -1585,6 +1585,7 @@ impl Type {
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if struct_type.get_variants(args).is_some() {
+                    // Add one for the tag.
                     count += 1;
                 }
                 true
