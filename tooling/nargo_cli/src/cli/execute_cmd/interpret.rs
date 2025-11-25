@@ -181,7 +181,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let numeric_value = NumericValue::from_constant(*value, numeric_type)
                 .expect("Could not convert field value to integer");
             match numeric_value {
-                NumericValue::Field(value) => Value::Field(SignedField::positive(value)),
+                NumericValue::Field(_) => panic!("Field should not happen here"),
                 NumericValue::U1(value) => Value::U1(value),
                 NumericValue::U8(fitted) => match fitted {
                     Fitted::Fit(value) => Value::U8(value),
