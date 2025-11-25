@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764073133048,
+  "lastUpdate": 1764073161136,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8da0cc8213c6d9e3c204350f0fc41885b515f07c",
-          "message": "chore: improve register moves in brillig return code-gen (#10305)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-11-13T12:44:58Z",
-          "tree_id": "68261a34179f7bbd1641a0a7f04b52ccb5f64297",
-          "url": "https://github.com/noir-lang/noir/commit/8da0cc8213c6d9e3c204350f0fc41885b515f07c"
-        },
-        "date": 1763041025744,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 257.45,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 290.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 237.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 333.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 332.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 521.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 467.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 331.93,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 73.85,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.09,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/87ab9215b902f918c5ca6e48676c90fa0a9f8286"
         },
         "date": 1764013373964,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 259.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 239.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 335.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 334.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 335.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 524.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 465.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 334.01,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73.92,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.1,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fbaa122bdeaee801e90b69fcc435aa4a4167feb7",
+          "message": "chore(brillig): Revert the handling of vectors returned from foreign calls (#10602)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-11-25T11:34:18Z",
+          "tree_id": "86c9b297ffc490af75b9dd82235b8fad537ef1ac",
+          "url": "https://github.com/noir-lang/noir/commit/fbaa122bdeaee801e90b69fcc435aa4a4167feb7"
+        },
+        "date": 1764073129512,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
