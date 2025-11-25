@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764013436009,
+  "lastUpdate": 1764071835250,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8da0cc8213c6d9e3c204350f0fc41885b515f07c",
-          "message": "chore: improve register moves in brillig return code-gen (#10305)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-11-13T12:44:58Z",
-          "tree_id": "68261a34179f7bbd1641a0a7f04b52ccb5f64297",
-          "url": "https://github.com/noir-lang/noir/commit/8da0cc8213c6d9e3c204350f0fc41885b515f07c"
-        },
-        "date": 1763039619216,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257923,
-            "range": "± 577",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227660,
-            "range": "± 4170",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782726,
-            "range": "± 1318",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780041,
             "range": "± 2236",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fbaa122bdeaee801e90b69fcc435aa4a4167feb7",
+          "message": "chore(brillig): Revert the handling of vectors returned from foreign calls (#10602)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-11-25T11:34:18Z",
+          "tree_id": "86c9b297ffc490af75b9dd82235b8fad537ef1ac",
+          "url": "https://github.com/noir-lang/noir/commit/fbaa122bdeaee801e90b69fcc435aa4a4167feb7"
+        },
+        "date": 1764071808049,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257445,
+            "range": "± 988",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229860,
+            "range": "± 2488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793005,
+            "range": "± 5297",
             "unit": "ns/iter"
           }
         ]
