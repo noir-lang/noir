@@ -135,7 +135,7 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 39] = [
     // bugs
     "a_5_over",
     "arithmetic_binary_operations",
@@ -164,11 +164,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     "regression_1144_1169_2399_6609",
     "regression_5252",
     "regression_6451",
-    "regression_7323",
     "regression_8329",
-    "regression_8755",
-    "regression_9208",
-    "regression_9303",
     "simple_radix",
     "simple_shield",
     "strings",
@@ -180,6 +176,8 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
     "reference_counts_slices_inliner_0",
+    // Enums are currently unsupported in comptime code
+    "regression_7323",
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
