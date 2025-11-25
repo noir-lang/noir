@@ -320,7 +320,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
         self.current_function = old_function;
-        self.elaborator.replace_module(old_module);
+        if let Some(old_module) = old_module {
+            self.elaborator.replace_module(old_module);
+        }
         result
     }
 

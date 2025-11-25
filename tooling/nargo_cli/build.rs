@@ -44,6 +44,8 @@ fn main() -> Result<(), String> {
     generate_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -489,6 +491,39 @@ fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
             "execution_panic(nargo);",
             &MatrixConfig::default(),
         );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        // if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+        //     continue;
+        // }
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_execute_comptime(test_program_dir);
+            }}
+            "#
+        )
+        .unwrap();
     }
     writeln!(test_file, "}}").unwrap();
 }
