@@ -2494,7 +2494,7 @@ impl Type {
         let mut result = None;
         visit_type(self, &mut |typ| {
             match typ {
-                Type::Alias(_, _) | Type::NamedGeneric(_) | Type::Reference(_, _) => {
+                Type::Alias(_, _) | Type::Reference(_, _) => {
                     return true;
                 }
 
@@ -2519,6 +2519,12 @@ impl Type {
                         },
                         TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                     };
+                }
+                Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                    result = match &*type_var.borrow() {
+                        TypeBinding::Bound(typ) => typ.integral_maximum_size(),
+                        TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
+                    }
                 }
                 Type::CheckedCast { to, .. } => {
                     result = to.integral_maximum_size();
