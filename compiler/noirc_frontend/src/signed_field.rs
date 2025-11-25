@@ -1,6 +1,6 @@
 use acvm::{AcirField, FieldElement};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Copy, Clone, Hash, serde::Deserialize, serde::Serialize)]
 pub struct SignedField {
     field: FieldElement,
     is_negative: bool,
@@ -121,6 +121,18 @@ impl SignedField {
         }
     }
 }
+
+impl PartialEq for SignedField {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is_negative == other.is_negative {
+            self.field == other.field
+        } else {
+            self.field == -other.field
+        }
+    }
+}
+
+impl Eq for SignedField {}
 
 impl std::ops::Add for SignedField {
     type Output = Self;
@@ -435,5 +447,14 @@ mod tests {
         assert_eq!(SignedField::from(i128::MAX).to_i128(), i128::MAX);
         assert_eq!(SignedField::from(i128::MIN).to_i128(), i128::MIN);
         assert_eq!(SignedField::from(i128::MIN + 1).to_i128(), i128::MIN + 1);
+    }
+
+    #[test]
+    fn equality() {
+        let a = SignedField::negative(FieldElement::one());
+        let b = SignedField::positive(-FieldElement::one());
+        assert_eq!(a, a);
+        assert_eq!(b, b);
+        assert_eq!(a, b);
     }
 }
