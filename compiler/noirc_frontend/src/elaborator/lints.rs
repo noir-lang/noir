@@ -1,7 +1,7 @@
 //! Lint checks for function attributes, visibility, and usage restrictions.
 
 use crate::{
-    Type,
+    NamedGeneric, Type, TypeBinding,
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
@@ -100,10 +100,76 @@ pub(super) fn oracle_not_marked_unconstrained(
     }
 
     let attribute = modifiers.attributes.function()?;
-    if matches!(attribute.kind, FunctionAttributeKind::Oracle(_)) {
+    if attribute.kind.is_oracle() {
         let ident = func_meta_name_ident(func, modifiers);
         let location = attribute.location;
         Some(ResolverError::OracleMarkedAsConstrained { ident, location })
+    } else {
+        None
+    }
+}
+
+/// Oracle functions cannot return more than 1 slice in their output.
+///
+/// This is currently a limitation with the AVM: to return multiple slices
+/// of unknown length, it would need to support to allocating memory for
+/// them in the call handler, and return their final address. Currently
+/// only the Brillig codegen knows about the Free Memory Pointer, and
+/// it the VM writes to whatever address is in the destination, so we
+/// can only safely deal with one vector.
+pub(super) fn oracle_returns_multiple_slices(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    fn slice_count(typ: &Type) -> usize {
+        match typ {
+            Type::Array(_, item) => slice_count(item),
+            Type::Slice(typ) => 1 + slice_count(typ),
+            Type::FmtString(_, item) => slice_count(item),
+            Type::Tuple(items) => items.iter().map(slice_count).sum(),
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                if let Some(fields) = struct_type.get_fields(args) {
+                    fields.iter().map(|(_, typ, _)| slice_count(typ)).sum()
+                } else if let Some(variants) = struct_type.get_variants(args) {
+                    variants.iter().flat_map(|(_, types)| types).map(slice_count).sum()
+                } else {
+                    0
+                }
+            }
+            Type::Alias(def, args) => slice_count(&def.borrow().get_type(args)),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => slice_count(binding),
+                    TypeBinding::Unbound(_, _) => 0,
+                }
+            }
+            Type::Forall(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Reference(_, _)
+            | Type::Function(_, _, _, _)
+            | Type::CheckedCast { .. }
+            | Type::TraitAsType(_, _, _)
+            | Type::Error
+            | Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit => 0,
+        }
+    }
+
+    if slice_count(func.return_type()) > 1 {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleReturnsMultipleSlices { location: ident.location() })
     } else {
         None
     }
@@ -123,8 +189,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().is_some_and(|func| func.kind.is_oracle());
-    if is_oracle_call {
+    if function_attributes.function()?.kind.is_oracle() {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {
         None
