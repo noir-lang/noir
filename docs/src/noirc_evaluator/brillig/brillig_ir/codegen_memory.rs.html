@@ -597,7 +597,20 @@
 <a href="#596" id="596">596</a>
 <a href="#597" id="597">597</a>
 <a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     brillig_vm::offsets,
@@ -1181,18 +1194,31 @@
     ///
     /// Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.
     ///
-    /// The VM is expected to adjust the _free memory pointer_ to point beyond where the data was written,
-    /// so we don't have to generate bytecode to increase it here.
-    ///
     /// Returns the size variable, which we can use to set the semantic length.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_externally_returned_vector(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
-    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
-        <span class="comment">// Read the address of the size on the heap based on the vector pointer on the stack.
-        </span><span class="kw">let </span>size_var = <span class="self">self</span>.codegen_read_vector_size(vector);
+        output: <span class="kw-2">&amp;</span>HeapVector,
+    ) -&gt; SingleAddrVariable {
+        <span class="comment">// The size in the output is an address on the stack; copy it over to the heap.
+        </span><span class="kw">let </span>size_var = SingleAddrVariable::new_usize(output.size);
+
         <span class="comment">// For externally returned vectors, capacity equals size.
-        </span><span class="self">self</span>.codegen_initialize_vector_metadata(vector, <span class="kw-2">*</span>size_var, <span class="kw-2">*</span>size_var);
+        </span><span class="self">self</span>.codegen_initialize_vector_metadata(vector, size_var, size_var);
+
+        <span class="comment">// The size in the heap vector only represents the items.
+        // Figure out how much memory we need to allocate to hold it, accounting for the metadata.
+        </span><span class="kw">let </span>total_size = <span class="self">self</span>.allocate_register();
+        <span class="self">self</span>.codegen_usize_op(
+            size_var.address,
+            <span class="kw-2">*</span>total_size,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_META_COUNT,
+        );
+
+        <span class="comment">// Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
+        </span><span class="self">self</span>.increase_free_memory_pointer_instruction(<span class="kw-2">*</span>total_size);
+
         size_var
     }
 }

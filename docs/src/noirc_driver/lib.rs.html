@@ -1208,7 +1208,7 @@
                 enable_debug_trace: <span class="self">self</span>.show_brillig,
                 enable_debug_assertions: <span class="self">self</span>.enable_brillig_debug_assertions,
                 enable_array_copy_counter: <span class="self">self</span>.count_array_copies,
-                ..Default::default()
+                layout: Default::default(),
             },
             print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
             expression_width: <span class="kw">if </span><span class="self">self</span>.bounded_codegen {

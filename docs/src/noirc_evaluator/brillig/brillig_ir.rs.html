@@ -534,7 +534,13 @@
 <a href="#533" id="533">533</a>
 <a href="#534" id="534">534</a>
 <a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -999,26 +1005,32 @@
             enable_debug_trace: <span class="bool-val">true</span>,
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
-            ..Default::default()
+            layout: Default::default(),
         };
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
-        <span class="kw">let </span>r_free = ReservedRegisters::free_memory_pointer();
-        <span class="comment">// Set the free memory pointer after the 2 variables allocated below.
-        </span><span class="kw">let </span>r_free_value = ReservedRegisters::len() + <span class="number">2</span>;
-        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
-        <span class="kw">let </span>r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        <span class="kw">let </span>r_vector_ptr = r_input_size.offset(<span class="number">1</span>);
-        <span class="kw">let </span>r_equality = r_input_size.offset(<span class="number">2</span>);
 
-        <span class="comment">// The vector size is going to be on the heap. It's easy here, since we know where it will start.
-        </span><span class="kw">let </span>r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
+        <span class="comment">// Allocate variables
+        </span><span class="kw">let </span>r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        <span class="kw">let </span>r_output_ptr = r_input_size.offset(<span class="number">1</span>);
+        <span class="kw">let </span>r_output_size = r_input_size.offset(<span class="number">2</span>);
+        <span class="kw">let </span>r_equality = r_input_size.offset(<span class="number">3</span>);
+
+        <span class="kw">let </span>r_free = ReservedRegisters::free_memory_pointer();
+        <span class="comment">// Set the free memory pointer after the variables allocated above.
+        </span><span class="kw">let </span>r_free_value = ReservedRegisters::len() + <span class="number">4</span>;
+        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
 
         context.usize_const_instruction(r_input_size, FieldElement::from(<span class="number">12_usize</span>));
+        <span class="comment">// The output pointer points at the heap.
+        </span>context.usize_const_instruction(
+            r_output_ptr,
+            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+        );
         context.foreign_call_instruction(
             <span class="string">"make_number_sequence"</span>.into(),
             <span class="kw-2">&amp;</span>[ValueOrArray::MemoryAddress(r_input_size)],
             <span class="kw-2">&amp;</span>[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            <span class="kw-2">&amp;</span>[ValueOrArray::MemoryAddress(r_vector_ptr)],
+            <span class="kw-2">&amp;</span>[ValueOrArray::HeapVector(HeapVector { pointer: r_output_ptr, size: r_output_size })],
             <span class="kw-2">&amp;</span>[HeapValueType::Vector {
                 value_types: <span class="macro">vec!</span>[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             }],

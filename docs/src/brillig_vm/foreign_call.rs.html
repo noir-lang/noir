@@ -549,25 +549,7 @@
 <a href="#548" id="548">548</a>
 <a href="#549" id="549">549</a>
 <a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a>
-<a href="#555" id="555">555</a>
-<a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a>
-<a href="#558" id="558">558</a>
-<a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a>
-<a href="#561" id="561">561</a>
-<a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a>
-<a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href="#551" id="551">551</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{
@@ -578,9 +560,8 @@
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
 
 <span class="kw">use crate</span>::{
-    FREE_MEMORY_POINTER_ADDRESS, MemoryValue, VM, VMStatus,
+    MemoryValue, VM, VMStatus,
     memory::{ArrayAddress, VectorAddress},
-    offsets,
 };
 
 <span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
@@ -927,7 +908,7 @@
                                 <span class="string">"Not all values were written to memory"
                             </span>);
                         } <span class="kw">else </span>{
-                            <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, <span class="bool-val">true</span>, values, value_types)<span class="question-mark">?</span>;
+                            <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                         }
                     } <span class="kw">else </span>{
                         <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
@@ -946,8 +927,12 @@
                         </span>);
                     }
                 }
-                (
-                    ValueOrArray::MemoryAddress(vector_pointer),
+                <span class="comment">// We didn't know the length of vectors when we allocated the destination variable, so we pointed
+                // the vector at the start of the free memory; with this technique we can only handle a single vector.
+                // Write the data where the destination points at. It is up to the follow up bytecode to initialize
+                // the meta-data, or move the data somewhere else.
+                </span>(
+                    ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
                     HeapValueType::Vector { value_types },
                 ) =&gt; {
                     <span class="kw">if </span>HeapValueType::all_simple(value_types) {
@@ -960,31 +945,11 @@
                                 <span class="string">"Returned data does not match vector element size"</span>.to_string()
                             );
                         }
-
-                        <span class="comment">// We write the data to the current free memory pointer.
-                        </span><span class="kw">let </span>free_memory_addr = <span class="self">self</span>.memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
-
-                        <span class="comment">// Store the address itself back in the destination.
-                        </span><span class="self">self</span>.memory.write_ref(<span class="kw-2">*</span>vector_pointer, free_memory_addr);
-
-                        <span class="comment">// Set the size in the size address and write the data.
-                        // The RC and the capacity will be initialized in codegen after the call.
-                        </span><span class="kw">let </span>vector_address = VectorAddress::from(free_memory_addr);
-                        <span class="self">self</span>.memory.write(vector_address.size_addr(), values.len().into());
-                        <span class="self">self</span>.write_values_to_memory(
-                            vector_address.items_start(),
-                            <span class="bool-val">false</span>,
-                            values,
-                            value_types,
-                        )<span class="question-mark">?</span>;
-
-                        <span class="comment">// Increase the free memory pointer by the amount of space taken by the vector, including metadata,
-                        // so the next vector can go to after where this was written.
-                        </span><span class="kw">let </span>total_size = offsets::VECTOR_META_COUNT + values.len();
-                        <span class="self">self</span>.memory.write_ref(
-                            FREE_MEMORY_POINTER_ADDRESS,
-                            free_memory_addr.offset(total_size),
-                        );
+                        <span class="comment">// Set the size in the size address.
+                        // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
+                        // instead we expect the post-call codegen will copy it to the heap.
+                        </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, values.len().into());
+                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                     } <span class="kw">else </span>{
                         <span class="macro">unimplemented!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
                     }
@@ -1021,11 +986,10 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Write an array or slice either directly to an address, or indirectly to a destination pointed at by that address.
+    <span class="doccomment">/// Write the `values` of an array or slice to an address stored under the `pointer`.
     </span><span class="kw">fn </span>write_values_to_memory(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: MemoryAddress,
-        is_pointer: bool,
+        pointer: MemoryAddress,
         values: <span class="kw-2">&amp;</span>[F],
         value_types: <span class="kw-2">&amp;</span>[HeapValueType],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
@@ -1038,7 +1002,7 @@
             .cycle();
 
         <span class="comment">// Convert the destination pointer to an address.
-        </span><span class="kw">let </span>destination = <span class="kw">if </span>is_pointer { <span class="self">self</span>.memory.read_ref(address) } <span class="kw">else </span>{ address };
+        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(pointer);
 
         <span class="comment">// Write to the destination memory.
         </span><span class="kw">let </span>memory_values: <span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = values

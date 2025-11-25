@@ -4772,7 +4772,7 @@
             | Type::Forall(..)
             | Type::Error =&gt; <span class="bool-val">false</span>,
             Type::Array(length, typ) =&gt; length.contains_reference() || typ.contains_reference(),
-            Type::Slice(length) =&gt; length.contains_reference(),
+            Type::Slice(typ) =&gt; typ.contains_reference(),
             Type::FmtString(length, typ) =&gt; length.contains_reference() || typ.contains_reference(),
             Type::Tuple(types) =&gt; types.iter().any(|typ| typ.contains_reference()),
             Type::DataType(typ, generics) =&gt; {
@@ -4792,7 +4792,7 @@
                 }
                 <span class="bool-val">false
             </span>}
-            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).is_nested_slice(),
+            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).contains_reference(),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
                 <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {

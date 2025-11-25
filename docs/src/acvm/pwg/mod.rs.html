@@ -1334,12 +1334,12 @@
         }
     }
 
-    <span class="comment">// Enable profiling
+    <span class="doccomment">/// Enable profiling
     </span><span class="kw">pub fn </span>with_profiler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, profiling_active: bool) {
         <span class="self">self</span>.profiling_active = profiling_active;
     }
 
-    <span class="comment">// Enable brillig fuzzing
+    <span class="doccomment">/// Enable brillig fuzzing
     </span><span class="kw">pub fn </span>with_brillig_fuzzing(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         brillig_branch_to_feature_map: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>BranchToFeatureMap&gt;,

@@ -398,11 +398,7 @@
 <a href="#397" id="397">397</a>
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
+<a href="#400" id="400">400</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::acir::brillig::ValueOrArray;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -467,7 +463,7 @@
 
         <span class="comment">// Pair up the heap typed output values of the call with the Brillig variables created for the results,
         // so that we can do some post processing for vectors.
-        </span><span class="kw">for </span>(i, (_output_value, output_variable)) <span class="kw">in
+        </span><span class="kw">for </span>(i, (output_value, output_variable)) <span class="kw">in
             </span>output_values.iter().zip(output_variables).enumerate()
         {
             <span class="comment">// We need to emit some bytecode to format the output as a BrilligVector
@@ -476,11 +472,16 @@
                 </span><span class="kw">continue</span>;
             };
 
+            <span class="kw">let </span>ValueOrArray::HeapVector(heap_vector) = <span class="kw-2">**</span>output_value <span class="kw">else </span>{
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: a BrilligVector is expected to have a HeapVector as output"</span>);
+            };
+
             <span class="comment">// Adjust the metadata of the result variable.
             // The items don't need to be copied, since we passed the pointer to the items of the
             // array/vector variable in the heap array/vector.
-            </span><span class="kw">let </span>flattened_size_var =
-                <span class="self">self</span>.brillig_context.codegen_initialize_externally_returned_vector(vector);
+            </span><span class="kw">let </span>flattened_size_var = <span class="self">self
+                </span>.brillig_context
+                .codegen_initialize_externally_returned_vector(vector, <span class="kw-2">&amp;</span>heap_vector);
 
             <span class="comment">// Update the dynamic slice length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
@@ -500,21 +501,12 @@
     }
 
     <span class="doccomment">/// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
-    ///
-    /// [BrilligVariable::BrilligVector] has special handling: we didn't know the size when we allocated this variable
-    /// for a result variable in SSA, so it doesn't point at any particular address. For that reason we always turn it
-    /// into a [ValueOrArray::MemoryAddress], and we expect the foreign call handler to store at it the the address
-    /// of the output data written to the heap, once the foreign call returns.
     </span><span class="kw">fn </span>output_variables_to_destinations(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         output_variables: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) -&gt; Vec&lt;Allocated&lt;ValueOrArray, Registers&gt;&gt; {
         vecmap(output_variables, |variable| {
-            <span class="kw">if let </span>BrilligVariable::BrilligVector(vector) = <span class="kw-2">*</span>variable {
-                Allocated::pure(ValueOrArray::MemoryAddress(vector.pointer))
-            } <span class="kw">else </span>{
-                <span class="self">self</span>.brillig_context.variable_to_value_or_array(<span class="kw-2">*</span>variable)
-            }
+            <span class="self">self</span>.brillig_context.variable_to_value_or_array(<span class="kw-2">*</span>variable)
         })
     }
 

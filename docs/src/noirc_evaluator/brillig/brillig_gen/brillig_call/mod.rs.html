@@ -396,7 +396,22 @@
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_slice_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
@@ -435,16 +450,16 @@
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
     ///
     /// # Panics
-    /// If there is a vector among the output variables _and_ it's followed by another array or vector:
+    /// If there is a vector among the output variables _and_ it's followed by another vector:
     /// when we allocate memory for a vector, we don't know its length, so it just points at the current
-    /// free memory pointer without increasing it; anything else that needs the free memory pointer would
-    /// risk pointing at the same memory region.
+    /// free memory pointer without increasing it; a second vector gets allocated at the same memory slot.
     </span><span class="kw">fn </span>allocate_external_call_results(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         results: <span class="kw-2">&amp;</span>[ValueId],
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; Vec&lt;BrilligVariable&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_allocated = <span class="prelude-val">None</span>;
 
         <span class="kw">for </span>result <span class="kw">in </span>results {
             <span class="kw">let </span>result = <span class="kw-2">*</span>result;
@@ -471,17 +486,25 @@
                     variable
                 }
                 Type::Slice(<span class="kw">_</span>) =&gt; {
-                    <span class="comment">// Not initializing the vector pointer to any particular value; it's output only.
-                    // The foreign call handler is expected to write the vector data to the free memory pointer,
-                    // storing its value back into this variable. The caller of this method will also generate
-                    // code to initialize the vector metadata after the foreign call has been handled.
-                    // The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
-                    </span><span class="self">self</span>.variables.define_variable(
+                    <span class="kw">let </span>variable = <span class="self">self</span>.variables.define_variable(
                         <span class="self">self</span>.function_context,
                         <span class="self">self</span>.brillig_context,
                         result,
                         dfg,
-                    )
+                    );
+
+                    <span class="comment">// Set its pointer to the free memory address, and expect the VM to write the data where the vector points to.
+                    // We can only support one vector output this way, otherwise the next vector would overwrite it.
+                    // The vector also has to be the last output of the function, there cannot be any arrays following it.
+                    </span><span class="macro">assert!</span>(
+                        vector_allocated.is_none(),
+                        <span class="string">"a previous vector has already been allocated at the free memory pointer"
+                    </span>);
+                    <span class="comment">// Remember the position of single vector we allocated; we will initialize it to the free memory pointer
+                    // after we have dealt with any other arrays in the output, otherwise they could overwrite it.
+                    </span>vector_allocated = <span class="prelude-val">Some</span>(variables.len());
+
+                    variable
                 }
                 <span class="kw">_ </span>=&gt; {
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: unsupported return type for black box call {typ:?}"</span>)
@@ -489,6 +512,13 @@
             };
             variables.push(variable);
         }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(idx) = vector_allocated {
+            <span class="kw">let </span>variable = <span class="kw-2">&amp;</span>variables[idx];
+            <span class="kw">let </span>vector = variable.extract_vector();
+            <span class="self">self</span>.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+        }
+
         variables
     }
 

@@ -350,10 +350,75 @@
 <a href="#349" id="349">349</a>
 <a href="#350" id="350">350</a>
 <a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
 
 </span><span class="kw">use crate</span>::{
-    Type,
+    NamedGeneric, Type, TypeBinding,
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
@@ -452,10 +517,76 @@
     }
 
     <span class="kw">let </span>attribute = modifiers.attributes.function()<span class="question-mark">?</span>;
-    <span class="kw">if </span><span class="macro">matches!</span>(attribute.kind, FunctionAttributeKind::Oracle(<span class="kw">_</span>)) {
+    <span class="kw">if </span>attribute.kind.is_oracle() {
         <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
         <span class="kw">let </span>location = attribute.location;
         <span class="prelude-val">Some</span>(ResolverError::OracleMarkedAsConstrained { ident, location })
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+}
+
+<span class="doccomment">/// Oracle functions cannot return more than 1 slice in their output.
+///
+/// This is currently a limitation with the AVM: to return multiple slices
+/// of unknown length, it would need to support allocating memory for
+/// them in the call handler, and return their final address. Currently
+/// only the Brillig codegen knows about the Free Memory Pointer, and
+/// the VM writes to whatever address is in the destination, so we
+/// can only safely deal with one vector.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>oracle_returns_multiple_slices(
+    func: <span class="kw-2">&amp;</span>FuncMeta,
+    modifiers: <span class="kw-2">&amp;</span>FunctionModifiers,
+) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
+    <span class="kw">let </span>attribute = modifiers.attributes.function()<span class="question-mark">?</span>;
+    <span class="kw">if </span>!attribute.kind.is_oracle() {
+        <span class="kw">return </span><span class="prelude-val">None</span>;
+    }
+
+    <span class="kw">fn </span>slice_count(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
+        <span class="kw">match </span>typ {
+            Type::Array(<span class="kw">_</span>, item) =&gt; slice_count(item),
+            Type::Slice(typ) =&gt; <span class="number">1 </span>+ slice_count(typ),
+            Type::FmtString(<span class="kw">_</span>, item) =&gt; slice_count(item),
+            Type::Tuple(items) =&gt; items.iter().map(slice_count).sum(),
+            Type::DataType(def, args) =&gt; {
+                <span class="kw">let </span>struct_type = def.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = struct_type.get_fields(args) {
+                    fields.iter().map(|(<span class="kw">_</span>, typ, <span class="kw">_</span>)| slice_count(typ)).sum()
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = struct_type.get_variants(args) {
+                    variants.iter().flat_map(|(<span class="kw">_</span>, types)| types).map(slice_count).sum()
+                } <span class="kw">else </span>{
+                    <span class="number">0
+                </span>}
+            }
+            Type::Alias(def, args) =&gt; slice_count(<span class="kw-2">&amp;</span>def.borrow().get_type(args)),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
+                <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+                    TypeBinding::Bound(binding) =&gt; slice_count(binding),
+                    TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
+                }
+            }
+            Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Quoted(<span class="kw">_</span>)
+            | Type::InfixExpr(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::CheckedCast { .. }
+            | Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Error
+            | Type::FieldElement
+            | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Bool
+            | Type::String(<span class="kw">_</span>)
+            | Type::Unit =&gt; <span class="number">0</span>,
+        }
+    }
+
+    <span class="kw">if </span>slice_count(func.return_type()) &gt; <span class="number">1 </span>{
+        <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
+        <span class="prelude-val">Some</span>(ResolverError::OracleReturnsMultipleSlices { location: ident.location() })
     } <span class="kw">else </span>{
         <span class="prelude-val">None
     </span>}
@@ -475,8 +606,7 @@
     }
 
     <span class="kw">let </span>function_attributes = interner.function_attributes(called_func);
-    <span class="kw">let </span>is_oracle_call = function_attributes.function().is_some_and(|func| func.kind.is_oracle());
-    <span class="kw">if </span>is_oracle_call {
+    <span class="kw">if </span>function_attributes.function()<span class="question-mark">?</span>.kind.is_oracle() {
         <span class="prelude-val">Some</span>(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } <span class="kw">else </span>{
         <span class="prelude-val">None

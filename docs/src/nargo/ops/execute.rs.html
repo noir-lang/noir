@@ -343,7 +343,9 @@
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
 <a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
 <span class="kw">use </span>acvm::acir::circuit::{OpcodeLocation, Program};
 <span class="kw">use </span>acvm::acir::native_types::WitnessStack;
 <span class="kw">use </span>acvm::brillig_vm::BranchToFeatureMap;
@@ -562,7 +564,8 @@
     }
 }
 
-<span class="kw">pub fn </span>execute_program&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt;(
+<span class="doccomment">/// Execute a [Program], returning the [WitnessStack].
+</span><span class="kw">pub fn </span>execute_program&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt;(
     program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
     initial_witness: WitnessMap&lt;F&gt;,
     blackbox_solver: <span class="kw-2">&amp;</span>B,
@@ -581,7 +584,8 @@
     <span class="prelude-val">Ok</span>(witness_stack)
 }
 
-<span class="kw">pub fn </span>execute_program_with_profiling&lt;
+<span class="doccomment">/// Execute a [Program] with profiling turned on, returning the [WitnessStack] along with the [ProfilingSamples].
+</span><span class="kw">pub fn </span>execute_program_with_profiling&lt;
     F: AcirField,
     B: BlackBoxFunctionSolver&lt;F&gt;,
     E: ForeignCallExecutor&lt;F&gt;,

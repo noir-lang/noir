@@ -623,12 +623,12 @@
 /// It gets manipulated by opcodes laid down for calls by codegen.
 </span><span class="kw">pub const </span>STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(<span class="number">0</span>);
 
-<span class="doccomment">/// The free memory pointer is always in slot 1.
+<span class="doccomment">/// The _free memory pointer_ is always in slot 1.
 ///
-/// Usually it is a concern for the codegen to allocate space for arrays and vectors,
-/// however during foreign calls the VM writes vector outputs to the free memory;
-/// by sharing a constant address for it, we don't have to pass the address as
-/// part of the opcode.
+/// We added it here to be able to implement a workaround for wrapping around
+/// the free memory, ie. to detect "out of memory" events, but the AVM is not,
+/// and does not want to be aware of the _free memory pointer_, so we cannot,
+/// in general, build much functionality in the VM around it.
 </span><span class="kw">pub const </span>FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(<span class="number">1</span>);
 
 <span class="doccomment">/// Offset constants for arrays and vectors:
