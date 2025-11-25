@@ -133,8 +133,10 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     "reference_counts_inliner_max",
 ];
 
-/// `nargo execute --force-comptime` ignored tests because of bugs.
+/// `nargo execute --force-comptime` ignored tests because of bugs or because some
+/// programs don't behave the same way in comptime (for example: reference counting).
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
+    // bugs
     "a_5_over",
     "arithmetic_binary_operations",
     "array_oob_regression_7975",
@@ -157,10 +159,6 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     "pedersen_hash",
     "poseidon_bn254_hash_width_3",
     "poseidonsponge_x5_254",
-    "reference_counts_inliner_0",
-    "reference_counts_inliner_max",
-    "reference_counts_inliner_min",
-    "reference_counts_slices_inliner_0",
     "regression_10156",
     "regression_11294",
     "regression_1144_1169_2399_6609",
@@ -177,6 +175,11 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     "struct",
     "submodules",
     "to_bytes_integration",
+    // These check reference counts, which aren't tracked in comptime code
+    "reference_counts_inliner_0",
+    "reference_counts_inliner_max",
+    "reference_counts_inliner_min",
+    "reference_counts_slices_inliner_0",
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
