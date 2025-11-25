@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764104424832,
+  "lastUpdate": 1764110260770,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23155,48 +23155,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ae5b83d8978b2364c90e437779a3aafa96678fb6",
-          "message": "chore(elaborator): Check that assert message fragments are ABI compatible (#10491)",
-          "timestamp": "2025-11-13T19:23:17Z",
-          "tree_id": "d78521993b2022460ff8e83383e88208e9467d0a",
-          "url": "https://github.com/noir-lang/noir/commit/ae5b83d8978b2364c90e437779a3aafa96678fb6"
-        },
-        "date": 1763063111214,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259651,
-            "range": "± 510",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230499,
-            "range": "± 8627",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784197,
-            "range": "± 3206",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "5a85979f1b8a05345cf488e7f3f8c400636afa50",
           "message": "fix(fuzzer): Set `in_dynamic` in `gen_match` (#10470)",
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2253166,
             "range": "± 3497",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1a930357477fc0c210dc5a8960680282d4cfa24e",
+          "message": "feat: `nargo execute --force-comptime` (#10611)",
+          "timestamp": "2025-11-25T22:15:14Z",
+          "tree_id": "1553214d4dcf4d0477dd2d358291fa1f8aba9f6e",
+          "url": "https://github.com/noir-lang/noir/commit/1a930357477fc0c210dc5a8960680282d4cfa24e"
+        },
+        "date": 1764110233481,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256974,
+            "range": "± 797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229940,
+            "range": "± 8289",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793616,
+            "range": "± 1757",
             "unit": "ns/iter"
           }
         ]
