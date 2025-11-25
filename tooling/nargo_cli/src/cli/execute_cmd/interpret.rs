@@ -111,7 +111,7 @@ fn run_package_comptime(
                     let return_value_as_string =
                         return_value.display(&context.def_interner).to_string();
                     return Err(CliError::Generic(format!(
-                        "Unexcpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
+                        "Unexpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
                     )));
                 }
             }
@@ -172,7 +172,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             };
 
             // Here we reuse the logic of converting an input into an SSA numeric value,
-            // whic is not ideal but avoids duplicating the conversion logic.
+            // which is not ideal but avoids duplicating the conversion logic.
             let bit_size = u32::from(bit_size.bit_size());
             let numeric_type = match signedness {
                 Signedness::Unsigned => NumericType::Unsigned { bit_size },
