@@ -1344,47 +1344,57 @@ impl Type {
     /// but it has to be more permissive, as we don't have all information yet; some only become apparent
     /// after monomorphization.
     pub(crate) fn is_message_compatible(&self, is_monomorphized: bool) -> bool {
-        match self {
-            Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
-
-            Type::Array(_, item) => item.is_message_compatible(is_monomorphized),
-            Type::TypeVariable(binding) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
-                TypeBinding::Unbound(_, kind) => {
-                    !is_monomorphized || matches!(kind, Kind::Integer | Kind::IntegerOrField)
+        let mut result = true;
+        visit_type(self, &mut |typ| {
+            match typ {
+                Type::TypeVariable(binding) => {
+                    result &= match &*binding.borrow() {
+                        TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
+                        TypeBinding::Unbound(_, kind) => {
+                            !is_monomorphized
+                                || matches!(kind, Kind::Integer | Kind::IntegerOrField)
+                        }
+                    };
+                    false
                 }
-            },
-            Type::DataType(def, args) => {
-                let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args).unwrap_or_default();
-                fields.iter().all(|(_, typ, _)| typ.is_message_compatible(is_monomorphized))
+                Type::CheckedCast { to, .. } => {
+                    result &= to.is_message_compatible(is_monomorphized);
+                    false
+                }
+                // A generic would cause a panic in ABI generation, but if we don't allow it
+                // here then we reject all functions which are generic over the message type.
+                // Since we don't have a marker trait to show what can be turned into into a message,
+                // we have to delay this check to monomorphization.
+                Type::NamedGeneric(..) => {
+                    result &= !is_monomorphized;
+                    false
+                }
+                // Incompatible types.
+                Type::Error
+                | Type::Unit
+                | Type::Constant(..)
+                | Type::InfixExpr(..)
+                | Type::TraitAsType(..)
+                | Type::Forall(..)
+                | Type::Slice(_)
+                | Type::Function(_, _, _, _)
+                | Type::FmtString(_, _)
+                | Type::Quoted(_)
+                | Type::Reference(..) => {
+                    result = false;
+                    false
+                }
+                // Compatible types.
+                Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => false,
+                // Types that depend on their content.
+                Type::Array(_, item) => {
+                    result &= item.is_message_compatible(is_monomorphized);
+                    false
+                }
+                Type::DataType(_, _) | Type::Alias(_, _) | Type::Tuple(_) => result,
             }
-            Type::Alias(def, args) => {
-                let alias_type = def.borrow();
-                alias_type.get_type(args).is_message_compatible(is_monomorphized)
-            }
-            Type::CheckedCast { to, .. } => to.is_message_compatible(is_monomorphized),
-            Type::Tuple(fields) => {
-                fields.iter().all(|typ| typ.is_message_compatible(is_monomorphized))
-            }
-            Type::Error
-            | Type::Unit
-            | Type::Constant(..)
-            | Type::InfixExpr(..)
-            | Type::TraitAsType(..)
-            | Type::Forall(..)
-            | Type::Slice(_)
-            | Type::Function(_, _, _, _)
-            | Type::FmtString(_, _)
-            | Type::Quoted(_)
-            | Type::Reference(..) => false,
-
-            // A generic would cause a panic in ABI generation, but if we don't allow it
-            // here then we reject all functions which are generic over the message type.
-            // Since we don't have a marker trait to show what can be turned into into a message,
-            // we have to delay this check to monomorphization.
-            Type::NamedGeneric(..) => !is_monomorphized,
-        }
+        });
+        result
     }
 
     /// Returns the number of `Forall`-quantified type variables on this type.
@@ -1548,39 +1558,39 @@ impl Type {
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self, location: &Location) -> u32 {
-        match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+        let mut count = 0;
+        visit_type(self, &mut |typ| match typ {
             Type::Array(size, typ) => {
                 let length = size
                     .evaluate_to_u32(*location)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                length * typ.field_count(location)
+                count += length * typ.field_count(location);
+                false
+            }
+            Type::CheckedCast { to, .. } => {
+                count += to.field_count(location);
+                false
+            }
+            Type::String(size) => {
+                count += size
+                    .evaluate_to_u32(*location)
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                false
+            }
+            Type::FieldElement | Type::Integer { .. } | Type::Bool => {
+                count += 1;
+                false
             }
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    let mut size = 1; // start with the tag size
-                    for (_, args) in variants {
-                        for arg in args {
-                            size += arg.field_count(location);
-                        }
-                    }
-                    size
-                } else {
-                    0
+                if struct_type.get_variants(args).is_some() {
+                    count += 1;
                 }
+                true
             }
-            Type::CheckedCast { to, .. } => to.field_count(location),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
-            }
-            Type::String(size) => size
-                .evaluate_to_u32(*location)
-                .expect("Cannot have variable sized strings as a parameter to main"),
+            Type::Alias(_, _) | Type::Tuple(_) => true,
+
             Type::FmtString(_, _)
             | Type::Unit
             | Type::TypeVariable(_)
@@ -1594,7 +1604,8 @@ impl Type {
             | Type::Slice(_)
             | Type::InfixExpr(..)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
-        }
+        });
+        count
     }
 
     /// Check whether this type is an array or slice, and contains a nested slice in its element type.
@@ -1609,131 +1620,55 @@ impl Type {
 
     /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
-        match self {
-            Type::Slice(_) => true,
-            Type::Array(_, elem) => elem.as_ref().contains_slice(),
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_slice()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_slice()) {
-                        return true;
-                    }
-                }
+        let mut result = false;
+        visit_type(self, &mut |typ| {
+            if matches!(typ, Type::Slice(_)) {
+                result = true;
                 false
+            } else {
+                !result
             }
-            Type::Tuple(types) => {
-                for typ in types.iter() {
-                    if typ.contains_slice() {
-                        return true;
-                    }
-                }
-                false
-            }
-            _ => false,
-        }
+        });
+        result
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
-        match self {
-            Type::Unit
-            | Type::Bool
-            | Type::String(..)
-            | Type::Integer(..)
-            | Type::FieldElement
-            | Type::Quoted(..)
-            | Type::Constant(..)
-            | Type::Function(..)
-            | Type::TraitAsType(..)
-            | Type::Forall(..)
-            | Type::Error => false,
-            Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Slice(typ) => typ.contains_reference(),
-            Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_reference()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants
-                        .iter()
-                        .flat_map(|(_, args)| args)
-                        .any(|typ| typ.contains_reference())
-                    {
-                        return true;
-                    }
-                }
+        let mut result = false;
+        visit_type(self, &mut |typ| match typ {
+            Type::Reference(_, _) => {
+                result = true;
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_reference(),
-                    TypeBinding::Unbound(_, _) => false,
-                }
+            Type::CheckedCast { from: _, to } => {
+                result |= to.contains_reference();
+                false
             }
-            Type::CheckedCast { from: _, to } => to.contains_reference(),
-            Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.contains_reference() || rhs.contains_reference()
-            }
-            Type::Reference(..) => true,
-        }
+            _ => !result,
+        });
+        result
     }
 
     pub(crate) fn contains_type_variable(&self) -> bool {
-        match self {
-            Type::Integer(..)
-            | Type::Bool
-            | Type::Unit
-            | Type::FieldElement
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::Error => false,
-            Type::Forall(..) => true,
-            Type::Array(length, typ) => {
-                length.contains_type_variable() || typ.contains_type_variable()
-            }
-            Type::Slice(typ) => typ.contains_type_variable(),
-            Type::String(length) => length.contains_type_variable(),
-            Type::FmtString(length, typ) => {
-                length.contains_type_variable() || typ.contains_type_variable()
-            }
-            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
-                items.iter().any(|typ| typ.contains_type_variable())
+        let mut result = false;
+        visit_type(self, &mut |typ| match typ {
+            Type::Forall(..) => {
+                result = true;
+                false
             }
             Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                match &*type_var.borrow() {
+                result |= match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => binding.contains_type_variable(),
                     TypeBinding::Unbound(_, _) => true,
-                }
+                };
+                false
             }
-            Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
-                trait_generics.ordered.iter().any(|typ| typ.contains_type_variable())
-                    || trait_generics
-                        .named
-                        .iter()
-                        .any(|named_type| named_type.typ.contains_type_variable())
+            Type::DataType(_, items) | Type::Alias(_, items) => {
+                result |= items.iter().any(|typ| typ.contains_type_variable());
+                false
             }
-            Type::CheckedCast { from, to } => {
-                from.contains_type_variable() || to.contains_type_variable()
-            }
-            Type::Function(args, ret, env, _) => {
-                args.iter().any(|typ| typ.contains_type_variable())
-                    || ret.contains_type_variable()
-                    || env.contains_type_variable()
-            }
-            Type::Reference(typ, _) => typ.contains_type_variable(),
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.contains_type_variable() || rhs.contains_type_variable()
-            }
-        }
+            _ => !result,
+        });
+        result
     }
 
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
@@ -2267,51 +2202,29 @@ impl Type {
 
     /// True if the given TypeVariableId is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
-        match self {
-            Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
-            Type::Slice(elem) => elem.occurs(target_id),
-            Type::String(len) => len.occurs(target_id),
-            Type::FmtString(len, fields) => {
-                let len_occurs = len.occurs(target_id);
-                let field_occurs = fields.occurs(target_id);
-                len_occurs || field_occurs
+        let mut result = false;
+        visit_type(self, &mut |typ| match typ {
+            Type::Forall(typevars, typ) => {
+                result |=
+                    !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id);
+                false
             }
-            Type::DataType(_, generic_args) | Type::Alias(_, generic_args) => {
-                generic_args.iter().any(|arg| arg.occurs(target_id))
-            }
-            Type::TraitAsType(_, _, args) => {
-                args.ordered.iter().any(|arg| arg.occurs(target_id))
-                    || args.named.iter().any(|arg| arg.typ.occurs(target_id))
-            }
-            Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::CheckedCast { from, to } => from.occurs(target_id) || to.occurs(target_id),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
-                match &*type_var.borrow() {
+                result |= match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {
                         type_var.id() == target_id || binding.occurs(target_id)
                     }
                     TypeBinding::Unbound(id, _) => *id == target_id,
-                }
+                };
+                false
             }
-            Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
+            Type::DataType(_, generic_args) | Type::Alias(_, generic_args) => {
+                result |= generic_args.iter().any(|arg| arg.occurs(target_id));
+                false
             }
-            Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(|arg| arg.occurs(target_id))
-                    || ret.occurs(target_id)
-                    || env.occurs(target_id)
-            }
-            Type::Reference(element, _) => element.occurs(target_id),
-            Type::InfixExpr(lhs, _op, rhs, _) => lhs.occurs(target_id) || rhs.occurs(target_id),
-
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Constant(_, _)
-            | Type::Error
-            | Type::Quoted(_)
-            | Type::Unit => false,
-        }
+            _ => !result,
+        });
+        result
     }
 
     /// Follow any TypeVariable bindings within this type. Doing so ensures
@@ -2503,50 +2416,61 @@ impl Type {
     }
 
     pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
-        match self {
-            Type::FieldElement => None,
-            Type::Integer(sign, num_bits) => {
-                let mut max_bit_size = num_bits.bit_size();
-                if sign == &Signedness::Signed {
-                    max_bit_size -= 1;
+        let mut result = None;
+        visit_type(self, &mut |typ| {
+            match typ {
+                Type::Alias(_, _) | Type::NamedGeneric(_) | Type::Reference(_, _) => {
+                    return true;
                 }
-                let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
-                Some(max.into())
-            }
-            Type::Bool => Some(FieldElement::one()),
-            Type::TypeVariable(var) => {
-                let binding = &var.1;
-                match &*binding.borrow() {
-                    TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
-                        Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
-                        Kind::Numeric(typ) => typ.integral_maximum_size(),
-                    },
-                    TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                }
-            }
-            Type::Alias(alias, args) => alias.borrow().get_type(args).integral_maximum_size(),
-            Type::CheckedCast { to, .. } => to.integral_maximum_size(),
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => match &*type_var.borrow() {
-                TypeBinding::Bound(typ) => typ.integral_maximum_size(),
-                TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
-            },
-            Type::Reference(typ, _) => typ.integral_maximum_size(),
-            Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs).integral_maximum_size(),
-            Type::Constant(_, kind) => kind.integral_maximum_size(),
 
-            Type::Array(..)
-            | Type::Slice(..)
-            | Type::String(..)
-            | Type::FmtString(..)
-            | Type::Unit
-            | Type::Tuple(..)
-            | Type::DataType(..)
-            | Type::TraitAsType(..)
-            | Type::Function(..)
-            | Type::Forall(..)
-            | Type::Quoted(..)
-            | Type::Error => None,
-        }
+                Type::Integer(sign, num_bits) => {
+                    let mut max_bit_size = num_bits.bit_size();
+                    if sign == &Signedness::Signed {
+                        max_bit_size -= 1;
+                    }
+                    let max =
+                        if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
+                    result = Some(max.into());
+                }
+                Type::Bool => {
+                    result = Some(FieldElement::one());
+                }
+                Type::TypeVariable(var) => {
+                    let binding = &var.1;
+                    result = match &*binding.borrow() {
+                        TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
+                            Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
+                            Kind::Numeric(typ) => typ.integral_maximum_size(),
+                        },
+                        TypeBinding::Bound(typ) => typ.integral_maximum_size(),
+                    };
+                }
+                Type::CheckedCast { to, .. } => {
+                    result = to.integral_maximum_size();
+                }
+                Type::InfixExpr(lhs, _op, rhs, _) => {
+                    result = lhs.infix_kind(rhs).integral_maximum_size();
+                }
+                Type::Constant(_, kind) => {
+                    result = kind.integral_maximum_size();
+                }
+                Type::FieldElement
+                | Type::Array(..)
+                | Type::Slice(..)
+                | Type::String(..)
+                | Type::FmtString(..)
+                | Type::Unit
+                | Type::Tuple(..)
+                | Type::DataType(..)
+                | Type::TraitAsType(..)
+                | Type::Function(..)
+                | Type::Forall(..)
+                | Type::Quoted(..)
+                | Type::Error => {}
+            }
+            false
+        });
+        result
     }
 
     pub(crate) fn integral_minimum_size(&self) -> Option<SignedField> {
@@ -3117,5 +3041,103 @@ impl PartialEq for Type {
             ) => lhs_var.id() == rhs_var.id(),
             _ => false,
         }
+    }
+}
+
+/// Call a visitor function on the [Type] itself, and then each contained [Type],
+/// unless the visitor returned `false`, indicating that the type has been handled.
+pub(crate) fn visit_type<F>(typ: &Type, v: &mut F)
+where
+    F: FnMut(&Type) -> bool,
+{
+    if !v(typ) {
+        return;
+    }
+    match typ {
+        Type::FieldElement => {}
+        Type::Array(length, item) => {
+            visit_type(length, v);
+            visit_type(item, v);
+        }
+        Type::Slice(item) => {
+            visit_type(item, v);
+        }
+        Type::Integer(_, _) => {}
+        Type::Bool => {}
+        Type::String(length) => {
+            visit_type(length, v);
+        }
+        Type::FmtString(length, item) => {
+            visit_type(length, v);
+            visit_type(item, v);
+        }
+        Type::Unit => {}
+        Type::Tuple(items) => {
+            for typ in items {
+                visit_type(typ, v);
+            }
+        }
+        Type::DataType(typ, generics) => {
+            let typ = typ.borrow();
+            if let Some(fields) = typ.get_fields(generics) {
+                for (_, typ, _) in &fields {
+                    visit_type(typ, v);
+                }
+            } else if let Some(variants) = typ.get_variants(generics) {
+                let types = variants.iter().flat_map(|(_, types)| types);
+                for typ in types {
+                    visit_type(typ, v);
+                }
+            }
+        }
+        Type::Alias(typ, generics) => {
+            visit_type(&typ.borrow().get_type(generics), v);
+        }
+        Type::TypeVariable(type_variable)
+        | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+            match &*type_variable.borrow() {
+                TypeBinding::Bound(binding) => visit_type(binding, v),
+                TypeBinding::Unbound(_, _) => {}
+            }
+        }
+        Type::TraitAsType(_, _, trait_generics) => {
+            let types = trait_generics
+                .ordered
+                .iter()
+                .chain(trait_generics.named.iter().map(|named| &named.typ));
+            for typ in types {
+                visit_type(typ, v);
+            }
+        }
+        Type::CheckedCast { from, to } => {
+            visit_type(from, v);
+            visit_type(to, v);
+        }
+        Type::Function(params, ret, env, _) => {
+            let types = params
+                .iter()
+                .chain(std::iter::once(ret.as_ref()))
+                .chain(std::iter::once(env.as_ref()));
+            for typ in types {
+                visit_type(typ, v);
+            }
+        }
+        Type::Reference(typ, _) => visit_type(typ, v),
+        Type::Forall(type_variables, typ) => {
+            for type_variable in type_variables {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => visit_type(binding, v),
+                    TypeBinding::Unbound(_, _) => {}
+                }
+            }
+            visit_type(typ, v);
+        }
+        Type::Constant(_, _) => {}
+        Type::Quoted(_) => {}
+        Type::InfixExpr(lhs, _, rhs, _) => {
+            visit_type(lhs, v);
+            visit_type(rhs, v);
+        }
+        Type::Error => {}
     }
 }

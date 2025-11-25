@@ -1,7 +1,7 @@
 //! Lint checks for function attributes, visibility, and usage restrictions.
 
 use crate::{
-    NamedGeneric, Type, TypeBinding,
+    Type,
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
@@ -18,6 +18,7 @@ use crate::{
     },
     shared::{Signedness, Visibility},
     token::FunctionAttributeKind,
+    visit_type,
 };
 
 use noirc_errors::Location;
@@ -126,29 +127,11 @@ pub(super) fn oracle_returns_multiple_slices(
         return None;
     }
 
-    fn slice_count(typ: &Type) -> usize {
+    let mut slice_count = 0;
+    visit_type(func.return_type(), &mut |typ| {
         match typ {
-            Type::Array(_, item) => slice_count(item),
-            Type::Slice(typ) => 1 + slice_count(typ),
-            Type::FmtString(_, item) => slice_count(item),
-            Type::Tuple(items) => items.iter().map(slice_count).sum(),
-            Type::DataType(def, args) => {
-                let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, typ, _)| slice_count(typ)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(_, types)| types).map(slice_count).sum()
-                } else {
-                    0
-                }
-            }
-            Type::Alias(def, args) => slice_count(&def.borrow().get_type(args)),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => slice_count(binding),
-                    TypeBinding::Unbound(_, _) => 0,
-                }
+            Type::Slice(_) => {
+                slice_count += 1;
             }
             Type::Forall(_, _)
             | Type::Constant(_, _)
@@ -163,11 +146,22 @@ pub(super) fn oracle_returns_multiple_slices(
             | Type::Integer(_, _)
             | Type::Bool
             | Type::String(_)
-            | Type::Unit => 0,
-        }
-    }
+            | Type::Unit => {
+                return false;
+            }
 
-    if slice_count(func.return_type()) > 1 {
+            Type::Array(_, _)
+            | Type::FmtString(_, _)
+            | Type::Tuple(_)
+            | Type::DataType(_, _)
+            | Type::Alias(_, _)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_) => {}
+        }
+        slice_count <= 1
+    });
+
+    if slice_count > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleSlices { location: ident.location() })
     } else {
