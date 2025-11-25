@@ -1,6 +1,6 @@
 use acvm::{AcirField, FieldElement};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Copy, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SignedField {
     field: FieldElement,
     is_negative: bool,
@@ -119,6 +119,31 @@ impl SignedField {
         } else {
             self.field.to_u128() as i128
         }
+    }
+}
+
+impl PartialEq for SignedField {
+    fn eq(&self, other: &Self) -> bool {
+        // When comparing two signed fields, comparing the two instances:
+        // 1. SignedField { is_negative: true, field: 1 }
+        // 2. SignedField { is_negative: false, field: -1 }
+        // the result should be true. In reality `field: -1` is just the maximum
+        // field value, which turns out to be represented as "-1" in its string
+        // representation. Nonetheless, the actual field value is the same.
+        if self.is_negative == other.is_negative {
+            self.field == other.field
+        } else {
+            self.field == -other.field
+        }
+    }
+}
+
+impl Eq for SignedField {}
+
+impl std::hash::Hash for SignedField {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let fe = if self.is_negative { -self.field } else { self.field };
+        fe.hash(state);
     }
 }
 
@@ -435,5 +460,14 @@ mod tests {
         assert_eq!(SignedField::from(i128::MAX).to_i128(), i128::MAX);
         assert_eq!(SignedField::from(i128::MIN).to_i128(), i128::MIN);
         assert_eq!(SignedField::from(i128::MIN + 1).to_i128(), i128::MIN + 1);
+    }
+
+    #[test]
+    fn equality() {
+        let a = SignedField::negative(FieldElement::one());
+        let b = SignedField::positive(-FieldElement::one());
+        assert_eq!(a, a);
+        assert_eq!(b, b);
+        assert_eq!(a, b);
     }
 }
