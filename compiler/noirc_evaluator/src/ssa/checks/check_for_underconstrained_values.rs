@@ -408,6 +408,34 @@ impl DependencyContext {
                     }
                 }
             }
+
+            // Start tracking if any of the instruction's results will be used
+            // as arguments to Brillig calls. This handles cases like Cast where
+            // the cast result becomes a Brillig argument before the call instruction
+            // is encountered. We do this regardless of lookback setting to ensure
+            // proper tracking of cast operations that produce Brillig arguments.
+            //
+            // Additionally, when we start tracking, we need to add the instruction's
+            // arguments to the Brillig call's tainted arguments set, so that the
+            // relationship between the cast input and output is properly tracked.
+            for value_id in function.dfg.instruction_results(*instruction).iter() {
+                if let Some(calls) = self.call_arguments.get(value_id) {
+                    for call in calls {
+                        if self.tainted.contains_key(call) {
+                            self.tracking.insert(*call);
+
+                            // Add the instruction's arguments to the tainted arguments set
+                            // so that we track the transitive relationship (e.g., input -> cast -> brillig arg)
+                            if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                                for arg in &arguments {
+                                    tainted_ids.arguments.insert(*arg);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if self.tainted.contains_key(instruction) {
                 self.tracking.insert(*instruction);
             }
