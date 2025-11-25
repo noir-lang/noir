@@ -158,7 +158,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     "pedersen_commitment",
     "pedersen_hash",
     "poseidon_bn254_hash_width_3",
-    "poseidonsponge_x5_254",
+    "poseidonsponge_x5_254", // cSpell::disable-line
     "regression_10156",
     "regression_11294",
     "regression_1144_1169_2399_6609",
