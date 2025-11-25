@@ -198,6 +198,8 @@ pub enum ResolverError {
     OracleWithBody { location: Location },
     #[error("Builtin and low-level function declarations cannot have a body")]
     BuiltinWithBody { location: Location },
+    #[error("Identifier `{ident}` is bound more than once in the same pattern")]
+    PatternBoundMoreThanOnce { ident: Ident },
 }
 
 impl ResolverError {
@@ -274,7 +276,8 @@ impl ResolverError {
             | ResolverError::NoSuchField { field: ident, .. }
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
-            | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
+            | ResolverError::UnconstrainedTypeParameter { ident }
+            | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
             }
@@ -863,6 +866,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "Builtin and low-level function declarations cannot have a body".to_string(),
                     "This function body should be removed".to_string(),
                     *location,
+                )
+            }
+            ResolverError::PatternBoundMoreThanOnce { ident } => {
+                Diagnostic::simple_error(
+                    format!("Identifier `{ident}` is bound more than once in the same pattern"),
+                    "Used in a pattern more than once".to_string(),
+                    ident.location(),
                 )
             }
         }
