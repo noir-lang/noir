@@ -11,7 +11,7 @@ use brillig_vm::{
     VM, VMStatus, offsets,
 };
 
-/// Set up for a foreign call test, optionally specifying the minimum VM version.
+/// Set up for a foreign call test
 ///
 /// # Returns
 /// Tuple of (finished VM memory, internal VM foreign call counter)
@@ -289,7 +289,7 @@ fn foreign_call_opcode_vector_input_and_output() {
     assert_eq!(vector_size.to_usize(), output_string.len());
 
     // The test above does not contain the opcodes that would copy the data from the stack to the heap.
-    // Note that we the VM did not write the size to the heap, because `codegen_brillig_vector_to_heap_vector`
+    // Note that the VM did not write the size to the heap, because `codegen_brillig_vector_to_heap_vector`
     // allocates two variables on the stack that it uses as pointers to the heap, rather than returning the
     // heap addresses in the `HeapVector`. But, the VM only treats the `pointer` field as a pointer, ie.
     // it looks up the address stored at it, then writes to that address, but it writes directly to `size`.
