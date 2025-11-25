@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::printer::items::ItemBuilder;
+use crate::hir::resolution::visibility::module_def_id_visibility;
 use crate::node_interner::TraitImplId;
 use crate::{
     DataType, Generics, Kind, NamedGeneric, Type,
@@ -176,7 +177,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             return;
         };
 
-        for comment in doc_comments {
+        for located_comment in doc_comments {
+            let comment = &located_comment.contents;
             if comment.contains('\n') {
                 let ends_with_newline = comment.ends_with('\n');
 
@@ -1282,32 +1284,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     }
 
     fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
-        match module_def_id {
-            ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(module_id);
-                attributes.map_or(ItemVisibility::Private, |a| a.visibility)
-            }
-            ModuleDefId::FunctionId(func_id) => {
-                self.interner.function_modifiers(&func_id).visibility
-            }
-            ModuleDefId::TypeId(type_id) => {
-                let data_type = self.interner.get_type(type_id);
-                data_type.borrow().visibility
-            }
-            ModuleDefId::TypeAliasId(type_alias_id) => {
-                let type_alias = self.interner.get_type_alias(type_alias_id);
-                type_alias.borrow().visibility
-            }
-            ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
-            ModuleDefId::TraitId(trait_id) => {
-                let trait_ = self.interner.get_trait(trait_id);
-                trait_.visibility
-            }
-            ModuleDefId::GlobalId(global_id) => {
-                let global_info = self.interner.get_global(global_id);
-                global_info.visibility
-            }
-        }
+        module_def_id_visibility(module_def_id, self.interner)
     }
 
     fn show_separated_by_comma<Item, F>(&mut self, items: &[Item], f: F)

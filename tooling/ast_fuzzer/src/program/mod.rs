@@ -49,9 +49,17 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
 
     let mut ctx = Context::new(config);
 
+    // Generate the first (main-wrapped) function declaration
     let decl_inner = ctx.gen_function_decl(u, 1, true)?;
     ctx.set_function_decl(FuncId(1), decl_inner.clone());
-    ctx.gen_function(u, FuncId(1))?;
+
+    // Generate the rest of the declarations
+    let num_extra_fns = u.int_in_range(ctx.config.min_functions..=ctx.config.max_functions)?;
+
+    for i in 0..num_extra_fns {
+        let d = ctx.gen_function_decl(u, i + 2, false)?;
+        ctx.set_function_decl(FuncId((i + 2) as u32), d);
+    }
 
     // Parameterless main declaration wrapping the inner "main"
     // function call
@@ -65,6 +73,12 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
+
+    // Generating functions in this way (after the main wrapper has been
+    // declared) will disallow them from calling the wrapper but not the
+    // main inner function
+    ctx.gen_functions(u)?;
+
     ctx.gen_function_with_body(u, FuncId(0), |u, function_ctx| {
         function_ctx.gen_body_with_lit_call(u, FuncId(1))
     })?;

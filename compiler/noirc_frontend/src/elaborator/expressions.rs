@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location};
+use noirc_errors::{Located, Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -16,6 +16,7 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
+    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
@@ -403,7 +404,7 @@ impl Elaborator<'_> {
                     },
                 );
 
-                let wildcard_allowed = true;
+                let wildcard_allowed = WildcardAllowed::Yes;
                 let length =
                     self.convert_expression_type(length, &Kind::u32(), location, wildcard_allowed);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
@@ -694,7 +695,7 @@ impl Elaborator<'_> {
         let generics = generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
-                let wildcard_allowed = true;
+                let wildcard_allowed = WildcardAllowed::Yes;
                 let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })
@@ -824,7 +825,35 @@ impl Elaborator<'_> {
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+        let msg = message.map(|assert_msg_expr| {
+            let (msg, typ) = self.elaborate_expression(assert_msg_expr);
+            // If the error message contains a format string, those types need to appear in the ABI,
+            // except if we are in a meta-programming context, in which case the comptime interpreter
+            // handles a wider variety of types, e.g. quoted types.
+            if !self.in_comptime_context() {
+                let location = self.interner.expr_location(&msg);
+                let typ = typ.follow_bindings();
+                let mut check_msg_compat = |typ: &Type| {
+                    if typ.is_message_compatible(false) || matches!(typ, Type::Error) {
+                        return;
+                    }
+                    let error = TypeCheckError::TypeCannotBeUsed {
+                        typ: typ.clone(),
+                        place: "message",
+                        location,
+                    };
+                    self.push_err(CompilationError::TypeError(error));
+                };
+                if let Type::FmtString(_, item_types) = typ {
+                    if let Type::Tuple(item_types) = item_types.as_ref() {
+                        item_types.iter().for_each(check_msg_compat);
+                    }
+                } else {
+                    check_msg_compat(&typ);
+                }
+            }
+            msg
+        });
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
@@ -1110,7 +1139,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::Cast);
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
@@ -1254,7 +1283,12 @@ impl Elaborator<'_> {
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
-        self.use_unstable_feature(UnstableFeature::Enums, location);
+        // Show error on the `match` keyword
+        let match_location = Location::new(
+            Span::from(location.span.start()..location.span.start() + 5),
+            location.file,
+        );
+        self.use_unstable_feature(UnstableFeature::Enums, match_location);
 
         let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
@@ -1345,24 +1379,28 @@ impl Elaborator<'_> {
         let parameters =
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
-                let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
-                    if let Some(parameter_type_hint) =
-                        parameters_type_hints.and_then(|hints| hints.get(index))
-                    {
-                        parameter_type_hint.clone()
-                    } else {
-                        self.interner.next_type_variable_with_kind(Kind::Any)
+                let typ = match typ {
+                    Some(typ) => {
+                        let wildcard_allowed = WildcardAllowed::Yes;
+                        self.resolve_type(typ, wildcard_allowed)
                     }
-                } else {
-                    let wildcard_allowed = true;
-                    self.resolve_type(typ, wildcard_allowed)
+                    None => {
+                        if let Some(parameter_type_hint) =
+                            parameters_type_hints.and_then(|hints| hints.get(index))
+                        {
+                            parameter_type_hint.clone()
+                        } else {
+                            self.interner.next_type_variable_with_kind(Kind::Any)
+                        }
+                    }
                 };
 
                 arg_types.push(typ.clone());
                 (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
             });
 
-        let return_type = self.resolve_inferred_type(lambda.return_type);
+        let wildcard_allowed = WildcardAllowed::Yes;
+        let return_type = self.resolve_inferred_type(lambda.return_type, wildcard_allowed);
         let body_location = lambda.body.location;
         let (body, body_type) = self.elaborate_expression(lambda.body);
 
@@ -1540,7 +1578,7 @@ impl Elaborator<'_> {
             },
         };
 
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't

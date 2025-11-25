@@ -53,10 +53,20 @@ pub(super) fn markdown_summary(markdown: &str) -> String {
     }
     let string = string.trim().to_string();
     // Avoid having a header as a summary
-    let string = string.trim_start_matches('#');
-    let markdown = markdown::to_html(string);
-    let markdown = markdown.trim_start_matches("<p>");
-    markdown.trim_end_matches("</p>").trim().to_string()
+    let string =
+        if string.starts_with('#') { string.trim_start_matches('#').trim_start() } else { &string };
+    string.to_string()
+}
+
+pub(super) fn to_html(markdown: &str) -> String {
+    let parse = markdown::ParseOptions::default();
+    let compile = markdown::CompileOptions {
+        // This just means that HTML isn't escaped. Rustdoc works the same way.
+        allow_dangerous_html: true,
+        ..markdown::CompileOptions::default()
+    };
+    let options = markdown::Options { parse, compile };
+    markdown::to_html_with_options(markdown, &options).unwrap()
 }
 
 #[cfg(test)]

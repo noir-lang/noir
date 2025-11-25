@@ -118,14 +118,12 @@
 <h1>Primitive type <span id="primitive" class="primitive">Expr</span></h1>
 <div class="comments">
 <p>A compile-time, quoted, syntactically valid expression.</p>
-<p>An <code>Expr</code> can be obtained using <code>Quoted::as_expr</code>:</p>
-<pre><code>fn main() {
-    comptime {
-        let expr = quote { 1 + 2 }.as_expr().unwrap();
+<p>An <code>Expr</code> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> expr = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
     }
-}
-</code></pre>
-</div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code></h3>
 
@@ -289,18 +287,16 @@ return each statement inside in a slice.</p>
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is trailed by a semicolon.</p>
 <p>Example:</p>
-<pre><code class="language-noir">comptime {
-    let expr1 = quote { 1 + 2 }.as_expr().unwrap();
-    let expr2 = quote { 1 + 2; }.as_expr().unwrap();
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> expr1 = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
+    <span class="kw">let</span> expr2 = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span>; }.as_expr().unwrap();
 
-    assert(expr1.as_binary_op().is_some());
-    assert(expr2.as_binary_op().is_some());
+    <span class="kw">assert</span>(expr1.as_binary_op().is_some());
+    <span class="kw">assert</span>(expr2.as_binary_op().is_some());
 
-    assert(!expr1.has_semicolon());
-    assert(expr2.has_semicolon());
-}
-</code></pre>
-</div>
+    <span class="kw">assert</span>(!expr1.has_semicolon());
+    <span class="kw">assert</span>(expr2.has_semicolon());
+}</code></pre></div>
 </div><code id="is_break" class="code-header">pub comptime fn <span class="fn">is_break</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">

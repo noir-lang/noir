@@ -52,7 +52,9 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        integer::IntegerConstant,
         post_order::PostOrder,
+        types::NumericType,
         value::{Value, ValueId},
     },
     opt::{die::array_oob_checks::should_insert_oob_check, pure::Purity},
@@ -274,22 +276,19 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
-
-        // Indexes of instructions that might be out of bounds.
+        // Indices of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
-        let mut possible_index_out_of_bounds_indexes = Vec::new();
+        let mut possible_index_out_of_bounds_indices = Vec::new();
 
         // Going in reverse so we know if a result of an instruction was used.
-        for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
+        for (instruction_index, instruction_id) in block.instructions().iter().enumerate().rev() {
             let instruction = &function.dfg[*instruction_id];
 
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
 
                 if insert_out_of_bounds_checks && should_insert_oob_check(function, instruction) {
-                    possible_index_out_of_bounds_indexes
-                        .push(instructions_len - instruction_index - 1);
+                    possible_index_out_of_bounds_indices.push(instruction_index);
                     // We need to still mark the array index as used as we refer to it in the inserted bounds check.
                     let (Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
                         instruction
@@ -314,11 +313,11 @@ impl Context {
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
-        if !possible_index_out_of_bounds_indexes.is_empty() {
+        if !possible_index_out_of_bounds_indices.is_empty() {
             let inserted_check = self.replace_array_instructions_with_out_of_bounds_checks(
                 function,
                 block_id,
-                &mut possible_index_out_of_bounds_indexes,
+                &mut possible_index_out_of_bounds_indices,
             );
             // There's a chance we didn't insert any checks, so we could proceed with DIE.
             // This can happen for example with arrays of a complex type, where one part
@@ -447,7 +446,23 @@ fn can_be_eliminated_if_unused(
         Binary(binary) => {
             if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                 if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
-                    rhs != FieldElement::zero()
+                    // Division by zero must remain
+                    if rhs == FieldElement::zero() {
+                        return false;
+                    }
+
+                    // There's one more case: signed division that does MIN / -1
+                    let typ = function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+                    if let NumericType::Signed { bit_size } = typ {
+                        if let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
+                            let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                            if rhs == minus_one {
+                                return false;
+                            }
+                        }
+                    }
+
+                    true
                 } else {
                     false
                 }

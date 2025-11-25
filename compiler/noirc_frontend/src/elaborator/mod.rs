@@ -58,6 +58,7 @@ use std::{
 use crate::{
     Type,
     ast::UnresolvedGenerics,
+    elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
         Context,
@@ -326,6 +327,15 @@ impl<'context> Elaborator<'context> {
         self.local_module.expect("local_module is unset")
     }
 
+    /// Returns `true` if the current local module is the crate root,
+    /// and we are not inside an impl or trait impl.
+    pub(crate) fn is_at_crate_root(&self) -> bool {
+        self.self_type.is_none()
+            && self.current_trait.is_none()
+            && self.current_trait_impl.is_none()
+            && self.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
+    }
+
     pub fn from_context(
         context: &'context mut Context,
         crate_id: CrateId,
@@ -460,9 +470,8 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
         match self.resolve_path_as_type(path) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
-                if errors.is_empty() =>
-            {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                self.push_errors(errors);
                 Some(module_id)
             }
             _ => None,
@@ -615,7 +624,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let wildcard_allowed = false;
+        let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);

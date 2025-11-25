@@ -421,6 +421,10 @@ pub enum BrilligOpcode<F> {
         /// who the caller is.
         function: String,
         /// Destination addresses (may be single values or memory pointers).
+        ///
+        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
+        /// the current free memory pointer, and store the heap address into the destination.
         destinations: Vec<ValueOrArray>,
         /// Destination value types.
         destination_value_types: Vec<HeapValueType>,

@@ -53,13 +53,14 @@ pub trait AcirField:
     fn num_bits(&self) -> u32;
 
     /// Downcast the field into a `u128`.
-    ///
-    /// If the value does not fit, it is truncated.
+    /// Panic if the value does not fit
     fn to_u128(self) -> u128;
 
     /// Downcast the field into a `u128` if it fits into 128 bits, otherwise return `None`.
     fn try_into_u128(self) -> Option<u128>;
 
+    /// Downcast the field into a `i128`.
+    /// Panic if the value does not fit
     fn to_i128(self) -> i128;
 
     fn try_into_i128(self) -> Option<i128>;
