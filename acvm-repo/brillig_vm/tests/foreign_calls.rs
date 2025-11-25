@@ -23,6 +23,7 @@ fn run_foreign_call_test<F: AcirField>(
     expected_final_status: VMStatus<F>,
 ) -> (Memory<F>, usize) {
     let solver = StubbedBlackBoxSolver::default();
+
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcodes();
@@ -170,11 +171,12 @@ fn foreign_call_opcode_vector_input_and_output() {
     // The input is going to be a HeapVector; these register will hold the addresses of items and size on the heap.
     let r_input_pointer = MemoryAddress::direct(2);
     let r_input_size = MemoryAddress::direct(3);
-    // The output is going to be a MemoryAddress to hold the vector address on the heap.
+    // The output is going to be a HeapVector as well, with registers pointing at addresses on the heap where the VM needs to write the items and the size.
     let r_output_pointer = MemoryAddress::direct(4);
+    let r_output_size = MemoryAddress::direct(5);
 
     // Address where we copy the input data.
-    let r_input_addr = MemoryAddress::direct(5);
+    let r_input_addr = MemoryAddress::direct(6);
 
     // Our first string to use the identity function with
     let input_string: Vec<FieldElement> =
@@ -187,8 +189,8 @@ fn foreign_call_opcode_vector_input_and_output() {
 
     // The free memory starts where the input data ends.
     let free_memory_start = r_input_addr.to_usize() + input_string.len();
+    let free_memory_start_addr = MemoryAddress::direct(free_memory_start);
 
-    // First call:
     let string_double_program = vec![
         // @100 = length of the input
         Opcode::Const {
@@ -226,10 +228,24 @@ fn foreign_call_opcode_vector_input_and_output() {
             value: free_memory_start.into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
+        // output_pointer = free_memory_pointer + 3
+        Opcode::Const {
+            destination: r_output_pointer,
+            value: free_memory_start_addr.offset(offsets::VECTOR_ITEMS).to_usize().into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
+        Opcode::Const {
+            destination: r_output_size,
+            value: free_memory_start_addr.offset(offsets::VECTOR_SIZE).to_usize().into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
         // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
         Opcode::ForeignCall {
             function: "string_double".into(),
-            destinations: vec![ValueOrArray::MemoryAddress(r_output_pointer)],
+            destinations: vec![ValueOrArray::HeapVector(HeapVector {
+                pointer: r_output_pointer,
+                size: r_output_size,
+            })],
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![HeapValueType::field()],
             }],
@@ -266,12 +282,23 @@ fn foreign_call_opcode_vector_input_and_output() {
     assert_eq!(result_values, output_string);
 
     // Check that the vector address has been updated.
-    let vector_addr = memory.read_ref(r_output_pointer);
-    assert_eq!(vector_addr.to_usize(), free_memory_start);
+    let vector_addr = free_memory_start_addr;
 
-    // Check that the vector size has been updated.
-    let vector_size = memory.read(vector_addr.offset(offsets::VECTOR_SIZE));
+    // Check that the vector size is written onto the stack.
+    let vector_size = memory.read(r_output_size);
     assert_eq!(vector_size.to_usize(), output_string.len());
+
+    // The test above does not contain the opcodes that would copy the data from the stack to the heap.
+    // Note that the VM did not write the size to the heap, because `codegen_brillig_vector_to_heap_vector`
+    // allocates two variables on the stack that it uses as pointers to the heap, rather than returning the
+    // heap addresses in the `HeapVector`. But, the VM only treats the `pointer` field as a pointer, ie.
+    // it looks up the address stored at it, then writes to that address, but it writes directly to `size`.
+    // Then, `codegen_initialize_externally_returned_vector` copies it to its final destination as part of
+    // `codegen_initialize_vector_metadata`. We *could* give the heap address in `size`, but it would be
+    // an exception to how `HeapVector`s generally look like. We could also use `write_ref` in the VM,
+    // but that's not what the AVM does.
+    let unset_size = memory.read(vector_addr.offset(offsets::VECTOR_SIZE));
+    assert_eq!(unset_size, MemoryValue::Field(FieldElement::zero()));
 
     // Ensure the foreign call counter has been incremented
     assert_eq!(counter, 1);
@@ -746,16 +773,20 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
 #[test]
 fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() {
     let opcodes = &[
-        // Set the free memory to start at slot 2.
+        // Set the free memory to start at slot 3
         Opcode::Const {
             destination: FREE_MEMORY_POINTER_ADDRESS,
             bit_size: BitSize::Integer(IntegerBitSize::U32),
-            value: FieldElement::from(2u64),
+            value: FieldElement::from(3u64),
         },
         Opcode::ForeignCall {
             function: "foo".to_string(),
-            // We expect the heap address of the vector to be written to a variable @1
-            destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::Direct(1))],
+            // Pretend that we will point to the the destination addresses
+            // using pointers in slot @1 and @2
+            destinations: vec![ValueOrArray::HeapVector(HeapVector {
+                pointer: MemoryAddress::Direct(1),
+                size: MemoryAddress::Direct(2),
+            })],
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![
                     HeapValueType::Simple(BitSize::Field),

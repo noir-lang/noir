@@ -287,7 +287,7 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
-                ..Default::default()
+                layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
             expression_width: if self.bounded_codegen {

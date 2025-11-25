@@ -351,7 +351,6 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
 
     #[allow(unused_mut)]
     let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
-
     {test_content}
 }}
 "#
