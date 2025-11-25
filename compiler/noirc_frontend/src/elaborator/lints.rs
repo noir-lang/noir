@@ -112,10 +112,10 @@ pub(super) fn oracle_not_marked_unconstrained(
 /// Oracle functions cannot return more than 1 slice in their output.
 ///
 /// This is currently a limitation with the AVM: to return multiple slices
-/// of unknown length, it would need to support to allocating memory for
+/// of unknown length, it would need to support allocating memory for
 /// them in the call handler, and return their final address. Currently
 /// only the Brillig codegen knows about the Free Memory Pointer, and
-/// it the VM writes to whatever address is in the destination, so we
+/// the VM writes to whatever address is in the destination, so we
 /// can only safely deal with one vector.
 pub(super) fn oracle_returns_multiple_slices(
     func: &FuncMeta,
