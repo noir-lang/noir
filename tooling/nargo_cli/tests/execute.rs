@@ -457,7 +457,7 @@ mod tests {
     fn nargo_execute_comptime(test_program_dir: PathBuf) {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("execute").arg("--force").arg("--force-comptime");
+        nargo.arg("execute").arg("--force-comptime");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
