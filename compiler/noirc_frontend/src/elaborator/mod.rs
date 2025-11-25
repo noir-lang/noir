@@ -113,7 +113,7 @@ mod visibility;
 
 use function_context::FunctionContext;
 use noirc_errors::Location;
-pub use options::ElaboratorOptions;
+pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
 use path_resolution::{

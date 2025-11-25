@@ -49,7 +49,7 @@ pub struct GenericOptions<'a, T> {
 }
 
 /// Options from nargo_cli that need to be passed down to the elaborator
-pub type ElaboratorOptions<'a> = GenericOptions<'a, fm::FileId>;
+pub(crate) type ElaboratorOptions<'a> = GenericOptions<'a, fm::FileId>;
 
 /// This is the unresolved version of `ElaboratorOptions`
 /// CLI options that need to be passed to the compiler frontend (the elaborator).

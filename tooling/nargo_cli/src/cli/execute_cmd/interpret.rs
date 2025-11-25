@@ -13,17 +13,15 @@ use noirc_driver::gen_abi;
 use noirc_errors::{CustomDiagnostic, Location};
 use noirc_evaluator::ssa::interpreter::value::{Fitted, NumericValue};
 use noirc_evaluator::ssa::ir::types::NumericType;
-use noirc_frontend::elaborator::{Elaborator, ElaboratorOptions};
 use noirc_frontend::hir::ParsedFiles;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
-use noirc_frontend::hir::def_map::ModuleId;
 use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::NodeInterner;
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::signed_field::SignedField;
-use noirc_frontend::{Shared, Type, TypeBindings};
+use noirc_frontend::{Shared, Type};
 
 use crate::cli::compile_cmd::parse_workspace;
 use crate::cli::execute_cmd::ExecuteCommand;
@@ -84,20 +82,7 @@ fn run_package_comptime(
         input_value_to_comptime_value(&return_value, func_meta.return_type(), location)
     });
 
-    let cli_options = ElaboratorOptions {
-        debug_comptime_in_file: None,
-        pedantic_solving: args.compile_options.pedantic_solving,
-        enabled_unstable_features: &args.compile_options.unstable_features,
-        disable_required_unstable_features: args.compile_options.no_unstable_features,
-    };
-    let module_id = ModuleId { krate: crate_id, local_id: func_meta.source_module };
-
-    let mut elaborator = Elaborator::from_context(&mut context, crate_id, cli_options);
-    elaborator.replace_module(module_id);
-
-    let mut interpreter = elaborator.setup_interpreter();
-    let instantiation_bindings = TypeBindings::default();
-    match interpreter.call_function(main_id, func_args, instantiation_bindings, location) {
+    match context.interpret_function(main_id, func_args) {
         Ok(result) => {
             let result_as_string = result.display(&context.def_interner).to_string();
 
