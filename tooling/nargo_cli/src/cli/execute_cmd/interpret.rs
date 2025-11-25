@@ -10,12 +10,13 @@ use nargo::workspace::Workspace;
 use noirc_abi::InputMap;
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::gen_abi;
-use noirc_errors::Location;
+use noirc_errors::{CustomDiagnostic, Location};
 use noirc_evaluator::ssa::interpreter::value::{Fitted, NumericValue};
 use noirc_evaluator::ssa::ir::types::NumericType;
 use noirc_frontend::elaborator::{Elaborator, ElaboratorOptions};
 use noirc_frontend::hir::ParsedFiles;
 use noirc_frontend::hir::comptime::Value;
+use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
 use noirc_frontend::hir::def_map::ModuleId;
 use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
@@ -117,7 +118,18 @@ fn run_package_comptime(
 
             Ok(())
         }
-        Err(err) => Err(CliError::Generic(format!("Error interpreting main function: {err:?}"))),
+        Err(err) => {
+            let err = CompilationError::InterpreterError(err);
+            let diagnostic = CustomDiagnostic::from(&err);
+            let errors = vec![diagnostic];
+            report_errors(
+                Ok(((), errors)),
+                file_manager,
+                args.compile_options.deny_warnings,
+                args.compile_options.silence_warnings,
+            )?;
+            Err(CliError::Generic("Error interpreting main function".to_string()))
+        }
     }
 }
 
