@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check spelling
-        uses: streetsidesoftware/cspell-action@v7
+        uses: streetsidesoftware/cspell-action@v8
         with:
           strict: false # Do not fail, if a spelling mistake is found (This can be annoying for contributors)
           incremental_files_only: true # Run this action on files which have changed in PR
@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check spelling
-        uses: streetsidesoftware/cspell-action@v7
+        uses: streetsidesoftware/cspell-action@v8
         with:
           strict: true # Documentation has higher standards for correctness.
           incremental_files_only: true # Run this action on files which have changed in PR
