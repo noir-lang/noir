@@ -116,7 +116,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will handle internal details like binding generics and error handling.
     /// Note that running code which resulted in previous errors during elaboration
     /// may result in similar errors being issued again by the interpreter.
-    pub(crate) fn call_function(
+    pub fn call_function(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
