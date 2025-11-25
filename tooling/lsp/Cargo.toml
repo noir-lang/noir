@@ -42,3 +42,4 @@ wasm-bindgen.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros", "rt"] }
+insta.workspace = true
