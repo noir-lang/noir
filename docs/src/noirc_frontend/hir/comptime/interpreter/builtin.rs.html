@@ -3165,7 +3165,9 @@
 <a href="#3164" id="3164">3164</a>
 <a href="#3165" id="3165">3165</a>
 <a href="#3166" id="3166">3166</a>
-<a href="#3167" id="3167">3167</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3167" id="3167">3167</a>
+<a href="#3168" id="3168">3168</a>
+<a href="#3169" id="3169">3169</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -5851,6 +5853,7 @@
     </span><span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
     <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();
     <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = rustc_hash::FxHashMap::default();
 
     <span class="kw">for </span>input_parameter <span class="kw">in </span>input_parameters {
         <span class="kw">let </span><span class="kw-2">mut </span>tuple = get_tuple((input_parameter, parameters_argument_location))<span class="question-mark">?</span>;
@@ -5873,7 +5876,8 @@
                 DefinitionKind::Local(<span class="prelude-val">None</span>),
                 <span class="kw-2">&amp;mut </span>parameter_idents,
                 <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
-            </span>)
+                </span><span class="kw-2">&amp;mut </span>parameter_names_in_list,
+            )
         });
 
         parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));

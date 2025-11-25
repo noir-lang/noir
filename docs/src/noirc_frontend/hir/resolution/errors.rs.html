@@ -868,7 +868,17 @@
 <a href="#867" id="867">867</a>
 <a href="#868" id="868">868</a>
 <a href="#869" id="869">869</a>
-<a href="#870" id="870">870</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1068,6 +1078,8 @@
     </span>OracleWithBody { location: Location },
     <span class="attr">#[error(<span class="string">"Builtin and low-level function declarations cannot have a body"</span>)]
     </span>BuiltinWithBody { location: Location },
+    <span class="attr">#[error(<span class="string">"Identifier `{ident}` is bound more than once in the same pattern"</span>)]
+    </span>PatternBoundMoreThanOnce { ident: Ident },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1144,7 +1156,8 @@
             | ResolverError::NoSuchField { field: ident, .. }
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
-            | ResolverError::UnconstrainedTypeParameter { ident } =&gt; ident.location(),
+            | ResolverError::UnconstrainedTypeParameter { ident }
+            | ResolverError::PatternBoundMoreThanOnce { ident } =&gt; ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) =&gt; {
                 path_resolution_error.location()
             }
@@ -1733,6 +1746,13 @@
                     <span class="string">"Builtin and low-level function declarations cannot have a body"</span>.to_string(),
                     <span class="string">"This function body should be removed"</span>.to_string(),
                     <span class="kw-2">*</span>location,
+                )
+            }
+            ResolverError::PatternBoundMoreThanOnce { ident } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Identifier `{ident}` is bound more than once in the same pattern"</span>),
+                    <span class="string">"Used in a pattern more than once"</span>.to_string(),
+                    ident.location(),
                 )
             }
         }

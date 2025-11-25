@@ -1633,7 +1633,17 @@
 <a href="#1632" id="1632">1632</a>
 <a href="#1633" id="1633">1633</a>
 <a href="#1634" id="1634">1634</a>
-<a href="#1635" id="1635">1635</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -3011,6 +3021,7 @@
         <span class="self">self</span>.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
 
         <span class="kw">let </span><span class="kw-2">mut </span>arg_types = Vec::with_capacity(lambda.parameters.len());
+        <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = HashMap::default();
         <span class="kw">let </span>parameters =
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 <span class="kw">let </span>parameter = DefinitionKind::Local(<span class="prelude-val">None</span>);
@@ -3031,7 +3042,16 @@
                 };
 
                 arg_types.push(typ.clone());
-                (<span class="self">self</span>.elaborate_pattern(pattern, typ.clone(), parameter, <span class="bool-val">true</span>), typ)
+                (
+                    <span class="self">self</span>.elaborate_pattern(
+                        pattern,
+                        typ.clone(),
+                        parameter,
+                        <span class="bool-val">true</span>,
+                        <span class="kw-2">&amp;mut </span>parameter_names_in_list,
+                    ),
+                    typ,
+                )
             });
 
         <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;

@@ -571,7 +571,11 @@
 <a href="#570" id="570">570</a>
 <a href="#571" id="571">571</a>
 <a href="#572" id="572">572</a>
-<a href="#573" id="573">573</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -901,6 +905,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = rustc_hash::FxHashMap::default();
         <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         <span class="kw">for </span>Param { visibility, pattern, typ, location: <span class="kw">_ </span>} <span class="kw">in </span>func.parameters().iter().cloned() {
@@ -934,7 +939,8 @@
                 DefinitionKind::Local(<span class="prelude-val">None</span>),
                 <span class="kw-2">&amp;mut </span>parameter_idents,
                 <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
-            </span>);
+                </span><span class="kw-2">&amp;mut </span>parameter_names_in_list,
+            );
 
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -1059,7 +1065,9 @@
         </span><span class="kw">for </span>parameter <span class="kw">in </span><span class="kw-2">&amp;</span>func_meta.parameter_idents {
             <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(parameter.id).to_owned();
             <span class="kw">let </span>warn_if_unused = !(func_meta.trait_impl.is_some() &amp;&amp; name == <span class="string">"self"</span>);
-            <span class="kw">let </span>allow_shadowing = <span class="bool-val">false</span>;
+            <span class="comment">// We allow shadowing here because there's no outer scope to shadow
+            // (duplicate parameter names were already checked in `resolve_function_parameters`)
+            </span><span class="kw">let </span>allow_shadowing = <span class="bool-val">true</span>;
             <span class="self">self</span>.add_existing_variable_to_scope(
                 name,
                 parameter.clone(),

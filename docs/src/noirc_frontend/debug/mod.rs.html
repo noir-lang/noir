@@ -818,7 +818,8 @@
 <a href="#817" id="817">817</a>
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -1562,7 +1563,9 @@
         <span class="kw">let </span>(pattern, is_mut) = stack.pop_front().unwrap();
         <span class="kw">match </span>pattern {
             ast::Pattern::Identifier(id) =&gt; {
-                vars.push((id.clone(), is_mut));
+                <span class="kw">if </span>id.as_str() != <span class="string">"_" </span>{
+                    vars.push((id.clone(), is_mut));
+                }
             }
             ast::Pattern::Mutable(pattern, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 stack.push_back((pattern, <span class="bool-val">true</span>));
@@ -1572,7 +1575,6 @@
             }
             ast::Pattern::Struct(<span class="kw">_</span>, fields, <span class="kw">_</span>) =&gt; {
                 stack.extend(fields.iter().map(|(<span class="kw">_</span>, pattern)| (pattern, is_mut)));
-                vars.extend(fields.iter().map(|(id, <span class="kw">_</span>)| (id.clone(), <span class="bool-val">false</span>)));
             }
             ast::Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
                 stack.push_back((pattern, <span class="bool-val">false</span>));

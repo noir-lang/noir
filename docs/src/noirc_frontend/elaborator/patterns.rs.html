@@ -728,10 +728,67 @@
 <a href="#727" id="727">727</a>
 <a href="#728" id="728">728</a>
 <a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
+<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
@@ -758,12 +815,16 @@
     ///
     /// The `expected_type` is always known, because we can first infer the type of the `&lt;expr&gt;` and try to match it to
     /// the pattern.
+    ///
+    /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
+    /// patterns in a list. If a name is found multiple times, an error is captured.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_pattern(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
+        parameter_names_in_list: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Location&gt;,
     ) -&gt; HirPattern {
         <span class="self">self</span>.elaborate_pattern_mut(
             pattern,
@@ -772,11 +833,16 @@
             <span class="prelude-val">None</span>,
             <span class="kw-2">&amp;mut </span>Vec::new(),
             warn_if_unused,
+            <span class="kw-2">&amp;mut </span>HashSet::default(),
+            parameter_names_in_list,
         )
     }
 
     <span class="doccomment">/// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new `DefinitionIds` that were created to the given `Vec`.
+    ///
+    /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
+    /// patterns in a list. If a name is found multiple times, an error is captured.
     </span><span class="kw">pub fn </span>elaborate_pattern_and_store_ids(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: Pattern,
@@ -784,6 +850,7 @@
         definition_kind: DefinitionKind,
         created_ids: <span class="kw-2">&amp;mut </span>Vec&lt;HirIdent&gt;,
         warn_if_unused: bool,
+        parameter_names_in_list: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Location&gt;,
     ) -&gt; HirPattern {
         <span class="self">self</span>.elaborate_pattern_mut(
             pattern,
@@ -792,11 +859,19 @@
             <span class="prelude-val">None</span>,
             created_ids,
             warn_if_unused,
+            <span class="kw-2">&amp;mut </span>HashSet::default(),
+            parameter_names_in_list,
         )
     }
 
     <span class="doccomment">/// Elaborate the (potentially mutable) pattern and add the variables
     /// it created to the scope if necessary.
+    ///
+    /// - `pattern_names` keeps track of parameter names within this single pattern (or an outer
+    ///    one, when called recursively). If a name is found multiple times, an error is captured.
+    /// - `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
+    ///   patterns in a list. If a name is found multiple times, an error is captured.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>elaborate_pattern_mut(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: Pattern,
@@ -806,6 +881,8 @@
         </span>mutable: <span class="prelude-ty">Option</span>&lt;Location&gt;,
         new_definitions: <span class="kw-2">&amp;mut </span>Vec&lt;HirIdent&gt;,
         warn_if_unused: bool,
+        pattern_names: <span class="kw-2">&amp;mut </span>HashSet&lt;String&gt;,
+        parameter_names_in_list: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Location&gt;,
     ) -&gt; HirPattern {
         <span class="kw">match </span>pattern {
             <span class="comment">// e.g. let &lt;ident&gt; = ...;
@@ -822,6 +899,22 @@
                     <span class="kw">let </span>location = name.location();
                     HirIdent::non_trait_method(id, location)
                 } <span class="kw">else </span>{
+                    <span class="kw">if </span>name.as_str() != <span class="string">"_" </span>{
+                        <span class="kw">if </span>!pattern_names.insert(name.to_string()) {
+                            <span class="self">self</span>.push_err(ResolverError::PatternBoundMoreThanOnce {
+                                ident: name.clone(),
+                            });
+                        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(first_location) =
+                            parameter_names_in_list.insert(name.to_string(), name.location())
+                        {
+                            <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
+                                name: name.to_string(),
+                                first_location,
+                                second_location: name.location(),
+                            });
+                        }
+                    }
+
                     <span class="self">self</span>.add_variable_decl(
                         name,
                         mutable.is_some(),
@@ -850,6 +943,8 @@
                     <span class="prelude-val">Some</span>(location),
                     new_definitions,
                     warn_if_unused,
+                    pattern_names,
+                    parameter_names_in_list,
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
@@ -898,6 +993,8 @@
                         mutable,
                         new_definitions,
                         warn_if_unused,
+                        pattern_names,
+                        parameter_names_in_list,
                     )
                 });
                 HirPattern::Tuple(fields, location)
@@ -913,6 +1010,8 @@
                     definition,
                     mutable,
                     new_definitions,
+                    pattern_names,
+                    parameter_names_in_list,
                 )
             }
             <span class="comment">// e.g. let (&lt;pattern&gt;) = ...;
@@ -923,6 +1022,8 @@
                 mutable,
                 new_definitions,
                 warn_if_unused,
+                pattern_names,
+                parameter_names_in_list,
             ),
             Pattern::Interned(id, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>pattern = <span class="self">self</span>.interner.get_pattern(id).clone();
@@ -933,6 +1034,8 @@
                     mutable,
                     new_definitions,
                     warn_if_unused,
+                    pattern_names,
+                    parameter_names_in_list,
                 )
             }
         }
@@ -948,6 +1051,8 @@
         definition: DefinitionKind,
         mutable: <span class="prelude-ty">Option</span>&lt;Location&gt;,
         new_definitions: <span class="kw-2">&amp;mut </span>Vec&lt;HirIdent&gt;,
+        pattern_names: <span class="kw-2">&amp;mut </span>HashSet&lt;String&gt;,
+        parameter_names_in_list: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Location&gt;,
     ) -&gt; HirPattern {
         <span class="kw">let </span>last_segment = name.last_segment();
         <span class="kw">let </span>name_location = last_segment.ident.location();
@@ -1001,6 +1106,8 @@
             definition,
             mutable,
             new_definitions,
+            pattern_names,
+            parameter_names_in_list,
         );
 
         <span class="kw">let </span>struct_id = struct_type.borrow().id;
@@ -1018,6 +1125,7 @@
     <span class="doccomment">/// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>resolve_constructor_pattern_fields(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         fields: Vec&lt;(Ident, Pattern)&gt;,
@@ -1026,6 +1134,8 @@
         definition: DefinitionKind,
         mutable: <span class="prelude-ty">Option</span>&lt;Location&gt;,
         new_definitions: <span class="kw-2">&amp;mut </span>Vec&lt;HirIdent&gt;,
+        pattern_names: <span class="kw-2">&amp;mut </span>HashSet&lt;String&gt;,
+        parameter_names_in_list: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Location&gt;,
     ) -&gt; Vec&lt;(Ident, HirPattern)&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>ret = Vec::with_capacity(fields.len());
         <span class="kw">let </span><span class="kw-2">mut </span>seen_fields = HashSet::default();
@@ -1048,7 +1158,9 @@
                 mutable,
                 new_definitions,
                 <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
-            </span>);
+                </span>pattern_names,
+                parameter_names_in_list,
+            );
 
             <span class="kw">if </span>unseen_fields.contains(<span class="kw-2">&amp;</span>field) {
                 unseen_fields.remove(<span class="kw-2">&amp;</span>field);
