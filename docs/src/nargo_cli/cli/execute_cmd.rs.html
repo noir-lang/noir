@@ -79,7 +79,18 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>clap::Args;
 
@@ -90,7 +101,10 @@
 
 <span class="kw">use </span><span class="kw">super</span>::compile_cmd::compile_workspace_full;
 <span class="kw">use super</span>::{LockType, PackageOptions, WorkspaceCommand};
+<span class="kw">use </span><span class="kw">crate</span>::cli::execute_cmd::interpret::run_comptime;
 <span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
+
+<span class="kw">mod </span>interpret;
 
 <span class="doccomment">/// Executes a circuit to calculate its return value
 </span><span class="attr">#[derive(Debug, Clone, Args)]
@@ -118,6 +132,10 @@
     <span class="doccomment">/// Path to the oracle transcript.
     </span><span class="attr">#[clap(long, conflicts_with = <span class="string">"oracle_resolver"</span>)]
     </span>oracle_file: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+
+    <span class="doccomment">/// Force comptime execution
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+    </span>force_comptime: bool,
 }
 
 <span class="kw">impl </span>WorkspaceCommand <span class="kw">for </span>ExecuteCommand {
@@ -132,6 +150,10 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>run(args: ExecuteCommand, workspace: Workspace) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
+    <span class="kw">if </span>args.force_comptime {
+        <span class="kw">return </span>run_comptime(args, workspace);
+    }
+
     <span class="comment">// Compile the full workspace in order to generate any build artifacts.
     </span><span class="kw">let </span>debug_compile_stdin = <span class="prelude-val">None</span>;
     compile_workspace_full(<span class="kw-2">&amp;</span>workspace, <span class="kw-2">&amp;</span>args.compile_options, debug_compile_stdin)<span class="question-mark">?</span>;

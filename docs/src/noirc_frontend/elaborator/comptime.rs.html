@@ -1494,7 +1494,7 @@
     ///
     /// The interpreter is initialized with the current crate and function context
     /// to ensure proper scoping and error reporting.
-    </span><span class="kw">pub fn </span>setup_interpreter&lt;<span class="lifetime">'local</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'local </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; Interpreter&lt;<span class="lifetime">'local</span>, <span class="lifetime">'context</span>&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>setup_interpreter&lt;<span class="lifetime">'local</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'local </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; Interpreter&lt;<span class="lifetime">'local</span>, <span class="lifetime">'context</span>&gt; {
         <span class="kw">let </span>current_function = <span class="kw">match </span><span class="self">self</span>.current_item {
             <span class="prelude-val">Some</span>(DependencyId::Function(function)) =&gt; <span class="prelude-val">Some</span>(function),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,

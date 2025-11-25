@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run"],"struct":["ExecuteCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["run"],"mod":["interpret"],"struct":["ExecuteCommand"]};

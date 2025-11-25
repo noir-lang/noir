@@ -264,9 +264,9 @@
         ModuleId { krate: <span class="self">self</span>.crate_id, local_id: <span class="self">self</span>.local_module() }
     }
 
-    <span class="kw">pub fn </span>replace_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_module: ModuleId) -&gt; ModuleId {
-        <span class="kw">let </span>current_module = <span class="self">self</span>.module_id();
-
+    <span class="kw">pub fn </span>replace_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_module: ModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
+        <span class="kw">let </span>current_module =
+            <span class="self">self</span>.local_module.map(|local_id| ModuleId { krate: <span class="self">self</span>.crate_id, local_id });
         <span class="self">self</span>.crate_id = new_module.krate;
         <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(new_module.local_id);
         current_module

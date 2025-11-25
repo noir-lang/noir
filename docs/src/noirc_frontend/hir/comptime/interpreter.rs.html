@@ -1820,7 +1820,40 @@
 <a href="#1819" id="1819">1819</a>
 <a href="#1820" id="1820">1820</a>
 <a href="#1821" id="1821">1821</a>
-<a href="#1822" id="1822">1822</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a>
+<a href="#1834" id="1834">1834</a>
+<a href="#1835" id="1835">1835</a>
+<a href="#1836" id="1836">1836</a>
+<a href="#1837" id="1837">1837</a>
+<a href="#1838" id="1838">1838</a>
+<a href="#1839" id="1839">1839</a>
+<a href="#1840" id="1840">1840</a>
+<a href="#1841" id="1841">1841</a>
+<a href="#1842" id="1842">1842</a>
+<a href="#1843" id="1843">1843</a>
+<a href="#1844" id="1844">1844</a>
+<a href="#1845" id="1845">1845</a>
+<a href="#1846" id="1846">1846</a>
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a>
+<a href="#1849" id="1849">1849</a>
+<a href="#1850" id="1850">1850</a>
+<a href="#1851" id="1851">1851</a>
+<a href="#1852" id="1852">1852</a>
+<a href="#1853" id="1853">1853</a>
+<a href="#1854" id="1854">1854</a>
+<a href="#1855" id="1855">1855</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -1865,7 +1898,8 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::TypeVariable;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
-<span class="kw">use </span><span class="kw">crate</span>::elaborator::{ElaborateReason, Elaborator};
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
+<span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::ModuleId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::TypeCheckError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::TraitItem;
@@ -2142,7 +2176,9 @@
         <span class="kw">let </span>result = <span class="self">self</span>.call_closure_inner(lambda, environment, arguments, call_location);
 
         <span class="self">self</span>.current_function = old_function;
-        <span class="self">self</span>.elaborator.replace_module(old_module);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(old_module) = old_module {
+            <span class="self">self</span>.elaborator.replace_module(old_module);
+        }
         result
     }
 
@@ -3640,6 +3676,36 @@
         Value::I32(value) =&gt; <span class="prelude-val">Some</span>(i128::from(value)),
         Value::I64(value) =&gt; <span class="prelude-val">Some</span>(i128::from(value)),
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+    }
+}
+
+<span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+    <span class="doccomment">/// Interprets (as comptime code) the given function in the give crate, with the given arguments.
+    /// Panics if there's no main function.
+    </span><span class="kw">pub fn </span>interpret_function(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        main_id: FuncId,
+        args: Vec&lt;(Value, Location)&gt;,
+    ) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>func_meta = <span class="self">self</span>.def_interner.function_meta(<span class="kw-2">&amp;</span>main_id);
+        <span class="kw">let </span>crate_id = func_meta.source_crate;
+        <span class="kw">let </span>local_id = func_meta.source_module;
+        <span class="kw">let </span>location = func_meta.location;
+        <span class="kw">let </span>enabled_unstable_features = <span class="kw-2">&amp;</span><span class="self">self</span>.required_unstable_features[<span class="kw-2">&amp;</span>crate_id].clone();
+        <span class="kw">let </span>cli_options = ElaboratorOptions {
+            debug_comptime_in_file: <span class="prelude-val">None</span>,
+            pedantic_solving: <span class="bool-val">false</span>,
+            enabled_unstable_features,
+            disable_required_unstable_features: <span class="bool-val">false</span>,
+        };
+        <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id };
+
+        <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::from_context(<span class="self">self</span>, crate_id, cli_options);
+        elaborator.replace_module(module_id);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = elaborator.setup_interpreter();
+        <span class="kw">let </span>instantiation_bindings = TypeBindings::default();
+        interpreter.call_function(main_id, args, instantiation_bindings, location)
     }
 }
 </code></pre></div></section></main></body></html>
