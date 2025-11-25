@@ -1,6 +1,6 @@
 use acvm::{AcirField, FieldElement};
 
-#[derive(Debug, Copy, Clone, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Copy, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SignedField {
     field: FieldElement,
     is_negative: bool,
@@ -133,6 +133,13 @@ impl PartialEq for SignedField {
 }
 
 impl Eq for SignedField {}
+
+impl std::hash::Hash for SignedField {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let fe = if self.is_negative { -self.field } else { self.field };
+        fe.hash(state);
+    }
+}
 
 impl std::ops::Add for SignedField {
     type Output = Self;
