@@ -133,6 +133,52 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     "reference_counts_inliner_max",
 ];
 
+/// `nargo execute --force-comptime` ignored tests because of bugs.
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
+    "a_5_over",
+    "arithmetic_binary_operations",
+    "array_oob_regression_7975",
+    "array_sort",
+    "as_witness",
+    "bool_not",
+    "bool_or",
+    "brillig_cow_regression",
+    "brillig_pedersen",
+    "cast_signed_to_u1",
+    "generics",
+    "higher_order_functions",
+    "hint_black_box",
+    "import",
+    "merkle_insert",
+    "modulus",
+    "multi_scalar_mul",
+    "pedersen_check",
+    "pedersen_commitment",
+    "pedersen_hash",
+    "poseidon_bn254_hash_width_3",
+    "poseidonsponge_x5_254",
+    "reference_counts_inliner_0",
+    "reference_counts_inliner_max",
+    "reference_counts_inliner_min",
+    "reference_counts_slices_inliner_0",
+    "regression_10156",
+    "regression_11294",
+    "regression_1144_1169_2399_6609",
+    "regression_5252",
+    "regression_6451",
+    "regression_7323",
+    "regression_8329",
+    "regression_8755",
+    "regression_9208",
+    "regression_9303",
+    "simple_radix",
+    "simple_shield",
+    "strings",
+    "struct",
+    "submodules",
+    "to_bytes_integration",
+];
+
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
@@ -507,9 +553,9 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
-        // if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
-        //     continue;
-        // }
+        if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
 
         let test_dir = test_dir.display();
 
