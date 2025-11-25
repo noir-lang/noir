@@ -553,9 +553,12 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
-        if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
-            continue;
-        }
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
 
         let test_dir = test_dir.display();
 
@@ -563,6 +566,7 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             test_file,
             r#"
             #[test]
+            {should_panic}
             fn test_{test_name}() {{
                 let test_program_dir = PathBuf::from("{test_dir}");
                 nargo_execute_comptime(test_program_dir);
