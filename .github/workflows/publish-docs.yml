@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: taiki-e/install-action@just
 
@@ -33,7 +33,7 @@ jobs:
         run: yarn workspaces foreach -Rpt --from docs run build
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
+        uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: "./docs/build"
           production-branch: master
