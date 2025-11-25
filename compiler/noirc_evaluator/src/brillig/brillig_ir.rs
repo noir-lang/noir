@@ -478,9 +478,6 @@ pub(crate) mod tests {
         let r_free_value = ReservedRegisters::len() + 4;
         context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
 
-        // // The vector size is going to be on the heap. It's easy here, since we know where it will start.
-        // let r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
-
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
         // The output pointer points at the heap.
         context.usize_const_instruction(
