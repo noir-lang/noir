@@ -1449,9 +1449,6 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
-                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
@@ -1468,9 +1465,6 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
-                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Slice(element)
@@ -1655,18 +1649,8 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
-                }
-                Self::check_type(element.as_ref(), location)
-            }
-            HirType::Slice(element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
-                }
-                Self::check_type(element.as_ref(), location)
-            }
+            HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
+            HirType::Slice(element) => Self::check_type(element.as_ref(), location),
             HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::check_type(binding, location);

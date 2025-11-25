@@ -1642,52 +1642,8 @@ impl Type {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
-
             Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            Type::FmtString(_size, elem) => elem.as_ref().is_nested_slice(),
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.is_nested_slice()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_slice()) {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::Tuple(types) => {
-                for typ in types {
-                    if typ.is_nested_slice() {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.is_nested_slice(),
-                    TypeBinding::Unbound(_, _) => false,
-                }
-            }
-            Type::CheckedCast { from, to } => from.is_nested_slice() || to.is_nested_slice(),
-            Type::Reference(element, _) => element.is_nested_slice(),
-            Type::Forall(_, typ) => typ.is_nested_slice(),
-
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Function(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
+            _ => false,
         }
     }
 
@@ -1696,7 +1652,6 @@ impl Type {
         match self {
             Type::Slice(_) => true,
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1718,29 +1673,7 @@ impl Type {
                 }
                 false
             }
-            Type::FmtString(_size, elem) => elem.contains_slice(),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_slice(),
-                    TypeBinding::Unbound(_, _) => false,
-                }
-            }
-            Type::CheckedCast { from, to } => from.contains_slice() || to.contains_slice(),
-            Type::Reference(element, _) => element.contains_slice(),
-            Type::Forall(_, typ) => typ.contains_slice(),
-
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Function(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
+            _ => false,
         }
     }
 
@@ -1755,6 +1688,7 @@ impl Type {
             | Type::Constant(..)
             | Type::Function(..)
             | Type::TraitAsType(..)
+            | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
             Type::Slice(length) => length.contains_reference(),
@@ -1789,7 +1723,6 @@ impl Type {
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.contains_reference() || rhs.contains_reference()
             }
-            Type::Forall(_, typ) => typ.contains_reference(),
             Type::Reference(..) => true,
         }
     }
