@@ -1621,13 +1621,33 @@ impl Type {
     /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
         let mut result = false;
-        visit_type(self, &mut |typ| {
-            if matches!(typ, Type::Slice(_)) {
+        visit_type(self, &mut |typ| match typ {
+            Type::Slice(_) => {
                 result = true;
                 false
-            } else {
+            }
+
+            Type::Alias(_, _) | Type::Array(_, _) | Type::DataType(_, _) | Type::Tuple(_) => {
                 !result
             }
+
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::TypeVariable(_)
+            | Type::TraitAsType(_, _, _)
+            | Type::NamedGeneric(_)
+            | Type::CheckedCast { .. }
+            | Type::Function(_, _, _, _)
+            | Type::Reference(_, _)
+            | Type::Forall(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Error => false,
         });
         result
     }
@@ -1643,7 +1663,28 @@ impl Type {
                 result |= to.contains_reference();
                 false
             }
-            _ => !result,
+
+            Type::Array(_, _)
+            | Type::Slice(_)
+            | Type::FmtString(_, _)
+            | Type::Tuple(_)
+            | Type::DataType(_, _)
+            | Type::Alias(_, _)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_)
+            | Type::InfixExpr(_, _, _, _) => !result,
+
+            Type::Unit
+            | Type::Bool
+            | Type::String(..)
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::Function(..)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Error => false,
         });
         result
     }
@@ -1666,7 +1707,23 @@ impl Type {
                 result |= items.iter().any(|typ| typ.contains_type_variable());
                 false
             }
-            _ => !result,
+            Type::FieldElement
+            | Type::Array(_, _)
+            | Type::Slice(_)
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Tuple(_)
+            | Type::TraitAsType(_, _, _)
+            | Type::CheckedCast { .. }
+            | Type::Function(_, _, _, _)
+            | Type::Reference(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Error => !result,
         });
         result
     }
@@ -2218,11 +2275,29 @@ impl Type {
                 };
                 false
             }
+            // Only visit the generics, not the definition.
             Type::DataType(_, generic_args) | Type::Alias(_, generic_args) => {
                 result |= generic_args.iter().any(|arg| arg.occurs(target_id));
                 false
             }
-            _ => !result,
+
+            Type::FieldElement
+            | Type::Array(_, _)
+            | Type::Slice(_)
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Tuple(_)
+            | Type::TraitAsType(_, _, _)
+            | Type::CheckedCast { .. }
+            | Type::Function(_, _, _, _)
+            | Type::Reference(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Error => !result,
         });
         result
     }
