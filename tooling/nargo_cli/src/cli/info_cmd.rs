@@ -1,7 +1,6 @@
 use acvm::acir::circuit::ExpressionWidth;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use iter_extended::vecmap;
 use nargo::{
     constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
     workspace::Workspace,
@@ -13,9 +12,7 @@ use noirc_artifacts_info::{
     FunctionInfo, InfoReport, ProgramInfo, count_opcodes_and_gates_in_program, show_info_report,
 };
 use noirc_driver::CompileOptions;
-use prettytable::{Row, row};
 use rayon::prelude::*;
-use serde::Serialize;
 
 use crate::errors::CliError;
 
@@ -115,28 +112,6 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
     show_info_report(info_report, args.json);
 
     Ok(())
-}
-
-#[derive(Debug, Serialize)]
-struct ContractInfo {
-    name: String,
-    #[serde(skip)]
-    expression_width: ExpressionWidth,
-    // TODO(https://github.com/noir-lang/noir/issues/4720): Settle on how to display contract functions with non-inlined Acir calls
-    functions: Vec<FunctionInfo>,
-}
-
-impl From<ContractInfo> for Vec<Row> {
-    fn from(contract_info: ContractInfo) -> Self {
-        vecmap(contract_info.functions, |function| {
-            row![
-                Fm->format!("{}", contract_info.name),
-                Fc->format!("{}", function.name),
-                format!("{:?}", contract_info.expression_width),
-                Fc->format!("{}", function.opcodes),
-            ]
-        })
-    }
 }
 
 fn profile_brillig_execution(
