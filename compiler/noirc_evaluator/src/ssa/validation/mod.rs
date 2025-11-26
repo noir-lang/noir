@@ -1777,6 +1777,19 @@ mod tests {
     }
 
     #[test]
+    fn allows_return_data_does_with_unreachable_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v4 = make_array [Field 0, Field 0] : [Field; 2]
+            unreachable
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Entry block cannot be the target of a jump")]
     fn disallows_jumping_to_entry_block() {
         // This test constructs the following function manually, which cannot be constructed using the SSA parser
