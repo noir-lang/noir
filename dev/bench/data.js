@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764184058618,
+  "lastUpdate": 1764185655708,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9dbad18bf0734de693ef6957fb8eb72e26ddaadc",
-          "message": "chore: Remove references to the deprecated grants program (#9253)",
-          "timestamp": "2025-11-19T17:01:32Z",
-          "tree_id": "2ac5b784bb188091c5912b2d0284c8eb552a95b6",
-          "url": "https://github.com/noir-lang/noir/commit/9dbad18bf0734de693ef6957fb8eb72e26ddaadc"
-        },
-        "date": 1763573082882,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251999,
-            "range": "± 747",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223043,
-            "range": "± 270",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783028,
-            "range": "± 3458",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796652,
             "range": "± 13439",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b47e62a186971a47540ff9e961da12332a5f5ec2",
+          "message": "fix: Error when slice_insert is OOB during comptime (#10645)",
+          "timestamp": "2025-11-26T19:11:06Z",
+          "tree_id": "7178d1483c1007e9f015ecdf5c68a69209410eed",
+          "url": "https://github.com/noir-lang/noir/commit/b47e62a186971a47540ff9e961da12332a5f5ec2"
+        },
+        "date": 1764185628248,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256640,
+            "range": "± 1292",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230882,
+            "range": "± 10084",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2797080,
+            "range": "± 3133",
             "unit": "ns/iter"
           }
         ]
