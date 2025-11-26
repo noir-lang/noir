@@ -1376,6 +1376,7 @@ impl Elaborator<'_> {
         self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
+        let mut parameter_names_in_list = HashMap::default();
         let parameters =
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
@@ -1396,7 +1397,16 @@ impl Elaborator<'_> {
                 };
 
                 arg_types.push(typ.clone());
-                (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
+                (
+                    self.elaborate_pattern(
+                        pattern,
+                        typ.clone(),
+                        parameter,
+                        true,
+                        &mut parameter_names_in_list,
+                    ),
+                    typ,
+                )
             });
 
         let wildcard_allowed = WildcardAllowed::Yes;

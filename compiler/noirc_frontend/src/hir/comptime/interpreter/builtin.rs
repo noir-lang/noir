@@ -2684,6 +2684,7 @@ fn function_def_set_parameters(
     let mut parameters = Vec::new();
     let mut parameter_types = Vec::new();
     let mut parameter_idents = Vec::new();
+    let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
 
     for input_parameter in input_parameters {
         let mut tuple = get_tuple((input_parameter, parameters_argument_location))?;
@@ -2706,6 +2707,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                &mut parameter_names_in_list,
             )
         });
 

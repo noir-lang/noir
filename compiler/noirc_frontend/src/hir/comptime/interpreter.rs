@@ -43,7 +43,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
-use crate::elaborator::{ElaborateReason, Elaborator};
+use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
+use crate::hir::Context;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
@@ -320,7 +321,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
         self.current_function = old_function;
-        self.elaborator.replace_module(old_module);
+        if let Some(old_module) = old_module {
+            self.elaborator.replace_module(old_module);
+        }
         result
     }
 
@@ -1818,5 +1821,35 @@ fn to_i128(value: Value) -> Option<i128> {
         Value::I32(value) => Some(i128::from(value)),
         Value::I64(value) => Some(i128::from(value)),
         _ => None,
+    }
+}
+
+impl Context<'_, '_> {
+    /// Interprets (as comptime code) the given function in the give crate, with the given arguments.
+    /// Panics if there's no main function.
+    pub fn interpret_function(
+        &mut self,
+        main_id: FuncId,
+        args: Vec<(Value, Location)>,
+    ) -> IResult<Value> {
+        let func_meta = self.def_interner.function_meta(&main_id);
+        let crate_id = func_meta.source_crate;
+        let local_id = func_meta.source_module;
+        let location = func_meta.location;
+        let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let cli_options = ElaboratorOptions {
+            debug_comptime_in_file: None,
+            pedantic_solving: false,
+            enabled_unstable_features,
+            disable_required_unstable_features: false,
+        };
+        let module_id = ModuleId { krate: crate_id, local_id };
+
+        let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
+        elaborator.replace_module(module_id);
+
+        let mut interpreter = elaborator.setup_interpreter();
+        let instantiation_bindings = TypeBindings::default();
+        interpreter.call_function(main_id, args, instantiation_bindings, location)
     }
 }
