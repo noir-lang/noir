@@ -440,7 +440,30 @@
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
 <a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
@@ -499,7 +522,7 @@
 
     <span class="doccomment">/// Generate matches for arithmetic operations on `Field` and integers.
     </span><span class="macro">macro_rules!</span> match_arithmetic {
-        ((<span class="macro-nonterminal">$lhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$lhs</span>:ident <span class="macro-nonterminal">$op</span>:literal <span class="macro-nonterminal">$rhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$rhs</span>:ident) { field: <span class="macro-nonterminal">$field_expr</span>:expr, int: <span class="macro-nonterminal">$int_expr</span>:expr, }) =&gt; {
+        ((<span class="macro-nonterminal">$lhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$lhs</span>:ident <span class="macro-nonterminal">$op</span>:literal <span class="macro-nonterminal">$rhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$rhs</span>:ident) { field: <span class="macro-nonterminal">$field_expr</span>:expr, int: <span class="macro-nonterminal">$int_expr</span>:expr, u1: <span class="macro-nonterminal">$u1_expr</span>:expr, }) =&gt; {
             <span class="macro">match_values!</span> {
                 (<span class="macro-nonterminal">$lhs_value </span><span class="kw">as </span><span class="macro-nonterminal">$lhs $op $rhs_value </span><span class="kw">as </span><span class="macro-nonterminal">$rhs</span>) {
                     (Field, Field) to Field =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$field_expr</span>),
@@ -507,6 +530,7 @@
                     (I16, I16)     to I16   =&gt; <span class="macro-nonterminal">$int_expr</span>,
                     (I32, I32)     to I32   =&gt; <span class="macro-nonterminal">$int_expr</span>,
                     (I64, I64)     to I64   =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U1,  U1)      to U1    =&gt; <span class="macro-nonterminal">$u1_expr</span>,
                     (U8,  U8)      to U8    =&gt; <span class="macro-nonterminal">$int_expr</span>,
                     (U16, U16)     to U16   =&gt; <span class="macro-nonterminal">$int_expr</span>,
                     (U32, U32)     to U32   =&gt; <span class="macro-nonterminal">$int_expr</span>,
@@ -528,6 +552,7 @@
                     (I16, I16)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (I32, I32)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (I64, I64)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
+                    (U1,  U1)      to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U8,  U8)      to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U16, U16)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U32, U32)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
@@ -548,6 +573,7 @@
                     (I16, I16)     to I16  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (I32, I32)     to I32  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (I64, I64)     to I64  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
+                    (U1,  U1)      to U1   =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U8,  U8)      to U8   =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U16, U16)     to U16  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U32, U32)     to U32  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
@@ -560,18 +586,19 @@
 
     <span class="doccomment">/// Generate matches for operations on just integer values.
     </span><span class="macro">macro_rules!</span> match_integer {
-        ((<span class="macro-nonterminal">$lhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$lhs</span>:ident <span class="macro-nonterminal">$op</span>:literal <span class="macro-nonterminal">$rhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$rhs</span>:ident) =&gt; <span class="macro-nonterminal">$expr</span>:expr) =&gt; {
+        ((<span class="macro-nonterminal">$lhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$lhs</span>:ident <span class="macro-nonterminal">$op</span>:literal <span class="macro-nonterminal">$rhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$rhs</span>:ident) { int: <span class="macro-nonterminal">$int_expr</span>:expr, u1: <span class="macro-nonterminal">$u1_expr</span>:expr, }) =&gt; {
             <span class="macro">match_values!</span> {
                 (<span class="macro-nonterminal">$lhs_value </span><span class="kw">as </span><span class="macro-nonterminal">$lhs $op $rhs_value </span><span class="kw">as </span><span class="macro-nonterminal">$rhs</span>) {
-                    (I8,  I8)      to I8   =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (I16, I16)     to I16  =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (I32, I32)     to I32  =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (I64, I64)     to I64  =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (U8,  U8)      to U8   =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (U16, U16)     to U16  =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (U32, U32)     to U32  =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (U64, U64)     to U64  =&gt; <span class="macro-nonterminal">$expr</span>,
-                    (U128, U128)   to U128 =&gt; <span class="macro-nonterminal">$expr</span>,
+                    (I8,  I8)      to I8   =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (I16, I16)     to I16  =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (I32, I32)     to I32  =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (I64, I64)     to I64  =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U1,  U1)      to U1   =&gt; <span class="macro-nonterminal">$u1_expr</span>,
+                    (U8,  U8)      to U8   =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U16, U16)     to U16  =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U32, U32)     to U32  =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U64, U64)     to U64  =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U128, U128)   to U128 =&gt; <span class="macro-nonterminal">$int_expr</span>,
                 }
             }
         };
@@ -583,18 +610,21 @@
             (lhs_value <span class="kw">as </span>lhs <span class="string">"+" </span>rhs_value <span class="kw">as </span>rhs) {
                 field: lhs + rhs,
                 int: lhs.checked_add(rhs),
+                u1: <span class="kw">if </span>lhs &amp;&amp; rhs { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs | rhs) },
             }
         },
         BinaryOpKind::Subtract =&gt; <span class="macro">match_arithmetic!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"-" </span>rhs_value <span class="kw">as </span>rhs) {
                 field: lhs - rhs,
                 int: lhs.checked_sub(rhs),
+                u1: <span class="kw">if </span>!lhs &amp;&amp; rhs { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs &amp; !rhs) },
             }
         },
         BinaryOpKind::Multiply =&gt; <span class="macro">match_arithmetic!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"*" </span>rhs_value <span class="kw">as </span>rhs) {
                 field: lhs * rhs,
                 int: lhs.checked_mul(rhs),
+                u1: <span class="prelude-val">Some</span>(lhs &amp; rhs),
             }
         },
         BinaryOpKind::Divide =&gt; <span class="macro">match_arithmetic!</span> {
@@ -605,6 +635,10 @@
                     lhs / rhs
                 },
                 int: lhs.checked_div(rhs),
+                u1: {
+                    <span class="kw">let _ </span>= rhs; <span class="comment">// Avoid unused variable warning
+                    </span><span class="prelude-val">Some</span>(lhs)
+                },
             }
         },
         BinaryOpKind::Equal =&gt; <span class="macro">match_cmp!</span> {
@@ -636,24 +670,36 @@
         },
         <span class="attr">#[allow(trivial_numeric_casts)]
         </span>BinaryOpKind::ShiftRight =&gt; <span class="macro">match_integer!</span> {
-            (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; {
-                <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
-                </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow);}
-                <span class="attr">#[allow(clippy::cast_lossless)]
-                </span>lhs.checked_shr(rhs <span class="kw">as </span>u32)
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) {
+                int: {
+                    <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+                    </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow);}
+                    <span class="attr">#[allow(clippy::cast_lossless)]
+                    </span>lhs.checked_shr(rhs <span class="kw">as </span>u32)
+                },
+                u1: <span class="kw">if </span>rhs { <span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow)} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs) },
             }
         },
         <span class="attr">#[allow(trivial_numeric_casts)]
         </span>BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_integer!</span> {
-            (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; {
-                <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
-                </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow);}
-                <span class="attr">#[allow(clippy::cast_lossless)]
-                </span>lhs.checked_shl(rhs <span class="kw">as </span>u32)
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) {
+                int: {
+                    <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+                    </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow);}
+                    <span class="attr">#[allow(clippy::cast_lossless)]
+                    </span>lhs.checked_shl(rhs <span class="kw">as </span>u32)
+                },
+                u1: <span class="kw">if </span>rhs { <span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow)} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs) },
             }
         },
         BinaryOpKind::Modulo =&gt; <span class="macro">match_integer!</span> {
-            (lhs_value <span class="kw">as </span>lhs <span class="string">"%" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_rem(rhs)
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"%" </span>rhs_value <span class="kw">as </span>rhs) {
+                int: lhs.checked_rem(rhs),
+                u1: {
+                    <span class="kw">let _ </span>= lhs; <span class="comment">// Avoid unused variable warning
+                    </span><span class="kw">if </span>rhs { <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+                },
+            }
         },
     }
 }

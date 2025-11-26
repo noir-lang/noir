@@ -271,9 +271,7 @@
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -406,11 +404,9 @@
     </span><span class="kw">match </span>output_type.follow_bindings() {
         Type::FieldElement =&gt; <span class="prelude-val">Ok</span>(Value::Field(SignedField::new(lhs, lhs_is_negative))),
         typ @ Type::Integer(sign, bit_size) =&gt; <span class="kw">match </span>(sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) =&gt; {
-                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ: output_type.clone(), location })
-            }
             <span class="comment">// These casts are expected to be no-ops
-            </span>(Signedness::Unsigned, IntegerBitSize::Eight) =&gt; <span class="prelude-val">Ok</span>(Value::U8(lhs.to_u128() <span class="kw">as </span>u8)),
+            </span>(Signedness::Unsigned, IntegerBitSize::One) =&gt; <span class="prelude-val">Ok</span>(Value::U1(lhs.to_u128() != <span class="number">0</span>)),
+            (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; <span class="prelude-val">Ok</span>(Value::U8(lhs.to_u128() <span class="kw">as </span>u8)),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) =&gt; <span class="prelude-val">Ok</span>(Value::U16(lhs.to_u128() <span class="kw">as </span>u16)),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) =&gt; {
                 <span class="prelude-val">Ok</span>(Value::U32(lhs.to_u128() <span class="kw">as </span>u32))
