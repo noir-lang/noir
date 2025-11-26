@@ -52,18 +52,6 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
-    /// Push a function with the default modifiers and [`ModuleId`] for testing
-    #[cfg(test)]
-    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
-        let id = self.push_fn(HirFunction::empty());
-        let mut modifiers = FunctionModifiers::new();
-        modifiers.name = name;
-        let module = ModuleId::dummy_id();
-        let location = Location::dummy();
-        self.push_function_definition(id, modifiers, module, location);
-        id
-    }
-
     pub fn push_function(
         &mut self,
         id: FuncId,

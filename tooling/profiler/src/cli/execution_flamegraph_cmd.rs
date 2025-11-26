@@ -266,7 +266,7 @@ mod tests {
                 &Some(temp_dir.keep()),
                 false,
                 false,
-                false
+                false,
             )
             .is_err()
         );

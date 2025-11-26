@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { CompiledCircuit, Noir } from '@noir-lang/noir_js';
-import { Barretenberg, RawBuffer, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
+import { Barretenberg, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
 
 import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import recursionCircuit from '../../circuits/recursion/target/recursion.json' assert { type: 'json' };
@@ -23,18 +23,33 @@ it(`smart contract can verify a recursive proof`, async () => {
   // Get verification key for inner circuit as fields
   const innerCircuitVerificationKey = await innerBackend.getVerificationKey();
   const barretenbergAPI = await Barretenberg.new({ threads: 1 });
-  const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
-  const vkHash = await barretenbergAPI.poseidon2Hash(vkAsFields);
+  const vkAsFields = await barretenbergAPI.vkAsFields({ verificationKey: innerCircuitVerificationKey });
+  const vkHash = await barretenbergAPI.poseidon2Hash({ inputs: vkAsFields.fields });
 
   // Generate proof of the recursive circuit
   const recursiveCircuitNoir = new Noir(recursionCircuit as CompiledCircuit);
   const recursiveBackend = new UltraHonkBackend(recursionCircuit.bytecode, { threads: 1 });
 
+  const vkAsFieldsReal = vkAsFields.fields.map((field) => {
+    let fieldBigint = 0n;
+    for (const byte of field) {
+      fieldBigint <<= 8n;
+      fieldBigint += BigInt(byte);
+    }
+    return fieldBigint.toString();
+  });
+
+  let vkHashBigInt = 0n;
+  for (const byte of vkHash.hash) {
+    vkHashBigInt <<= 8n;
+    vkHashBigInt += BigInt(byte);
+  }
+
   const recursiveInputs = {
     proof: deflattenFields(intermediateProof),
     public_inputs: intermediatePublicInputs,
-    verification_key: vkAsFields.map((field) => field.toString()),
-    key_hash: vkHash.toString(),
+    verification_key: vkAsFieldsReal,
+    key_hash: vkHashBigInt.toString(),
   };
   const { witness: recursiveWitness } = await recursiveCircuitNoir.execute(recursiveInputs);
   const { proof: recursiveProof, publicInputs: recursivePublicInputs } = await recursiveBackend.generateProof(

@@ -81,12 +81,11 @@ fn brillig_to_bits() {
      7: sp[5] = u32 add sp[2], @2
      8: sp[6] = const u32 8
      9: to_radix(input: sp[1], radix: sp[3], num_limbs: sp[6], output_pointer: sp[5], output_bits: sp[4])
-    10: sp[7] = const u32 8
-    11: @3 = sp[5]
-    12: @4 = sp[7]
-    13: call 0
-    14: sp[1] = sp[2]
-    15: return
+    10: @3 = sp[5]
+    11: @4 = sp[6]
+    12: call 0
+    13: sp[1] = sp[2]
+    14: return
     ");
 }
 
@@ -114,12 +113,11 @@ fn brillig_to_radix() {
      6: sp[5] = u32 add sp[3], @2
      7: sp[6] = const u32 8
      8: to_radix(input: sp[1], radix: sp[2], num_limbs: sp[6], output_pointer: sp[5], output_bits: sp[4])
-     9: sp[7] = const u32 8
-    10: @3 = sp[5]
-    11: @4 = sp[7]
-    12: call 0
-    13: sp[1] = sp[3]
-    14: return
+     9: @3 = sp[5]
+    10: @4 = sp[6]
+    11: call 0
+    12: sp[1] = sp[3]
+    13: return
     ");
 }
 

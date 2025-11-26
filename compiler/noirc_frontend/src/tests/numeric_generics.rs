@@ -572,3 +572,41 @@ fn bool_generic_as_loop_bound() {
     "#;
     check_errors(src);
 }
+
+/// Regression for CI issue in https://github.com/noir-lang/noir/pull/10330
+#[test]
+fn integer_with_suffix_used_as_type_in_quote() {
+    let src = "
+        #[make_bar]
+        fn main() {
+            bar([1, 2]);
+        }
+
+        comptime fn make_bar(_f: FunctionDefinition) -> Quoted {
+            let n = 2u32;
+            quote {
+                fn bar(_array: [Field; $n]) {}
+            }
+        }
+    ";
+    assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+#[test]
+fn integer_with_suffix_used_as_tuple_index() {
+    let src = "
+        fn main() {
+            macro!();
+        }
+
+        comptime fn macro() -> Quoted {
+            let n = 0u32;
+            quote {
+                let tuple = (0u8, 1u16, 2i8);
+                assert_eq(tuple.$n, 0);
+            }
+        }
+    ";
+    assert_no_errors(src);
+}

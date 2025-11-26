@@ -10,7 +10,7 @@ use crate::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
@@ -805,7 +805,7 @@ fn remove_interned_in_statement_kind(
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
             pattern: remove_interned_in_pattern(interner, let_statement.pattern),
             expression: remove_interned_in_expression(interner, let_statement.expression),
-            r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
+            r#type: remove_interned_in_option_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
         StatementKind::Expression(expr) => {
@@ -831,9 +831,10 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
-        StatementKind::Loop(block, span) => {
-            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
-        }
+        StatementKind::Loop(loop_) => StatementKind::Loop(LoopStatement {
+            body: remove_interned_in_expression(interner, loop_.body),
+            loop_keyword_location: loop_.loop_keyword_location,
+        }),
         StatementKind::While(while_) => StatementKind::While(WhileStatement {
             condition: remove_interned_in_expression(interner, while_.condition),
             body: remove_interned_in_expression(interner, while_.body),
@@ -875,6 +876,13 @@ fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue 
             remove_interned_in_lvalue(interner, lvalue)
         }
     }
+}
+
+fn remove_interned_in_option_unresolved_type(
+    interner: &NodeInterner,
+    typ: Option<UnresolvedType>,
+) -> Option<UnresolvedType> {
+    typ.map(|typ| remove_interned_in_unresolved_type(interner, typ))
 }
 
 fn remove_interned_in_unresolved_type(
@@ -944,7 +952,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Unit
         | UnresolvedTypeData::Resolved(_)
         | UnresolvedTypeData::Expression(_)
-        | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }
 }

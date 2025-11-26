@@ -58,7 +58,7 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
 }
 
 #[test]
-fn accesses_associated_type_inside_trait_impl_using_self() {
+fn accesses_associated_constant_inside_trait_impl_using_self() {
     let src = r#"
     pub trait Trait {
         let N: u32;
@@ -82,7 +82,7 @@ fn accesses_associated_type_inside_trait_impl_using_self() {
 }
 
 #[test]
-fn accesses_associated_type_inside_trait_using_self() {
+fn accesses_associated_constant_inside_trait_using_self() {
     let src = r#"
     pub trait Trait {
         let N: u32;
@@ -98,6 +98,56 @@ fn accesses_associated_type_inside_trait_using_self() {
 
     fn main() {
         let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn accesses_associated_type_inside_trait_and_impl_using_self() {
+    let src = r#"
+    pub struct CustomType {}
+
+    pub trait Trait {
+        type Output;
+        fn foo() -> Self::Output;
+    }
+
+    impl Trait for i32 {
+        type Output = CustomType;
+        
+        fn foo() -> Self::Output {
+            CustomType {}
+        }
+    }
+
+    fn main() {
+        let _: CustomType = i32::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn accesses_associated_constant_on_data_type_using_self() {
+    let src = r#"
+    trait Container {
+        let N: u32;
+        fn get_item() -> u32;
+    }
+    
+    struct MyContainer {}
+
+    impl Container for MyContainer {
+        let N: u32 = 10;
+        
+        fn get_item() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        let _: u32 = MyContainer::get_item();
     }
     "#;
     assert_no_errors(src);
@@ -374,12 +424,72 @@ fn trait_impl_with_where_clause_with_trait_with_associated_type() {
     }
 
     trait Foo {
-        fn foo<B>(b: B) where B: Bar; 
+        fn foo<B>(b: B) where B: Bar;
     }
 
     impl Foo for Field{
-        fn foo<B>(_: B) where B: Bar {} 
+        fn foo<B>(_: B) where B: Bar {}
     }
     ";
     assert_no_errors(src);
+}
+
+#[test]
+fn self_associated_constant_from_different_trait() {
+    // Self::N resolves based on which trait impl we're in, even when multiple traits define a constant with the same name
+    let src = r#"
+    trait Trait1 {
+        let N: u32;
+    }
+
+    trait Trait2 {
+        let N: u32;
+        fn get_n() -> u32;
+    }
+
+    impl Trait1 for u32 {
+        let N: u32 = 100;
+    }
+
+    impl Trait2 for u32 {
+        let N: u32 = 200;
+        fn get_n() -> u32 {
+            // Self::N should resolve to Trait2's N (200), not Trait1's N (100)
+            Self::N
+        }
+    }
+
+    fn main() {
+        assert(u32::get_n() == 200);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn self_associated_constant_does_not_cross_trait_boundaries() {
+    // Self::AssociatedConstant cannot access constants from other trait impls
+    let src = r#"
+    trait Base {
+        let N: u32;
+    }
+
+    trait Derived {
+        fn get_base() -> u32;
+    }
+
+    impl Base for u32 {
+        let N: u32 = 10;
+    }
+
+    impl Derived for u32 {
+        fn get_base() -> u32 {
+            Self::N
+                  ^ No method named 'N' found for type 'u32'
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
 }

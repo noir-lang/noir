@@ -44,7 +44,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
-pub use stdlib::stdlib_paths_with_source;
+pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -287,7 +287,7 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
-                ..Default::default()
+                layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
             expression_width: if self.bounded_codegen {

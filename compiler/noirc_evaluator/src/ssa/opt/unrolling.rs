@@ -344,7 +344,7 @@ impl Loop {
     /// ```text
     /// brillig(inline) predicate_pure fn main f0 {
     ///   b0():
-    ///     jmp b1(u32 10)               // Pre-header
+    ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
     ///     v3 = lt v0, u32 20
     ///     jmpif v3 then: b2, else: b3
@@ -492,6 +492,10 @@ impl Loop {
                 //    jmpif v2 then: b2, else: b3
                 Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
             }
+            Instruction::Cast(_, _) => {
+                // A cast of a constant would already be simplified
+                None
+            }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
@@ -520,7 +524,7 @@ impl Loop {
     ///   v1 = 2
     ///   jmp loop_entry(v0)
     /// loop_entry(i: Field):
-    ///   v2 = lt i v1
+    ///   v2 = lt i, v1
     ///   jmpif v2, then: loop_body, else: loop_end
     /// ```
     ///
@@ -530,7 +534,7 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt v0 v1
+    ///   v2 = lt v0, v1
     ///   // jmpif v2, then: loop_body, else: loop_end
     ///   jmp dest: loop_body
     /// ```
@@ -542,9 +546,9 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt v0 v1
+    ///   v2 = lt v0, v1
     ///   v3 = ... body ...
-    ///   v4 = add 1, 0
+    ///   v4 = add v0, u32 1
     ///   jmp loop_entry(v4)
     /// ```
     ///
@@ -553,17 +557,17 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt 0
+    ///   v2 = lt v0, v1
     ///   v3 = ... body ...
-    ///   v4 = add 1, v0
-    ///   v5 = lt v4 v1
+    ///   v4 = add u32 1, v0
+    ///   v5 = lt v4, v1
     ///   v6 = ... body ...
-    ///   v7 = add v4, 1
-    ///   v8 = lt v5 v1
+    ///   v7 = add v4, u32 1
+    ///   v8 = lt v7, v1
     ///   jmp loop_end
     /// ```
     ///
-    /// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
+    /// When e.g. `v8 = lt v7, v1` cannot be evaluated to a constant, the loop signals by returning `Err`
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
@@ -1828,5 +1832,41 @@ mod tests {
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
         assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: overflow while incrementing constant")]
+    fn unroll_loop_upper_bound_saturated() {
+        let ssa = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0():
+            jmp b1(u128 {0})
+          b1(v0: u128):
+            v3 = eq v0, u128 {0}
+            jmpif v3 then: b3, else: b2
+          b2():
+            v2 = make_array b""
+            call print(u1 1, v0, v2, u1 0)
+            v6 = unchecked_add v0, u128 1
+            jmp b1(v6)
+          b3():
+            return
+    }}"#,
+            u128::MAX
+        );
+
+        let ssa = Ssa::from_str(&ssa).unwrap();
+        let function = ssa.main();
+
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) =
+            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        assert_ne!(lower, upper);
     }
 }

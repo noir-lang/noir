@@ -288,7 +288,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// have been written incorrectly.
     ///
     /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
-    fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
+    fn codegen_assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
         let zero = self.brillig_context.allocate_single_addr(32);
 
         self.brillig_context.const_instruction(*zero, FieldElement::zero());
@@ -462,34 +462,30 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     pub(crate) fn codegen_increment_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let array_or_vector = self.convert_ssa_value(value, dfg);
-        let rc_register = self.brillig_context.allocate_register();
+        let array_register = array_or_vector.extract_register();
 
-        // RC is always directly pointed by the array/vector pointer
-        self.brillig_context.load_instruction(*rc_register, array_or_vector.extract_register());
+        let rc_register = self.brillig_context.codegen_read_rc(array_register);
 
         // Ensure we're not incrementing from 0 back to 1
         if self.brillig_context.enable_debug_assertions() {
-            self.assert_rc_neq_zero(*rc_register);
+            self.codegen_assert_rc_neq_zero(rc_register.address);
         }
 
-        self.brillig_context.codegen_usize_op_in_place(*rc_register, BrilligBinaryOp::Add, 1);
-        self.brillig_context.store_instruction(array_or_vector.extract_register(), *rc_register);
+        self.brillig_context.codegen_increment_rc(array_register, rc_register.address);
     }
     pub(crate) fn codegen_decrement_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let array_or_vector = self.convert_ssa_value(value, dfg);
         let array_register = array_or_vector.extract_register();
 
-        let rc_register = self.brillig_context.allocate_register();
-        self.brillig_context.load_instruction(*rc_register, array_register);
+        let rc_register = self.brillig_context.codegen_read_rc(array_register);
 
         // Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
         // and become usize::MAX, and then return to 1, then it will indicate
         // an array as mutable when it probably shouldn't be.
         if self.brillig_context.enable_debug_assertions() {
-            self.assert_rc_neq_zero(*rc_register);
+            self.codegen_assert_rc_neq_zero(rc_register.address);
         }
 
-        self.brillig_context.codegen_usize_op_in_place(*rc_register, BrilligBinaryOp::Sub, 1);
-        self.brillig_context.store_instruction(array_register, *rc_register);
+        self.brillig_context.codegen_decrement_rc(array_register, rc_register.address);
     }
 }

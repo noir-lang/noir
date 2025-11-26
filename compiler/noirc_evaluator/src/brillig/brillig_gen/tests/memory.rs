@@ -136,11 +136,9 @@ fn brillig_array_with_rc_ops() {
     24: sp[5] = u32 add sp[3], sp[1]
     25: store sp[2] at sp[5]
     26: sp[2] = load sp[4]
-    27: sp[2] = u32 sub sp[2], @2
-    28: store sp[2] at sp[4]
-    29: sp[4] = u32 add sp[3], sp[1]
-    30: sp[2] = load sp[4]
-    31: sp[1] = sp[2]
-    32: return
+    27: sp[4] = u32 add sp[3], sp[1]
+    28: sp[2] = load sp[4]
+    29: sp[1] = sp[2]
+    30: return
     ");
 }

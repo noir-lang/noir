@@ -12,6 +12,7 @@ use crate::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
     },
+    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::resolution::errors::ResolverError,
     node_interner::{DefinitionKind, NodeInterner, QuotedTypeId},
 };
@@ -30,7 +31,7 @@ impl Elaborator<'_> {
 
     /// Add the given generics to scope.
     /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
-    pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
+    pub(super) fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             let mut is_error = false;
             let (type_var, name) = match self.resolve_generic(generic) {
@@ -68,6 +69,43 @@ impl Elaborator<'_> {
         })
     }
 
+    pub(super) fn add_existing_generics(
+        &mut self,
+        unresolved_generics: &UnresolvedGenerics,
+        generics: &Generics,
+    ) {
+        assert_eq!(unresolved_generics.len(), generics.len());
+
+        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
+            self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
+        }
+    }
+
+    pub(super) fn add_existing_generic(
+        &mut self,
+        unresolved_generic: &UnresolvedGeneric,
+        location: Location,
+        resolved_generic: &ResolvedGeneric,
+    ) {
+        if let Some(name) = unresolved_generic.ident().ident() {
+            let name = name.as_str();
+
+            if let Some(generic) = self.find_generic(name) {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name: name.to_string(),
+                    first_location: generic.location,
+                    second_location: location,
+                });
+            } else {
+                self.generics.push(resolved_generic.clone());
+            }
+        }
+    }
+
+    pub(super) fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
+        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
+    }
+
     pub(super) fn resolve_generic(
         &mut self,
         generic: &UnresolvedGeneric,
@@ -101,7 +139,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::NumericGeneric);
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
                     unresolved_typ.clone(),

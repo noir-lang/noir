@@ -3,6 +3,7 @@
 mod aliases;
 mod arithmetic_generics;
 mod arrays;
+mod assignment;
 mod bound_checks;
 mod cast;
 mod control_flow;
@@ -28,7 +29,7 @@ mod visibility;
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
 use crate::hir::printer::display_crate;
@@ -80,7 +81,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 ///
 /// fn main() -> pub i32 {
 ///                  ^^^ expected i32 because of return type
-///     true        
+///     true
 ///     ~~~~ bool returned here
 /// }
 ///
@@ -167,11 +168,24 @@ fn check_errors_with_options(
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-    let mut primary_spans_with_errors: HashMap<Span, String> =
-        primary_spans_with_errors.into_iter().collect();
 
-    let mut secondary_spans_with_errors: HashMap<Span, String> =
-        secondary_spans_with_errors.into_iter().collect();
+    // We might see the same primary message multiple time with different secondary.
+    fn to_message_map(messages: Vec<(Span, String)>) -> HashMap<Span, Vec<String>> {
+        let mut map = HashMap::<_, Vec<String>>::new();
+        for (span, msg) in messages {
+            map.entry(span).or_default().push(msg);
+        }
+        map
+    }
+
+    // By the end we want to have seen all errors.
+    let mut all_primaries: HashSet<(Span, String)> =
+        HashSet::from_iter(primary_spans_with_errors.clone());
+    let mut all_secondaries: HashSet<(Span, String)> =
+        HashSet::from_iter(secondary_spans_with_errors.clone());
+
+    let primary_spans_with_errors = to_message_map(primary_spans_with_errors);
+    let secondary_spans_with_errors = to_message_map(secondary_spans_with_errors);
 
     let src = code_lines.join("\n");
     let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
@@ -210,68 +224,72 @@ fn check_errors_with_options(
             .secondaries
             .first()
             .unwrap_or_else(|| panic!("Expected {error:?} to have a secondary label"));
+
+        let primary_message = &error.message;
         let span = secondary.location.span;
-        let message = &error.message;
-        let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
-            if let Some(message) = secondary_spans_with_errors.get(&span) {
+
+        let Some(expected_primaries) = primary_spans_with_errors.get(&span) else {
+            if let Some(secondaries) = secondary_spans_with_errors.get(&span) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Error at {span:?} with message {message:?} is annotated as secondary but should be primary"
+                    "Error at {span:?} with message(s) {secondaries:?} is annotated as secondary but should be primary: {primary_message:?}"
                 );
             } else {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Couldn't find primary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
+                    "Couldn't find primary error at {span:?} with message {primary_message:?}.\nAll errors: {errors:?}"
                 );
             }
         };
 
-        if message != &expected_message {
+        if !expected_primaries.contains(primary_message) {
             report_all(context.file_manager.as_file_map(), &errors, false, false);
-            assert_eq!(
-                message, &expected_message,
-                "Primary error at {span:?} has unexpected message"
+            panic!(
+                "Primary error at {span:?} has unexpected message: {primary_message:?}; should be one of {expected_primaries:?}"
             );
+        } else {
+            all_primaries.remove(&(span, primary_message.clone()));
         }
 
         for secondary in &error.secondaries {
-            let message = &secondary.message;
-            if message.is_empty() {
+            let secondary_message = &secondary.message;
+            if secondary_message.is_empty() {
                 continue;
             }
 
             let span = secondary.location.span;
-            let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
+            let Some(expected_secondaries) = secondary_spans_with_errors.get(&span) else {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
-                if let Some(message) = primary_spans_with_errors.get(&span) {
+                if let Some(primaries) = primary_spans_with_errors.get(&span) {
                     panic!(
-                        "Error at {span:?} with message {message:?} is annotated as primary but should be secondary"
+                        "Error at {span:?} with message(s) {primaries:?} is annotated as primary but should be secondary: {secondary_message:?}"
                     );
                 } else {
                     panic!(
-                        "Couldn't find secondary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
+                        "Couldn't find secondary error at {span:?} with message {secondary_message:?}.\nAll errors: {errors:?}"
                     );
                 };
             };
 
-            if message != &expected_message {
+            if !expected_secondaries.contains(secondary_message) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
-                assert_eq!(
-                    message, &expected_message,
-                    "Secondary error at {span:?} has unexpected message"
+                panic!(
+                    "Secondary error at {span:?} has unexpected message: {secondary_message:?}; should be one of {expected_secondaries:?}"
                 );
+            } else {
+                all_secondaries.remove(&(span, secondary_message.clone()));
             }
         }
     }
 
-    if !primary_spans_with_errors.is_empty() {
+    if !all_primaries.is_empty() {
         report_all(context.file_manager.as_file_map(), &errors, false, false);
-        panic!("These primary errors didn't happen: {primary_spans_with_errors:?}");
+        panic!("These primary errors didn't happen: {all_primaries:?}");
     }
 
-    if !secondary_spans_with_errors.is_empty() {
+    if !all_secondaries.is_empty() {
         report_all(context.file_manager.as_file_map(), &errors, false, false);
-        panic!("These secondary errors didn't happen: {secondary_spans_with_errors:?}");
+        panic!("These secondary errors didn't happen: {all_secondaries:?}");
     }
 }
 

@@ -70,6 +70,8 @@ pub enum InterpreterError {
     ReachedTheUnreachable,
     #[error("Array index {index} is out of bounds for array of length {length}")]
     IndexOutOfBounds { index: FieldElement, length: u32 },
+    #[error("Ran out of budget after executing {steps} steps")]
+    OutOfBudget { steps: usize },
 }
 
 /// These errors can only result from interpreting malformed SSA
