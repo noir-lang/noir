@@ -13,7 +13,7 @@ use crate::{
             registers::{RegisterAllocator, Stack},
         },
     },
-    ssa::ir::basic_block::BasicBlockId,
+    ssa::ir::{basic_block::BasicBlockId, dfg::DataFlowGraph},
 };
 
 pub(crate) enum OpcodeAdvisory {
@@ -27,6 +27,7 @@ pub(crate) enum OpcodeAdvisory {
 /// * writing to a `destination` to that isn't read from
 /// * writing to a `destination` that gets overwritten before being read, within the same block
 pub(crate) fn collect_opcode_advisories<F>(
+    dfg: &DataFlowGraph,
     function_context: &FunctionContext,
     brillig_context: &BrilligContext<F, Stack>,
 ) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
@@ -36,7 +37,8 @@ pub(crate) fn collect_opcode_advisories<F>(
     // so they should fit in one stack frame, which makes relative addresses comparable.
     let registers = brillig_context.registers();
     let registers: &Stack = &registers;
-    let mut ctx = CheckContext::new(registers);
+
+    let mut ctx = CheckContext::new(registers, function_context.blocks[0]);
 
     for block_id in function_context.post_order() {
         ctx.on_new_block();
@@ -118,31 +120,57 @@ fn collect_block_opcode_ranges<F, R: RegisterAllocator>(
 struct CheckContext {
     /// Range of acceptable relative stack addresses.
     address_range: Range<usize>,
-    /// Latest opcode location an address was read at.
-    reads: HashMap<MemoryAddress, OpcodeLocation>,
-    /// Latest opcode location an address was written at,
-    /// within the current block.
-    writes: HashMap<MemoryAddress, OpcodeLocation>,
+
+    /// Processing blocks in a DFS fashion:
+    /// 1. visit a block
+    /// 2. visit its successors
+    /// 3. visit the block again, after its successors are complete
+    ///
+    /// The flag indicates whether we are doing the 2nd visit.
+    block_stack: Vec<(BasicBlockId, bool)>,
+
+    /// Union of [MemoryAddress] which are read by the descendants of a block.
+    reads_after: im::HashMap<BasicBlockId, im::HashSet<MemoryAddress>>,
+
     /// Advisories collected while visiting the opcodes.
     advisories: HashMap<OpcodeLocation, OpcodeAdvisory>,
 }
 
 impl CheckContext {
-    fn new<R: RegisterAllocator>(registers: &R) -> Self {
+    fn new<R: RegisterAllocator>(registers: &R, entry_block_id: BasicBlockId) -> Self {
         Self {
             address_range: Range { start: registers.start(), end: registers.end() },
-            reads: Default::default(),
-            writes: Default::default(),
+            block_stack: vec![(entry_block_id, false)],
+            reads_after: Default::default(),
             advisories: Default::default(),
         }
     }
 
-    /// Clear the writes on each new block: we only track them within a block.
-    ///
-    /// When a write is followed by another write in a different block, it could be the case
-    /// that we would have read it if we visited another successor first.
-    fn on_new_block(&mut self) {
-        self.writes.clear();
+    /// Visit blocks and collect all opcode advisories.
+    fn collect_advisories(&mut self, dfg: &DataFlowGraph) {
+        while let Some((block_id, successors_ready)) = self.block_stack.pop() {
+            if successors_ready {
+                // Get the
+                // Merge all the reads from successors.
+                let reads_after =
+                    dfg[block_id].successors().fold(im::HashSet::new(), |acc, successor_id| {
+                        if let Some(addresses) = ctx.reads_after.get(&successor_id) {
+                            acc.union(addresses.clone())
+                        } else {
+                            acc
+                        }
+                    });
+                // Associate the reads in descendants by with the block.
+                ctx.reads_after.insert(block_id, reads_after);
+            } else {
+                // Revisit later.
+                ctx.block_stack.push((block_id, true));
+                // Visit successors first.
+                for successor_id in dfg[block_id].successors() {
+                    ctx.block_stack.push((successor_id, false));
+                }
+            }
+        }
     }
 
     /// Expected to be called with each opcode, traversing blocks in Post Order,

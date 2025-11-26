@@ -115,9 +115,4 @@ impl FunctionContext {
             }
         }
     }
-
-    /// Iterate blocks in Post Order.
-    pub(crate) fn post_order(&self) -> impl Iterator<Item = &BasicBlockId> {
-        self.blocks.iter().rev()
-    }
 }
