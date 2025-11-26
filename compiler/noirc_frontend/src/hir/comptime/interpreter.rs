@@ -510,16 +510,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                         let field = field.borrow();
                         let field_type = field.get_type().into_owned();
-                        let result = self.define_pattern(
-                            field_pattern,
-                            &field_type,
-                            field.clone(),
-                            location,
-                        );
-                        if result.is_err() {
-                            self.pop_scope();
-                            return result;
-                        }
+                        self.define_pattern(field_pattern, &field_type, field.clone(), location)?;
                     }
                     Ok(())
                 }
