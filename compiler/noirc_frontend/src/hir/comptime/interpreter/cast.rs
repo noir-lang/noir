@@ -206,7 +206,7 @@ mod tests {
             // Widen
             (Value::U8(255), unsigned(SixtyFour), Value::U64(255)),
             (Value::U8(255), signed(SixtyFour), Value::I64(255)),
-            (Value::U64(u64::MAX), unsigned(HundredTwentyEight), Value::U128(u64::MAX as u128)),
+            (Value::U64(u64::MAX), unsigned(HundredTwentyEight), Value::U128(u128::from(u64::MAX))),
             // Reinterpret as negative
             (Value::U8(255), signed(Eight), Value::I8(-1)),
             (Value::Field(SignedField::positive(255u32)), signed(Eight), Value::I8(-1)),
