@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764167221797,
+  "lastUpdate": 1764167350371,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7c50de9f5f0858db8346acd920f6bea1b1abecb4",
-          "message": "chore: push noir stdlib docs to gh pages (#10532)",
-          "timestamp": "2025-11-19T12:57:45Z",
-          "tree_id": "69c9d3d2962d68ebf1dff7d0fa0ccd6f72dd3ff2",
-          "url": "https://github.com/noir-lang/noir/commit/7c50de9f5f0858db8346acd920f6bea1b1abecb4"
-        },
-        "date": 1763558668226,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252181,
-            "range": "± 862",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223626,
-            "range": "± 4499",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791394,
-            "range": "± 1646",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796498,
             "range": "± 14101",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a39e07fc48dcefd621915c290c7a84bb14b4779",
+          "message": "fix: u1 operations in the comptime interpreter (#10633)",
+          "timestamp": "2025-11-26T14:06:02Z",
+          "tree_id": "4b21ff5f1777ff14723bf035ed75c9c7e19b0ca5",
+          "url": "https://github.com/noir-lang/noir/commit/8a39e07fc48dcefd621915c290c7a84bb14b4779"
+        },
+        "date": 1764167321689,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259735,
+            "range": "± 560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230866,
+            "range": "± 959",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801528,
+            "range": "± 11701",
             "unit": "ns/iter"
           }
         ]
