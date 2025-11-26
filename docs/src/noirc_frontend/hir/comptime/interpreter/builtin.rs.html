@@ -3167,7 +3167,21 @@
 <a href="#3166" id="3166">3166</a>
 <a href="#3167" id="3167">3167</a>
 <a href="#3168" id="3168">3168</a>
-<a href="#3169" id="3169">3169</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3169" id="3169">3169</a>
+<a href="#3170" id="3170">3170</a>
+<a href="#3171" id="3171">3171</a>
+<a href="#3172" id="3172">3172</a>
+<a href="#3173" id="3173">3173</a>
+<a href="#3174" id="3174">3174</a>
+<a href="#3175" id="3175">3175</a>
+<a href="#3176" id="3176">3176</a>
+<a href="#3177" id="3177">3177</a>
+<a href="#3178" id="3178">3178</a>
+<a href="#3179" id="3179">3179</a>
+<a href="#3180" id="3180">3180</a>
+<a href="#3181" id="3181">3181</a>
+<a href="#3182" id="3182">3182</a>
+<a href="#3183" id="3183">3183</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3350,7 +3364,7 @@
             <span class="string">"quoted_eq" </span>=&gt; quoted_eq(<span class="self">self</span>.elaborator.interner, arguments, location),
             <span class="string">"quoted_hash" </span>=&gt; quoted_hash(arguments, location),
             <span class="string">"quoted_tokens" </span>=&gt; quoted_tokens(arguments, location),
-            <span class="string">"slice_insert" </span>=&gt; slice_insert(arguments, location),
+            <span class="string">"slice_insert" </span>=&gt; slice_insert(arguments, location, call_stack),
             <span class="string">"slice_pop_back" </span>=&gt; slice_pop_back(arguments, location, call_stack),
             <span class="string">"slice_pop_front" </span>=&gt; slice_pop_front(arguments, location, call_stack),
             <span class="string">"slice_push_back" </span>=&gt; slice_push_back(arguments, location),
@@ -3968,11 +3982,25 @@
     }
 }
 
-<span class="kw">fn </span>slice_insert(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>slice_insert(
+    arguments: Vec&lt;(Value, Location)&gt;,
+    location: Location,
+    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
+) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(slice, index, (element, <span class="kw">_</span>)) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
     <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
+
+    <span class="comment">// If index is equal to the length, the insert is equivalent to a push
+    </span><span class="kw">if </span>index &gt; values.len() {
+        <span class="kw">let </span>message = <span class="macro">format!</span>(
+            <span class="string">"slice_insert: index {index} is out of bounds for a slice of length {}"</span>,
+            values.len()
+        );
+        <span class="kw">return </span>failing_constraint(message, location, call_stack);
+    }
+
     values.insert(index, element);
     <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
 }
