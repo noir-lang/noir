@@ -1761,6 +1761,21 @@ mod tests {
     }
 
     #[test]
+    fn return_data_matches_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Databus return_data does not match return terminator")]
     fn return_data_does_not_match_return_terminator() {
         let src = "
