@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764170888959,
+  "lastUpdate": 1764174277307,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d81a38de4d5963d71f637aed1a6f425119b7ea73",
-          "message": "fix(brillig): Prevent wrap-around of the free-memory-pointer (#10526)",
-          "timestamp": "2025-11-19T14:58:46Z",
-          "tree_id": "d0870a63cabcb27cc80ce0fbd2ecaa3a28b98472",
-          "url": "https://github.com/noir-lang/noir/commit/d81a38de4d5963d71f637aed1a6f425119b7ea73"
-        },
-        "date": 1763565677381,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255962,
-            "range": "± 2318",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226016,
-            "range": "± 4236",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784382,
-            "range": "± 2722",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794934,
             "range": "± 6082",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6c92a1a9b57a5c1737d45b0474b0e2d299e057a2",
+          "message": "chore: fix documentation around `current_witness_index` (#10591)",
+          "timestamp": "2025-11-26T15:59:15Z",
+          "tree_id": "e9c1ce6c698229c1abf72d0d372c79829b60eede",
+          "url": "https://github.com/noir-lang/noir/commit/6c92a1a9b57a5c1737d45b0474b0e2d299e057a2"
+        },
+        "date": 1764174249313,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256224,
+            "range": "± 814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230746,
+            "range": "± 1088",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793539,
+            "range": "± 39079",
             "unit": "ns/iter"
           }
         ]
