@@ -1474,4 +1474,63 @@ mod test {
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
+
+    #[test]
+    #[traced_test]
+    /// Test for programs equivalent to the below:
+    ///
+    /// ```noir
+    /// unconstrained fn identity(input: u64) -> u64 {
+    ///     input
+    /// }
+    ///
+    /// pub fn main(input: u32) {
+    ///     let casted_input = input as u64;
+    ///     let input_copy = unsafe { identity(casted_input) };
+    ///     assert_eq(input_copy as Field, casted_input as Field);
+    /// }
+    ///```
+    fn multiple_casts_on_brillig_input_does_not_result_in_warning() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+            v1 = cast v0 as u64
+            v3 = call f1(v1) -> u64
+            v4 = cast v3 as Field
+            v5 = cast v0 as Field
+            constrain v4 == v5
+            return
+        }
+        brillig(inline) predicate_pure fn identity f1 {
+            b0(v0: u64):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    fn truncating_brillig_argument_does_not_result_in_warning() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: Field):
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = call f1(v1) -> Field
+            constrain v2 == v0
+            return
+        }
+        brillig(inline) predicate_pure fn identity32 f1 {
+            b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
 }
