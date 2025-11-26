@@ -6064,7 +6064,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/types@npm:3.7.0, @docusaurus/types@npm:^3.7.0":
+"@docusaurus/types@npm:3.7.0":
   version: 3.7.0
   resolution: "@docusaurus/types@npm:3.7.0"
   dependencies:
@@ -6081,6 +6081,27 @@ __metadata:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
   checksum: 10/4d9927f3fca52d47c328229d6a7946d3078567b1bf7b3e7bb1845e1031246e21c79b14ed1679ba33ec4a35c3686cc2ee5f05e503b8e0b3ab9a481e7af4308bf9
+  languageName: node
+  linkType: hard
+
+"@docusaurus/types@npm:^3.9.2":
+  version: 3.9.2
+  resolution: "@docusaurus/types@npm:3.9.2"
+  dependencies:
+    "@mdx-js/mdx": "npm:^3.0.0"
+    "@types/history": "npm:^4.7.11"
+    "@types/mdast": "npm:^4.0.2"
+    "@types/react": "npm:*"
+    commander: "npm:^5.1.0"
+    joi: "npm:^17.9.2"
+    react-helmet-async: "npm:@slorber/react-helmet-async@1.3.0"
+    utility-types: "npm:^3.10.0"
+    webpack: "npm:^5.95.0"
+    webpack-merge: "npm:^5.9.0"
+  peerDependencies:
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  checksum: 10/bc91d05a206de008bfb301873877dd531b361d64a40d1301106a6952901bb3662d349e0e0c9af9e40ff1b6c7764741cc86e15e4d116c1b7d7f065dde0e8e38e1
   languageName: node
   linkType: hard
 
@@ -12773,14 +12794,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.9.0":
-  version: 1.9.0
-  resolution: "axios@npm:1.9.0"
+"axios@npm:^1.13.2":
+  version: 1.13.2
+  resolution: "axios@npm:1.13.2"
   dependencies:
     follow-redirects: "npm:^1.15.6"
-    form-data: "npm:^4.0.0"
+    form-data: "npm:^4.0.4"
     proxy-from-env: "npm:^1.1.0"
-  checksum: 10/a2f90bba56820883879f32a237e2b9ff25c250365dcafd41cec41b3406a3df334a148f90010182dfdadb4b41dc59f6f0b3e8898ff41b666d1157b5f3f4523497
+  checksum: 10/ae4e06dcd18289f2fd18179256d550d27f9a53ecb2f9c59f2ccc4efd1d7151839ba8c3e0fb533dac793e4a59a576ca8689a19244dce5c396680837674a47a867
   languageName: node
   linkType: hard
 
@@ -16009,13 +16030,13 @@ __metadata:
     "@docusaurus/module-type-aliases": "npm:^3.7.0"
     "@docusaurus/preset-classic": "npm:^3.7.0"
     "@docusaurus/tsconfig": "npm:^3.7.0"
-    "@docusaurus/types": "npm:^3.7.0"
+    "@docusaurus/types": "npm:^3.9.2"
     "@easyops-cn/docusaurus-search-local": "npm:^0.35.0"
     "@mdx-js/react": "npm:^3.0.0"
     "@types/prettier": "npm:^3.0.0"
-    axios: "npm:^1.9.0"
+    axios: "npm:^1.13.2"
     clsx: "npm:^1.2.1"
-    docusaurus-plugin-llms: "npm:^0.1.5"
+    docusaurus-plugin-llms: "npm:^0.2.2"
     docusaurus-plugin-typedoc: "npm:1.2.3"
     eslint-plugin-prettier: "npm:^5.4.1"
     hast-util-is-element: "npm:^1.1.0"
@@ -16030,21 +16051,22 @@ __metadata:
     ts-node: "npm:^10.9.2"
     typedoc: "npm:^0.27.9"
     typedoc-plugin-frontmatter: "npm:^1.2.1"
-    typedoc-plugin-markdown: "npm:4.4.2"
+    typedoc-plugin-markdown: "npm:4.9.0"
     typedoc-plugin-merge-modules: "npm:^6.1.0"
     typescript: "npm:^5.8.3"
   languageName: unknown
   linkType: soft
 
-"docusaurus-plugin-llms@npm:^0.1.5":
-  version: 0.1.5
-  resolution: "docusaurus-plugin-llms@npm:0.1.5"
+"docusaurus-plugin-llms@npm:^0.2.2":
+  version: 0.2.2
+  resolution: "docusaurus-plugin-llms@npm:0.2.2"
   dependencies:
     gray-matter: "npm:^4.0.3"
     minimatch: "npm:^9.0.3"
+    yaml: "npm:^2.8.1"
   peerDependencies:
     "@docusaurus/core": ^3.0.0
-  checksum: 10/6d0c32efaa1acd12e4d320441d87bf26496f3e355b6419100a05d3098970eeabb1e45c1a22b06d8b14c65e8027dbd3b21bb2878bd4bf33f2766e477e6f856654
+  checksum: 10/5c0626931c4909fbcf41180ceb214c7f7603c53af3ec617263b77153b55b2f6d6871f8e5cbad661cb409e9636160ae8f415e1872cc0d3636bb3950d98d463a26
   languageName: node
   linkType: hard
 
@@ -16464,6 +16486,18 @@ __metadata:
   dependencies:
     es-errors: "npm:^1.3.0"
   checksum: 10/54fe77de288451dae51c37bfbfe3ec86732dc3778f98f3eb3bdb4bf48063b2c0b8f9c93542656986149d08aa5be3204286e2276053d19582b76753f1a2728867
+  languageName: node
+  linkType: hard
+
+"es-set-tostringtag@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "es-set-tostringtag@npm:2.1.0"
+  dependencies:
+    es-errors: "npm:^1.3.0"
+    get-intrinsic: "npm:^1.2.6"
+    has-tostringtag: "npm:^1.0.2"
+    hasown: "npm:^2.0.2"
+  checksum: 10/86814bf8afbcd8966653f731415888019d4bc4aca6b6c354132a7a75bb87566751e320369654a101d23a91c87a85c79b178bcf40332839bd347aff437c4fb65f
   languageName: node
   linkType: hard
 
@@ -17673,14 +17707,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"form-data@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "form-data@npm:4.0.0"
+"form-data@npm:^4.0.4":
+  version: 4.0.5
+  resolution: "form-data@npm:4.0.5"
   dependencies:
     asynckit: "npm:^0.4.0"
     combined-stream: "npm:^1.0.8"
+    es-set-tostringtag: "npm:^2.1.0"
+    hasown: "npm:^2.0.2"
     mime-types: "npm:^2.1.12"
-  checksum: 10/7264aa760a8cf09482816d8300f1b6e2423de1b02bba612a136857413fdc96d7178298ced106817655facc6b89036c6e12ae31c9eb5bdc16aabf502ae8a5d805
+  checksum: 10/52ecd6e927c8c4e215e68a7ad5e0f7c1031397439672fd9741654b4a94722c4182e74cc815b225dcb5be3f4180f36428f67c6dd39eaa98af0dcfdd26c00c19cd
   languageName: node
   linkType: hard
 
@@ -29042,12 +29078,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc-plugin-markdown@npm:4.4.2":
-  version: 4.4.2
-  resolution: "typedoc-plugin-markdown@npm:4.4.2"
+"typedoc-plugin-markdown@npm:4.9.0":
+  version: 4.9.0
+  resolution: "typedoc-plugin-markdown@npm:4.9.0"
   peerDependencies:
-    typedoc: 0.27.x
-  checksum: 10/d6764c5341eeefb5f6c0c557477a3a782165816a18cf3417ba91131cd9d6f9522767e9122a01251fc2ba007a05f262093a35a90e2d2a109540ead87f20bae614
+    typedoc: 0.28.x
+  checksum: 10/69293e9cd1a5cecd9d2f92872472dbc48b3912c658d0a2d07b6d7bd96bd1efa9617e9bea6a4e6181482610733533b1b058dc1fc505cac7931875f081f0023a0c
   languageName: node
   linkType: hard
 
@@ -30898,6 +30934,15 @@ __metadata:
   bin:
     yaml: bin.mjs
   checksum: 10/7d4bd9c10d0e467601f496193f2ac254140f8e36f96f5ff7f852b9ce37974168eb7354f4c36dc8837dde527a2043d004b6aff48818ec24a69ab2dd3c6b6c381c
+  languageName: node
+  linkType: hard
+
+"yaml@npm:^2.8.1":
+  version: 2.8.1
+  resolution: "yaml@npm:2.8.1"
+  bin:
+    yaml: bin.mjs
+  checksum: 10/eae07b3947d405012672ec17ce27348aea7d1fa0534143355d24a43a58f5e05652157ea2182c4fe0604f0540be71f99f1173f9d61018379404507790dff17665
   languageName: node
   linkType: hard
 
