@@ -3416,7 +3416,6 @@ dependencies = [
  "paste",
  "pprof",
  "predicates 2.1.5",
- "prettytable-rs",
  "proptest",
  "rayon",
  "regex",
@@ -3445,11 +3444,13 @@ dependencies = [
 name = "nargo_doc"
 version = "1.0.0-beta.15"
 dependencies = [
+ "insta",
  "iter-extended",
  "markdown",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "regex",
  "serde",
 ]
 
@@ -3709,8 +3710,10 @@ dependencies = [
  "convert_case",
  "fm",
  "fuzzy-matcher",
+ "insta",
  "iter-extended",
  "nargo",
+ "nargo_doc",
  "nargo_expand",
  "nargo_fmt",
  "nargo_toml",

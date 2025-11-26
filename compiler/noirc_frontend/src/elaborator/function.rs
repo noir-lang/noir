@@ -177,7 +177,8 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow slices for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
@@ -303,8 +304,8 @@ impl Elaborator<'_> {
 
     /// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool) -> bool {
-        func.is_entry_point(in_contract) || func.attributes().is_foldable()
+    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
+        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -317,15 +318,17 @@ impl Elaborator<'_> {
         generics: &mut Vec<TypeVariable>,
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> ResolvedParametersInfo {
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         let is_test_or_fuzz = func.is_test_or_fuzz();
 
         let has_inline_attribute = func.has_inline_attribute();
-        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract());
+        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract(), is_crate_root);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
@@ -359,6 +362,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                &mut parameter_names_in_list,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -426,6 +430,7 @@ impl Elaborator<'_> {
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_returns_multiple_slices(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
@@ -483,7 +488,9 @@ impl Elaborator<'_> {
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
-            let allow_shadowing = false;
+            // We allow shadowing here because there's no outer scope to shadow
+            // (duplicate parameter names were already checked in `resolve_function_parameters`)
+            let allow_shadowing = true;
             self.add_existing_variable_to_scope(
                 name,
                 parameter.clone(),

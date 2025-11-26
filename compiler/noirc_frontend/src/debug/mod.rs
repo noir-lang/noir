@@ -753,7 +753,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
         let (pattern, is_mut) = stack.pop_front().unwrap();
         match pattern {
             ast::Pattern::Identifier(id) => {
-                vars.push((id.clone(), is_mut));
+                if id.as_str() != "_" {
+                    vars.push((id.clone(), is_mut));
+                }
             }
             ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
@@ -763,7 +765,6 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             }
             ast::Pattern::Struct(_, fields, _) => {
                 stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(fields.iter().map(|(id, _)| (id.clone(), false)));
             }
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));

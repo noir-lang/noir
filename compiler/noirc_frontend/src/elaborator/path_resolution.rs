@@ -124,8 +124,7 @@ enum MethodLookupResult {
     FoundMethod(PerNs),
     /// Found a trait method and it's currently in scope.
     FoundTraitMethod(PerNs, Ident),
-    /// There's only one trait method that matches, but it's not in scope
-    /// (we'll warn about this to avoid introducing a large breaking change)
+    /// There's only one trait method that matches, but it's not in scope.
     FoundOneTraitMethodButNotInScope(PerNs, TraitId),
     /// Multiple trait method matches were found and they are all in scope.
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),

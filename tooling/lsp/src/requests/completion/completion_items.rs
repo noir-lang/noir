@@ -2,6 +2,7 @@ use async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
+use iter_extended::vecmap;
 use noirc_frontend::{
     QuotedType, Type,
     ast::AttributeTarget,
@@ -513,7 +514,7 @@ impl NodeFinder<'_> {
         completion_item: CompletionItem,
     ) -> CompletionItem {
         if let Some(doc_comments) = self.interner.doc_comments(id) {
-            let docs = doc_comments.join("\n");
+            let docs = vecmap(doc_comments, |comment| comment.contents.clone()).join("\n");
             CompletionItem {
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,

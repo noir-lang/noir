@@ -11,7 +11,7 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
+    DocComment, Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
     desugar_generic_trait_bounds_and_reorder_where_clause,
@@ -1043,7 +1043,7 @@ pub fn collect_function(
     usage_tracker: &mut UsageTracker,
     function: &NoirFunction,
     module: ModuleId,
-    doc_comments: Vec<String>,
+    doc_comments: Vec<DocComment>,
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
     if let Some(field) = function.attributes().get_field_attribute() {
@@ -1052,6 +1052,7 @@ pub fn collect_function(
         }
     }
 
+    let is_crate_root = def_map.root() == module.local_id;
     let module_data = &mut def_map[module.local_id];
 
     let test_attribute = function.def.attributes.as_test_function();
@@ -1061,7 +1062,7 @@ pub fn collect_function(
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
-        function.name() == MAIN_FUNCTION
+        is_crate_root && function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
     let has_allow_dead_code = function.def.attributes.has_allow("dead_code");

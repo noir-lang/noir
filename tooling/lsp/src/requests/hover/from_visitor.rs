@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
-use fm::{FileId, FileMap};
+use fm::FileId;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     Type,
@@ -29,13 +29,13 @@ pub(super) fn hover_from_visitor(
     let (parsed_module, _errors) = parse_program(source, file_id);
     let byte_index = utils::position_to_byte_index(args.files, file_id, &position)?;
 
-    let mut finder = HoverFinder::new(args.files, file_id, args.interner, byte_index);
+    let mut finder = HoverFinder::new(args, file_id, args.interner, byte_index);
     parsed_module.accept(&mut finder);
     finder.hover
 }
 
 struct HoverFinder<'a> {
-    files: &'a FileMap,
+    args: &'a ProcessRequestCallbackArgs<'a>,
     file: FileId,
     interner: &'a NodeInterner,
     byte_index: usize,
@@ -43,12 +43,12 @@ struct HoverFinder<'a> {
 }
 impl<'a> HoverFinder<'a> {
     fn new(
-        files: &'a FileMap,
+        args: &'a ProcessRequestCallbackArgs<'a>,
         file: FileId,
         interner: &'a NodeInterner,
         byte_index: usize,
     ) -> Self {
-        Self { files, file, interner, byte_index, hover: None }
+        Self { args, file, interner, byte_index, hover: None }
     }
 
     fn intersects_span(&self, span: Span) -> bool {
@@ -68,7 +68,7 @@ impl Visitor for HoverFinder<'_> {
         }
 
         let location = Location::new(span, self.file);
-        let lsp_location = to_lsp_location(self.files, location.file, location.span);
+        let lsp_location = to_lsp_location(self.args.files, location.file, location.span);
         let range = lsp_location.map(|location| location.range);
         let Some(typ) = self.interner.type_at_location(location) else {
             return;
@@ -108,7 +108,7 @@ impl Visitor for HoverFinder<'_> {
             return true;
         };
 
-        let lsp_location = to_lsp_location(self.files, location.file, location.span);
+        let lsp_location = to_lsp_location(self.args.files, location.file, location.span);
         let range = lsp_location.map(|location| location.range);
 
         let contents = HoverContents::Markup(markup);
@@ -143,7 +143,7 @@ fn primitive_type_markup_content(name: &str, interner: &NodeInterner) -> Option<
     if let Some(comments) = interner.primitive_docs.get(name) {
         value.push_str("\n---\n");
         for comment in comments {
-            value.push_str(comment);
+            value.push_str(&comment.contents);
             value.push('\n');
         }
     }

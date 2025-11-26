@@ -58,9 +58,7 @@ noir_ast_fuzzer.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-prettytable-rs = "0.10"
 rayon.workspace = true
 thiserror.workspace = true
 tower.workspace = true
@@ -106,6 +104,7 @@ pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
+serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
 sha3.workspace = true
