@@ -604,8 +604,6 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
-        // You might want an ignore list for tests that don't apply to comptime
-        // or have known bugs
         let should_panic =
             if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
                 "#[should_panic]"
