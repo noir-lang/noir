@@ -252,7 +252,29 @@
 <a href="#251" id="251">251</a>
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -347,6 +369,8 @@
         constrained: String,
         unconstrained: String,
     },
+    <span class="attr">#[error(<span class="string">"SSA validation failed: {message}"</span>)]
+    </span>SsaValidationError { message: String, call_stack: CallStack },
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -461,7 +485,8 @@
             | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack }
             | RuntimeError::RecursionLimit { call_stack, .. }
-            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. } =&gt; call_stack,
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
+            | RuntimeError::SsaValidationError { call_stack, .. } =&gt; call_stack,
         }
     }
 }
@@ -485,15 +510,34 @@
                     Location::dummy(),
                 )
             }
+            RuntimeError::SsaValidationError { message, call_stack} =&gt; {
+                <span class="comment">// At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
+                </span><span class="kw">let </span>location =
+                    call_stack.last().cloned().unwrap_or_else(Location::dummy);
+
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = CustomDiagnostic::simple_error(
+                    message,
+                    String::new(),
+                    location,
+                );
+
+                <span class="kw">if </span>call_stack.is_empty() {
+                    <span class="comment">// Clear it otherwise it points to the top of the file.
+                    </span>diagnostic.secondaries.clear();
+                }
+
+                diagnostic
+            }
             RuntimeError::UnknownLoopBound { .. } =&gt; {
                 <span class="kw">let </span>primary_message = <span class="self">self</span>.to_string();
-                <span class="kw">let </span>location =
-                    <span class="self">self</span>.call_stack().last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
+                <span class="comment">// Unrolling sometimes has to produce an empty call stack.
+                </span><span class="kw">let </span>location =
+                    <span class="self">self</span>.call_stack().last().cloned().unwrap_or_else(Location::dummy);
 
                 CustomDiagnostic::simple_error(
                     primary_message,
                     <span class="string">"If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths."</span>.to_string(),
-                    <span class="kw-2">*</span>location,
+                    location,
                 )
             }
             <span class="kw">_ </span>=&gt; {

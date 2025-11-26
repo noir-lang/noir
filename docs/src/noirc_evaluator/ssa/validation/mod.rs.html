@@ -1857,7 +1857,67 @@
 <a href="#1856" id="1856">1856</a>
 <a href="#1857" id="1857">1857</a>
 <a href="#1858" id="1858">1858</a>
-<a href="#1859" id="1859">1859</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1859" id="1859">1859</a>
+<a href="#1860" id="1860">1860</a>
+<a href="#1861" id="1861">1861</a>
+<a href="#1862" id="1862">1862</a>
+<a href="#1863" id="1863">1863</a>
+<a href="#1864" id="1864">1864</a>
+<a href="#1865" id="1865">1865</a>
+<a href="#1866" id="1866">1866</a>
+<a href="#1867" id="1867">1867</a>
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a>
+<a href="#1873" id="1873">1873</a>
+<a href="#1874" id="1874">1874</a>
+<a href="#1875" id="1875">1875</a>
+<a href="#1876" id="1876">1876</a>
+<a href="#1877" id="1877">1877</a>
+<a href="#1878" id="1878">1878</a>
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2765,16 +2825,54 @@
         (<span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]), <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]))
     }
 
-    <span class="doccomment">/// Validates that acir functions are not called from unconstrained code.
+    <span class="doccomment">/// Validates that ACIR functions are not called from unconstrained code.
     </span><span class="kw">fn </span>check_calls_in_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) {
         <span class="kw">if </span><span class="self">self</span>.function.runtime().is_brillig() {
             <span class="kw">if let </span>Instruction::Call { func, .. } = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[instruction] {
                 <span class="kw">if let </span>Value::Function(func_id) = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[<span class="kw-2">*</span>func] {
                     <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[func_id];
                     <span class="kw">if </span>called_function.runtime().is_acir() {
-                        <span class="macro">panic!</span>(<span class="string">"Call to acir function {} from unconstrained code"</span>, func_id);
+                        <span class="macro">panic!</span>(
+                            <span class="string">"Call to ACIR function '{} {}' from unconstrained '{} {}'"</span>,
+                            called_function.name(),
+                            called_function.id(),
+                            <span class="self">self</span>.function.name(),
+                            <span class="self">self</span>.function.id(),
+                        );
                     }
                 }
+            }
+        }
+    }
+
+    <span class="doccomment">/// Check that we are not trying to pass references from constrained to unconstrained code.
+    ///
+    /// See the discussion in [#10262](https://github.com/noir-lang/noir/pull/10264) about the difficulty of catching this in the frontend.
+    </span><span class="kw">fn </span>check_calls_in_constrained(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) {
+        <span class="kw">if </span>!<span class="self">self</span>.function.runtime().is_acir() {
+            <span class="kw">return</span>;
+        }
+        <span class="kw">let </span>Instruction::Call { func, arguments } = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[instruction] <span class="kw">else </span>{
+            <span class="kw">return</span>;
+        };
+        <span class="kw">let </span>Value::Function(func_id) = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[<span class="kw-2">*</span>func] <span class="kw">else </span>{
+            <span class="kw">return</span>;
+        };
+        <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[func_id];
+        <span class="kw">if </span>called_function.runtime().is_acir() {
+            <span class="kw">return</span>;
+        }
+        <span class="kw">for </span>arg_id <span class="kw">in </span>arguments {
+            <span class="kw">let </span>typ = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>arg_id);
+            <span class="kw">if </span>typ.contains_reference() {
+                <span class="comment">// If we don't panic here, we would have a different, more obscure panic later on.
+                </span><span class="macro">panic!</span>(
+                    <span class="string">"Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}"</span>,
+                    <span class="self">self</span>.function.name(),
+                    <span class="self">self</span>.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
             }
         }
     }
@@ -2839,6 +2937,7 @@
                 <span class="self">self</span>.validate_field_to_integer_cast_invariant(<span class="kw-2">*</span>instruction);
                 <span class="self">self</span>.type_check_instruction(<span class="kw-2">*</span>instruction);
                 <span class="self">self</span>.check_calls_in_unconstrained(<span class="kw-2">*</span>instruction);
+                <span class="self">self</span>.check_calls_in_constrained(<span class="kw-2">*</span>instruction);
             }
             <span class="self">self</span>.validate_block_terminator(block);
         }
@@ -3511,7 +3610,7 @@
     }
 
     <span class="attr">#[test]
-    #[should_panic(expected = <span class="string">"Call to acir function f1 from unconstrained code"</span>)]
+    #[should_panic(expected = <span class="string">"Call to ACIR function 'foo f1' from unconstrained 'main f0'"</span>)]
     </span><span class="kw">fn </span>disallows_calling_acir_from_brillig() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn main f0 {
@@ -3523,6 +3622,27 @@
           b0(v0: u32):
             v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
             v5 = array_get v4, index v0 -&gt; Field
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(
+        expected = <span class="string">"Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &amp;mut u32"
+    </span>)]
+    </span><span class="kw">fn </span>disallows_passing_refs_from_acir_to_brillig() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -&gt; &amp;mut u32
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: &amp;mut u32):
             return
         }
         "</span>;

@@ -3034,7 +3034,31 @@
 <a href="#3033" id="3033">3033</a>
 <a href="#3034" id="3034">3034</a>
 <a href="#3035" id="3035">3035</a>
-<a href="#3036" id="3036">3036</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#3036" id="3036">3036</a>
+<a href="#3037" id="3037">3037</a>
+<a href="#3038" id="3038">3038</a>
+<a href="#3039" id="3039">3039</a>
+<a href="#3040" id="3040">3040</a>
+<a href="#3041" id="3041">3041</a>
+<a href="#3042" id="3042">3042</a>
+<a href="#3043" id="3043">3043</a>
+<a href="#3044" id="3044">3044</a>
+<a href="#3045" id="3045">3045</a>
+<a href="#3046" id="3046">3046</a>
+<a href="#3047" id="3047">3047</a>
+<a href="#3048" id="3048">3048</a>
+<a href="#3049" id="3049">3049</a>
+<a href="#3050" id="3050">3050</a>
+<a href="#3051" id="3051">3051</a>
+<a href="#3052" id="3052">3052</a>
+<a href="#3053" id="3053">3053</a>
+<a href="#3054" id="3054">3054</a>
+<a href="#3055" id="3055">3055</a>
+<a href="#3056" id="3056">3056</a>
+<a href="#3057" id="3057">3057</a>
+<a href="#3058" id="3058">3058</a>
+<a href="#3059" id="3059">3059</a>
+<a href="#3060" id="3060">3060</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4914,7 +4938,32 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>original_func = Box::new(<span class="self">self</span>.extract_function(call.func)<span class="question-mark">?</span>);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>arguments = try_vecmap(<span class="kw-2">&amp;</span>call.arguments, |id| <span class="self">self</span>.expr(<span class="kw-2">*</span>id))<span class="question-mark">?</span>;
+        <span class="kw">let </span>func_type = <span class="self">self</span>.interner.id_type(call.func);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(call.arguments.len());
+        <span class="kw">if let </span>Type::Function(params, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type {
+            <span class="macro">assert_eq!</span>(params.len(), call.arguments.len(), <span class="string">"ICE: Unexpected number of call args"</span>);
+            <span class="kw">for </span>(typ, id) <span class="kw">in </span>params.iter().zip(<span class="kw-2">&amp;</span>call.arguments) {
+                <span class="comment">// If the function expects an unconstrained lambda, we can generate the arg to tuple of (constrained, unconstrained),
+                // but that could introduce invalid semantics, such as passing mutable references from the constrained version.
+                // Instead we can force the generation to be two unconstrained lambdas.
+                </span><span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="bool-val">true</span>)) {
+                    <span class="kw">let </span>old_force_unconstrained =
+                        std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.force_unconstrained, <span class="bool-val">true</span>);
+
+                    arguments.push(<span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>);
+
+                    <span class="self">self</span>.force_unconstrained = old_force_unconstrained;
+                } <span class="kw">else </span>{
+                    arguments.push(<span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>);
+                }
+            }
+        } <span class="kw">else </span>{
+            <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {
+                arguments.push(<span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>);
+            }
+        };
+
         <span class="kw">let </span>hir_arguments = vecmap(<span class="kw-2">&amp;</span>call.arguments, |id| <span class="self">self</span>.interner.expression(id));
 
         <span class="self">self</span>.patch_debug_instrumentation_call(<span class="kw-2">&amp;</span>call, <span class="kw-2">&amp;</span>original_func, <span class="kw-2">&amp;mut </span>arguments)<span class="question-mark">?</span>;
@@ -4924,6 +4973,8 @@
         <span class="kw">let </span>return_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>return_type, location)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>location = call.location;
+        <span class="kw">let </span>func_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>func_type, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>is_closure = <span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>func_type);
 
         <span class="kw">if let </span>ast::Expression::Ident(ident) = original_func.as_ref() {
             <span class="kw">if let </span>Definition::Oracle(name) = <span class="kw-2">&amp;</span>ident.definition {
@@ -4946,9 +4997,6 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>block_expressions = <span class="macro">vec!</span>[];
-        <span class="kw">let </span>func_type = <span class="self">self</span>.interner.id_type(call.func);
-        <span class="kw">let </span>func_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>func_type, location)<span class="question-mark">?</span>;
-        <span class="kw">let </span>is_closure = <span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>func_type);
 
         <span class="kw">let </span>func = <span class="kw">if </span>is_closure {
             <span class="kw">let </span>local_id = <span class="self">self</span>.next_local_id();
