@@ -28,9 +28,9 @@ impl Elaborator<'_> {
         ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
-    pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
-        let current_module = self.module_id();
-
+    pub fn replace_module(&mut self, new_module: ModuleId) -> Option<ModuleId> {
+        let current_module =
+            self.local_module.map(|local_id| ModuleId { krate: self.crate_id, local_id });
         self.crate_id = new_module.krate;
         self.local_module = Some(new_module.local_id);
         current_module
