@@ -136,23 +136,14 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 20] = [
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 11] = [
     // bugs
     "array_sort",
-    "brillig_cow_regression",
-    "brillig_pedersen",
     "higher_order_functions",
-    "import",
-    "merkle_insert",
-    "pedersen_check",
-    "pedersen_commitment",
-    "pedersen_hash",
     "regression_11294",
     "regression_8755",
     "regression_9208",
     "regression_9303",
-    "simple_shield",
-    "strings",
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
