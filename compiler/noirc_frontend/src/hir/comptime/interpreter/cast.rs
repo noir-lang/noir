@@ -131,10 +131,8 @@ pub(super) fn evaluate_cast_one_step(
     match output_type.follow_bindings() {
         Type::FieldElement => Ok(Value::Field(SignedField::new(lhs, lhs_is_negative))),
         typ @ Type::Integer(sign, bit_size) => match (sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ: output_type.clone(), location })
-            }
             // These casts are expected to be no-ops
+            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U1(lhs.to_u128() != 0)),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(lhs.to_u128() as u8)),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(lhs.to_u128() as u16)),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {

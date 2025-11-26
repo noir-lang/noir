@@ -136,15 +136,12 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 33] = [
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 29] = [
     // bugs
-    "a_5_over",
-    "arithmetic_binary_operations",
     "array_sort",
     "as_witness",
     "brillig_cow_regression",
     "brillig_pedersen",
-    "cast_signed_to_u1",
     "generics",
     "higher_order_functions",
     "hint_black_box",
@@ -157,7 +154,6 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 33] = [
     "poseidonsponge_x5_254", // cSpell::disable-line
     "regression_10156",
     "regression_11294",
-    "regression_1144_1169_2399_6609",
     "regression_5252",
     "regression_6451",
     "regression_8755",
