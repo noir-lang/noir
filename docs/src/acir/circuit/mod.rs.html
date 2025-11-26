@@ -683,9 +683,7 @@
 <a href="#682" id="682">682</a>
 <a href="#683" id="683">683</a>
 <a href="#684" id="684">684</a>
-<a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+<a href="#685" id="685">685</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
 
 </span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
@@ -745,8 +743,10 @@
     <span class="doccomment">/// Name of the function represented by this circuit.
     </span><span class="attr">#[serde(default)] </span><span class="comment">// For backwards compatibility
     </span><span class="kw">pub </span>function_name: String,
-    <span class="doccomment">/// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
-    /// will take on this value. (The value is cached here as an optimization.)
+    <span class="doccomment">/// The current highest witness index in the circuit.
+    ///
+    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
+    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
     </span><span class="kw">pub </span>current_witness_index: u32,
     <span class="doccomment">/// The circuit opcodes representing the relationship between witness values.
     ///
@@ -936,10 +936,6 @@
 }
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; Circuit&lt;F&gt; {
-    <span class="kw">pub fn </span>num_vars(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        <span class="self">self</span>.current_witness_index + <span class="number">1
-    </span>}
-
     <span class="doccomment">/// Returns all witnesses which are required to execute the circuit successfully.
     </span><span class="kw">pub fn </span>circuit_arguments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;Witness&gt; {
         <span class="self">self</span>.private_parameters.union(<span class="kw-2">&amp;</span><span class="self">self</span>.public_parameters.<span class="number">0</span>).cloned().collect()
