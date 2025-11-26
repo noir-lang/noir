@@ -679,7 +679,7 @@ impl<'context> Elaborator<'context> {
     ///
     /// The interpreter is initialized with the current crate and function context
     /// to ensure proper scoping and error reporting.
-    pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
+    pub(crate) fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
         let current_function = match self.current_item {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,

@@ -7,6 +7,7 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
+
 use acir::AcirField;
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, IntegerBitSize, MemoryAddress,
@@ -559,6 +560,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// it to wrap around during an overflowing increment, then we could end
     /// up overwriting parts of the memory reserved for globals, the stack,
     /// or other values on the heap.
+    ///
+    /// This special handling is not adopted by the AVM. Still, if it fails
+    /// here, at least we have a way to detect this unlikely edge case,
+    /// rather than go into undefined behavior by corrupting memory.
+    /// Detecting overflows with additional bytecode would be an overkill.
+    /// Perhaps in the future the AVM will offer checked operations instead.
     ///
     /// Returns:
     /// * `Ok(false)` if it's not a _free memory pointer_ increase
