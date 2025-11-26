@@ -45,6 +45,7 @@ fn main() -> Result<(), String> {
     generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
@@ -181,6 +182,14 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     "reference_counts_slices_inliner_0",
     // Enums are currently unsupported in comptime code
     "regression_7323",
+];
+
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 3] = [
+    // TODO(https://github.com/noir-lang/noir/issues/10623): Panic on OOB insertion
+    "slice_insert_failure",
+    // TODO(https://github.com/noir-lang/noir/issues/10625): Bits and byte decomposition does not validate output size in comptime
+    "invalid_comptime_bits_decomposition",
+    "invalid_comptime_bytes_decomposition",
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
@@ -576,6 +585,44 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
                 nargo_execute_comptime(test_program_dir);
             }}
             "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+          use super::*;
+      "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+              #[test]
+              {should_panic}
+              fn test_{test_name}() {{
+                  let test_program_dir = PathBuf::from("{test_dir}");
+                  nargo_execute_comptime_expect_failure(test_program_dir);
+              }}
+              "#
         )
         .unwrap();
     }
