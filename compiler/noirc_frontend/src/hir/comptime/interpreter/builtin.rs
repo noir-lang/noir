@@ -80,6 +80,7 @@ impl Interpreter<'_, '_> {
             "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(arguments, location),
             "as_witness" => as_witness(arguments, location),
+            "black_box" => black_box(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -318,8 +319,11 @@ fn as_slice(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Va
 }
 
 fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (value, _location) = check_one_argument(arguments, location)?;
-    Ok(value)
+    Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
