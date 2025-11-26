@@ -133,16 +133,38 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
     let ssa = function_context.builder.finish();
 
-    if let Err(payload) =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)))
-    {
-        // We can print the SSA, but it appears *under* the panic message,
-        // which is potentially more confusing than just showing the panic.
-        // eprintln!("--- The SSA failed to validate:\n{ssa}\n");
-        std::panic::resume_unwind(payload);
-    }
+    validate_ssa_or_err(ssa)
+}
 
-    Ok(ssa)
+/// Run the panicky validation, and try to turn it into a [RuntimeError] if it fails.
+fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+    // Temporarily take the hook, so we don't get the panic printout.
+    let old_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_info| {}));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)));
+    std::panic::set_hook(old_hook);
+
+    if let Err(payload) = result {
+        // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
+        // under the panic message, which makes it difficult to see what went wrong.
+        eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+
+        // Try to get the panic message and turn this into a RuntimeError
+        let message = if let Some(message) = payload.downcast_ref::<String>() {
+            message.to_owned()
+        } else if let Some(message) = payload.downcast_ref::<&str>() {
+            message.to_string()
+        } else {
+            format!("{payload:?}")
+        };
+        let err = RuntimeError::SsaValidationError {
+            message: message.to_owned(),
+            call_stack: CallStack::default(),
+        };
+        Err(err)
+    } else {
+        Ok(ssa)
+    }
 }
 
 pub fn validate_ssa(ssa: &Ssa) {

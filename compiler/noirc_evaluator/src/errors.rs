@@ -93,6 +93,8 @@ pub enum RuntimeError {
         constrained: String,
         unconstrained: String,
     },
+    #[error("SSA validation failed: {message}")]
+    SsaValidationError { message: String, call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -207,7 +209,8 @@ impl RuntimeError {
             | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack }
             | RuntimeError::RecursionLimit { call_stack, .. }
-            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. } => call_stack,
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
+            | RuntimeError::SsaValidationError { call_stack, .. } => call_stack,
         }
     }
 }
@@ -231,15 +234,34 @@ impl RuntimeError {
                     Location::dummy(),
                 )
             }
+            RuntimeError::SsaValidationError { message, call_stack} => {
+                // At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
+                let location =
+                    call_stack.last().cloned().unwrap_or_else(Location::dummy);
+
+                let mut diagnostic = CustomDiagnostic::simple_error(
+                    message,
+                    String::new(),
+                    location,
+                );
+
+                if call_stack.is_empty() {
+                    // Clear it otherwise it points to the top of the file.
+                    diagnostic.secondaries.clear();
+                }
+
+                diagnostic
+            }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();
+                // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().expect("Expected RuntimeError to have a location");
+                    self.call_stack().last().cloned().unwrap_or_else(Location::dummy);
 
                 CustomDiagnostic::simple_error(
                     primary_message,
                     "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    *location,
+                    location,
                 )
             }
             _ => {
