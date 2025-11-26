@@ -478,10 +478,7 @@ mod tests {
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
-        nargo
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains("The application panicked (crashed).").not());
+        execution_failure(nargo)
     }
 
     fn run_nargo_fmt(target_dir: PathBuf) {
