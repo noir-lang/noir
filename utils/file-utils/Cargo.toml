@@ -1,0 +1,15 @@
+[package]
+name = "file-utils"
+description = "File system utilities including cross-platform file locking"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+fs2 = "0.4.3"
+tracing.workspace = true
