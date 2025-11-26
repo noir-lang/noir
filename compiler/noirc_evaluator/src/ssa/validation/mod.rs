@@ -958,8 +958,16 @@ impl<'f> Validator<'f> {
             TerminatorInstruction::Jmp { destination, .. } => {
                 assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
             }
-
-            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => (),
+            TerminatorInstruction::Return { return_values, .. } => {
+                if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
+                    assert_eq!(
+                        *return_values,
+                        vec![return_data_id],
+                        "Databus return_data does not match return terminator"
+                    );
+                }
+            }
+            TerminatorInstruction::Unreachable { .. } => (),
         }
     }
 
@@ -1749,6 +1757,50 @@ mod tests {
             v2 = array_get v0, index v1 -> u32
             return v2
         }";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn return_data_matches_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Databus return_data does not match return terminator")]
+    fn return_data_does_not_match_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v0, v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_return_data_does_with_unreachable_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v4 = make_array [Field 0, Field 0] : [Field; 2]
+            unreachable
+        }
+        ";
         let _ = Ssa::from_str(src).unwrap();
     }
 
