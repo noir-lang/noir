@@ -251,11 +251,6 @@ impl std::fmt::Display for BrilligOpcodeLocation {
 }
 
 impl<F: AcirField> Circuit<F> {
-    pub fn num_vars(&self) -> u32 {
-        // Increment by 1 to account for the zero witness
-        self.current_witness_index + 1
-    }
-
     /// Returns all witnesses which are required to execute the circuit successfully.
     pub fn circuit_arguments(&self) -> BTreeSet<Witness> {
         self.private_parameters.union(&self.public_parameters.0).cloned().collect()
