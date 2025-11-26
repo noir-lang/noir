@@ -1878,7 +1878,32 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
-        let mut arguments = try_vecmap(&call.arguments, |id| self.expr(*id))?;
+        let func_type = self.interner.id_type(call.func);
+
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+        if let Type::Function(params, _, _, _) = &func_type {
+            assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
+            for (typ, id) in params.iter().zip(&call.arguments) {
+                // If the function expects an unconstrained lambda, we can generate the arg to tuple of (constrained, unconstrained),
+                // but that could introduce invalid semantics, such as passing mutable references from the constrained version.
+                // Instead we can force the generation to be two unconstrained lambdas.
+                if matches!(typ, Type::Function(_, _, _, true)) {
+                    let old_force_unconstrained =
+                        std::mem::replace(&mut self.force_unconstrained, true);
+
+                    arguments.push(self.expr(*id)?);
+
+                    self.force_unconstrained = old_force_unconstrained;
+                } else {
+                    arguments.push(self.expr(*id)?);
+                }
+            }
+        } else {
+            for id in &call.arguments {
+                arguments.push(self.expr(*id)?);
+            }
+        };
+
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
         self.patch_debug_instrumentation_call(&call, &original_func, &mut arguments)?;
@@ -1888,6 +1913,8 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(&return_type, location)?;
 
         let location = call.location;
+        let func_type = Self::convert_type(&func_type, location)?;
+        let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
@@ -1910,9 +1937,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let mut block_expressions = vec![];
-        let func_type = self.interner.id_type(call.func);
-        let func_type = Self::convert_type(&func_type, location)?;
-        let is_closure = self.is_closure_type(&func_type);
 
         let func = if is_closure {
             let local_id = self.next_local_id();
