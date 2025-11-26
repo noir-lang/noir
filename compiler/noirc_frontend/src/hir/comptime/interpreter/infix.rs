@@ -207,8 +207,6 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftRight => match_integer! {
             (lhs_value as lhs ">>" rhs_value as rhs) {
                 int: {
-                    #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
-                    if rhs > 127 {return Err(rhs_overflow);}
                     #[allow(clippy::cast_lossless)]
                     lhs.checked_shr(rhs as u32)
                 },
@@ -219,8 +217,6 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) {
                 int: {
-                    #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
-                    if rhs > 127 {return Err(lhs_overflow);}
                     #[allow(clippy::cast_lossless)]
                     lhs.checked_shl(rhs as u32)
                 },
