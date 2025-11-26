@@ -207,6 +207,7 @@ fn embedded_curve_add(
 /// pub fn multi_scalar_mul<let N: u32>(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
+///     predicate: bool,
 /// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn multi_scalar_mul(
@@ -216,7 +217,7 @@ fn multi_scalar_mul(
     pedantic_solving: bool,
 ) -> IResult<Value> {
     let (points, scalars, predicate) = check_three_arguments(arguments, location)?;
-    assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
+    assert_eq!(predicate.0, Value::Bool(true), "multi_scalar_mul predicate should be true");
 
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;

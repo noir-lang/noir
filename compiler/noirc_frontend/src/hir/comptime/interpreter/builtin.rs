@@ -79,6 +79,8 @@ impl Interpreter<'_, '_> {
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(arguments, location),
+            "as_witness" => as_witness(arguments, location),
+            "black_box" => black_box(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -314,6 +316,14 @@ fn as_slice(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Va
             Err(InterpreterError::TypeMismatch { expected, actual, location: array_location })
         }
     }
+}
+
+fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -3146,7 +3156,7 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = FieldElement::zero();
+    let is_infinite = false;
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
@@ -3161,10 +3171,8 @@ fn derive_generators(
             .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
             .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-        embedded_curve_point_fields.insert(
-            is_infinite_field_name.clone(),
-            Shared::new(Value::Field(SignedField::positive(is_infinite))),
-        );
+        embedded_curve_point_fields
+            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);
