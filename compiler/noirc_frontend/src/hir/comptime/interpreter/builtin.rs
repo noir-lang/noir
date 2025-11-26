@@ -79,6 +79,7 @@ impl Interpreter<'_, '_> {
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(arguments, location),
+            "as_witness" => as_witness(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -314,6 +315,11 @@ fn as_slice(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Va
             Err(InterpreterError::TypeMismatch { expected, actual, location: array_location })
         }
     }
+}
+
+fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (value, _location) = check_one_argument(arguments, location)?;
+    Ok(value)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
