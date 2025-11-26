@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764166632088,
+  "lastUpdate": 1764166831788,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "155db34422be717da8636db1d0ecc2ece55ac679",
-          "message": "chore: ignore some sha256 failures because of oracles (#10528)",
-          "timestamp": "2025-11-18T18:38:52Z",
-          "tree_id": "f83c6e7e7ff8834a9110199450c66fd5fb180cca",
-          "url": "https://github.com/noir-lang/noir/commit/155db34422be717da8636db1d0ecc2ece55ac679"
-        },
-        "date": 1763492483269,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255870,
-            "range": "± 356",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222018,
-            "range": "± 2806",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2259476,
-            "range": "± 795",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794194,
             "range": "± 1740",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3766725ba9546d86ee796c7b97cc29b8d37236bd",
+          "message": "feat(test): Add `--no-run` to `test` command (#10632)",
+          "timestamp": "2025-11-26T13:57:32Z",
+          "tree_id": "556bc3e8d21833aea597050e856b60c908a066c2",
+          "url": "https://github.com/noir-lang/noir/commit/3766725ba9546d86ee796c7b97cc29b8d37236bd"
+        },
+        "date": 1764166804668,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258199,
+            "range": "± 1016",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231496,
+            "range": "± 5346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2796498,
+            "range": "± 14101",
             "unit": "ns/iter"
           }
         ]
