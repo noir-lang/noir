@@ -497,44 +497,38 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     }
                 }
             }
-            HirPattern::Struct(_struct_type, pattern_fields, _) => {
-                self.push_scope();
-
-                let res = match argument {
-                    Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
-                        for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(field_name.as_string()).ok_or_else(|| {
-                                InterpreterError::ExpectedStructToHaveField {
-                                    typ: struct_type.clone(),
-                                    field_name: field_name.to_string(),
-                                    location,
-                                }
-                            })?;
-
-                            let field = field.borrow();
-                            let field_type = field.get_type().into_owned();
-                            let result = self.define_pattern(
-                                field_pattern,
-                                &field_type,
-                                field.clone(),
+            HirPattern::Struct(_struct_type, pattern_fields, _) => match argument {
+                Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
+                    for (field_name, field_pattern) in pattern_fields {
+                        let field = fields.get(field_name.as_string()).ok_or_else(|| {
+                            InterpreterError::ExpectedStructToHaveField {
+                                typ: struct_type.clone(),
+                                field_name: field_name.to_string(),
                                 location,
-                            );
-                            if result.is_err() {
-                                self.pop_scope();
-                                return result;
                             }
+                        })?;
+
+                        let field = field.borrow();
+                        let field_type = field.get_type().into_owned();
+                        let result = self.define_pattern(
+                            field_pattern,
+                            &field_type,
+                            field.clone(),
+                            location,
+                        );
+                        if result.is_err() {
+                            self.pop_scope();
+                            return result;
                         }
-                        Ok(())
                     }
-                    value => Err(InterpreterError::TypeMismatch {
-                        expected: typ.to_string(),
-                        actual: value.get_type().into_owned(),
-                        location,
-                    }),
-                };
-                self.pop_scope();
-                res
-            }
+                    Ok(())
+                }
+                value => Err(InterpreterError::TypeMismatch {
+                    expected: typ.to_string(),
+                    actual: value.get_type().into_owned(),
+                    location,
+                }),
+            },
         }
     }
 
