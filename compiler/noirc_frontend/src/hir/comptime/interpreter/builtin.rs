@@ -193,10 +193,10 @@ impl Interpreter<'_, '_> {
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
-            "to_be_radix" => to_be_radix(arguments, return_type, location),
-            "to_le_radix" => to_le_radix(arguments, return_type, location),
-            "to_be_bits" => to_be_bits(arguments, return_type, location),
-            "to_le_bits" => to_le_bits(arguments, return_type, location),
+            "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
+            "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
+            "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
+            "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -943,28 +943,31 @@ fn to_be_bits(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_be_radix(vec![value, radix], return_type, location)
+    to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
 fn to_le_bits(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_le_radix(vec![value, radix], return_type, location)
+    to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
 fn to_be_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
-    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+    let le_radix_limbs = to_le_radix(arguments, return_type, location, call_stack)?;
 
     let Value::Array(limbs, typ) = le_radix_limbs else {
         unreachable!("`to_le_radix` should always return an array");
@@ -978,6 +981,7 @@ fn to_le_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (value, radix) = check_two_arguments(arguments, location)?;
 
@@ -1002,7 +1006,16 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+
+    // Validate that the value fits in the requested number of limbs.
+    // This matches the runtime behavior in our black box solvers.
+    let limb_count_usize = limb_count.to_u128() as usize;
+    if limb_count_usize < decomposed_integer.len() {
+        let message = format!("Field failed to decompose into specified {limb_count_usize} limbs");
+        return failing_constraint(message, location, call_stack);
+    }
+
+    let decomposed_integer = vecmap(0..limb_count_usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,

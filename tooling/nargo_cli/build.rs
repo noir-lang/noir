@@ -153,11 +153,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 11] = [
     "regression_7323",
 ];
 
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 2] = [
-    // TODO(https://github.com/noir-lang/noir/issues/10625): Bits and byte decomposition does not validate output size in comptime
-    "invalid_comptime_bits_decomposition",
-    "invalid_comptime_bytes_decomposition",
-];
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
