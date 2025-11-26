@@ -478,7 +478,7 @@ mod tests {
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
-        execution_failure(nargo)
+        execution_failure(nargo);
     }
 
     fn run_nargo_fmt(target_dir: PathBuf) {
