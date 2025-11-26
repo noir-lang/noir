@@ -3181,7 +3181,15 @@
 <a href="#3180" id="3180">3180</a>
 <a href="#3181" id="3181">3181</a>
 <a href="#3182" id="3182">3182</a>
-<a href="#3183" id="3183">3183</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3183" id="3183">3183</a>
+<a href="#3184" id="3184">3184</a>
+<a href="#3185" id="3185">3185</a>
+<a href="#3186" id="3186">3186</a>
+<a href="#3187" id="3187">3187</a>
+<a href="#3188" id="3188">3188</a>
+<a href="#3189" id="3189">3189</a>
+<a href="#3190" id="3190">3190</a>
+<a href="#3191" id="3191">3191</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3262,6 +3270,8 @@
             <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
             <span class="string">"assert_constant" </span>=&gt; <span class="prelude-val">Ok</span>(Value::Unit),
             <span class="string">"as_slice" </span>=&gt; as_slice(arguments, location),
+            <span class="string">"as_witness" </span>=&gt; as_witness(arguments, location),
+            <span class="string">"black_box" </span>=&gt; black_box(arguments, location),
             <span class="string">"ctstring_eq" </span>=&gt; ctstring_eq(arguments, location),
             <span class="string">"ctstring_hash" </span>=&gt; ctstring_hash(arguments, location),
             <span class="string">"derive_pedersen_generators" </span>=&gt; derive_generators(arguments, return_type, location),
@@ -3497,6 +3507,14 @@
             <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: array_location })
         }
     }
+}
+
+<span class="kw">fn </span>as_witness(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+    <span class="prelude-val">Ok</span>(check_one_argument(arguments, location)<span class="question-mark">?</span>.<span class="number">0</span>)
+}
+
+<span class="kw">fn </span>black_box(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+    <span class="prelude-val">Ok</span>(check_one_argument(arguments, location)<span class="question-mark">?</span>.<span class="number">0</span>)
 }
 
 <span class="kw">fn </span>slice_push_back(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
@@ -6329,7 +6347,7 @@
         starting_index,
     );
 
-    <span class="kw">let </span>is_infinite = FieldElement::zero();
+    <span class="kw">let </span>is_infinite = <span class="bool-val">false</span>;
     <span class="kw">let </span>x_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"x"</span>.to_owned());
     <span class="kw">let </span>y_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"y"</span>.to_owned());
     <span class="kw">let </span>is_infinite_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"is_infinite"</span>.to_owned());
@@ -6344,10 +6362,8 @@
             .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
             .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-        embedded_curve_point_fields.insert(
-            is_infinite_field_name.clone(),
-            Shared::new(Value::Field(SignedField::positive(is_infinite))),
-        );
+        embedded_curve_point_fields
+            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         <span class="kw">let </span>embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());
         results.push_back(embedded_curve_point_struct);

@@ -382,7 +382,8 @@
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
 </span><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
@@ -591,6 +592,7 @@
 /// pub fn multi_scalar_mul&lt;let N: u32&gt;(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
+///     predicate: bool,
 /// ) -&gt; [EmbeddedCurvePoint; 1]
 /// ```
 </span><span class="kw">fn </span>multi_scalar_mul(
@@ -600,7 +602,7 @@
     pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(points, scalars, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
-    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"verify_signature predicate should be true"</span>);
+    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"multi_scalar_mul predicate should be true"</span>);
 
     <span class="kw">let </span>(points, <span class="kw">_</span>) = get_array_map(points, get_embedded_curve_point)<span class="question-mark">?</span>;
     <span class="kw">let </span>(scalars, <span class="kw">_</span>) = get_array_map(scalars, get_embedded_curve_scalar)<span class="question-mark">?</span>;
