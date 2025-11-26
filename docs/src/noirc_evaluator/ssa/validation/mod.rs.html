@@ -1805,7 +1805,59 @@
 <a href="#1804" id="1804">1804</a>
 <a href="#1805" id="1805">1805</a>
 <a href="#1806" id="1806">1806</a>
-<a href="#1807" id="1807">1807</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a>
+<a href="#1834" id="1834">1834</a>
+<a href="#1835" id="1835">1835</a>
+<a href="#1836" id="1836">1836</a>
+<a href="#1837" id="1837">1837</a>
+<a href="#1838" id="1838">1838</a>
+<a href="#1839" id="1839">1839</a>
+<a href="#1840" id="1840">1840</a>
+<a href="#1841" id="1841">1841</a>
+<a href="#1842" id="1842">1842</a>
+<a href="#1843" id="1843">1843</a>
+<a href="#1844" id="1844">1844</a>
+<a href="#1845" id="1845">1845</a>
+<a href="#1846" id="1846">1846</a>
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a>
+<a href="#1849" id="1849">1849</a>
+<a href="#1850" id="1850">1850</a>
+<a href="#1851" id="1851">1851</a>
+<a href="#1852" id="1852">1852</a>
+<a href="#1853" id="1853">1853</a>
+<a href="#1854" id="1854">1854</a>
+<a href="#1855" id="1855">1855</a>
+<a href="#1856" id="1856">1856</a>
+<a href="#1857" id="1857">1857</a>
+<a href="#1858" id="1858">1858</a>
+<a href="#1859" id="1859">1859</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2765,8 +2817,16 @@
             TerminatorInstruction::Jmp { destination, .. } =&gt; {
                 <span class="macro">assert_ne!</span>(<span class="kw-2">*</span>destination, entry_block, <span class="string">"Entry block cannot be the target of a jump"</span>);
             }
-
-            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } =&gt; (),
+            TerminatorInstruction::Return { return_values, .. } =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(return_data_id) = <span class="self">self</span>.function.dfg.data_bus.return_data {
+                    <span class="macro">assert_eq!</span>(
+                        <span class="kw-2">*</span>return_values,
+                        <span class="macro">vec!</span>[return_data_id],
+                        <span class="string">"Databus return_data does not match return terminator"
+                    </span>);
+                }
+            }
+            TerminatorInstruction::Unreachable { .. } =&gt; (),
         }
     }
 
@@ -3556,6 +3616,50 @@
             v2 = array_get v0, index v1 -&gt; u32
             return v2
         }"</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>return_data_matches_return_terminator() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v4
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Databus return_data does not match return terminator"</span>)]
+    </span><span class="kw">fn </span>return_data_does_not_match_return_terminator() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v0, v1
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>allows_return_data_does_with_unreachable_terminator() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v4 = make_array [Field 0, Field 0] : [Field; 2]
+            unreachable
+        }
+        "</span>;
         <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
     }
 
