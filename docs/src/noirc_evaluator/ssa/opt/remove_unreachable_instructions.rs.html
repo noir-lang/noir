@@ -1418,7 +1418,9 @@
 <a href="#1417" id="1417">1417</a>
 <a href="#1418" id="1418">1418</a>
 <a href="#1419" id="1419">1419</a>
-<a href="#1420" id="1420">1420</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
@@ -1808,9 +1810,11 @@
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
-            <span class="kw">if </span>current_block_reachability == Reachability::UnreachableUnderPredicate
-                &amp;&amp; !is_predicate_constant_one
-            {
+            <span class="kw">if </span>current_block_reachability == Reachability::UnreachableUnderPredicate {
+                <span class="macro">assert!</span>(
+                    !is_predicate_constant_one,
+                    <span class="string">"predicate cannot be constant one in UnreachableUnderPredicate"
+                </span>);
                 unreachable_predicates.insert(context.enable_side_effects);
             }
         });
