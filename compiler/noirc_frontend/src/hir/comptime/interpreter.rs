@@ -1307,7 +1307,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
                 for (name, lvalue) in lvalue_fields.iter() {
                     let Some(rvalue) = rvalue_fields.remove(name) else {
-                        // If we reach here, it indicates a type system bug
+                        // Defensive check: If we reach here, it indicates a type system bug
                         panic!(
                             "ICE: store_flattened encountered a struct field mismatch. \
                             Struct field '{name}' exists in lvalue but not in rvalue. \
