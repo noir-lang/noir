@@ -103,3 +103,15 @@ fn non_homogenous_array() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn array_with_nested_slice() {
+    let src = r#"
+    fn main () {
+        let _: [[[Field]; 1]; 1] = [[&[0]]];
+               ^^^^^^^^^^^^^^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+               ~~~~~~~~~~~~~~~~~ Try to use a constant sized array or BoundedVec instead
+    }
+    "#;
+    check_errors(src);
+}

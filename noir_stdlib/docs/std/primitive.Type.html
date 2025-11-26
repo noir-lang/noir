@@ -103,6 +103,15 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">Type</span></h1>
+<div class="comments">
+<p>A compile-time type which represents a type in the source program.</p>
+<p>It can be obtained using [<code>Quoted::as_type](../std/primitive.Quoted.html#as_type)</code>:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> typ = <span class="kw">quote</span> { i32 }.as_type();
+        println(typ); <span class="comment">// outputs "i32"</span>
+    }
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 
@@ -111,15 +120,13 @@
 <div class="padded-description"><div class="comments">
 <p>If this type is an array, return a pair of (element type, size type).</p>
 <p>Example:</p>
-<pre><code class="language-noir">comptime {
-    let array_type = quote { [Field; 3] }.as_type();
-    let (field_type, three_type) = array_type.as_array().unwrap();
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array_type = <span class="kw">quote</span> { [Field; <span class="number">3</span>] }.as_type();
+    <span class="kw">let</span> (field_type, three_type) = array_type.as_array().unwrap();
 
-    assert(field_type.is_field());
-    assert_eq(three_type.as_constant().unwrap(), 3);
-}
-</code></pre>
-</div>
+    <span class="kw">assert</span>(field_type.is_field());
+    <span class="kw">assert_eq</span>(three_type.as_constant().unwrap(), <span class="number">3</span>);
+}</code></pre></div>
 </div><code id="as_constant" class="code-header">pub comptime fn <span class="fn">as_constant</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
@@ -149,7 +156,11 @@ if the type is signed, as well as the number of bits of this integer type.</p>
 </div>
 </div><code id="as_struct" class="code-header">pub comptime fn <span class="fn">as_struct</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
 
-<code id="as_data_type" class="code-header">pub comptime fn <span class="fn">as_data_type</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_data_type`
+</div>
+</div><code id="as_data_type" class="code-header">pub comptime fn <span class="fn">as_data_type</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a struct or enum type, returns the type in addition to any generic arguments on this type.</p>
@@ -169,15 +180,13 @@ for a trait constraint specified from a <code>where</code> clause is unknown,
 this function will return <code>None</code> in these cases. If you only want to know
 whether a type implements a trait, use <code>implements</code> instead.</p>
 <p>Example:</p>
-<pre><code class="language-rust">comptime {
-    let field_type = quote { Field }.as_type();
-    let default = quote { Default }.as_trait_constraint();
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> field_type = <span class="kw">quote</span> { Field }.as_type();
+    <span class="kw">let</span> default = <span class="kw">quote</span> { Default }.as_trait_constraint();
 
-    let the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
-    assert(the_impl.methods().len(), 1);
-}
-</code></pre>
-</div>
+    <span class="kw">let</span> the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
+    <span class="kw">assert</span>(the_impl.methods().len(), <span class="number">1</span>);
+}</code></pre></div>
 </div><code id="implements" class="code-header">pub comptime fn <span class="fn">implements</span>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -185,18 +194,16 @@ whether a type implements a trait, use <code>implements</code> instead.</p>
 <code>get_trait_impl</code> this will also return true for any <code>where</code> constraints
 in scope.</p>
 <p>Example:</p>
-<pre><code class="language-rust">fn foo&lt;T&gt;() where T: Default {
-    comptime {
-        let field_type = quote { Field }.as_type();
-        let default = quote { Default }.as_trait_constraint();
-        assert(field_type.implements(default));
+<pre><code><span class="kw">fn</span> foo&lt;T&gt;() <span class="kw">where</span> T: Default {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> field_type = <span class="kw">quote</span> { Field }.as_type();
+        <span class="kw">let</span> default = <span class="kw">quote</span> { Default }.as_trait_constraint();
+        <span class="kw">assert</span>(field_type.implements(default));
 
-        let t = quote { T }.as_type();
-        assert(t.implements(default));
+        <span class="kw">let</span> t = <span class="kw">quote</span> { T }.as_type();
+        <span class="kw">assert</span>(t.implements(default));
     }
-}
-</code></pre>
-</div>
+}</code></pre></div>
 </div><code id="is_bool" class="code-header">pub comptime fn <span class="fn">is_bool</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">

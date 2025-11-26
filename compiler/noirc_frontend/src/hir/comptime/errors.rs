@@ -23,7 +23,7 @@ pub enum InterpreterError {
         location: Location,
     },
     TypeMismatch {
-        expected: Type,
+        expected: String,
         actual: Type,
         location: Location,
     },

@@ -222,8 +222,8 @@ fn errors_on_impl_for_primitive_type_outside_stdlib() {
     let src = r#"
     // User code (not stdlib) cannot impl methods on primitive types
     impl Field {
-         ^^^^^ Non-struct type used in impl
-         ~~~~~ Only struct types may have implementation methods
+         ^^^^^ Cannot define inherent `impl` for primitive types
+         ~~~~~ Primitive types can only have implementation methods defined in the standard library
         fn my_method(self) -> Field {
             self
         }
@@ -298,5 +298,32 @@ fn constructor_extra_field() {
                                       ^ no such field z defined in struct Foo
         }
     "#;
+    check_errors(src);
+}
+
+#[test]
+fn constructor_private_field() {
+    let src = r#"
+        mod foo {
+            pub struct Foo {
+                pub x: Field,
+                y: Field,
+            }
+
+            pub fn make() -> Foo {
+                Foo { x: 1, y: 2 }
+            }
+        }
+
+        fn main() {
+            let f = foo::make();
+            let foo::Foo { x: _, y: _ } = f;
+                                 ^ y is private and not visible from the current module
+                                 ~ y is private
+            let foo::Foo { x: _ } = f;
+                ^^^^^^^^^^^^^^^^^ missing field y in struct Foo
+        }
+    "#;
+    // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
     check_errors(src);
 }

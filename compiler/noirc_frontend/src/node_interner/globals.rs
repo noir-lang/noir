@@ -16,13 +16,6 @@ use super::NodeInterner;
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct GlobalId(usize);
 
-impl GlobalId {
-    // Dummy id for error reporting
-    pub fn dummy_id() -> Self {
-        GlobalId(usize::MAX)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct GlobalInfo {
     pub id: GlobalId,

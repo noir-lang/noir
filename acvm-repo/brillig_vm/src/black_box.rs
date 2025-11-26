@@ -220,7 +220,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     scalars_hi.push(*scalar);
                 }
             }
-            let (x, y, is_infinite) = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
+            let (x, y, is_infinite) = solver.multi_scalar_mul(
+                &points,
+                &scalars_lo,
+                &scalars_hi,
+                true, // Predicate is always true as brillig has control flow to handle false case
+            )?;
             write_heap_array(
                 memory,
                 result,
@@ -254,6 +259,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &input2_x,
                 &input2_y,
                 &input2_infinite.into(),
+                true, // Predicate is always true as brillig has control flow to handle false case
             )?;
 
             write_heap_array(

@@ -235,17 +235,56 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+        let slice_length_var = arguments[0];
         let slice_contents = arguments[1];
 
+        let slice_value = self.convert_value(slice_length_var, dfg);
+        let slice_length = slice_value.clone().into_var()?;
+        let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
+        let slice = self.convert_value(slice_contents, dfg);
+
+        // Slices with constant zero length should be eliminated as unreachable instructions,
+        // but in case they aren't, fail with a constant rather than try to subtract from the index.
+        let is_constant_zero_length =
+            dfg.get_numeric_constant(slice_length_var).is_some_and(|c| c.is_zero());
+
+        if is_constant_zero_length {
+            self.acir_context
+                .assert_always_fail("cannot pop from a slice with length 0".to_string())?;
+
+            // Fill the result with default values.
+            let mut results = Vec::with_capacity(result_ids.len());
+
+            // The results shall be: [new len, new slice, ...popped]
+            results.push(slice_value);
+            results.push(slice);
+
+            for result_id in &result_ids[2..] {
+                let result_type = dfg.type_of_value(*result_id);
+                let result_zero = self.array_zero_value(&result_type)?;
+                results.push(result_zero);
+            }
+
+            return Ok(results);
+        }
+
+        // For unknown length under a side effect variable, we want to multiply with the side effect variable
+        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0.
+        let is_unknown_length = dfg.get_numeric_constant(slice_length_var).is_none();
+
         let one = self.acir_context.add_constant(FieldElement::one());
-        let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+        let mut new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+
+        if is_unknown_length {
+            new_slice_length = self
+                .acir_context
+                .mul_var(new_slice_length, self.current_side_effects_enabled_var)?;
+        }
+
         // For a pop back operation we want to fetch from the `length - 1` as this is the
         // last valid index that can be accessed in a slice. After the pop back operation
         // the elements stored at that index will no longer be able to be accessed.
         let mut var_index = new_slice_length;
-
-        let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
 
         let slice_type = dfg.type_of_value(slice_contents);
         let item_size = slice_type.element_size();
@@ -258,7 +297,6 @@ impl Context<'_> {
             popped_elements.push(elem);
         }
 
-        let slice = self.convert_value(slice_contents, dfg);
         let mut new_slice = self.read_array_with_type(slice, &slice_type)?;
         for _ in 0..popped_elements.len() {
             new_slice.pop_back();
@@ -358,33 +396,33 @@ impl Context<'_> {
     ///
     /// # Arguments
     ///
-    /// * `arguments[0]` - Current slice length  
-    /// * `arguments[1]` - Slice contents  
-    /// * `arguments[2]` - Insert index (logical element index, not flattened)  
-    /// * `arguments[3..]` - Elements to insert  
-    /// * `result_ids[0]` - Updated slice length  
-    /// * `result_ids[1]` - Updated slice contents  
+    /// * `arguments[0]` - Current slice length
+    /// * `arguments[1]` - Slice contents
+    /// * `arguments[2]` - Insert index (logical element index, not flattened)
+    /// * `arguments[3..]` - Elements to insert
+    /// * `result_ids[0]` - Updated slice length
+    /// * `result_ids[1]` - Updated slice contents
     ///
     /// # Returns
     ///
     /// A vector of [AcirValue]s containing:
-    /// 1. Updated slice length (incremented by one)  
-    /// 2. Updated slice contents with the new elements inserted at the given index  
+    /// 1. Updated slice length (incremented by one)
+    /// 2. Updated slice contents with the new elements inserted at the given index
     ///
     /// # Design
     ///
     /// Slices are represented in **flattened form** in memory. Inserting requires
     /// shifting a contiguous region of elements upward to make room for the new ones:
     ///
-    /// 1. Compute the flattened insert index:  
-    ///    - Multiply the logical insert index by the element size.  
+    /// 1. Compute the flattened insert index:
+    ///    - Multiply the logical insert index by the element size.
     ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
     /// 2. Flatten the new elements (`flattened_elements`)
-    /// 3. For each position in the result slice:  
-    ///    - If below the insert index, copy from the original slice.  
-    ///    - If within the insertion window, write values from `flattened_elements`.  
-    ///    - If above the window, shift elements upward by the size of the inserted data.  
-    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
+    /// 3. For each position in the result slice:
+    ///    - If below the insert index, copy from the original slice.
+    ///    - If within the insertion window, write values from `flattened_elements`.
+    ///    - If above the window, shift elements upward by the size of the inserted data.
+    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.
     pub(super) fn convert_slice_insert(
         &mut self,
         arguments: &[ValueId],
@@ -546,40 +584,40 @@ impl Context<'_> {
     ///
     /// # Arguments
     ///
-    /// * `arguments[0]` - Current slice length  
-    /// * `arguments[1]` - Slice contents  
-    /// * `arguments[2]` - Removal index (logical element index, not flattened)  
-    /// * `result_ids[0]` - Updated slice length  
-    /// * `result_ids[1]` - Updated slice contents  
-    /// * `result_ids[2..]` - Locations for the removed elements  
+    /// * `arguments[0]` - Current slice length
+    /// * `arguments[1]` - Slice contents
+    /// * `arguments[2]` - Removal index (logical element index, not flattened)
+    /// * `result_ids[0]` - Updated slice length
+    /// * `result_ids[1]` - Updated slice contents
+    /// * `result_ids[2..]` - Locations for the removed elements
     ///
     /// # Returns
     ///
     /// A vector of [AcirValue]s containing:
-    /// 1. Updated slice length (decremented by one)  
-    /// 2. Updated slice contents with the target elements removed  
-    /// 3. The removed elements, in order  
+    /// 1. Updated slice length (decremented by one)
+    /// 2. Updated slice contents with the target elements removed
+    /// 3. The removed elements, in order
     ///
     /// # Design
     ///
     /// Slices are stored in **flattened form** in memory. Removing requires
     /// shifting a contiguous region of elements downward to overwrite the removed values:
     ///
-    /// 1. Compute the flattened remove index:  
-    ///    - Multiply the logical remove index by the element size.  
+    /// 1. Compute the flattened remove index:
+    ///    - Multiply the logical remove index by the element size.
     ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
-    /// 2. Read out the element(s) to be removed:  
+    /// 2. Read out the element(s) to be removed:
     ///    - Iterate over `result_ids[2..(2 + element_size)]`
     ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
     ///    - Use these IDs to fetch the appropriate type information for the values to remove and drive `array_get_value`.
-    ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).  
-    /// 3. For each index in the result slice:  
-    ///   - If the index is below the remove index, copy directly.  
+    ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).
+    /// 3. For each index in the result slice:
+    ///   - If the index is below the remove index, copy directly.
     ///   - If the index is at or beyond the removed element, fetch the value from `index + popped_elements_size`
-    ///     in the original slice and write it to the current index.  
+    ///     in the original slice and write it to the current index.
     ///   - If `index + popped_elements_size` would exceed the slice length we do nothing. This ensures safe access at the tail of the array
     ///     and is safe to do as we are decreasing the slice length which gates slice accesses.
-    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
+    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.
     pub(super) fn convert_slice_remove(
         &mut self,
         arguments: &[ValueId],

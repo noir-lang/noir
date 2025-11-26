@@ -492,6 +492,10 @@ impl Loop {
                 //    jmpif v2 then: b2, else: b3
                 Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
             }
+            Instruction::Cast(_, _) => {
+                // A cast of a constant would already be simplified
+                None
+            }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
@@ -1828,5 +1832,41 @@ mod tests {
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
         assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: overflow while incrementing constant")]
+    fn unroll_loop_upper_bound_saturated() {
+        let ssa = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0():
+            jmp b1(u128 {0})
+          b1(v0: u128):
+            v3 = eq v0, u128 {0}
+            jmpif v3 then: b3, else: b2
+          b2():
+            v2 = make_array b""
+            call print(u1 1, v0, v2, u1 0)
+            v6 = unchecked_add v0, u128 1
+            jmp b1(v6)
+          b3():
+            return
+    }}"#,
+            u128::MAX
+        );
+
+        let ssa = Ssa::from_str(&ssa).unwrap();
+        let function = ssa.main();
+
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) =
+            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        assert_ne!(lower, upper);
     }
 }

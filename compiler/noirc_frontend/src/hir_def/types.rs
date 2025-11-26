@@ -198,21 +198,6 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_type_level_field_element(&self) -> bool {
-        let type_level = false;
-        self.is_field_element(type_level)
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Kind::Numeric(typ) => typ.is_field_element(value_level),
-            Kind::IntegerOrField => value_level,
-            _ => false,
-        }
-    }
-
     pub(crate) fn u32() -> Self {
         Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
@@ -790,6 +775,9 @@ impl TypeAlias {
         self.numeric_expr = num_expr;
     }
 
+    /// Bind the generics of the aliased [Type] to the given generic arguments.
+    ///
+    /// Panics if the number of arguments do not meet expectations.
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
         assert_eq!(self.generics.len(), generic_args.len());
 
@@ -991,7 +979,9 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::Integer
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => matches!(binding.follow_bindings(), Type::Integer(..)),
+            TypeBinding::Bound(binding) => {
+                matches!(binding.follow_bindings(), Type::Integer(..))
+            }
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::Integer)
             }
@@ -1028,15 +1018,6 @@ impl TypeVariable {
                 matches!(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
             }
             _ => false,
-        }
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match &*self.borrow() {
-            TypeBinding::Bound(binding) => binding.is_field_element(value_level),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(value_level),
         }
     }
 }
@@ -1277,17 +1258,6 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Integer(_, _))
     }
 
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Type::FieldElement => value_level,
-            Type::TypeVariable(var) => var.is_field_element(value_level),
-            Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
-            _ => false,
-        }
-    }
-
     pub fn is_signed(&self) -> bool {
         match self.follow_bindings_shallow().as_ref() {
             Type::Integer(Signedness::Signed, _) => true,
@@ -1334,7 +1304,8 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Function(..)
-            | Type::Tuple(..) => true,
+            | Type::Tuple(..)
+            | Type::Quoted(..) => true,
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
@@ -1346,7 +1317,6 @@ impl Type {
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
         }
@@ -1366,6 +1336,55 @@ impl Type {
 
     pub(crate) fn is_ref(&self) -> bool {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
+    }
+
+    /// Returns `true` if a type is allowed to appear in an assertion message.
+    ///
+    /// This should try filter out types which would cause a panic in `abi_gen::abi_type_from_hir_type`,
+    /// but it has to be more permissive, as we don't have all information yet; some only become apparent
+    /// after monomorphization.
+    pub(crate) fn is_message_compatible(&self, is_monomorphized: bool) -> bool {
+        match self {
+            Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
+
+            Type::Array(_, item) => item.is_message_compatible(is_monomorphized),
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
+                TypeBinding::Unbound(_, kind) => {
+                    !is_monomorphized || matches!(kind, Kind::Integer | Kind::IntegerOrField)
+                }
+            },
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args).unwrap_or_default();
+                fields.iter().all(|(_, typ, _)| typ.is_message_compatible(is_monomorphized))
+            }
+            Type::Alias(def, args) => {
+                let alias_type = def.borrow();
+                alias_type.get_type(args).is_message_compatible(is_monomorphized)
+            }
+            Type::CheckedCast { to, .. } => to.is_message_compatible(is_monomorphized),
+            Type::Tuple(fields) => {
+                fields.iter().all(|typ| typ.is_message_compatible(is_monomorphized))
+            }
+            Type::Error
+            | Type::Unit
+            | Type::Constant(..)
+            | Type::InfixExpr(..)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Slice(_)
+            | Type::Function(_, _, _, _)
+            | Type::FmtString(_, _)
+            | Type::Quoted(_)
+            | Type::Reference(..) => false,
+
+            // A generic would cause a panic in ABI generation, but if we don't allow it
+            // here then we reject all functions which are generic over the message type.
+            // Since we don't have a marker trait to show what can be turned into into a message,
+            // we have to delay this check to monomorphization.
+            Type::NamedGeneric(..) => !is_monomorphized,
+        }
     }
 
     /// Returns the number of `Forall`-quantified type variables on this type.
@@ -1578,6 +1597,7 @@ impl Type {
         }
     }
 
+    /// Check whether this type is an array or slice, and contains a nested slice in its element type.
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
@@ -1587,9 +1607,11 @@ impl Type {
         }
     }
 
+    /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1629,7 +1651,7 @@ impl Type {
             | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Slice(length) => length.contains_reference(),
+            Type::Slice(typ) => typ.contains_reference(),
             Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
             Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
             Type::DataType(typ, generics) => {
@@ -1649,7 +1671,7 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -1662,6 +1684,55 @@ impl Type {
                 lhs.contains_reference() || rhs.contains_reference()
             }
             Type::Reference(..) => true,
+        }
+    }
+
+    pub(crate) fn contains_type_variable(&self) -> bool {
+        match self {
+            Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::FieldElement
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::Error => false,
+            Type::Forall(..) => true,
+            Type::Array(length, typ) => {
+                length.contains_type_variable() || typ.contains_type_variable()
+            }
+            Type::Slice(typ) => typ.contains_type_variable(),
+            Type::String(length) => length.contains_type_variable(),
+            Type::FmtString(length, typ) => {
+                length.contains_type_variable() || typ.contains_type_variable()
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter().any(|typ| typ.contains_type_variable())
+            }
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_type_variable(),
+                    TypeBinding::Unbound(_, _) => true,
+                }
+            }
+            Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
+                trait_generics.ordered.iter().any(|typ| typ.contains_type_variable())
+                    || trait_generics
+                        .named
+                        .iter()
+                        .any(|named_type| named_type.typ.contains_type_variable())
+            }
+            Type::CheckedCast { from, to } => {
+                from.contains_type_variable() || to.contains_type_variable()
+            }
+            Type::Function(args, ret, env, _) => {
+                args.iter().any(|typ| typ.contains_type_variable())
+                    || ret.contains_type_variable()
+                    || env.contains_type_variable()
+            }
+            Type::Reference(typ, _) => typ.contains_type_variable(),
+            Type::InfixExpr(lhs, _, rhs, _) => {
+                lhs.contains_type_variable() || rhs.contains_type_variable()
+            }
         }
     }
 
@@ -1907,8 +1978,10 @@ impl Type {
         }
     }
 
-    /// Retrieves the type of the given field name
-    /// Panics if the type is not a struct or tuple.
+    /// Retrieves the [Type] and [ItemVisibility] of the given field name:
+    /// * for structs, it finds a member with a matching name
+    /// * for tuples, it find the item by index, treating indexes as names "0", "1", ...
+    /// * otherwise returns `None`
     pub fn get_field_type_and_visibility(
         &self,
         field_name: &str,
@@ -2774,7 +2847,8 @@ impl std::fmt::Debug for Type {
             },
             Type::TypeVariable(var) => {
                 let binding = &var.1;
-                if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
+                let binding = &*binding.borrow();
+                if let TypeBinding::Unbound(_, type_var_kind) = binding {
                     match type_var_kind {
                         Kind::Any | Kind::Normal => write!(f, "{var:?}"),
                         Kind::IntegerOrField => write!(f, "IntOrField{binding:?}"),
@@ -2782,7 +2856,7 @@ impl std::fmt::Debug for Type {
                         Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
-                    write!(f, "{:?}", binding.borrow())
+                    write!(f, "{binding:?}")
                 }
             }
             Type::DataType(s, args) => {

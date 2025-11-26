@@ -8,7 +8,7 @@ use crate::{
         AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
         LoopStatement, Statement, StatementKind, WhileStatement,
     },
-    elaborator::PathResolutionTarget,
+    elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
@@ -93,8 +93,13 @@ impl Elaborator<'_> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirLetStatement, Type) {
-        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
-        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+        let no_type = let_stmt.r#type.is_none();
+        let wildcard_allowed = if global_id.is_some() {
+            WildcardAllowed::No(WildcardDisallowedContext::Global)
+        } else {
+            WildcardAllowed::Yes
+        };
+        let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
@@ -102,7 +107,7 @@ impl Elaborator<'_> {
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
-        if type_contains_unspecified && global_id.is_some() {
+        if global_id.is_some() && (no_type || annotated_type.contains_type_variable()) {
             let expected_type = annotated_type.clone();
             let error = ResolverError::UnspecifiedGlobalType {
                 pattern_location,
@@ -113,8 +118,14 @@ impl Elaborator<'_> {
         }
 
         let definition = match global_id {
-            None => DefinitionKind::Local(Some(expression)),
-            Some(id) => DefinitionKind::Global(id),
+            None => {
+                debug_assert!(!let_stmt.is_global_let);
+                DefinitionKind::Local(Some(expression))
+            }
+            Some(id) => {
+                debug_assert!(let_stmt.is_global_let);
+                DefinitionKind::Global(id)
+            }
         };
 
         // Now check if LHS is the same type as the RHS
@@ -131,12 +142,13 @@ impl Elaborator<'_> {
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
-        let pattern = self.elaborate_pattern_and_store_ids(
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let pattern = self.elaborate_pattern(
             let_stmt.pattern,
             r#type.clone(),
             definition,
-            &mut Vec::new(),
             warn_if_unused,
+            &mut parameter_names_in_list,
         );
 
         let attributes = let_stmt.attributes;
@@ -405,9 +417,7 @@ impl Elaborator<'_> {
                             super::PathResolutionMode::MarkAsUsed,
                         );
                         if let Ok(result) = result {
-                            for error in result.errors {
-                                self.push_err(error);
-                            }
+                            self.push_errors(result.errors);
                             self.push_err(ResolverError::Expected {
                                 location,
                                 expected: "value",
@@ -600,77 +610,6 @@ impl Elaborator<'_> {
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
         let let_ = self.interner.push_stmt_full(let_, location);
         Some((let_, ident_id))
-    }
-
-    /// Type checks a field access, adding dereference operators as necessary
-    pub(super) fn check_field_access(
-        &mut self,
-        lhs_type: &Type,
-        field_name: &str,
-        location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
-    ) -> Option<(Type, usize)> {
-        let lhs_type = lhs_type.follow_bindings();
-
-        match &lhs_type {
-            Type::DataType(s, args) => {
-                let s = s.borrow();
-                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
-                    self.interner.add_struct_member_reference(s.id, index, location);
-
-                    self.check_struct_field_visibility(&s, field_name, visibility, location);
-
-                    return Some((field, index));
-                }
-            }
-            Type::Tuple(elements) => {
-                if let Ok(index) = field_name.parse::<usize>() {
-                    let length = elements.len();
-                    if index < length {
-                        return Some((elements[index].clone(), index));
-                    } else {
-                        self.push_err(TypeCheckError::TupleIndexOutOfBounds {
-                            index,
-                            lhs_type,
-                            length,
-                            location,
-                        });
-                        return None;
-                    }
-                }
-            }
-            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
-            Type::Reference(element, mutable) => {
-                if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                    return self.check_field_access(
-                        element,
-                        field_name,
-                        location,
-                        Some(dereference_lhs),
-                    );
-                } else {
-                    let (element, index) =
-                        self.check_field_access(element, field_name, location, dereference_lhs)?;
-                    return Some((Type::Reference(Box::new(element), *mutable), index));
-                }
-            }
-            _ => (),
-        }
-
-        // If we get here the type has no field named 'access.rhs'.
-        // Now we specialize the error message based on whether we know the object type in question yet.
-        if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
-        } else if lhs_type != Type::Error {
-            self.push_err(TypeCheckError::AccessUnknownMember {
-                lhs_type,
-                field_name: field_name.to_string(),
-                location,
-            });
-        }
-
-        None
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {

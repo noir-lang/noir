@@ -21,6 +21,7 @@
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
 
 use crate::{
+    Type,
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
@@ -53,7 +54,7 @@ impl Elaborator<'_> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = std::mem::replace(&mut self.local_module, global.module_id);
+        let old_module = self.local_module.replace(global.module_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -69,6 +70,7 @@ impl Elaborator<'_> {
         };
 
         let location = let_stmt.pattern.location();
+        let type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
         // ABI attributes are only meaningful within contracts, so error if used elsewhere.
         if !self.in_contract() {
@@ -96,6 +98,12 @@ impl Elaborator<'_> {
         // All data in globals must be owned.
         if let_statement.r#type.contains_reference() {
             self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        if !let_statement.comptime && matches!(let_statement.r#type, Type::Quoted(_)) {
+            let typ = let_statement.r#type.to_string();
+            let location = type_location;
+            self.push_err(ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location });
         }
 
         let let_statement = HirStatement::Let(let_statement);

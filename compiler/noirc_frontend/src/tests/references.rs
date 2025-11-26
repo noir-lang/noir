@@ -3,6 +3,8 @@ use crate::{
     tests::{check_errors, get_program_using_features},
 };
 
+use super::assert_no_errors;
+
 #[test]
 fn cannot_mutate_immutable_variable() {
     let src = r#"
@@ -35,6 +37,34 @@ fn cannot_mutate_immutable_variable_on_member_access() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_field_of_mutable_reference() {
+    let src = r#"
+    struct Foo {
+        x: Field
+    }
+    
+    fn main() {
+        let mut foo = Foo { x: 5 };
+        let ref_foo = &mut foo;
+        let ref_x = &mut ref_foo.x;
+        *ref_x = 10;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn auto_dereferences_array_access() {
+    let src = r#"
+    fn main() {
+        let mut ref_array = &mut &mut &mut [0, 1, 2];
+        assert(ref_array[2] == 2);
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]

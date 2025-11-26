@@ -4,6 +4,7 @@ use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
+use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::instruction::{Endian, Hint, InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -13,7 +14,7 @@ use crate::ssa::ir::{
 };
 
 use super::brillig_black_box::convert_black_box_call;
-use crate::brillig::brillig_ir::brillig_variable::type_to_heap_value_type;
+use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, type_to_heap_value_type};
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts a foreign function call into Brillig bytecode.
@@ -45,9 +46,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let output_variables = self.allocate_external_call_results(result_ids, dfg);
 
         // Allocate heap typed values to receive the results.
-        let output_values = vecmap(&output_variables, |variable| {
-            self.brillig_context.variable_to_value_or_array(*variable)
-        });
+        let output_values = self.output_variables_to_destinations(&output_variables);
         let output_value_types = vecmap(result_ids, |value_id| {
             let value_type = dfg.type_of_value(*value_id);
             type_to_heap_value_type(&value_type)
@@ -62,39 +61,53 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             &output_value_types,
         );
 
-        // Pair up the heap-typed output values of the call with the Brillig variables created for the results.
+        // Pair up the heap typed output values of the call with the Brillig variables created for the results,
+        // so that we can do some post processing for vectors.
         for (i, (output_value, output_variable)) in
             output_values.iter().zip(output_variables).enumerate()
         {
-            match **output_value {
-                // Returned vectors need to emit some bytecode to format the result as a BrilligVector
-                ValueOrArray::HeapVector(heap_vector) => {
-                    // Adjust the metadata of the result variable.
-                    // The items don't need to be copied, since we passed the pointer to the items of the
-                    // array/vector variable in the heap array/vector.
-                    self.brillig_context.codegen_initialize_externally_returned_vector(
-                        output_variable.extract_vector(),
-                        heap_vector,
-                    );
-                    // Update the dynamic slice length maintained in SSA, a.k.a semantic length,
-                    // which is the parameter preceding the vector.
-                    if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
-                        let element_size = dfg[result_ids[i]].get_type().element_size();
-                        self.brillig_context.mov_instruction(length_addr, heap_vector.size);
-                        self.brillig_context.codegen_usize_op_in_place(
-                            length_addr,
-                            BrilligBinaryOp::UnsignedDiv,
-                            element_size,
-                        );
-                    } else {
-                        unreachable!(
-                            "ICE: a vector must be preceded by a register containing its length"
-                        );
-                    }
-                }
-                ValueOrArray::HeapArray(_) | ValueOrArray::MemoryAddress(_) => {}
+            // We need to emit some bytecode to format the output as a BrilligVector
+            let BrilligVariable::BrilligVector(vector) = output_variable else {
+                // Arrays and simple values are fine as they are.
+                continue;
+            };
+
+            let ValueOrArray::HeapVector(heap_vector) = **output_value else {
+                unreachable!("ICE: a BrilligVector is expected to have a HeapVector as output");
+            };
+
+            // Adjust the metadata of the result variable.
+            // The items don't need to be copied, since we passed the pointer to the items of the
+            // array/vector variable in the heap array/vector.
+            let flattened_size_var = self
+                .brillig_context
+                .codegen_initialize_externally_returned_vector(vector, &heap_vector);
+
+            // Update the dynamic slice length maintained in SSA, a.k.a semantic length,
+            // which is the parameter preceding the vector.
+            if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
+                // Calculate the semantic length as flattened_size / element_size.
+                let element_size = dfg[result_ids[i]].get_type().element_size();
+                self.brillig_context.mov_instruction(length_addr, flattened_size_var.address);
+                self.brillig_context.codegen_usize_op_in_place(
+                    length_addr,
+                    BrilligBinaryOp::UnsignedDiv,
+                    element_size,
+                );
+            } else {
+                unreachable!("ICE: a vector must be preceded by a register containing its length");
             }
         }
+    }
+
+    /// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
+    fn output_variables_to_destinations(
+        &mut self,
+        output_variables: &[BrilligVariable],
+    ) -> Vec<Allocated<ValueOrArray, Registers>> {
+        vecmap(output_variables, |variable| {
+            self.brillig_context.variable_to_value_or_array(*variable)
+        })
     }
 
     /// Converts a field less than comparison intrinsic to Brillig bytecode.

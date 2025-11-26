@@ -59,6 +59,9 @@ pub struct HirIdent {
 }
 
 impl HirIdent {
+    /// Create a [HirIdent] with [ImplKind::NotATraitMethod].
+    ///
+    /// It may not be a method at all.
     pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
         Self { id, location, impl_kind: ImplKind::NotATraitMethod }
     }
@@ -243,15 +246,26 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitItemId(DefinitionId, TraitId, TraitGenerics, bool /* assumed */),
+    TraitItemId(HirTraitMethodReference),
+}
+
+#[derive(Debug, Clone)]
+pub struct HirTraitMethodReference {
+    pub trait_id: TraitId,
+    pub definition: DefinitionId,
+    pub trait_generics: TraitGenerics,
+    pub assumed: bool,
 }
 
 impl HirMethodReference {
+    /// Return the [FuncId] of a method if it's known.
+    ///
+    /// Returns `None` for trait methods don't have a know function definition.
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
-            HirMethodReference::TraitItemId(method_id, _, _, _) => {
-                match &interner.try_definition(*method_id)?.kind {
+            HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) => {
+                match &interner.try_definition(*definition)?.kind {
                     DefinitionKind::Function(func_id) => Some(*func_id),
                     _ => None,
                 }
@@ -259,6 +273,8 @@ impl HirMethodReference {
         }
     }
 
+    /// Looks up definition of a function and its implementation kind (a normal function or a trait method),
+    /// and interns an identifier we can use to call the function.
     pub fn into_function_id_and_name(
         self,
         object_type: Type,
@@ -270,7 +286,12 @@ impl HirMethodReference {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitItemId(definition, trait_id, trait_generics, assumed) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed,
+            }) => {
                 let constraint = TraitConstraint {
                     typ: object_type,
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },

@@ -9,7 +9,10 @@ use noirc_driver::CompileOptions;
 
 use super::compile_cmd::compile_workspace_full;
 use super::{LockType, PackageOptions, WorkspaceCommand};
+use crate::cli::execute_cmd::interpret::run_comptime;
 use crate::errors::CliError;
+
+mod interpret;
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -37,6 +40,10 @@ pub(crate) struct ExecuteCommand {
     /// Path to the oracle transcript.
     #[clap(long, conflicts_with = "oracle_resolver")]
     oracle_file: Option<PathBuf>,
+
+    /// Force comptime execution
+    #[arg(long, hide = true)]
+    force_comptime: bool,
 }
 
 impl WorkspaceCommand for ExecuteCommand {
@@ -51,6 +58,10 @@ impl WorkspaceCommand for ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
+    if args.force_comptime {
+        return run_comptime(args, workspace);
+    }
+
     // Compile the full workspace in order to generate any build artifacts.
     let debug_compile_stdin = None;
     compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;

@@ -8,7 +8,10 @@ use acir::{
     },
 };
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use brillig_vm::{FailureReason, MEMORY_ADDRESSING_BIT_SIZE, MemoryValue, VM, VMStatus};
+use brillig_vm::{
+    FREE_MEMORY_POINTER_ADDRESS, FailureReason, MEMORY_ADDRESSING_BIT_SIZE, MemoryValue, VM,
+    VMStatus,
+};
 
 /// Helper to execute brillig code and return the VM
 fn brillig_execute_and_get_vm<'a, F: AcirField>(
@@ -963,6 +966,70 @@ fn field_zero_division_regression() {
         *status,
         VMStatus::Failure {
             reason: FailureReason::RuntimeError { message: "Attempted to divide by zero".into() },
+            call_stack: vec![2]
+        }
+    );
+}
+
+#[test]
+fn free_memory_pointer_out_of_memory() {
+    let calldata: Vec<FieldElement> = vec![];
+
+    // Addresses 0,1,2 are reserved.
+    let big_array_size_addr = MemoryAddress::Direct(3);
+
+    let free_memory_starting_slot = 4;
+
+    let opcodes = &[
+        // Set the free memory pointer to 4.
+        Opcode::Const {
+            destination: FREE_MEMORY_POINTER_ADDRESS,
+            value: free_memory_starting_slot.into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
+        // Create a constant that, if added to the free memory pointer,
+        // would wrap around to equal 0.
+        Opcode::Const {
+            destination: big_array_size_addr,
+            value: FieldElement::from(u32::MAX - free_memory_starting_slot as u32 + 1),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        },
+        // Increase the free memory pointer by the size of the hypothetical big array.
+        Opcode::BinaryIntOp {
+            destination: FREE_MEMORY_POINTER_ADDRESS,
+            op: BinaryIntOp::Add,
+            bit_size: MEMORY_ADDRESSING_BIT_SIZE,
+            lhs: FREE_MEMORY_POINTER_ADDRESS,
+            rhs: big_array_size_addr,
+        },
+        // Load 0 into slot 0, so the size pointer has somewhere to point.
+        Opcode::Const {
+            destination: MemoryAddress::Direct(0),
+            value: FieldElement::zero(),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        },
+        // We should not get to the stop opcode, but it's here to make sure `process_opcodes` exits.
+        Opcode::Stop {
+            return_data: HeapVector {
+                pointer: MemoryAddress::Direct(0),
+                size: MemoryAddress::Direct(0),
+            },
+        },
+    ];
+    let solver = StubbedBlackBoxSolver::default();
+    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
+
+    let status = vm.process_opcodes();
+    let memory = vm.take_memory();
+
+    // Check that the free memory pointer did not wrap around.
+    let free_memory_start = memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
+    assert!(free_memory_start.to_usize() >= free_memory_starting_slot);
+
+    assert_eq!(
+        status,
+        VMStatus::Failure {
+            reason: FailureReason::RuntimeError { message: "Out of memory".into() },
             call_stack: vec![2]
         }
     );

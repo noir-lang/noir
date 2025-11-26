@@ -469,10 +469,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -511,7 +508,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -524,7 +521,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert_eq!(let_statement.r#type.to_string(), "Field");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "Field");
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -566,6 +563,27 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_two_mut() {
+        let src = "
+        let mut mut x = 1;
+                ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let statement = parser.parse_statement().unwrap().0;
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "mut x");
+        assert!(let_statement.r#type.is_none());
+        assert_eq!(let_statement.expression.to_string(), "1");
+        assert!(!let_statement.comptime);
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
     }
 
     #[test]

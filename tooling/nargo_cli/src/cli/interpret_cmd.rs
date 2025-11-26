@@ -53,6 +53,10 @@ pub(super) struct InterpretCommand {
     /// If true, the interpreter will trace its execution.
     #[clap(long)]
     trace: bool,
+
+    /// Optional limit for the interpreter.
+    #[clap(long)]
+    step_limit: Option<usize>,
 }
 
 impl WorkspaceCommand for InterpretCommand {
@@ -129,7 +133,11 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             }
         });
 
-        let interpreter_options = InterpreterOptions { trace: args.trace, ..Default::default() };
+        let interpreter_options = InterpreterOptions {
+            trace: args.trace,
+            step_limit: args.step_limit,
+            ..Default::default()
+        };
         let file_manager =
             if args.compile_options.with_ssa_locations { Some(&file_manager) } else { None };
 

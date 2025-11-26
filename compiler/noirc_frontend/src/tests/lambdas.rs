@@ -55,6 +55,28 @@ fn infers_lambda_argument_from_call_function_type() {
 }
 
 #[test]
+fn infers_lambda_argument_from_call_function_tuple_type() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    fn call(f: (fn(Foo) -> Field, fn(Foo) -> Field)) -> (Field, Field) {
+        let v = Foo { value: 1 };
+        let (fa, fb) = f;
+        let a = fa(v);
+        let b = fb(v);
+        (a, b)
+    }
+
+    fn main() {
+        let _ = call((|foo| foo.value - 1, |foo| foo.value + 1));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn infers_lambda_argument_from_call_function_type_in_generic_call() {
     let src = r#"
     struct Foo {
@@ -474,8 +496,8 @@ fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
     let src = r#"
     fn main() {
         let mut x = 3;
-        let f = || { 
-            let inner = || mutate(&mut x); 
+        let f = || {
+            let inner = || mutate(&mut x);
                                        ^ Mutable variable x captured in lambda must be a mutable reference
                                        ~ Use '&mut' instead of 'mut' to capture a mutable variable.
             inner();
@@ -535,6 +557,19 @@ fn deny_attaching_mut_ref_to_immutable_object() {
                    ^^^ Cannot mutate immutable variable `foo`
         f();
         assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_lambda_parameter_name() {
+    let src = r#"
+    fn main() {
+        let _ = |x, x| { x + 1 };
+                    ^ duplicate definitions of x found
+                    ~ second definition found here
+                 ~ first definition found here
     }
     "#;
     check_errors(src);

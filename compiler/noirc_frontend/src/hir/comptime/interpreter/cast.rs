@@ -1,8 +1,5 @@
 use std::cmp::Ordering;
 
-use acvm::{AcirField, FieldElement};
-use noirc_errors::Location;
-
 use crate::{
     Type,
     ast::IntegerBitSize,
@@ -10,6 +7,8 @@ use crate::{
     shared::Signedness,
     signed_field::SignedField,
 };
+use acvm::{AcirField, FieldElement, acir::acir_field::truncate_to};
+use noirc_errors::Location;
 
 fn bit_size(typ: &Type) -> u32 {
     match typ {
@@ -66,15 +65,7 @@ fn classify_cast(input: &Type, output: &Type) -> CastType {
 
 fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
     match kind {
-        CastType::Truncate { new_bit_size } => {
-            // This performs a truncation to u128 but all types should be <= 128 bits anyway
-            let lhs = lhs.to_u128();
-            if new_bit_size == 128 {
-                return lhs.into();
-            }
-            let mask = 2u128.pow(new_bit_size) - 1;
-            FieldElement::from(lhs & mask)
-        }
+        CastType::Truncate { new_bit_size } => truncate_to(&lhs, new_bit_size),
         CastType::SignExtend { old_bit_size, new_bit_size } => {
             assert!(new_bit_size <= 128);
             let max_positive_value = 2u128.pow(old_bit_size - 1) - 1;
@@ -140,10 +131,8 @@ pub(super) fn evaluate_cast_one_step(
     match output_type.follow_bindings() {
         Type::FieldElement => Ok(Value::Field(SignedField::new(lhs, lhs_is_negative))),
         typ @ Type::Integer(sign, bit_size) => match (sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ: output_type.clone(), location })
-            }
             // These casts are expected to be no-ops
+            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U1(lhs.to_u128() != 0)),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(lhs.to_u128() as u8)),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(lhs.to_u128() as u16)),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {

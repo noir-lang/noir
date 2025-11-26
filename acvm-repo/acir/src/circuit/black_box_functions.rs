@@ -92,15 +92,16 @@ impl BlackBoxFunc {
         match self {
             BlackBoxFunc::RecursiveAggregation
             | BlackBoxFunc::MultiScalarMul
-            | BlackBoxFunc::EmbeddedCurveAdd => true,
+            | BlackBoxFunc::EmbeddedCurveAdd
+            | BlackBoxFunc::EcdsaSecp256k1
+            | BlackBoxFunc::EcdsaSecp256r1
+            | BlackBoxFunc::RANGE => true,
+
             BlackBoxFunc::AES128Encrypt
             | BlackBoxFunc::AND
             | BlackBoxFunc::XOR
-            | BlackBoxFunc::RANGE
             | BlackBoxFunc::Blake2s
             | BlackBoxFunc::Blake3
-            | BlackBoxFunc::EcdsaSecp256k1
-            | BlackBoxFunc::EcdsaSecp256r1
             | BlackBoxFunc::Keccakf1600
             | BlackBoxFunc::Poseidon2Permutation
             | BlackBoxFunc::Sha256Compression => false,

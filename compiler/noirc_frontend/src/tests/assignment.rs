@@ -402,6 +402,131 @@ fn nested_struct_patterns() {
 }
 
 #[test]
+fn struct_pattern_with_mismatched_type() {
+    let src = r#"
+    struct Foo { x: Field }
+    struct Bar { y: u32 }
+
+    fn main() {
+        let value: Bar = Bar { y: 5 };
+        let Foo { x } = value;
+            ^^^^^^^^^ Cannot assign an expression of type Foo to a value of type Bar
+        // x should have type Field (from Foo), so the next line should error
+        let _check: u32 = x;
+                          ^ Expected type u32, found type Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_with_non_struct_type() {
+    let src = r#"
+    fn main() {
+        let x: Field = 1;
+        let MyStruct { a: _, b: _ } = x;
+            ^^^^^^^^^^^^^^^^^^^^^^^ Cannot assign an expression of type MyStruct to a value of type Field
+    }
+
+    struct MyStruct {
+        a: Field,
+        b: Field,
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_with_error_type() {
+    let src = r#"
+    fn main() {
+        let value = MyStruct { x: 1, y: 2 };
+        let MyStruct { x: _, y: _ }: DoesNotExist = value;
+                                     ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+
+    struct MyStruct {
+        x: Field,
+        y: Field, 
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_with_error_type_and_missing_fields() {
+    let src = r#"
+    fn main() {
+        let value = MyStruct { x: 1, y: 2 };
+        let MyStruct { x: _ }: DoesNotExist = value;
+                               ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+            ^^^^^^^^^^^^^^^^^ missing field y in struct MyStruct
+    }
+
+    struct MyStruct {
+        x: Field,
+        y: Field, 
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_with_nonexistent_struct() {
+    let src = r#"
+    fn main() {
+        let value = (1, 2);
+        let NonExistent { x, y } = value;
+            ^^^^^^^^^^^ Could not resolve 'NonExistent' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_with_non_struct_type_name() {
+    let src = r#"
+    fn main() {
+        let x = 5;
+        let Field { value } = x;
+            ^^^^^ expected type got primitive type
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn parenthesized_pattern() {
+    let src = r#"
+        fn main() {
+            // Parenthesized identifier
+            let (x) = 5;
+            assert(x == 5);
+
+            // Parenthesized tuple pattern
+            let ((a, b)) = (1, 2);
+            assert(a == 1);
+            assert(b == 2);
+
+            // Multiple levels of parentheses
+            let (((c))) = 10;
+            assert(c == 10);
+
+            // Parenthesized struct pattern
+            let (Foo { x, y }) = Foo { x: 1, y: 2 };
+            assert(x == 1);
+            assert(y == 2);
+        }
+
+        struct Foo {
+            x: Field,
+            y: Field,
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn tuple_pattern_arity_mismatch() {
     let src = r#"
         fn main() {
@@ -410,6 +535,55 @@ fn tuple_pattern_arity_mismatch() {
                 ^^^^^^^^ Expected a tuple with 3 elements, found one with 2 elements
                 ~~~~~~~~ The expression the tuple is assigned to has type `(Field,Field,Field)`
         }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn tuple_pattern_with_non_tuple_type() {
+    let src = r#"
+    fn main() {
+        let x: Field = 1;
+        let (_a, _b) = x;
+            ^^^^^^^^ Cannot assign an expression of type (_, _) to a value of type Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn tuple_pattern_with_error_type() {
+    // When the expected type is Error (from a previous type resolution failure),
+    // we should not issue confusing cascading errors about invalid fields.
+    let src = r#"
+    fn main() {
+        let x = 1;
+        let (_a, _b): DoesNotExist = x;
+                      ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicated_mut_in_basic_let_pattern() {
+    let src = r#"
+    fn main() {
+        let mut mut _x = 1;
+                ^^^ `mut` on a binding cannot be repeated
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicated_mut_in_nested_pattern() {
+    let src = r#"
+    fn main() {
+        let mut (_a, mut (_b, _c)) = (1, (2, 3));
+                     ^^^^^^^^^^^^ 'mut' here is not necessary
+            ~~~~~~~~~~~~~~~~~~~~~~ Pattern was already made mutable from this 'mut'
+    }
     "#;
     check_errors(src);
 }
@@ -432,6 +606,33 @@ fn dereference_in_lvalue() {
             let y = &mut &mut 20;
             **y = 30;
             assert(**y == 30);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_chain_in_tuple_member_access() {
+    // Ensure that references appearing in the middle of a member access chain are properly dereferenced.
+    //
+    // 1. `x` has type `(&mut (u32, &mut (u32, u32)), u32)`
+    // 2. Accessing `.0` yields `&mut (u32, &mut (u32, u32))`
+    // 3. Must dereference to get `(u32, &mut (u32, u32))`
+    // 4. Accessing `.1` yields `&mut (u32, u32)`
+    // 5. Must dereference to get `(u32, u32)`
+    // 6. Accessing `.0` yields `u32`
+    let src = r#"
+        fn main() {
+            let inner = &mut (10, 20);
+            let outer = &mut (5, inner);
+            let mut x = (outer, 99);
+
+            x.0.1.0 = 42;
+
+            assert(x.0.1.0 == 42);
+            assert(x.0.1.1 == 20);
+            assert(x.0.0 == 5);
+            assert(x.1 == 99);
         }
     "#;
     assert_no_errors(src);
@@ -469,6 +670,53 @@ fn assigning_to_string_index() {
             s[0] = "x";
             ^ Strings do not support indexed assignment
         }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_pattern_name_in_let_tuple_0_1() {
+    let src = r#"
+    fn main() -> pub Field {
+        let (x, x) = (1, 2);
+                ^ Identifier `x` is bound more than once in the same pattern
+                ~ Used in a pattern more than once
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_pattern_name_in_let_tuple_0_struct() {
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+
+    fn main() -> pub Field {
+        let (x, Foo { x }) = (1, Foo { x: 2 });
+                      ^ Identifier `x` is bound more than once in the same pattern
+                      ~ Used in a pattern more than once
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_pattern_name_in_let_struct_tuple_1() {
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+
+    fn main() -> pub Field {
+        let (Foo { x }, x) = (Foo { x: 1 }, 2);
+                        ^ Identifier `x` is bound more than once in the same pattern
+                        ~ Used in a pattern more than once
+        x
+    }
     "#;
     check_errors(src);
 }

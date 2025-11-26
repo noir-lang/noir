@@ -9,10 +9,12 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
-use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
+use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem};
+use crate::hir_def::expr::{
+    HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
+};
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 use crate::{Kind, Type, TypeBindings};
@@ -35,9 +37,9 @@ impl Elaborator<'_> {
         let definition_id = expr.id;
 
         if let Some(PathResolutionItem::TypeAlias(alias)) = item {
-            // A type alias to a numeric generics is considered like a variable
-            // but it is not a real variable so it does not resolve to a valid Identifier
-            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            // A type alias to a numeric generics is considered like a variable,
+            // but it is not a real variable so it does not resolve to a valid Identifier.
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
@@ -58,16 +60,7 @@ impl Elaborator<'_> {
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::default();
-
-        // Resolve any generics if we the variable we have resolved is a function
-        // and if the turbofish operator was used.
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
-            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
-        } else {
-            None
-        };
-
-        if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -90,7 +83,13 @@ impl Elaborator<'_> {
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
                 }
             }
-        }
+
+            // Resolve any generics if the variable we have resolved is a function
+            // and if the turbofish operator was used.
+            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
+        } else {
+            None
+        };
 
         let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
 
@@ -127,9 +126,9 @@ impl Elaborator<'_> {
     /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
     /// resolves to a primitive type.
     ///
-    /// In the first case we elaborate this as if it were a TypePath
+    /// In the first case we elaborate this as if it were a [TypePath]
     /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason `TypePath` exists.
+    /// A regular path lookup won't work here for the same reason [TypePath] exists.
     ///
     /// In the second case we solve the associated constant by looking up its value, later
     /// turning it into a literal.
@@ -166,11 +165,10 @@ impl Elaborator<'_> {
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
 
+    /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
     fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
-            for error in trait_path_resolution.errors {
-                self.push_err(error);
-            }
+            self.push_errors(trait_path_resolution.errors);
 
             return match trait_path_resolution.method {
                 TraitPathResolutionMethod::NotATraitMethod(func_id) => (
@@ -190,6 +188,16 @@ impl Elaborator<'_> {
                     },
                     trait_path_resolution.item,
                 ),
+
+                TraitPathResolutionMethod::MultipleTraitsInScope => {
+                    // An error has already been pushed, return a dummy identifier
+                    let hir_ident = HirIdent {
+                        location: path.location,
+                        id: DefinitionId::dummy_id(),
+                        impl_kind: ImplKind::NotATraitMethod,
+                    };
+                    (hir_ident, trait_path_resolution.item)
+                }
             };
         }
 
@@ -260,15 +268,18 @@ impl Elaborator<'_> {
                 (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let typ = self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
-                let generics = match typ {
-                    Type::String(length) => {
-                        vec![*length]
+                let (typ, has_generics) =
+                    self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let generics = if has_generics {
+                    match typ {
+                        Type::String(length) => vec![*length],
+                        Type::FmtString(length, element) => vec![*length, *element],
+                        _ => {
+                            unreachable!("ICE: Primitive type has been specified to have generics")
+                        }
                     }
-                    Type::FmtString(length, element) => {
-                        vec![*length, *element]
-                    }
-                    _ => Vec::new(),
+                } else {
+                    Vec::new()
                 };
                 (generics, None)
             }
@@ -289,7 +300,7 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(path.typ, wildcard_allowed);
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
@@ -328,10 +339,15 @@ impl Elaborator<'_> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitItemId(definition, trait_id, generics, _) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed: _,
+            }) => {
                 let mut constraint =
                     self.interner.get_trait(trait_id).as_constraint(ident_location);
-                constraint.trait_bound.trait_generics = generics;
+                constraint.trait_bound.trait_generics = trait_generics;
                 ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };
@@ -346,6 +362,11 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    /// Given an [HirIdent], look up its definition, and:
+    /// * mark it as referenced at the ident [Location] (LSP mode only)
+    /// * mark the item currently being elaborated as a dependency of it
+    /// * elaborate a global definition, if needed
+    /// * add local identifiers to lambda captures
     pub(crate) fn handle_hir_ident(
         &mut self,
         hir_ident: &HirIdent,
@@ -395,6 +416,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Starting with empty bindings, perform the type checking of an interned expression
+    /// and a corresponding identifier, returning the instantiated [Type].
     pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
@@ -413,6 +436,11 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Perform the type checking of an interned expression and a corresponding identifier,
+    /// returning the instantiated [Type].
+    ///
+    /// If `push_required_type_variables`, the bindings are added to the function context,
+    /// to be checked before it's finished.
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
@@ -531,6 +559,11 @@ impl Elaborator<'_> {
         typ
     }
 
+    /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+    /// extended from any turbofish generics.
+    ///
+    /// If there are turbofish generics and their number matches the expectations of the function,
+    /// those are used as well, otherwise they are ignored and an error is pushed.
     fn instantiate(
         &mut self,
         typ: Type,
@@ -569,6 +602,11 @@ impl Elaborator<'_> {
     }
 }
 
+/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+/// recursively expanding the generics aliased aliases, finally returning the generics of the
+/// innermost aliased struct.
+///
+/// Panics if it encounters a type other than alias or struct.
 fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
     let typ = type_alias.get_type(generics);
     match typ {

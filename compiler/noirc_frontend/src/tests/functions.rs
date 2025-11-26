@@ -198,3 +198,61 @@ fn cannot_return_slice_from_main() {
         "#;
     check_errors(src);
 }
+
+#[test]
+fn builtin_function_with_body() {
+    let src = r#"
+    #[builtin(foo)]
+    ^^^^^^^^^^^^^^^ Definition of low-level function outside of standard library
+    ~~~~~~~~~~~~~~~ Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+    pub fn foo() {
+           ^^^ Builtin and low-level function declarations cannot have a body
+           ~~~ This function body should be removed
+        let x = 1;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_parameter_name() {
+    let src = r#"
+    fn main(x: i32, x: i32) {
+                    ^ duplicate definitions of x found
+                    ~ second definition found here
+            ~ first definition found here
+        let _ = x;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn non_entry_point_main() {
+    let src = r#"
+    mod moo {
+        pub fn main() -> i32 {
+            1
+        }
+    }
+
+    pub struct Foo {}
+    impl Foo {
+        pub fn main() -> i32 {
+            1
+        }
+    }
+
+    pub trait Trait {
+        fn main() -> i32;
+    }
+    impl Trait for Foo {
+        fn main() -> i32 {
+            1
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

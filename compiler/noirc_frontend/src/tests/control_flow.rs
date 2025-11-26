@@ -122,6 +122,21 @@ fn errors_on_if_without_else_type_mismatch() {
 }
 
 #[test]
+fn if_else_type_mismatch() {
+    let src = r#"
+    fn main() {
+        let _x = if true {
+            let _ = 1;
+        } else {
+            2
+            ^ Expected type (), found type Field
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_empty_loop_no_break() {
     let src = r#"
     fn main() {

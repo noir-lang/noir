@@ -1,173 +1,168 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-
 use acvm::{AcirField, acir::brillig::MemoryAddress};
+
+use crate::brillig::brillig_ir::registers::Stack;
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
-/// Map sources to potentially multiple destinations.
-///
-/// Using a BTree so we get deterministic loop detection.
-type MovementsMap = BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>;
-
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Map sources to potentially multiple destinations.
     /// This function moves values from a set of registers to another set of registers.
-    ///
-    /// The only requirement is that every destination needs to be written at most once.
-    /// The same source can be copied to multiple destinations.
-    ///
-    /// The method detects cycles in the movements and breaks them by introducing
-    /// temporary registers.
+    /// It assumes that:
+    /// - every destination needs to be written at most once. Will panic if not.
+    /// - destinations are relative addresses, starting from 1 and consecutively incremented by one. Will panic if not
+    /// - sources are any relative addresses, and can also be direct address to the global space. TODO: panic if not
+    /// - sources and destinations have same length. Will panic if not.
     pub(crate) fn codegen_mov_registers_to_registers(
         &mut self,
         sources: &[MemoryAddress],
         destinations: &[MemoryAddress],
     ) {
         assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
-
-        // Remove all no-ops
-        let movements =
-            sources.iter().zip(destinations).filter(|(source, destination)| source != destination);
-
-        // Now we need to detect all cycles.
-        // First build a map of the movements. Note that a source could have multiple destinations
-        let mut movements_map = movements.into_iter().fold(
-            MovementsMap::default(),
-            |mut map, (source, destination)| {
-                map.entry(*source).or_default().insert(*destination);
-                map
-            },
-        );
-
-        // Unique addresses that get anything moved into them.
-        let destinations_set: BTreeSet<_> = movements_map.values().flatten().copied().collect();
-
-        // Ensure that all destinations are unique.
-        assert_eq!(
-            destinations_set.len(),
-            movements_map.values().flatten().count(),
-            "Multiple moves to the same register found"
-        );
-
-        let loops = LoopDetector::detect_loops(&movements_map);
-
-        // In order to break the loops we need to store one register from each in a temporary and then use that temporary as source.
-        let mut temporaries = Vec::with_capacity(loops.len());
-
-        for loop_found in loops {
-            let temp_register = self.allocate_register();
-            let first_source = loop_found.get_min().unwrap();
-            self.mov_instruction(*temp_register, *first_source);
-            let destinations_of_temp = movements_map.remove(first_source).unwrap();
-            movements_map.insert(*temp_register, destinations_of_temp);
-            temporaries.push(temp_register);
-        }
-
-        // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
-        // Now we should be able to move the registers just by performing a DFS on the movements map.
-        // Starting from the head of movement sequences, anything else should be reachable from them by following the paths.
-        let heads: Vec<_> = movements_map
-            .keys()
-            .filter(|source| !destinations_set.contains(source))
-            .copied()
-            .collect();
-
-        for head in heads {
-            self.perform_movements(&movements_map, head);
-        }
-    }
-
-    /// Starting from the head do a DFS through the movements to find the last destination,
-    /// then generate movement opcodes _backwards_, unraveling the DFS path.
-    ///
-    /// By doing so, we can have a series of moves such as `[1->2, 2->3]` which become opcodes
-    /// `[3<-2, 2<-1]`, avoiding having 2 overwritten by 1 before it could be copied to 3.
-    fn perform_movements(&mut self, movements: &MovementsMap, current_source: MemoryAddress) {
-        if let Some(destinations) = movements.get(&current_source) {
-            for destination in destinations {
-                self.perform_movements(movements, *destination);
-            }
-            for destination in destinations {
-                self.mov_instruction(*destination, current_source);
-            }
-        }
-    }
-}
-
-/// A set of addresses that were part of a loop in the movements.
-///
-/// They are ordered by their value, not their appearance in the loop.
-/// The order provides determinism when we try to break the loop.
-///
-/// Using an immutable data structure for structural sharing during DFS.
-type AddressLoop = im::OrdSet<MemoryAddress>;
-
-struct LoopDetector {
-    visited_sources: HashSet<MemoryAddress>,
-    loops: Vec<AddressLoop>,
-}
-
-impl LoopDetector {
-    /// Detect all loops in a series of movements.
-    ///
-    /// Returns a list of all loops detected.
-    fn detect_loops(
-        movements: &BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>,
-    ) -> Vec<AddressLoop> {
-        let mut detector = Self { visited_sources: Default::default(), loops: Default::default() };
-        detector.collect_loops(movements);
-        detector.loops
-    }
-
-    fn collect_loops(&mut self, movements: &MovementsMap) {
-        for source in movements.keys() {
-            self.find_loop_recursive(
-                *source,
-                movements,
-                im::OrdSet::default(),
-                im::Vector::default(),
-            );
-        }
-    }
-
-    fn find_loop_recursive(
-        &mut self,
-        source: MemoryAddress,
-        movements: &MovementsMap,
-        mut sources_in_path: im::OrdSet<MemoryAddress>,
-        mut source_path: im::Vector<MemoryAddress>,
-    ) {
-        // Mark as visited
-        if !self.visited_sources.insert(source) {
-            return;
-        }
-
-        sources_in_path.insert(source);
-        source_path.push_back(source);
-
-        // Get all destinations (this can be empty when we treat destinations as sources during recursion).
-        if let Some(destinations) = movements.get(&source) {
-            for destination in destinations {
-                if sources_in_path.contains(destination) {
-                    // Found a loop; find the suffix that is contained in the loop.
-                    let idx = source_path.index_of(destination).unwrap();
-                    let loop_sources = AddressLoop::from_iter(source_path.skip(idx));
-                    self.loops.push(loop_sources);
-                } else {
-                    self.find_loop_recursive(
-                        *destination,
-                        movements,
-                        sources_in_path.clone(),
-                        source_path.clone(),
-                    );
+        let n = sources.len();
+        let mut processed = 0;
+        // Compute the number of destinations for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
+        let mut num_destinations = vec![0; n];
+        for i in 0..n {
+            // Check that destinations are relatives to 0,..,n-1
+            assert_eq!(to_index(&destinations[i]), Some(i));
+            if let Some(index) = to_index(&sources[i]) {
+                if index < n && index != i {
+                    num_destinations[index] += 1;
                 }
             }
         }
+
+        // Process all sinks in the graph and follow their parents.
+        // Keep track of nodes having more than 2 destinations, in case they belong to a loop.
+        let mut tail_candidates = Vec::new();
+        for i in 0..n {
+            // Generate a movement for each sink in the graph
+            let mut node = i;
+            // A sink has no child
+            while num_destinations[node] == 0 {
+                if to_index(&sources[node]) == Some(node) {
+                    //no-op: mark the node as processed
+                    num_destinations[node] = usize::MAX;
+                    processed += 1;
+                    break;
+                }
+                // Generates a move instruction
+                self.perform_movement(node, sources[node], &mut num_destinations, &mut processed);
+                // Follow the parent
+                if let Some(index) = to_index(&sources[node]) {
+                    if index < n {
+                        num_destinations[index] -= 1;
+                        if num_destinations[index] > 0 {
+                            // The parent node has another child, so we cannot process it yet.
+                            tail_candidates.push((sources[node], node));
+                            break;
+                        }
+                        // process the parent node
+                        node = index;
+                        continue;
+                    }
+                }
+                // End of the path
+                break;
+            }
+            if processed == n {
+                return;
+            }
+        }
+        // All sinks and their parents have been processed, remaining nodes are part of a loop
+        // Check if a tail_candidate is a branch to a loop
+        for (entry, free) in tail_candidates {
+            let entry_idx = to_index(&entry).unwrap();
+            if entry_idx < n && num_destinations[entry_idx] == 1 {
+                // Use the branch as the temporary register for the loop
+                self.process_loop(
+                    entry_idx,
+                    &from_index(free),
+                    &mut num_destinations,
+                    sources,
+                    &mut processed,
+                );
+            }
+        }
+        if processed == n {
+            return;
+        }
+        // Now process all the remaining loops with a temporary register.
+        // Allocate one temporary per loop to avoid type confusion when reusing registers,
+        // since different loops may contain values of different types.
+        for i in 0..n {
+            if num_destinations[i] == 1 {
+                let src = from_index(i);
+                // Copy the loop entry to a temporary register.
+                // Unfortunately, we cannot use one register for all the loops
+                // when the sources do not have the same type
+                let temp_register = self.registers_mut().allocate_register();
+                self.mov_instruction(temp_register, src);
+                self.process_loop(
+                    i,
+                    &temp_register,
+                    &mut num_destinations,
+                    sources,
+                    &mut processed,
+                );
+                self.deallocate_register(temp_register);
+            } else {
+                // Nodes must have been processed, or are part of a loop.
+                assert_eq!(num_destinations[i], usize::MAX);
+            }
+        }
     }
+
+    /// Generates mov opcodes corresponding to a loop, given a node from the loop (entry)
+    /// and a register not in the loop that contains its value (free)
+    fn process_loop(
+        &mut self,
+        entry: usize,
+        free: &MemoryAddress,
+        num_destinations: &mut [usize],
+        source: &[MemoryAddress],
+        processed: &mut usize,
+    ) {
+        let mut current = entry;
+        while to_index(&source[current]).unwrap() != entry {
+            self.perform_movement(current, source[current], num_destinations, processed);
+            current = to_index(&source[current]).unwrap();
+        }
+        self.perform_movement(current, *free, num_destinations, processed);
+    }
+
+    /// Generates a move opcode from 'src' to 'dest'.
+    fn perform_movement(
+        &mut self,
+        dest: usize,
+        src: MemoryAddress,
+        num_destinations: &mut [usize],
+        processed: &mut usize,
+    ) {
+        let destination = from_index(dest);
+        self.mov_instruction(destination, src);
+        // set the node as 'processed'
+        num_destinations[dest] = usize::MAX;
+        *processed += 1;
+    }
+}
+
+/// Map the address so that the first register of the stack will have index 0
+fn to_index(adr: &MemoryAddress) -> Option<usize> {
+    match adr {
+        MemoryAddress::Relative(size) => Some(size - Stack::start()),
+        MemoryAddress::Direct(_) => None,
+    }
+}
+
+/// Construct the register corresponding to the given mapped 'index'
+fn from_index(idx: usize) -> MemoryAddress {
+    assert!(idx != usize::MAX, "invalid index");
+    MemoryAddress::Relative(idx + Stack::start())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
 
     use acvm::{
         FieldElement,
@@ -181,74 +176,11 @@ mod tests {
             brillig_ir::{
                 BrilligContext, LayoutConfig,
                 artifact::Label,
-                codegen_stack::{LoopDetector, MovementsMap},
-                registers::Stack,
+                registers::{RegisterAllocator, Stack},
             },
         },
         ssa::ir::function::FunctionId,
     };
-
-    // Tests for the loop finder
-
-    /// Generate a movements map from test data, turning numbers into relative addresses.
-    fn generate_movements_map(movements: Vec<(usize, usize)>) -> MovementsMap {
-        movements.into_iter().fold(BTreeMap::default(), |mut map, (source, destination)| {
-            map.entry(MemoryAddress::relative(source))
-                .or_default()
-                .insert(MemoryAddress::relative(destination));
-            map
-        })
-    }
-
-    #[test]
-    fn test_loop_detector_basic_loop() {
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 0)];
-        let movements_map = generate_movements_map(movements);
-        let loops = LoopDetector::detect_loops(&movements_map);
-        assert_eq!(loops.len(), 1);
-        assert_eq!(loops[0].len(), 4);
-    }
-
-    #[test]
-    fn test_loop_detector_loop_with_init() {
-        // 0->1->2->3->1
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 1)];
-        let movements_map = generate_movements_map(movements);
-        let loops = LoopDetector::detect_loops(&movements_map);
-        assert_eq!(loops.len(), 1);
-        assert_eq!(
-            loops[0],
-            im::OrdSet::from_iter([1, 2, 3].map(MemoryAddress::relative)),
-            "Only the blocks actually in the loop should be included"
-        );
-    }
-
-    #[test]
-    fn test_loop_detector_no_loop() {
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 4)];
-        let movements_map = generate_movements_map(movements);
-        let loops = LoopDetector::detect_loops(&movements_map);
-        assert_eq!(loops.len(), 0);
-    }
-
-    #[test]
-    fn test_loop_detector_loop_with_branch() {
-        let movements = vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4)];
-        let movements_map = generate_movements_map(movements);
-        let loops = LoopDetector::detect_loops(&movements_map);
-        assert_eq!(loops.len(), 1);
-        assert_eq!(loops[0].len(), 3);
-    }
-
-    #[test]
-    fn test_loop_detector_two_loops() {
-        let movements = vec![(0, 1), (1, 2), (2, 0), (3, 4), (4, 5), (5, 3)];
-        let movements_map = generate_movements_map(movements);
-        let loops = LoopDetector::detect_loops(&movements_map);
-        assert_eq!(loops.len(), 2);
-        assert_eq!(loops[0].len(), 3);
-        assert_eq!(loops[1].len(), 3);
-    }
 
     // Tests for mov_registers_to_registers
 
@@ -294,9 +226,11 @@ mod tests {
         movements: Vec<(usize, usize)>,
         expected_moves: Vec<(usize, usize)>,
     ) {
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-
         let mut context = create_context();
+        for _ in 0..movements.len() {
+            context.registers_mut().allocate_register();
+        }
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
         context.codegen_mov_registers_to_registers(&sources, &destinations);
 
         let opcodes = context.artifact().byte_code;
@@ -305,54 +239,78 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Multiple moves to the same register found")]
+    fn test_no_op() {
+        let movements = vec![(1, 1), (2, 2), (1, 3), (2, 4)];
+        assert_generated_opcodes(movements, vec![(1, 3), (2, 4)]);
+    }
+
+    #[test]
+    #[should_panic]
     fn test_mov_registers_to_registers_overwrite() {
-        let movements = vec![(10, 11), (12, 11), (10, 13)];
+        let movements = vec![(10, 1), (12, 1), (10, 3)];
         assert_generated_opcodes(movements, vec![]);
     }
 
     #[test]
-    fn test_mov_registers_to_registers_no_loop() {
-        let movements = vec![(10, 11), (11, 12), (12, 13), (13, 14)];
-        let expected_moves = vec![(13, 14), (12, 13), (11, 12), (10, 11)];
-        assert_generated_opcodes(movements, expected_moves);
-    }
-    #[test]
-    fn test_mov_registers_to_registers_no_op_filter() {
-        let movements = vec![(10, 11), (11, 11), (11, 12)];
-        let expected_moves = vec![(11, 12), (10, 11)];
-        assert_generated_opcodes(movements, expected_moves);
+    fn test_basic_no_loop() {
+        let movements = vec![(2, 1), (3, 2), (4, 3), (5, 4)];
+        assert_generated_opcodes(movements, vec![(2, 1), (3, 2), (4, 3), (5, 4)]);
     }
 
     #[test]
-    fn test_mov_registers_to_registers_loop() {
-        let movements = vec![(10, 11), (11, 12), (12, 13), (13, 10)];
-        let expected_moves = vec![(10, 1), (13, 10), (12, 13), (11, 12), (1, 11)];
-        assert_generated_opcodes(movements, expected_moves);
+    fn test_basic_loop() {
+        let movements = vec![(4, 1), (1, 2), (2, 3), (3, 4)];
+        assert_generated_opcodes(movements, vec![(1, 5), (4, 1), (3, 4), (2, 3), (5, 2)]);
     }
 
     #[test]
-    fn test_mov_registers_to_registers_loop_and_branch() {
-        let movements = vec![(10, 11), (11, 12), (12, 10), (10, 13), (13, 14)];
-        let expected_moves = vec![
-            (10, 1),  // Temporary
-            (12, 10), // Branch
-            (11, 12), // Loop
-            (13, 14), // Loop
-            (1, 11),  // Finish branch
-            (1, 13),  // Finish loop
-        ];
-        assert_generated_opcodes(movements, expected_moves);
+    fn test_no_loop() {
+        let movements = vec![(6, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
+        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (6, 1)]);
     }
 
     #[test]
-    #[should_panic(expected = "Multiple moves to the same register found")]
-    fn test_mov_registers_to_registers_loop_with_init() {
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 2)];
-        assert_generated_opcodes(movements, vec![]);
+    fn test_loop_with_branch() {
+        let movements = vec![(3, 1), (1, 2), (2, 3), (1, 4), (4, 5)];
+        assert_generated_opcodes(movements, vec![(4, 5), (1, 4), (3, 1), (2, 3), (4, 2)]);
     }
 
-    /// Test that random movements have the expected effect.
+    #[test]
+    fn test_two_loops() {
+        let movements = vec![(3, 1), (1, 2), (2, 3), (6, 4), (4, 5), (5, 6)];
+        assert_generated_opcodes(
+            movements,
+            vec![(1, 7), (3, 1), (2, 3), (7, 2), (4, 7), (6, 4), (5, 6), (7, 5)],
+        );
+    }
+
+    #[test]
+    fn test_another_loop_with_branch() {
+        let movements = vec![(2, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
+        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (3, 1)]);
+    }
+    #[test]
+    fn test_one_loop() {
+        let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
+        assert_generated_opcodes(movements, vec![(1, 6), (2, 1), (4, 2), (3, 4), (5, 3), (6, 5)]);
+    }
+
+    /// This creates a chain (N+1)->1->2->...->N where N is large enough to overflow the stack
+    #[test]
+    fn test_deep_chain() {
+        // Each movement is i -> i+1, creating a single long chain
+        const CHAIN_DEPTH: usize = 10_000;
+
+        let mut movements: Vec<(usize, usize)> = (0..CHAIN_DEPTH).map(|i| (i, i + 1)).collect();
+        movements[0] = (CHAIN_DEPTH + 1, 1);
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        let mut context = create_context();
+
+        // This should overflow the stack with recursive implementation
+        context.codegen_mov_registers_to_registers(&sources, &destinations);
+    }
+
     #[test]
     fn prop_mov_registers_to_registers() {
         const MEM_SIZE: usize = 10;
@@ -369,13 +327,8 @@ mod tests {
 
             // All potential memory slots; we can't address before the stack start.
             let all_indexes = (0..MEM_SIZE).map(|i| i + Stack::start()).collect::<Vec<_>>();
-            let mut destinations = all_indexes.clone();
 
-            // Shuffle the destinations; using the random numbers in memory as key.
-            destinations.sort_by_key(|i| memory[*i]);
-
-            // Keep the first N destinations.
-            destinations.truncate(num_destinations);
+            let destinations: Vec<usize> = (1..num_destinations + 1).collect();
 
             // Pick random sources for each destination (same source can be repeated).
             let mut sources = Vec::with_capacity(num_destinations);

@@ -13,9 +13,9 @@ use crate::option::Option;
 /// variables will appear as the type they are bound to.
 ///
 /// This can be used in conjunction with functions which internally perform type checks
-/// such as `Type::implements` or `Type::get_trait_impl` to potentially grab some of the types used.
+/// such as [`Type::implements`] or [`Type::get_trait_impl`] to potentially grab some of the types used.
 ///
-/// Note that calling `Type::implements` or `Type::get_trait_impl` on a type variable will always
+/// Note that calling [`Type::implements`] or [`Type::get_trait_impl`] on a type variable will always
 /// fail.
 ///
 /// Example:

@@ -10,12 +10,11 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, Type,
+    Type,
     hir::comptime::{
         InterpreterError, Value, errors::IResult,
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
-    node_interner::NodeInterner,
     signed_field::SignedField,
 };
 
@@ -36,14 +35,7 @@ impl Interpreter<'_, '_> {
         return_type: Type,
         location: Location,
     ) -> IResult<Value> {
-        call_foreign(
-            self.elaborator.interner,
-            name,
-            arguments,
-            return_type,
-            location,
-            self.elaborator.pedantic_solving(),
-        )
+        call_foreign(name, arguments, return_type, location, self.elaborator.pedantic_solving())
     }
 }
 
@@ -51,7 +43,6 @@ impl Interpreter<'_, '_> {
 ///
 /// Similar to `evaluate_black_box` in `brillig_vm`.
 fn call_foreign(
-    interner: &mut NodeInterner,
     name: &str,
     args: Vec<(Value, Location)>,
     return_type: Type,
@@ -59,33 +50,23 @@ fn call_foreign(
     pedantic_solving: bool,
 ) -> IResult<Value> {
     match name {
-        "aes128_encrypt" => aes128_encrypt(interner, args, location),
-        "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
-        "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
+        "aes128_encrypt" => aes128_encrypt(args, location),
+        "blake2s" => blake_hash(args, location, acvm::blackbox_solver::blake2s),
+        "blake3" => blake_hash(args, location, acvm::blackbox_solver::blake3),
         // cSpell:disable-next-line
-        "ecdsa_secp256k1" => ecdsa_secp256_verify(
-            interner,
-            args,
-            location,
-            acvm::blackbox_solver::ecdsa_secp256k1_verify,
-        ),
+        "ecdsa_secp256k1" => {
+            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256k1_verify)
+        }
         // cSpell:disable-next-line
-        "ecdsa_secp256r1" => ecdsa_secp256_verify(
-            interner,
-            args,
-            location,
-            acvm::blackbox_solver::ecdsa_secp256r1_verify,
-        ),
+        "ecdsa_secp256r1" => {
+            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256r1_verify)
+        }
         "embedded_curve_add" => embedded_curve_add(args, return_type, location, pedantic_solving),
-        "multi_scalar_mul" => {
-            multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
-        }
-        "poseidon2_permutation" => {
-            poseidon2_permutation(interner, args, location, pedantic_solving)
-        }
-        "keccakf1600" => keccakf1600(interner, args, location),
+        "multi_scalar_mul" => multi_scalar_mul(args, return_type, location, pedantic_solving),
+        "poseidon2_permutation" => poseidon2_permutation(args, location, pedantic_solving),
+        "keccakf1600" => keccakf1600(args, location),
         "range" => apply_range_constraint(args, location),
-        "sha256_compression" => sha256_compression(interner, args, location),
+        "sha256_compression" => sha256_compression(args, location),
         _ => {
             let explanation = match name {
                 "and" | "xor" => "It should be turned into a binary operation.".into(),
@@ -103,16 +84,12 @@ fn call_foreign(
 }
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`
-fn aes128_encrypt(
-    interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (inputs, iv, key) = check_three_arguments(arguments, location)?;
 
-    let (inputs, _) = get_array_map(interner, inputs, get_u8)?;
-    let (iv, _) = get_fixed_array_map(interner, iv, get_u8)?;
-    let (key, _) = get_fixed_array_map(interner, key, get_u8)?;
+    let (inputs, _) = get_array_map(inputs, get_u8)?;
+    let (iv, _) = get_fixed_array_map(iv, get_u8)?;
+    let (key, _) = get_fixed_array_map(key, get_u8)?;
 
     let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -147,14 +124,13 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
 /// pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 /// ```
 fn blake_hash(
-    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     f: impl Fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> IResult<Value> {
     let inputs = check_one_argument(arguments, location)?;
 
-    let (inputs, _) = get_array_map(interner, inputs, get_u8)?;
+    let (inputs, _) = get_array_map(inputs, get_u8)?;
     let output = f(&inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_byte_array(&output))
@@ -171,7 +147,6 @@ fn blake_hash(
 /// ) -> bool
 // cSpell:disable-next-line
 fn ecdsa_secp256_verify(
-    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     f: impl Fn(&[u8; 32], &[u8; 32], &[u8; 32], &[u8; 64]) -> Result<bool, BlackBoxResolutionError>,
@@ -179,10 +154,10 @@ fn ecdsa_secp256_verify(
     let [pub_key_x, pub_key_y, sig, msg_hash, predicate] = check_arguments(arguments, location)?;
     assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
 
-    let (pub_key_x, _) = get_fixed_array_map(interner, pub_key_x, get_u8)?;
-    let (pub_key_y, _) = get_fixed_array_map(interner, pub_key_y, get_u8)?;
-    let (sig, _) = get_fixed_array_map(interner, sig, get_u8)?;
-    let (msg_hash, _) = get_fixed_array_map(interner, msg_hash.clone(), get_u8)?;
+    let (pub_key_x, _) = get_fixed_array_map(pub_key_x, get_u8)?;
+    let (pub_key_y, _) = get_fixed_array_map(pub_key_y, get_u8)?;
+    let (sig, _) = get_fixed_array_map(sig, get_u8)?;
+    let (msg_hash, _) = get_fixed_array_map(msg_hash.clone(), get_u8)?;
 
     let is_valid = f(&msg_hash, &pub_key_x, &pub_key_y, &sig)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -211,7 +186,15 @@ fn embedded_curve_add(
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
+        .ec_add(
+            &p1x,
+            &p1y,
+            &p1inf.into(),
+            &p2x,
+            &p2y,
+            &p2inf.into(),
+            true, // Predicate is always true as interpreter has control flow to handle false case
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
@@ -227,7 +210,6 @@ fn embedded_curve_add(
 /// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn multi_scalar_mul(
-    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -236,8 +218,8 @@ fn multi_scalar_mul(
     let (points, scalars, predicate) = check_three_arguments(arguments, location)?;
     assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
 
-    let (points, _) = get_array_map(interner, points, get_embedded_curve_point)?;
-    let (scalars, _) = get_array_map(interner, scalars, get_embedded_curve_scalar)?;
+    let (points, _) = get_array_map(points, get_embedded_curve_point)?;
+    let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;
 
     let points: Vec<_> = points.into_iter().flat_map(|(x, y, inf)| [x, y, inf.into()]).collect();
     let mut scalars_lo = Vec::new();
@@ -248,17 +230,19 @@ fn multi_scalar_mul(
     }
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
+        .multi_scalar_mul(
+            &points,
+            &scalars_lo,
+            &scalars_hi,
+            true, // Predicate is always true as interpreter has control flow to handle false case
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {
         Type::Array(_, item_type) => item_type.as_ref().clone(),
         _ => {
             return Err(InterpreterError::TypeMismatch {
-                expected: Type::Array(
-                    Box::new(Type::Constant(1_usize.into(), Kind::u32())),
-                    Box::new(interner.next_type_variable()), // EmbeddedCurvePoint
-                ),
+                expected: "[EmbeddedCurvePoint; 1]".to_string(),
                 actual: return_type.clone(),
                 location,
             });
@@ -273,14 +257,13 @@ fn multi_scalar_mul(
 
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
 fn poseidon2_permutation(
-    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
     let input = check_one_argument(arguments, location)?;
 
-    let (input, typ) = get_array_map(interner, input, get_field)?;
+    let (input, typ) = get_array_map(input, get_field)?;
     let input = vecmap(input, SignedField::to_field_element);
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
@@ -292,14 +275,10 @@ fn poseidon2_permutation(
 }
 
 /// `fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}`
-fn keccakf1600(
-    interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn keccakf1600(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let input = check_one_argument(arguments, location)?;
 
-    let (state, typ) = get_fixed_array_map(interner, input, get_u64)?;
+    let (state, typ) = get_fixed_array_map(input, get_u64)?;
 
     let result_lanes = acvm::blackbox_solver::keccakf1600(state)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
@@ -309,15 +288,11 @@ fn keccakf1600(
 }
 
 /// `pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8]`
-fn sha256_compression(
-    interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn sha256_compression(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (input, state) = check_two_arguments(arguments, location)?;
 
-    let (input, _) = get_fixed_array_map(interner, input, get_u32)?;
-    let (mut state, typ) = get_fixed_array_map(interner, state, get_u32)?;
+    let (input, _) = get_fixed_array_map(input, get_u32)?;
+    let (mut state, typ) = get_fixed_array_map(state, get_u32)?;
 
     acvm::blackbox_solver::sha256_compression(&mut state, &input);
 
@@ -376,48 +351,30 @@ mod tests {
     use crate::hir::comptime::InterpreterError::{
         ArgumentCountMismatch, InvalidInComptimeContext, Unimplemented,
     };
-    use crate::hir::comptime::tests::with_interpreter;
 
     use super::call_foreign;
 
     /// Check that all `BlackBoxFunc` are covered by `call_foreign`.
     #[test]
     fn test_blackbox_implemented() {
-        let dummy = "
-        comptime fn main() -> pub u8 {
-            0
+        let no_location = Location::dummy();
+        let mut not_implemented = Vec::new();
+
+        for blackbox in BlackBoxFunc::iter() {
+            let name = blackbox.name();
+            let pedantic_solving = true;
+            match call_foreign(name, Vec::new(), Type::Unit, no_location, pedantic_solving) {
+                Ok(_) => {
+                    // Exists and works with no args (unlikely)
+                }
+                Err(ArgumentCountMismatch { .. }) => {
+                    // Exists but doesn't work with no args (expected)
+                }
+                Err(InvalidInComptimeContext { .. }) => {}
+                Err(Unimplemented { .. }) => not_implemented.push(name),
+                Err(other) => panic!("unexpected error: {other:?}"),
+            };
         }
-        ";
-
-        let not_implemented = with_interpreter(dummy, |interpreter, _, _| {
-            let no_location = Location::dummy();
-            let mut not_implemented = Vec::new();
-
-            for blackbox in BlackBoxFunc::iter() {
-                let name = blackbox.name();
-                let pedantic_solving = true;
-                match call_foreign(
-                    interpreter.elaborator.interner,
-                    name,
-                    Vec::new(),
-                    Type::Unit,
-                    no_location,
-                    pedantic_solving,
-                ) {
-                    Ok(_) => {
-                        // Exists and works with no args (unlikely)
-                    }
-                    Err(ArgumentCountMismatch { .. }) => {
-                        // Exists but doesn't work with no args (expected)
-                    }
-                    Err(InvalidInComptimeContext { .. }) => {}
-                    Err(Unimplemented { .. }) => not_implemented.push(name),
-                    Err(other) => panic!("unexpected error: {other:?}"),
-                };
-            }
-
-            not_implemented
-        });
 
         assert!(
             not_implemented.is_empty(),

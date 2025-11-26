@@ -20,6 +20,7 @@ pub enum MonomorphizationError {
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
+    InvalidTypeInErrorMessage { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -36,7 +37,8 @@ impl MonomorphizationError {
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
-            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -106,6 +108,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                         "Assigned expression has the type `{typ}`, which contains a reference type internally"
                     )
                 };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
+                let message = format!("Invalid type {typ} used in the error message");
+                let secondary = "Error message fragments must be ABI compatible".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
