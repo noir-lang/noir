@@ -16015,7 +16015,7 @@ __metadata:
     "@types/prettier": "npm:^3.0.0"
     axios: "npm:^1.9.0"
     clsx: "npm:^1.2.1"
-    docusaurus-plugin-llms: "npm:^0.1.5"
+    docusaurus-plugin-llms: "npm:^0.2.2"
     docusaurus-plugin-typedoc: "npm:1.2.3"
     eslint-plugin-prettier: "npm:^5.4.1"
     hast-util-is-element: "npm:^1.1.0"
@@ -16036,15 +16036,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"docusaurus-plugin-llms@npm:^0.1.5":
-  version: 0.1.5
-  resolution: "docusaurus-plugin-llms@npm:0.1.5"
+"docusaurus-plugin-llms@npm:^0.2.2":
+  version: 0.2.2
+  resolution: "docusaurus-plugin-llms@npm:0.2.2"
   dependencies:
     gray-matter: "npm:^4.0.3"
     minimatch: "npm:^9.0.3"
+    yaml: "npm:^2.8.1"
   peerDependencies:
     "@docusaurus/core": ^3.0.0
-  checksum: 10/6d0c32efaa1acd12e4d320441d87bf26496f3e355b6419100a05d3098970eeabb1e45c1a22b06d8b14c65e8027dbd3b21bb2878bd4bf33f2766e477e6f856654
+  checksum: 10/5c0626931c4909fbcf41180ceb214c7f7603c53af3ec617263b77153b55b2f6d6871f8e5cbad661cb409e9636160ae8f415e1872cc0d3636bb3950d98d463a26
   languageName: node
   linkType: hard
 
@@ -30898,6 +30899,15 @@ __metadata:
   bin:
     yaml: bin.mjs
   checksum: 10/7d4bd9c10d0e467601f496193f2ac254140f8e36f96f5ff7f852b9ce37974168eb7354f4c36dc8837dde527a2043d004b6aff48818ec24a69ab2dd3c6b6c381c
+  languageName: node
+  linkType: hard
+
+"yaml@npm:^2.8.1":
+  version: 2.8.1
+  resolution: "yaml@npm:2.8.1"
+  bin:
+    yaml: bin.mjs
+  checksum: 10/eae07b3947d405012672ec17ce27348aea7d1fa0534143355d24a43a58f5e05652157ea2182c4fe0604f0540be71f99f1173f9d61018379404507790dff17665
   languageName: node
   linkType: hard
 
