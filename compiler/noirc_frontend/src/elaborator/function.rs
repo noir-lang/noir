@@ -328,6 +328,7 @@ impl Elaborator<'_> {
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
@@ -361,6 +362,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                &mut parameter_names_in_list,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -428,6 +430,7 @@ impl Elaborator<'_> {
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_returns_multiple_slices(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
@@ -485,7 +488,9 @@ impl Elaborator<'_> {
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
-            let allow_shadowing = false;
+            // We allow shadowing here because there's no outer scope to shadow
+            // (duplicate parameter names were already checked in `resolve_function_parameters`)
+            let allow_shadowing = true;
             self.add_existing_variable_to_scope(
                 name,
                 parameter.clone(),

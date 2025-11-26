@@ -63,7 +63,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // Pair up the heap typed output values of the call with the Brillig variables created for the results,
         // so that we can do some post processing for vectors.
-        for (i, (_output_value, output_variable)) in
+        for (i, (output_value, output_variable)) in
             output_values.iter().zip(output_variables).enumerate()
         {
             // We need to emit some bytecode to format the output as a BrilligVector
@@ -72,11 +72,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 continue;
             };
 
+            let ValueOrArray::HeapVector(heap_vector) = **output_value else {
+                unreachable!("ICE: a BrilligVector is expected to have a HeapVector as output");
+            };
+
             // Adjust the metadata of the result variable.
             // The items don't need to be copied, since we passed the pointer to the items of the
             // array/vector variable in the heap array/vector.
-            let flattened_size_var =
-                self.brillig_context.codegen_initialize_externally_returned_vector(vector);
+            let flattened_size_var = self
+                .brillig_context
+                .codegen_initialize_externally_returned_vector(vector, &heap_vector);
 
             // Update the dynamic slice length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
@@ -96,21 +101,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     }
 
     /// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
-    ///
-    /// [BrilligVariable::BrilligVector] has special handling: we didn't know the size when we allocated this variable
-    /// for a result variable in SSA, so it doesn't point at any particular address. For that reason we always turn it
-    /// into a [ValueOrArray::MemoryAddress], and we expect the foreign call handler to store at it the the address
-    /// of the output data written to the heap, once the foreign call returns.
     fn output_variables_to_destinations(
         &mut self,
         output_variables: &[BrilligVariable],
     ) -> Vec<Allocated<ValueOrArray, Registers>> {
         vecmap(output_variables, |variable| {
-            if let BrilligVariable::BrilligVector(vector) = *variable {
-                Allocated::pure(ValueOrArray::MemoryAddress(vector.pointer))
-            } else {
-                self.brillig_context.variable_to_value_or_array(*variable)
-            }
+            self.brillig_context.variable_to_value_or_array(*variable)
         })
     }
 
