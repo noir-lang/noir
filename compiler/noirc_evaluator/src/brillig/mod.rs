@@ -130,7 +130,12 @@ impl Brillig {
         }
 
         if options.show_opcode_advisories {
-            brillig_check::show_opcode_advisories(&function_context, &brillig_context);
+            let advisories =
+                brillig_check::collect_opcode_advisories(&function_context, &brillig_context);
+
+            if !advisories.is_empty() {
+                brillig_check::show_opcode_advisories(&advisories, brillig_context.artifact());
+            }
         }
 
         brillig_context.into_artifact()

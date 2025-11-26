@@ -9,7 +9,7 @@ use crate::{
         brillig_gen::brillig_fn::FunctionContext,
         brillig_ir::{
             BrilligContext,
-            artifact::{LabelType, OpcodeLocation},
+            artifact::{BrilligArtifact, LabelType, OpcodeLocation},
             registers::{RegisterAllocator, Stack},
         },
     },
@@ -23,13 +23,10 @@ pub(crate) enum OpcodeAdvisory {
     OverwrittenBeforeRead { write_at: OpcodeLocation, read_at: OpcodeLocation },
 }
 
-/// Processing blocks in post-order, collect stack memory addresses that opcodes read from,
-/// which forms the set of addresses that the successors of a block are interested in.
-///
-/// Then, check opcodes which write to memory, looking for ones that can potentially be removed:
+/// Go through opcodes and collect advisories, indicating opcodes which could potentially be removed:
 /// * writing to a `destination` to that isn't read from
 /// * writing to a `destination` that gets overwritten before being read, within the same block
-pub(crate) fn check_opcodes<F>(
+pub(crate) fn collect_opcode_advisories<F>(
     function_context: &FunctionContext,
     brillig_context: &BrilligContext<F, Stack>,
 ) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
@@ -57,19 +54,11 @@ pub(crate) fn check_opcodes<F>(
     ctx.into_advisories()
 }
 
-/// Display the opcodes with any advisories.
+/// Display the opcodes and their corresponding advisories.
 pub(crate) fn show_opcode_advisories<F: Display>(
-    function_context: &FunctionContext,
-    brillig_context: &BrilligContext<F, Stack>,
+    advisories: &HashMap<OpcodeLocation, OpcodeAdvisory>,
+    artifact: &BrilligArtifact<F>,
 ) {
-    let advisories = check_opcodes(function_context, brillig_context);
-
-    if advisories.is_empty() {
-        return;
-    }
-
-    let artifact = brillig_context.artifact();
-
     println!(
         "// There are {} Brillig opcode advisories for function {}",
         advisories.len(),
