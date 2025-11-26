@@ -3142,7 +3142,7 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = FieldElement::zero();
+    let is_infinite = false;
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
@@ -3157,10 +3157,8 @@ fn derive_generators(
             .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
             .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-        embedded_curve_point_fields.insert(
-            is_infinite_field_name.clone(),
-            Shared::new(Value::Field(SignedField::positive(is_infinite))),
-        );
+        embedded_curve_point_fields
+            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);
