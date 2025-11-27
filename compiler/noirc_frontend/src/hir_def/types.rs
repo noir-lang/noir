@@ -1651,7 +1651,7 @@ impl Type {
             | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Slice(length) => length.contains_reference(),
+            Type::Slice(typ) => typ.contains_reference(),
             Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
             Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
             Type::DataType(typ, generics) => {
@@ -1671,7 +1671,7 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {

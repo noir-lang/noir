@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn foo(x: &mut u32) {
+    assert(*x == 1_u32);
+}
+
+unconstrained fn bar(x: &mut u32, f: unconstrained fn(&mut u32)) {
+    f(x);
+}
+
+unconstrained fn main() {
+    let x: &mut u32 = &mut 1_u32;
+    bar(x, foo);
+    bar(x, |x: &mut u32| foo(x));
+}
