@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764265732467,
+  "lastUpdate": 1764266354981,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23215,48 +23215,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "271d332049d25e534dbce77c7f86195407660ae2",
-          "message": "feat(doc): colorize code blocks (#10550)",
-          "timestamp": "2025-11-20T15:02:15Z",
-          "tree_id": "d6098bf0b90d7d5ba76b68caa98740ff9df2dd00",
-          "url": "https://github.com/noir-lang/noir/commit/271d332049d25e534dbce77c7f86195407660ae2"
-        },
-        "date": 1763652333315,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253282,
-            "range": "± 592",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230164,
-            "range": "± 1736",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2261140,
-            "range": "± 1612",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "55e961e9e1f9e4e5211ac0c9bd1561b13b736c76",
           "message": "chore: we don't warn anymore when a single trait method is not in scope (#10551)",
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790817,
             "range": "± 1062",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6ea935ed11ad2f142703db8c8bdee95e67232db4",
+          "message": "chore: check stdout of comptime interpret tests (#10667)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-11-27T17:35:46Z",
+          "tree_id": "d7990a9e6d8da26eb5c4a8fda536f291d476ede8",
+          "url": "https://github.com/noir-lang/noir/commit/6ea935ed11ad2f142703db8c8bdee95e67232db4"
+        },
+        "date": 1764266324394,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251104,
+            "range": "± 524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226100,
+            "range": "± 3318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2253982,
+            "range": "± 5289",
             "unit": "ns/iter"
           }
         ]
