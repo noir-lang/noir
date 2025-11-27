@@ -34,9 +34,10 @@ unconstrained fn main() {
 
     // Here we don't know whether `f` will be used as constrained or unconstrained, or both;
     // it will be monomorphized as constrained and unconstrained, and cause an error even if unused.
-    // let f = |x| foo(x);
+    // But since `main` is itself `unconstrained`, in this instance we know we won't ever use the constrained variant.
+    let f = |x| foo(x);
 
     // When passing a variable lambda to `bar`, we know it's only interested in the unconstrained version,
-    // but it doesn't matter, the constrained version of `f` exists regardless.
-    // bar(x, f);
+    // but it doesn't matter, `f` has already been created.
+    bar(x, f);
 }
