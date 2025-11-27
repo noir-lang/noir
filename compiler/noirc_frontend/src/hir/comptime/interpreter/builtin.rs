@@ -2345,7 +2345,7 @@ fn expr_resolve(
     };
 
     // It's fine to do a linear search here as Option just has two fields
-    let is_some = fields.iter().find(|(name, _)| name.as_str() == "is_some").unwrap().1;
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
     let Value::Bool(is_some) = is_some.borrow().clone() else {
         panic!("Expected is_some to be a boolean");
     };
