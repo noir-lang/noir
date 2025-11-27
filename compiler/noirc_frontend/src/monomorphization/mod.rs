@@ -1881,22 +1881,26 @@ impl<'interner> Monomorphizer<'interner> {
         let func_type = self.interner.id_type(call.func);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
-        if let Type::Function(params, _, _, _) = &func_type {
+        if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
             assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
             for (typ, id) in params.iter().zip(&call.arguments) {
-                // If the function expects an unconstrained lambda, we can generate the arg to tuple of (constrained, unconstrained),
-                // but that could introduce invalid semantics, such as passing mutable references from the constrained version.
-                // Instead we can force the generation to be two unconstrained lambdas.
-                if matches!(typ, Type::Function(_, _, _, true)) {
-                    let old_force_unconstrained =
-                        std::mem::replace(&mut self.force_unconstrained, true);
-
-                    arguments.push(self.expr(*id)?);
-
-                    self.force_unconstrained = old_force_unconstrained;
-                } else {
-                    arguments.push(self.expr(*id)?);
-                }
+                // If we know that the function expects an unconstrained lambda, or can only make use
+                // of the unconstrained variant, being itself unconstrained, we can generate a pair of
+                // two unconstrained functions, and avoid potential illegal passing of mutable references
+                // from constrained to unconstrained code in a lambda that we know will never be called.
+                let expr = match typ {
+                    Type::Function(_, _, _, lambda_unconstrained)
+                        if *lambda_unconstrained || *callee_unconstrained =>
+                    {
+                        let old_force_unconstrained =
+                            std::mem::replace(&mut self.force_unconstrained, true);
+                        let expr = self.expr(*id)?;
+                        self.force_unconstrained = old_force_unconstrained;
+                        expr
+                    }
+                    _ => self.expr(*id)?,
+                };
+                arguments.push(expr);
             }
         } else {
             for id in &call.arguments {
