@@ -3189,7 +3189,8 @@
 <a href="#3188" id="3188">3188</a>
 <a href="#3189" id="3189">3189</a>
 <a href="#3190" id="3190">3190</a>
-<a href="#3191" id="3191">3191</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3191" id="3191">3191</a>
+<a href="#3192" id="3192">3192</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -5535,13 +5536,14 @@
         <span class="macro">panic!</span>(<span class="string">"Expected second argument to be a struct"</span>);
     };
 
-    <span class="kw">let </span>is_some = fields.get(<span class="kw-2">&amp;</span>Rc::new(<span class="string">"_is_some"</span>.to_string())).unwrap();
+    <span class="comment">// It's fine to do a linear search here as Option just has two fields
+    </span><span class="kw">let </span>is_some = fields.iter().find(|(name, <span class="kw">_</span>)| name.as_str() == <span class="string">"_is_some"</span>).unwrap().<span class="number">1</span>;
     <span class="kw">let </span>Value::Bool(is_some) = is_some.borrow().clone() <span class="kw">else </span>{
         <span class="macro">panic!</span>(<span class="string">"Expected is_some to be a boolean"</span>);
     };
 
     <span class="kw">let </span>function_to_resolve_in = <span class="kw">if </span>is_some {
-        <span class="kw">let </span>value = fields.get(<span class="kw-2">&amp;</span>Rc::new(<span class="string">"_value"</span>.to_string())).unwrap();
+        <span class="kw">let </span>value = fields.iter().find(|(name, <span class="kw">_</span>)| name.as_str() == <span class="string">"_value"</span>).unwrap().<span class="number">1</span>;
         <span class="kw">let </span>Value::FunctionDefinition(func_id) = value.borrow().clone() <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected option value to be a FunctionDefinition"</span>);
         };

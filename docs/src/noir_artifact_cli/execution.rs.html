@@ -416,13 +416,13 @@
         (AbiType::Struct { path, fields: field_types }, InputValue::Struct(field_values)) =&gt; {
             string.push_str(path);
             string.push_str(<span class="string">" { "</span>);
-            <span class="kw">for </span>(index, (field_name, field_value)) <span class="kw">in </span>field_values.iter().enumerate() {
+            <span class="kw">for </span>(index, (field_name, typ)) <span class="kw">in </span>field_types.iter().enumerate() {
                 <span class="kw">if </span>index != <span class="number">0 </span>{
                     string.push_str(<span class="string">", "</span>);
                 }
                 string.push_str(field_name);
                 string.push_str(<span class="string">": "</span>);
-                <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>field_types.iter().find(|(name, <span class="kw">_</span>)| name == field_name).unwrap().<span class="number">1</span>;
+                <span class="kw">let </span>field_value = <span class="kw-2">&amp;</span>field_values[field_name];
                 append_input_value_to_string(field_value, typ, string);
             }
             string.push_str(<span class="string">" }"</span>);
