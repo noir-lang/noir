@@ -1,4 +1,4 @@
-use std::{fmt::Display, rc::Rc};
+use std::fmt::Display;
 
 use acvm::AcirField;
 use iter_extended::vecmap;
@@ -427,8 +427,8 @@ impl Display for ValuePrinter<'_, '_> {
                     .unwrap()
                     .iter()
                     .filter_map(|field| {
-                        let name = field.name.as_str();
-                        fields.get(&Rc::new(name.to_string())).map(|value| {
+                        let name = field.name.as_string();
+                        fields.get(name).map(|value| {
                             format!("{}: {}", name, value.borrow().display(self.interner))
                         })
                     })

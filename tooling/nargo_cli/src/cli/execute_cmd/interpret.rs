@@ -340,8 +340,8 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
                 .unwrap()
                 .iter()
                 .filter_map(|field| {
-                    let name = field.name.as_str();
-                    fields.get(&Rc::new(name.to_string())).map(|value| {
+                    let name = field.name.as_string();
+                    fields.get(name).map(|value| {
                         format!("{}: {}", name, output_value_to_string(&value.borrow(), context))
                     })
                 })
