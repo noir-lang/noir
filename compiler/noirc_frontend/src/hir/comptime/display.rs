@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use acvm::AcirField;
 use iter_extended::vecmap;
@@ -413,13 +413,26 @@ impl Display for ValuePrinter<'_, '_> {
                 }
             }
             Value::Struct(fields, typ) => {
-                let typename = match typ.follow_bindings() {
-                    Type::DataType(def, _) => def.borrow().name.to_string(),
-                    other => other.to_string(),
+                let data_type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def,
+                    other => panic!("Expected data type, found {other}"),
                 };
-                let fields = vecmap(fields, |(name, value)| {
-                    format!("{}: {}", name, value.borrow().display(self.interner))
-                });
+                let data_type = data_type.borrow();
+                let typename = data_type.name.to_string();
+
+                // Display fields in the order they are defined in the struct.
+                // Some fields might not be there if they were missing in the constructor.
+                let fields = data_type
+                    .fields_raw()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|field| {
+                        let name = field.name.as_str();
+                        fields.get(&Rc::new(name.to_string())).map(|value| {
+                            format!("{}: {}", name, value.borrow().display(self.interner))
+                        })
+                    })
+                    .collect::<Vec<_>>();
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
             Value::Enum(tag, args, typ) => {
