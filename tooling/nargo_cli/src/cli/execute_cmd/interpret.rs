@@ -13,9 +13,9 @@ use noirc_driver::gen_abi;
 use noirc_errors::{CustomDiagnostic, Location};
 use noirc_evaluator::ssa::interpreter::value::{Fitted, NumericValue};
 use noirc_evaluator::ssa::ir::types::NumericType;
-use noirc_frontend::hir::ParsedFiles;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
+use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::NodeInterner;
@@ -84,7 +84,7 @@ fn run_package_comptime(
 
     match context.interpret_function(main_id, func_args) {
         Ok(result) => {
-            let result_as_string = result.display(&context.def_interner).to_string();
+            let result_as_string = output_value_to_string(&result, &context);
 
             println!("[{}] Circuit witness successfully solved", package.name);
             if !matches!(result, Value::Unit) {
@@ -282,5 +282,105 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
         | Type::Quoted(..)
         | Type::InfixExpr(..)
         | Type::Error => panic!("Unexpected type in comptime input value conversion"),
+    }
+}
+
+/// Convers a Value into a String.
+///
+/// This is similar to `Value::display(..).to_string()` except that:
+/// - only values that can be a circuit output are supported
+/// - strings are quoted
+/// - struct paths are fully-qualified
+///
+/// This is so the output matches the format produced by `nargo execute`.
+fn output_value_to_string(value: &Value, context: &Context) -> String {
+    match value {
+        Value::Unit => "()".to_string(),
+        Value::Bool(value) => value.to_string(),
+        Value::Field(signed_field) => signed_field.to_field_element().to_short_hex(),
+        Value::I8(value) => value.to_string(),
+        Value::I16(value) => value.to_string(),
+        Value::I32(value) => value.to_string(),
+        Value::I64(value) => value.to_string(),
+        Value::U1(false) => "0".to_string(),
+        Value::U1(true) => "1".to_string(),
+        Value::U8(value) => value.to_string(),
+        Value::U16(value) => value.to_string(),
+        Value::U32(value) => value.to_string(),
+        Value::U64(value) => value.to_string(),
+        Value::U128(value) => value.to_string(),
+        Value::String(string) | Value::FormatString(string, _) | Value::CtString(string) => {
+            format!("{string:?}")
+        }
+        Value::Tuple(values) => {
+            let values = vecmap(values, |value| output_value_to_string(&value.borrow(), context));
+            if values.len() == 1 {
+                format!("({},)", values[0])
+            } else {
+                format!("({})", values.join(", "))
+            }
+        }
+        Value::Array(values, _) => {
+            let values = vecmap(values, |value| output_value_to_string(value, context));
+            format!("[{}]", values.join(", "))
+        }
+        Value::Struct(fields, typ) => {
+            let data_type = match typ.follow_bindings() {
+                Type::DataType(def, _) => def,
+                other => panic!("Expected data type, found {other}"),
+            };
+            let data_type = data_type.borrow();
+            let typename =
+                context.fully_qualified_struct_path(context.root_crate_id(), data_type.id);
+
+            // Display fields in the order they are defined in the struct.
+            // Some fields might not be there if they were missing in the constructor.
+            let fields = data_type
+                .fields_raw()
+                .unwrap()
+                .iter()
+                .filter_map(|field| {
+                    let name = field.name.as_str();
+                    fields.get(&Rc::new(name.to_string())).map(|value| {
+                        format!("{}: {}", name, output_value_to_string(&value.borrow(), context))
+                    })
+                })
+                .collect::<Vec<_>>();
+            format!("{typename} {{ {} }}", fields.join(", "))
+        }
+        Value::Enum(tag, args, typ) => {
+            let args = vecmap(args, |arg| output_value_to_string(arg, context)).join(", ");
+
+            match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => {
+                    let def = def.borrow();
+                    let variant = def.variant_at(*tag);
+                    if variant.is_function {
+                        format!("{}::{}({args})", def.name, variant.name)
+                    } else {
+                        format!("{}::{}", def.name, variant.name)
+                    }
+                }
+                other => panic!("Expected a data type, got {other}"),
+            }
+        }
+        Value::Function(..)
+        | Value::Closure(..)
+        | Value::Pointer(..)
+        | Value::Slice(..)
+        | Value::Quoted(..)
+        | Value::TypeDefinition(..)
+        | Value::TraitConstraint(..)
+        | Value::TraitDefinition(..)
+        | Value::TraitImpl(..)
+        | Value::FunctionDefinition(..)
+        | Value::ModuleDefinition(..)
+        | Value::Type(_)
+        | Value::Zeroed(_)
+        | Value::Expr(..)
+        | Value::TypedExpr(..)
+        | Value::UnresolvedType(..) => {
+            panic!("Unexpected output value: {}", value.display(&context.def_interner))
+        }
     }
 }
