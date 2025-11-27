@@ -459,7 +459,7 @@ mod tests {
         nargo.assert().success();
     }
 
-    fn nargo_execute_comptime(test_program_dir: PathBuf) {
+    fn nargo_execute_comptime(test_program_dir: PathBuf, check_stdout: bool) {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force-comptime");
@@ -472,7 +472,9 @@ mod tests {
 
         nargo.assert().success();
 
-        check_output(&mut nargo, &test_program_dir);
+        if check_stdout {
+            check_output(&mut nargo, &test_program_dir);
+        }
     }
 
     fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
