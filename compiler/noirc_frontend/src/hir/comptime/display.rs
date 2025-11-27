@@ -415,7 +415,7 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Struct(fields, typ) => {
                 let data_type = match typ.follow_bindings() {
                     Type::DataType(def, _) => def,
-                    other => panic!("Expected data type, found {other}"),
+                    other => unreachable!("Expected data type, found {other}"),
                 };
                 let data_type = data_type.borrow();
                 let typename = data_type.name.to_string();

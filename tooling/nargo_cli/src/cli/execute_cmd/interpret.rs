@@ -285,7 +285,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
     }
 }
 
-/// Convers a Value into a String.
+/// Converts a [Value] into a `String`.
 ///
 /// This is similar to `Value::display(..).to_string()` except that:
 /// - only values that can be a circuit output are supported
@@ -327,7 +327,7 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         Value::Struct(fields, typ) => {
             let data_type = match typ.follow_bindings() {
                 Type::DataType(def, _) => def,
-                other => panic!("Expected data type, found {other}"),
+                other => unreachable!("Expected data type, found {other}"),
             };
             let data_type = data_type.borrow();
             let typename =
