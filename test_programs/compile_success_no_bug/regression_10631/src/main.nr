@@ -18,9 +18,11 @@ unconstrained fn main() {
     // and avoid generating the constrained lambda.
     bar(x, |x| foo(x));
 
-    // Here we don't know whether `f` will be used as constrained or unconstrained, or both.
-    let f = |x| foo(x);
+    // Here we don't know whether `f` will be used as constrained or unconstrained, or both;
+    // it will be monomorphized as constrained and unconstrained, and cause an error even if unused.
+    // let f = |x| foo(x);
 
-    // When passing `f` to `bar`, we know it's only interested in the unconstrained version.
-    bar(x, f);
+    // When passing `f` to `bar`, we know it's only interested in the unconstrained version,
+    // but it doesn't matter, the constrained version of `f` exists regardless.
+    // bar(x, f);
 }
