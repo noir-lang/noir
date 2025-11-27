@@ -8,7 +8,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    Kind, QuotedType, Shared, Type, TypeBindings,
+    Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
@@ -96,10 +96,10 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
-    // How deep in the stack is this closure when it was created.
-    // This is needed because when the closure is invoked we need to have type bindings
-    // be those in that scope, not in the scope where the closure is invoked.
-    pub depth: usize,
+    /// The type bindings where the closure was created.
+    /// This is needed because when the closure is interpreted, those type bindings
+    /// need to be restored.
+    pub bindings: HashMap<TypeVariable, (Type, Kind)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]

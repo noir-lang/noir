@@ -315,25 +315,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let environment = closure.env;
         let function_scope = closure.function_scope;
         let module_scope = closure.module_scope;
-        let depth = closure.depth;
 
-        assert!(depth <= self.bound_generics.len());
+        // Undo the type current type bindings
+        if let Some(bindings) = self.bound_generics.last() {
+            for (var, (_, kind)) in bindings {
+                var.unbind(var.id(), kind.clone());
+            }
+        }
 
-        if depth < self.bound_generics.len() {
-            // Undo the type current type bindings
-            if let Some(bindings) = self.bound_generics.last() {
-                for (var, (_, kind)) in bindings {
-                    var.unbind(var.id(), kind.clone());
-                }
-            }
-            // Rebind the type bindings that existed when the closure was created
-            if depth > 0 {
-                if let Some(bindings) = self.bound_generics.get(depth - 1) {
-                    for (var, (binding, _kind)) in bindings {
-                        var.force_bind(binding.clone());
-                    }
-                }
-            }
+        // Rebind the type bindings that existed when the closure was created
+        for (var, (binding, _kind)) in &closure.bindings {
+            var.force_bind(binding.clone());
         }
 
         // Set the closure's scope to that of the function it was originally evaluated in
@@ -342,21 +334,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
-        if depth < self.bound_generics.len() {
-            // Undo the type bindings that existed when the closure was created
-            if depth > 0 {
-                if let Some(bindings) = self.bound_generics.get(depth - 1) {
-                    for (var, (_, kind)) in bindings {
-                        var.unbind(var.id(), kind.clone());
-                    }
-                }
-            }
+        // Undo the type bindings that existed when the closure was created
+        for (var, (_, kind)) in &closure.bindings {
+            var.unbind(var.id(), kind.clone());
+        }
 
-            // Redo the current type bindings
-            if let Some(bindings) = self.bound_generics.last() {
-                for (var, (binding, _kind)) in bindings {
-                    var.force_bind(binding.clone());
-                }
+        // Redo the current type bindings
+        if let Some(bindings) = self.bound_generics.last() {
+            for (var, (binding, _kind)) in bindings {
+                var.force_bind(binding.clone());
             }
         }
 
@@ -1204,14 +1190,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();
-        let depth = self.bound_generics.len();
+        let bindings = self.bound_generics.last().cloned().unwrap_or_default();
         let closure = Closure {
             lambda,
             env,
             typ,
             function_scope: self.current_function,
             module_scope,
-            depth,
+            bindings,
         };
         Ok(Value::Closure(Box::new(closure)))
     }
