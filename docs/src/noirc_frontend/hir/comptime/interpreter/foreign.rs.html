@@ -383,7 +383,8 @@
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
 </span><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
@@ -524,11 +525,12 @@
 <span class="comment">// cSpell:disable-next-line
 </span><span class="doccomment">/// Run one of the Secp256 signature verifications.
 /// ```text
-/// pub fn verify_signature&lt;let N: u32&gt;(
-///   public_key_x: [u8; 32],
-///   public_key_y: [u8; 32],
-///   signature: [u8; 64],
-///   message_hash: [u8; N],
+/// pub fn _verify_signature(
+///     public_key_x: [u8; 32],
+///     public_key_y: [u8; 32],
+///     signature: [u8; 64],
+///     message_hash: [u8; 32],
+///     predicate: bool,
 /// ) -&gt; bool
 </span><span class="comment">// cSpell:disable-next-line
 </span><span class="kw">fn </span>ecdsa_secp256_verify(
