@@ -10,8 +10,15 @@ unconstrained fn bar(x: &mut u32, f: unconstrained fn(&mut u32)) {
     f(x);
 }
 
+unconstrained fn baz(x: &mut u32, f: fn(&mut u32)) {
+    f(x);
+}
+
 unconstrained fn main() {
     let x: &mut u32 = &mut 1_u32;
     bar(x, foo);
     bar(x, |x: &mut u32| foo(x));
+    baz(x, |x: &mut u32| foo(x));
+    let f: fn(&mut u32) = |x: &mut u32| foo(x);
+    bar(x, f);
 }
