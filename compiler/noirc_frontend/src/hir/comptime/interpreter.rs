@@ -307,23 +307,64 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Call a closure value with the given arguments and environment, returning the result.
     fn call_closure(
         &mut self,
-        lambda: HirLambda,
-        environment: Vec<Value>,
+        closure: Closure,
         arguments: Vec<(Value, Location)>,
-        function_scope: Option<FuncId>,
-        module_scope: ModuleId,
         call_location: Location,
     ) -> IResult<Value> {
+        let lambda = closure.lambda;
+        let environment = closure.env;
+        let function_scope = closure.function_scope;
+        let module_scope = closure.module_scope;
+        let depth = closure.depth;
+
+        assert!(depth <= self.bound_generics.len());
+
+        if depth < self.bound_generics.len() {
+            // Undo the type current type bindings
+            if let Some(bindings) = self.bound_generics.last() {
+                for (var, (_, kind)) in bindings {
+                    var.unbind(var.id(), kind.clone());
+                }
+            }
+            // Rebind the type bindings that existed when the closure was created
+            if depth > 0 {
+                if let Some(bindings) = self.bound_generics.get(depth - 1) {
+                    for (var, (binding, _kind)) in bindings {
+                        var.force_bind(binding.clone());
+                    }
+                }
+            }
+        }
+
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(module_scope);
         let old_function = std::mem::replace(&mut self.current_function, function_scope);
 
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
+        if depth < self.bound_generics.len() {
+            // Undo the type bindings that existed when the closure was created
+            if depth > 0 {
+                if let Some(bindings) = self.bound_generics.get(depth - 1) {
+                    for (var, (_, kind)) in bindings {
+                        var.unbind(var.id(), kind.clone());
+                    }
+                }
+            }
+
+            // Redo the current type bindings
+            if let Some(bindings) = self.bound_generics.last() {
+                for (var, (binding, _kind)) in bindings {
+                    var.force_bind(binding.clone());
+                }
+            }
+        }
+
         self.current_function = old_function;
         if let Some(old_module) = old_module {
             self.elaborator.replace_module(old_module);
         }
+
         result
     }
 
@@ -1089,14 +1130,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 Ok(result)
             }
-            Value::Closure(closure) => self.call_closure(
-                closure.lambda,
-                closure.env,
-                arguments,
-                closure.function_scope,
-                closure.module_scope,
-                location,
-            ),
+            Value::Closure(closure) => self.call_closure(*closure, arguments, location),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1170,8 +1204,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();
-        let closure =
-            Closure { lambda, env, typ, function_scope: self.current_function, module_scope };
+        let depth = self.bound_generics.len();
+        let closure = Closure {
+            lambda,
+            env,
+            typ,
+            function_scope: self.current_function,
+            module_scope,
+            depth,
+        };
         Ok(Value::Closure(Box::new(closure)))
     }
 

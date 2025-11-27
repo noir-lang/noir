@@ -96,6 +96,10 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
+    // How deep in the stack is this closure when it was created.
+    // This is needed because when the closure is invoked we need to have type bindings
+    // be those in that scope, not in the scope where the closure is invoked.
+    pub depth: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
