@@ -861,7 +861,7 @@ impl<F: AcirField> AcirContext<F> {
         // maximum bit size for q and for [r and rhs]
         let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
             // when rhs is constant, we can better estimate the maximum bit sizes
-            let max_rhs_bits = rhs_const.num_bits();
+            let rhs_const_bits = rhs_const.num_bits();
 
             // It is possible that we have an AcirVar which is a result of a multiplication of constants
             // which resulted in an overflow, but that check will only happen at runtime, and here we
@@ -873,14 +873,23 @@ impl<F: AcirField> AcirContext<F> {
             // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
             // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
             // assertion which will fail at runtime.
-            if max_rhs_bits > bit_size {
+            if rhs_const_bits > bit_size {
                 let msg = format!(
-                    "attempted to divide by constant larger than operand type: {max_rhs_bits} > {bit_size}"
+                    "attempted to divide by constant larger than operand type: {rhs_const_bits} > {bit_size}"
                 );
                 self.assert_always_fail(msg)?;
                 return Ok((zero, zero));
             }
-            (bit_size - max_rhs_bits + 1, max_rhs_bits)
+
+            if *rhs_const == power_of_two::<F>(rhs_const_bits - 1) {
+                let max_rhs_bits = rhs_const_bits - 1;
+
+                (bit_size - max_rhs_bits, max_rhs_bits)
+            } else {
+                let max_rhs_bits = rhs_const_bits;
+
+                (bit_size - max_rhs_bits + 1, max_rhs_bits)
+            }
         } else {
             (bit_size, bit_size)
         };
@@ -974,7 +983,7 @@ impl<F: AcirField> AcirContext<F> {
                     remainder_var,
                     max_r_var,
                     one,
-                    rhs_const.num_bits(),
+                    max_rhs_bits,
                     predicate,
                 )?;
             } else if bit_size == 128 {
