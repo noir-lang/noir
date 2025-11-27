@@ -40,4 +40,5 @@ unconstrained fn main() {
     // When passing a variable lambda to `bar`, we know it's only interested in the unconstrained version,
     // but it doesn't matter, `f` has already been created.
     bar(x, f);
+    baz(x, f);
 }

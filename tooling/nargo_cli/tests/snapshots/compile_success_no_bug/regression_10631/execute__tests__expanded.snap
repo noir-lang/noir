@@ -21,4 +21,5 @@ unconstrained fn main() {
     baz(x, |x: &mut u32| foo(x));
     let f: fn(&mut u32) = |x: &mut u32| foo(x);
     bar(x, f);
+    baz(x, f);
 }
