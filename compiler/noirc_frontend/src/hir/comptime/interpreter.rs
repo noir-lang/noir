@@ -311,11 +311,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
-        let lambda = closure.lambda;
-        let environment = closure.env;
-        let function_scope = closure.function_scope;
-        let module_scope = closure.module_scope;
-
         // Undo the type current type bindings
         if let Some(bindings) = self.bound_generics.last() {
             unbind_all(bindings);
@@ -325,10 +320,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         force_bind_all(&closure.bindings);
 
         // Set the closure's scope to that of the function it was originally evaluated in
-        let old_module = self.elaborator.replace_module(module_scope);
-        let old_function = std::mem::replace(&mut self.current_function, function_scope);
+        let old_module = self.elaborator.replace_module(closure.module_scope);
+        let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
 
-        let result = self.call_closure_inner(lambda, environment, arguments, call_location);
+        let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
         // Undo the type bindings that existed when the closure was created
         unbind_all(&closure.bindings);
