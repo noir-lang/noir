@@ -276,6 +276,82 @@ fn do_not_overflow_with_constant_constrain_neq() {
 }
 
 #[test]
+fn properly_constrains_quotient_when_truncating_fields_to_u128() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = truncate v0 to 128 bits, max_bit_size: 254
+            return v1
+        }";
+    let ssa = Ssa::from_str(src).unwrap();
+
+    let input = FieldElement::zero();
+    let malicious_q = FieldElement::try_from_str("64323764613183177041862057485226039389").unwrap();
+    let malicious_r = FieldElement::try_from_str("53438638232309528389504892708671455233").unwrap();
+
+    // This brillig function replaces the standard implementation of `directive_quotient` with
+    // an implementation which returns `(malicious_q, malicious_r)`.
+    let malicious_quotient = GeneratedBrillig {
+        byte_code: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(10),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(11),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Field,
+                value: malicious_q,
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Field,
+                value: malicious_r,
+            },
+            BrilligOpcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::direct(11),
+                    size: MemoryAddress::direct(10),
+                },
+            },
+        ],
+        name: "malicious_directive_quotient".to_string(),
+        ..Default::default()
+    };
+
+    let malicious_brillig_stdlib =
+        BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+    let (acir_functions, brillig_functions, _) = codegen_acir(
+        ssa,
+        &Brillig::default(),
+        malicious_brillig_stdlib,
+        &BrilligOptions::default(),
+        ExpressionWidth::default(),
+    )
+    .expect("Should compile manually written SSA into ACIR");
+
+    assert_eq!(acir_functions.len(), 1);
+    // [`malicious_directive_quotient`, `directive_invert`]
+    assert_eq!(brillig_functions.len(), 2);
+
+    let main = &acir_functions[0];
+
+    let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
+    let pedantic_solving = true;
+    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
+
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
 fn derive_pedersen_generators_requires_constant_input() {
     // derive_pedersen_generators is expected to fail because one of its argument is not a constant.
     let src = r#"
