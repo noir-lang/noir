@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764190317318,
+  "lastUpdate": 1764264401637,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23215,48 +23215,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "b37e91f264b92dc64af9096b91c79d1c504ca022",
-          "message": "chore: error on match keyword when enums are not enabled (#10549)",
-          "timestamp": "2025-11-20T14:20:43Z",
-          "tree_id": "509ba9a37169f453e28951278fc8663ad2a478d9",
-          "url": "https://github.com/noir-lang/noir/commit/b37e91f264b92dc64af9096b91c79d1c504ca022"
-        },
-        "date": 1763650261238,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253598,
-            "range": "± 1801",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225399,
-            "range": "± 3820",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783671,
-            "range": "± 2340",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "271d332049d25e534dbce77c7f86195407660ae2",
           "message": "feat(doc): colorize code blocks (#10550)",
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796984,
             "range": "± 7613",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ab71130b55537fde2baca8ec7545e55c657bfcbe",
+          "message": "fix(stdlib): Fix visibility of ecdsa foreign function calls (#10658)",
+          "timestamp": "2025-11-27T16:55:58Z",
+          "tree_id": "63db4962dfccdddbefe350cbde9252fda7d0563b",
+          "url": "https://github.com/noir-lang/noir/commit/ab71130b55537fde2baca8ec7545e55c657bfcbe"
+        },
+        "date": 1764264374642,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256969,
+            "range": "± 575",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229425,
+            "range": "± 1103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790817,
+            "range": "± 1062",
             "unit": "ns/iter"
           }
         ]
