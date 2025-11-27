@@ -150,21 +150,7 @@ mod tests {
         let mut has_circuit_output = false;
 
         if check_stdout {
-            let output = nargo.output().unwrap();
-            let stdout = String::from_utf8(output.stdout).unwrap();
-            has_circuit_output = stdout.contains("Circuit output:");
-
-            let stdout = remove_noise_lines(stdout);
-
-            let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-            let snapshot_name = "stdout";
-            insta::with_settings!(
-                {
-                    snapshot_path => format!("./snapshots/execution_success/{test_name}")
-                },
-                {
-                insta::assert_snapshot!(snapshot_name, stdout);
-            });
+            has_circuit_output = check_output(&mut nargo, &test_program_dir);
         }
 
         if has_circuit_output {
@@ -184,6 +170,25 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn check_output(nargo: &mut Command, test_program_dir: &Path) -> bool {
+        let output = nargo.output().unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let has_circuit_output = stdout.contains("Circuit output:");
+
+        let stdout = remove_noise_lines(stdout);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stdout";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/execution_success/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stdout);
+        });
+        has_circuit_output
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -466,6 +471,8 @@ mod tests {
         nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
+
+        check_output(&mut nargo, &test_program_dir);
     }
 
     fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
