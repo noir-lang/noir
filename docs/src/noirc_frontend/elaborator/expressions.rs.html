@@ -1643,7 +1643,28 @@
 <a href="#1642" id="1642">1642</a>
 <a href="#1643" id="1643">1643</a>
 <a href="#1644" id="1644">1644</a>
-<a href="#1645" id="1645">1645</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2257,10 +2278,19 @@
         <span class="kw">let </span>is_macro_call = call.is_macro_call;
         <span class="kw">let </span>(func, func_type) = <span class="self">self</span>.elaborate_expression(<span class="kw-2">*</span>call.func);
         <span class="kw">let </span>func_type = func_type.follow_bindings();
+
         <span class="comment">// Even if the function type is a Type::Error, we still want to elaborate the call's function arguments.
         // Thus, we simply return None here for the argument types rather than returning early.
-        </span><span class="kw">let </span>func_arg_types =
-            <span class="kw">if let </span>Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type { <span class="prelude-val">Some</span>(args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
+        </span><span class="kw">let </span>(func_arg_types, unconstrained) =
+            <span class="kw">if let </span>Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained) = <span class="kw-2">&amp;</span>func_type {
+                (<span class="prelude-val">Some</span>(args), <span class="kw-2">*</span>unconstrained)
+            } <span class="kw">else </span>{
+                (<span class="prelude-val">None</span>, <span class="bool-val">false</span>)
+            };
+
+        <span class="comment">// When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
+        </span><span class="kw">let </span>was_in_unconstrained_args =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_unconstrained_args, unconstrained);
 
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(call.arguments.len());
         <span class="kw">let </span>args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -2287,6 +2317,10 @@
 
         <span class="kw">let </span>hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>hir_call, func_type, args, location);
+
+        <span class="comment">// Restore the old one after type checking.
+        </span><span class="self">self</span>.in_unconstrained_args = was_in_unconstrained_args;
+
         <span class="comment">// Macro calls that aren't in comptime context should be evaluated and their
         // result should be inlined rather than keeping the call.
         </span><span class="kw">if </span>is_macro_call {
@@ -3000,25 +3034,33 @@
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) = target_type {
-            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>args))
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained)) = target_type {
+            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(
+                lambda,
+                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>args),
+                unconstrained || <span class="self">self</span>.in_unconstrained_args,
+            )
         } <span class="kw">else </span>{
-            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">None</span>)
+            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)
         }
     }
 
     <span class="doccomment">/// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
-    /// call that has this lambda as the argument.
-    /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
+    /// call that has this lambda as the argument. The parameter type hints will be the types of
+    /// the function type corresponding to the lambda argument.
+    ///
+    /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
+    /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
     </span><span class="kw">fn </span>elaborate_lambda_with_parameter_type_hints(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lambda: Lambda,
         parameters_type_hints: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;Type&gt;&gt;,
+        unconstrained: bool,
     ) -&gt; (HirExpression, Type) {
         <span class="self">self</span>.push_scope();
         <span class="kw">let </span>scope_index = <span class="self">self</span>.scopes.current_scope_index();
 
-        <span class="self">self</span>.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
+        <span class="self">self</span>.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
 
         <span class="kw">let </span><span class="kw-2">mut </span>arg_types = Vec::with_capacity(lambda.parameters.len());
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = HashMap::default();
@@ -3077,7 +3119,7 @@
 
         <span class="kw">let </span>captures = lambda_context.captures;
         <span class="kw">let </span>expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), <span class="bool-val">false</span>))
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 
     <span class="kw">fn </span>elaborate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>tokens: Tokens, location: Location) -&gt; (HirExpression, Type) {

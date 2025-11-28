@@ -459,11 +459,7 @@
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
 <a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a>
-<a href="#462" id="462">462</a>
-<a href="#463" id="463">463</a>
-<a href="#464" id="464">464</a>
-<a href="#465" id="465">465</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
+<a href="#461" id="461">461</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
@@ -672,8 +668,6 @@
         </span>BinaryOpKind::ShiftRight =&gt; <span class="macro">match_integer!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) {
                 int: {
-                    <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
-                    </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow);}
                     <span class="attr">#[allow(clippy::cast_lossless)]
                     </span>lhs.checked_shr(rhs <span class="kw">as </span>u32)
                 },
@@ -684,8 +678,6 @@
         </span>BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_integer!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) {
                 int: {
-                    <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
-                    </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow);}
                     <span class="attr">#[allow(clippy::cast_lossless)]
                     </span>lhs.checked_shl(rhs <span class="kw">as </span>u32)
                 },

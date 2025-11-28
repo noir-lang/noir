@@ -832,7 +832,21 @@
 <a href="#831" id="831">831</a>
 <a href="#832" id="832">832</a>
 <a href="#833" id="833">833</a>
-<a href="#834" id="834">834</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -973,6 +987,8 @@
     <span class="doccomment">/// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
     </span><span class="kw">pub </span>scope_index: usize,
+    <span class="doccomment">/// If we know this lambda to be unconstrained.
+    </span><span class="kw">pub </span>unconstrained: bool,
 }
 
 <span class="doccomment">/// Determines whether we are in an unsafe block and, if so, whether
@@ -1066,6 +1082,9 @@
     /// block, global, or attribute.
     </span>in_comptime_context: bool,
 
+    <span class="doccomment">/// True if we are elaborating arguments of a function call to an unconstrained function.
+    </span>in_unconstrained_args: bool,
+
     crate_id: CrateId,
 
     <span class="doccomment">/// These are the globals that have yet to be elaborated.
@@ -1151,6 +1170,7 @@
             current_trait: <span class="prelude-val">None</span>,
             interpreter_call_stack,
             in_comptime_context: <span class="bool-val">false</span>,
+            in_unconstrained_args: <span class="bool-val">false</span>,
             silence_field_visibility_errors: <span class="number">0</span>,
             options,
             elaborate_reasons,
@@ -1503,16 +1523,24 @@
         <span class="self">self</span>.generics.clear();
     }
 
-    <span class="doccomment">/// True if we're currently within a constrained function.
+    <span class="doccomment">/// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
     </span><span class="kw">fn </span>in_constrained_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        !<span class="self">self</span>.in_comptime_context()
-            &amp;&amp; <span class="self">self</span>.current_item.is_none_or(|id| <span class="kw">match </span>id {
-                DependencyId::Function(id) =&gt; {
-                    !<span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>id).is_unconstrained
-                }
-                <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>,
-            })
+        <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+
+        <span class="kw">let </span>in_unconstrained_function = <span class="self">self</span>.current_item.is_some_and(|id| {
+            <span class="kw">if let </span>DependencyId::Function(id) = id {
+                <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>id).is_unconstrained
+            } <span class="kw">else </span>{
+                <span class="bool-val">false
+            </span>}
+        });
+
+        <span class="kw">let </span>in_unconstrained_lambda = <span class="self">self</span>.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+
+        !in_unconstrained_function &amp;&amp; !in_unconstrained_lambda
     }
 
     <span class="doccomment">/// Register a use of the given unstable feature. Errors if the feature has not

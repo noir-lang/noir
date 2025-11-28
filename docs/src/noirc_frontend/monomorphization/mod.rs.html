@@ -3058,7 +3058,16 @@
 <a href="#3057" id="3057">3057</a>
 <a href="#3058" id="3058">3058</a>
 <a href="#3059" id="3059">3059</a>
-<a href="#3060" id="3060">3060</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#3060" id="3060">3060</a>
+<a href="#3061" id="3061">3061</a>
+<a href="#3062" id="3062">3062</a>
+<a href="#3063" id="3063">3063</a>
+<a href="#3064" id="3064">3064</a>
+<a href="#3065" id="3065">3065</a>
+<a href="#3066" id="3066">3066</a>
+<a href="#3067" id="3067">3067</a>
+<a href="#3068" id="3068">3068</a>
+<a href="#3069" id="3069">3069</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4917,7 +4926,12 @@
             // monomorphization consistent regardless of whether the flag is set, since the type
             // of functions would also need to be updated, which affects how closures are detected,
             // etc.
-            </span><span class="kw">let </span>is_unconstrained = <span class="self">self</span>.force_unconstrained;
+            // If we are in an unconstrained function, then we know that any function we call will
+            // be monomorphized as unconstrained as well, and we'll never call a constrained one;
+            // therefore we can never make use of a constrained variant of a lambda, and by not
+            // generating it we can avoid some illegal corner cases, should the constrained lambda
+            // that never gets used try to call unconstrained code in its body.
+            </span><span class="kw">let </span>is_unconstrained = <span class="self">self</span>.force_unconstrained || <span class="self">self</span>.in_unconstrained_function;
 
             <span class="kw">let </span>old_value =
                 std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_unconstrained_function, is_unconstrained);
@@ -4941,22 +4955,26 @@
         <span class="kw">let </span>func_type = <span class="self">self</span>.interner.id_type(call.func);
 
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(call.arguments.len());
-        <span class="kw">if let </span>Type::Function(params, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type {
+        <span class="kw">if let </span>Type::Function(params, <span class="kw">_</span>, <span class="kw">_</span>, callee_unconstrained) = <span class="kw-2">&amp;</span>func_type {
             <span class="macro">assert_eq!</span>(params.len(), call.arguments.len(), <span class="string">"ICE: Unexpected number of call args"</span>);
             <span class="kw">for </span>(typ, id) <span class="kw">in </span>params.iter().zip(<span class="kw-2">&amp;</span>call.arguments) {
-                <span class="comment">// If the function expects an unconstrained lambda, we can generate the arg to tuple of (constrained, unconstrained),
-                // but that could introduce invalid semantics, such as passing mutable references from the constrained version.
-                // Instead we can force the generation to be two unconstrained lambdas.
-                </span><span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="bool-val">true</span>)) {
-                    <span class="kw">let </span>old_force_unconstrained =
-                        std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.force_unconstrained, <span class="bool-val">true</span>);
-
-                    arguments.push(<span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>);
-
-                    <span class="self">self</span>.force_unconstrained = old_force_unconstrained;
-                } <span class="kw">else </span>{
-                    arguments.push(<span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>);
-                }
+                <span class="comment">// If we know that the function expects an unconstrained lambda, or can only make use
+                // of the unconstrained variant, being itself unconstrained, we can generate a pair of
+                // two unconstrained functions, and avoid potential illegal passing of mutable references
+                // from constrained to unconstrained code in a lambda that we know will never be called.
+                </span><span class="kw">let </span>expr = <span class="kw">match </span>typ {
+                    Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, lambda_unconstrained)
+                        <span class="kw">if </span><span class="kw-2">*</span>lambda_unconstrained || <span class="kw-2">*</span>callee_unconstrained =&gt;
+                    {
+                        <span class="kw">let </span>old_force_unconstrained =
+                            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.force_unconstrained, <span class="bool-val">true</span>);
+                        <span class="kw">let </span>expr = <span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>;
+                        <span class="self">self</span>.force_unconstrained = old_force_unconstrained;
+                        expr
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="self">self</span>.expr(<span class="kw-2">*</span>id)<span class="question-mark">?</span>,
+                };
+                arguments.push(expr);
             }
         } <span class="kw">else </span>{
             <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {

@@ -2716,7 +2716,16 @@
 <a href="#2715" id="2715">2715</a>
 <a href="#2716" id="2716">2716</a>
 <a href="#2717" id="2717">2717</a>
-<a href="#2718" id="2718">2718</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3888,6 +3897,15 @@
             <span class="kw-2">&amp;mut </span>errors,
             make_error,
         );
+
+        <span class="comment">// When passing lambdas to unconstrained functions that don't explicitly state
+        // that they expect unconstrained lambdas, ignore the coercion.
+        </span><span class="kw">if </span><span class="self">self</span>.in_unconstrained_args {
+            errors.retain(|err| {
+                !<span class="macro">matches!</span>(err, CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }))
+            });
+        }
+
         <span class="self">self</span>.push_errors(errors);
     }
 
