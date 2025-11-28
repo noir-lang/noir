@@ -200,6 +200,8 @@ pub enum ResolverError {
     BuiltinWithBody { location: Location },
     #[error("Identifier `{ident}` is bound more than once in the same pattern")]
     PatternBoundMoreThanOnce { ident: Ident },
+    #[error("{visibility} attribute is only allowed on entry point functions")]
+    DataBusOnNonEntryPoint { visibility: String, ident: Ident },
 }
 
 impl ResolverError {
@@ -277,6 +279,7 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
+            | ResolverError::DataBusOnNonEntryPoint { ident, .. }
             | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
@@ -875,6 +878,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     ident.location(),
                 )
             }
+            ResolverError::DataBusOnNonEntryPoint { visibility, ident } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("unnecessary {visibility} attribute for function {ident}"),
+                    format!("unnecessary {visibility}"),
+                    ident.location(),
+                );
+                diag.add_note(
+                    format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
+                diag
+            },
         }
     }
 }
