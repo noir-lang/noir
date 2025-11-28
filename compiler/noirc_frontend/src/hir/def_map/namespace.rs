@@ -14,7 +14,7 @@ impl PerNs {
     }
 
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
-        self.types.map(|it| it.0).into_iter().chain(self.values.map(|it| it.0))
+        self.iter_items().map(|it| it.0)
     }
 
     pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, ItemVisibility, bool)> {

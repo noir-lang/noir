@@ -186,24 +186,28 @@ pub struct TypedPath {
 }
 
 impl TypedPath {
+    /// Construct a [PathKind::Plain] from a number of segments.
     pub fn plain(segments: Vec<TypedPathSegment>, location: Location) -> Self {
         Self { segments, location, kind: PathKind::Plain, kind_location: location }
     }
 
+    /// Removes and returns the last segment.
+    ///
+    /// Panics if there are no more segments in the path.
     pub fn pop(&mut self) -> TypedPathSegment {
         self.segments.pop().unwrap()
     }
 
-    /// Construct a PathKind::Plain from this single
+    /// Construct a [PathKind::Plain] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> TypedPath {
         let segment = Ident::from(Located::from(location, name));
         TypedPath::from_ident(segment)
     }
 
+    /// Construct a [PathKind::Plain] from a single identifier segment.
     pub fn from_ident(name: Ident) -> TypedPath {
-        let segment =
-            TypedPathSegment { ident: name.clone(), generics: None, location: name.location() };
         let location = name.location();
+        let segment = TypedPathSegment { ident: name, generics: None, location };
         TypedPath::plain(vec![segment], location)
     }
 
@@ -211,19 +215,31 @@ impl TypedPath {
         self.location.span
     }
 
+    /// Returns a clone of the last segment.
+    ///
+    /// Panics if there are no segments in the path.
     pub fn last_segment(&self) -> TypedPathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
     }
 
+    /// The [Ident] of the last segment.
+    ///
+    /// Panics if there are no segments in the path.
     pub fn last_ident(&self) -> Ident {
         self.last_segment().ident
     }
 
+    /// The name of the [Ident] in the first segment.
+    ///
+    /// Returns `None` if there are no segments in the path.
     pub fn first_name(&self) -> Option<&str> {
         self.segments.first().map(|segment| segment.ident.as_str())
     }
 
+    /// The name of the [Ident] in the last segment.
+    ///
+    /// Panics if there are no segments in the path.
     pub fn last_name(&self) -> &str {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().ident.as_str()
@@ -266,7 +282,7 @@ impl TypedPathSegment {
     ///       ~^^^^
     /// ```
     ///
-    /// Returns an empty span at the end of `foo` if there's no turbofish.
+    /// Returns an empty [Span] at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
         if self.ident.location().file == self.location.file {
             // The `location` contains both the `ident` and the potential turbofish.
@@ -283,6 +299,7 @@ impl TypedPathSegment {
         Location::new(self.turbofish_span(), self.location.file)
     }
 
+    /// Returns the turbofish if there are generics in the path.
     pub fn turbofish(&self) -> Option<Turbofish> {
         self.generics.as_ref().map(|generics| Turbofish {
             location: self.turbofish_location(),
@@ -354,6 +371,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a path in the current module.
+    ///
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
@@ -385,7 +403,7 @@ impl Elaborator<'_> {
         let last_segment_turbofish_location = path
             .segments
             .last()
-            .and_then(|segment| segment.generics.as_ref().map(|_| segment.turbofish_location()));
+            .and_then(|segment| segment.generics.is_some().then(|| segment.turbofish_location()));
 
         let result = self.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
         let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
@@ -423,7 +441,8 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Resolves a path in `current_module`.
+    /// Resolves a [TypedPath].
+    ///
     /// `importing_module` is the module where the lookup originally started.
     fn resolve_path_in_module(
         &mut self,
@@ -433,13 +452,12 @@ impl Elaborator<'_> {
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
-        let references_tracker = if self.interner.is_in_lsp_mode() {
-            Some(ReferencesTracker::new(self.interner))
-        } else {
-            None
-        };
+        let references_tracker =
+            self.interner.is_in_lsp_mode().then(|| ReferencesTracker::new(self.interner));
+
         let res =
             resolve_path_kind(path.clone(), importing_module, self.def_maps, references_tracker);
+
         match res {
             Ok((path, module_id, _)) => self.resolve_name_in_module(
                 path,
@@ -449,19 +467,20 @@ impl Elaborator<'_> {
                 target,
                 mode,
             ),
-            Err(PathResolutionError::Unresolved(err)) => {
+            Err(error @ PathResolutionError::Unresolved(_)) => {
                 if let Some(result) =
                     self.resolve_primitive_type_or_function(path, importing_module)
                 {
                     return result;
                 }
-                Err(PathResolutionError::Unresolved(err))
+                Err(error)
             }
             Err(error) => Err(error),
         }
     }
 
-    /// Resolves a Path assuming we are inside `starting_module`.
+    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    ///
     /// `importing_module` is the module where the lookup originally started.
     fn resolve_name_in_module(
         &mut self,
@@ -491,7 +510,7 @@ impl Elaborator<'_> {
         let mut current_module = self.get_module(starting_module);
 
         let first_segment =
-            &path.segments.first().expect("ice: could not fetch first segment").ident;
+            &path.segments.first().expect("ICE: could not fetch first segment").ident;
         let mut current_ns = current_module.find_name(first_segment);
         if current_ns.is_none() {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));

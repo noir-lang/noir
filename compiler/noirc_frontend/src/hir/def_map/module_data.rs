@@ -20,7 +20,7 @@ pub struct ModuleData {
     pub child_declaration_order: Vec<LocalModuleId>,
 
     /// Contains all definitions visible to the current module. This includes
-    /// all definitions in self.definitions as well as all imported definitions.
+    /// all definitions in `self.definitions` as well as all imported definitions.
     scope: ItemScope,
 
     /// Contains only the definitions directly defined in the current module

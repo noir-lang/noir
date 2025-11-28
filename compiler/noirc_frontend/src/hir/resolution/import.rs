@@ -186,9 +186,12 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
     TypedPathSegment { ident: segment.ident, generics: None, location: segment.location }
 }
 
-/// Given a Path and a ModuleId it's being used in, this function returns a plain Path
-/// and a ModuleId where that plain Path should be resolved. That is, this method will
-/// resolve the Path kind and translate it to a plain path.
+/// Given a [TypedPath] and a [ModuleId] it's being used in, this function returns a [TypedPath]
+/// and a [ModuleId] where that [TypedPath] should be resolved.
+///
+/// It will try to resolve the [PathKind] and translate it to a [PathKind::Plain].
+/// For example a [PathKind::Dep] with a value such as `dep::foo::bar` will be turned into a
+/// [PathKind::Plain] with the first segment removed, leaving just `foo::bar`.
 ///
 /// The third value in the tuple is a reference tracker that must be passed to this
 /// method, which is used in case the path kind is `dep`: the segment after `dep`

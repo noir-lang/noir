@@ -2344,13 +2344,13 @@ fn expr_resolve(
         panic!("Expected second argument to be a struct");
     };
 
-    let is_some = fields.get(&Rc::new("_is_some".to_string())).unwrap();
+    let is_some = fields.get(&"_is_some".to_string()).unwrap();
     let Value::Bool(is_some) = is_some.borrow().clone() else {
         panic!("Expected is_some to be a boolean");
     };
 
     let function_to_resolve_in = if is_some {
-        let value = fields.get(&Rc::new("_value".to_string())).unwrap();
+        let value = fields.get(&"_value".to_string()).unwrap();
         let Value::FunctionDefinition(func_id) = value.borrow().clone() else {
             panic!("Expected option value to be a FunctionDefinition");
         };
