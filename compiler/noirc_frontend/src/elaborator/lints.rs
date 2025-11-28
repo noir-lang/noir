@@ -273,6 +273,27 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
+/// call_data and return_data visibility modifiers are only allowed on entry point functions.
+pub(super) fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    if !is_entry_point {
+        match visibility {
+            Visibility::CallData(_) | Visibility::ReturnData => {
+                Some(ResolverError::DataBusOnNonEntryPoint {
+                    ident: func.name_ident().clone(),
+                    visibility: visibility.to_string(),
+                })
+            }
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
 /// Checks if an ExprId, which has to be an integer literal, fits in its type.
 pub(crate) fn check_integer_literal_fits_its_type(
     interner: &NodeInterner,
