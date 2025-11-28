@@ -1036,10 +1036,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let index = name.parse::<usize>().ok();
                 match index.and_then(|index| types.get(index)) {
                     Some(value) => return Ok(value.clone()),
-                    None => {
-                        let tuple_types = vecmap(types, |typ| typ.borrow().get_type().into_owned());
-                        Type::Tuple(tuple_types)
-                    }
+                    None => Type::Tuple(vecmap(types, |typ| typ.borrow().get_type().into_owned())),
                 }
             }
             Value::Pointer(element, ..) => {
