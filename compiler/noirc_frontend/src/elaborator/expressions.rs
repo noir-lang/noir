@@ -612,6 +612,7 @@ impl Elaborator<'_> {
         let is_macro_call = call.is_macro_call;
         let (func, func_type) = self.elaborate_expression(*call.func);
         let func_type = func_type.follow_bindings();
+
         // Even if the function type is a Type::Error, we still want to elaborate the call's function arguments.
         // Thus, we simply return None here for the argument types rather than returning early.
         let func_arg_types =
@@ -1355,10 +1356,10 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
-        if let Some(Type::Function(args, _, _, _)) = target_type {
-            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args))
+        if let Some(Type::Function(args, _, _, unconstrained)) = target_type {
+            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args), unconstrained)
         } else {
-            self.elaborate_lambda_with_parameter_type_hints(lambda, None)
+            self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
         }
     }
 
@@ -1369,11 +1370,12 @@ impl Elaborator<'_> {
         &mut self,
         lambda: Lambda,
         parameters_type_hints: Option<&Vec<Type>>,
+        unconstrained: bool,
     ) -> (HirExpression, Type) {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
 
-        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
+        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
         let mut parameter_names_in_list = HashMap::default();
@@ -1432,7 +1434,7 @@ impl Elaborator<'_> {
 
         let captures = lambda_context.captures;
         let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 
     fn elaborate_quote(&mut self, mut tokens: Tokens, location: Location) -> (HirExpression, Type) {

@@ -139,6 +139,8 @@ pub struct LambdaContext {
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
     pub scope_index: usize,
+    /// If we know this lambda to be unconstrained.
+    pub unconstrained: bool,
 }
 
 /// Determines whether we are in an unsafe block and, if so, whether
@@ -669,16 +671,24 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
-    /// True if we're currently within a constrained function.
+    /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        !self.in_comptime_context()
-            && self.current_item.is_none_or(|id| match id {
-                DependencyId::Function(id) => {
-                    !self.interner.function_modifiers(&id).is_unconstrained
-                }
-                _ => true,
-            })
+        if self.in_comptime_context() {
+            return false;
+        }
+
+        if let Some(lambda_context) = self.lambda_stack.last() {
+            return !lambda_context.unconstrained;
+        }
+
+        if let Some(id) = self.current_item {
+            if let DependencyId::Function(id) = id {
+                return !self.interner.function_modifiers(&id).is_unconstrained;
+            }
+        }
+
+        true
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not
