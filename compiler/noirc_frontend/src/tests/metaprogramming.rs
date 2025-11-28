@@ -1012,3 +1012,16 @@ fn unify_comptime_block_expression_with_target_type() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unify_comptime_block_statement_with_target_type() {
+    let src = r#"
+    fn main() {
+    }
+
+    pub fn foo() -> u8 {
+        comptime { 1 }
+    }
+    "#;
+    assert_no_errors(src);
+}
