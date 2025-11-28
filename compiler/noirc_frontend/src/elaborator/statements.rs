@@ -105,8 +105,11 @@ impl Elaborator<'_> {
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
-        let (expression, expr_type) =
-            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
+        let (expression, expr_type) = if no_type {
+            self.elaborate_expression(let_stmt.expression)
+        } else {
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type))
+        };
 
         // Require the top-level of a global's type to be fully-specified
         if global_id.is_some() && (no_type || annotated_type.contains_type_variable()) {
