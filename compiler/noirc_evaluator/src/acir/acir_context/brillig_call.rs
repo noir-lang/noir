@@ -123,7 +123,7 @@ impl<F: AcirField> AcirContext<F> {
                     if !numeric_type.is_field() {
                         context.range_constrain_var(
                             *var,
-                            numeric_type.bit_size::<FieldElement>(),
+                            numeric_type.bit_size::<G>(),
                             None,
                             one,
                         )?;
