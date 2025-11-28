@@ -1,13 +1,13 @@
 fn main() {
     // format strings are lowered as normal strings
-    let (s1, s2): (str<39>, str<4>) = comptime {
+    let (s1, s2) = comptime {
         let x: u32 = 4;
         let y: u32 = 5;
 
         // Can't print these at compile-time here since printing to stdout while
         // compiling breaks the test runner.
-        let s1 = f"x is {x}, fake interpolation: {{y}}, y is {y}".as_quoted_str!();
-        let s2 = std::mem::zeroed::<fmtstr<4, ()>>().as_quoted_str!();
+        let s1 = f"x is {x}, fake interpolation: {{y}}, y is {y}";
+        let s2 = std::mem::zeroed::<fmtstr<4, ()>>();
         (s1, s2)
     };
     assert_eq(s1, "x is 4, fake interpolation: {y}, y is 5");
