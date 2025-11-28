@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["display_expression","display_term"],"mod":["operators","ordering"],"struct":["Expression"]};
+window.SIDEBAR_ITEMS = {"fn":["display_expression","display_term"],"mod":["operators"],"struct":["Expression"]};

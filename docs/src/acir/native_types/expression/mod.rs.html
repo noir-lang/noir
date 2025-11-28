@@ -649,7 +649,6 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::cmp::Ordering;
 <span class="kw">mod </span>operators;
-<span class="kw">mod </span>ordering;
 
 <span class="doccomment">/// An expression representing a quadratic polynomial.
 ///
@@ -785,7 +784,8 @@
         <span class="self">self</span>.linear_combinations.sort_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>));
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_sorted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="attr">#[cfg(test)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_sorted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.mul_terms.iter().is_sorted_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>).then(a.<span class="number">2</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">2</span>)).is_le())
             &amp;&amp; <span class="self">self</span>.linear_combinations.iter().is_sorted_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>).is_le())
     }
