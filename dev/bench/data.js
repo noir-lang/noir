@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764284293778,
+  "lastUpdate": 1764322383584,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23216,48 +23216,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "ed5853fd1204c91bff3eca421c7f3b11159a3dc7",
-          "message": "chore: add permission to add label to PR (#10552)",
-          "timestamp": "2025-11-20T15:36:36Z",
-          "tree_id": "d8884ab4119d2a520d86b8f9597a771bce36034a",
-          "url": "https://github.com/noir-lang/noir/commit/ed5853fd1204c91bff3eca421c7f3b11159a3dc7"
-        },
-        "date": 1763653145451,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250359,
-            "range": "± 541",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228036,
-            "range": "± 3421",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2259337,
-            "range": "± 1929",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "173400205f7fec10951d2d52d641dc646f6b6b5d",
           "message": "chore: clippy fixes (#10560)",
           "timestamp": "2025-11-21T17:21:56Z",
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792383,
             "range": "± 1559",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cba5f56a58fcbc627020ad72c0611c3393f95ce4",
+          "message": "fix: do not deduplicate ifelse for Brillig arrays (#10668)",
+          "timestamp": "2025-11-28T09:09:30Z",
+          "tree_id": "31891ad18d9b2eca561de91f96728b2fed7b61f6",
+          "url": "https://github.com/noir-lang/noir/commit/cba5f56a58fcbc627020ad72c0611c3393f95ce4"
+        },
+        "date": 1764322349312,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258881,
+            "range": "± 811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232528,
+            "range": "± 3191",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795855,
+            "range": "± 2659",
             "unit": "ns/iter"
           }
         ]
