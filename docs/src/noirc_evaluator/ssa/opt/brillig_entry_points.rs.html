@@ -1159,8 +1159,7 @@
 <a href="#1158" id="1158">1158</a>
 <a href="#1159" id="1159">1159</a>
 <a href="#1160" id="1160">1160</a>
-<a href="#1161" id="1161">1161</a>
-<a href="#1162" id="1162">1162</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
+<a href="#1161" id="1161">1161</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
 //! a function's entry points. Function specialization is performed through duplication of functions.
 //! Brillig entry points are defined as functions called directly by ACIR functions or are `main`.
 //!
@@ -1260,7 +1259,7 @@
         </span><span class="kw">let </span>brillig_entry_points =
             get_brillig_entry_points_with_reachability(<span class="kw-2">&amp;</span><span class="self">self</span>.functions, <span class="self">self</span>.main_id, <span class="kw-2">&amp;</span>call_graph);
         <span class="kw">let </span>functions_to_clone_map = build_functions_to_clone(<span class="kw-2">&amp;</span>brillig_entry_points);
-        <span class="kw">let </span>(calls_to_update, <span class="kw-2">mut </span>new_functions_map) =
+        <span class="kw">let </span>(calls_to_update, new_functions_map) =
             build_calls_to_update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, functions_to_clone_map, <span class="kw-2">&amp;</span>brillig_entry_points);
 
         <span class="comment">// Now we want to actually rewrite the appropriate call sites
@@ -1280,9 +1279,8 @@
                 </span>entry_point
             } <span class="kw">else </span>{
                 new_functions_map
-                    .entry(entry_point)
-                    .or_default()
-                    .get(<span class="kw-2">&amp;</span>function_to_update)
+                    .get(<span class="kw-2">&amp;</span>entry_point)
+                    .and_then(|m| m.get(<span class="kw-2">&amp;</span>function_to_update))
                     .copied()
                     .unwrap_or(function_to_update)
             };
