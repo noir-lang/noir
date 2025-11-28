@@ -1166,6 +1166,15 @@ impl Elaborator<'_> {
             &mut errors,
             make_error,
         );
+
+        // When passing lambdas to unconstrained functions that don't explicitly state
+        // that they expect unconstrained lambdas, ignore the coercion.
+        if self.in_unconstrained_args {
+            errors.retain(|err| {
+                !matches!(err, CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }))
+            });
+        }
+
         self.push_errors(errors);
     }
 

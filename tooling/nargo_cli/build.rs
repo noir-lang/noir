@@ -44,6 +44,9 @@ fn main() -> Result<(), String> {
     generate_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -129,6 +132,38 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     // Doesn't match Brillig, but the expected ref-count of 5 has comments which
     // suggest it's not exactly clear why we get that exact value anyway.
     "reference_counts_inliner_max",
+];
+
+/// `nargo execute --force-comptime` ignored tests because of bugs or because some
+/// programs don't behave the same way in comptime (for example: reference counting).
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 11] = [
+    // bugs
+    "array_sort",
+    "higher_order_functions",
+    "regression_11294",
+    "regression_8755",
+    "regression_9208",
+    "regression_9303",
+    // These check reference counts, which aren't tracked in comptime code
+    "reference_counts_inliner_0",
+    "reference_counts_inliner_max",
+    "reference_counts_inliner_min",
+    "reference_counts_slices_inliner_0",
+    // Enums are currently unsupported in comptime code
+    "regression_7323",
+];
+
+/// We usually check that the stdout of `nargo execute --force-comptime` matches
+/// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
+/// this can be solved.
+/// There are two Noir types that show out differently in comptime: functions and references.
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
+    ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
+
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 2] = [
+    // TODO(https://github.com/noir-lang/noir/issues/10625): Bits and byte decomposition does not validate output size in comptime
+    "invalid_comptime_bits_decomposition",
+    "invalid_comptime_bytes_decomposition",
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
@@ -489,6 +524,83 @@ fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
             "execution_panic(nargo);",
             &MatrixConfig::default(),
         );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
+        let check_stdout =
+            !IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS.contains(&test_name.as_str());
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+            #[test]
+            {should_panic}
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_execute_comptime(test_program_dir, {check_stdout});
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+          use super::*;
+      "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+              #[test]
+              {should_panic}
+              fn test_{test_name}() {{
+                  let test_program_dir = PathBuf::from("{test_dir}");
+                  nargo_execute_comptime_expect_failure(test_program_dir);
+              }}
+              "#
+        )
+        .unwrap();
     }
     writeln!(test_file, "}}").unwrap();
 }
