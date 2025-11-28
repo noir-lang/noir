@@ -234,6 +234,9 @@ pub struct Elaborator<'context> {
     /// block, global, or attribute.
     in_comptime_context: bool,
 
+    /// True if we are elaborating arguments of a function call to an unconstrained function.
+    in_unconstrained_args: bool,
+
     crate_id: CrateId,
 
     /// These are the globals that have yet to be elaborated.
@@ -319,6 +322,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,

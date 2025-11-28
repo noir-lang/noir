@@ -615,8 +615,16 @@ impl Elaborator<'_> {
 
         // Even if the function type is a Type::Error, we still want to elaborate the call's function arguments.
         // Thus, we simply return None here for the argument types rather than returning early.
-        let func_arg_types =
-            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
+        let (func_arg_types, unconstrained) =
+            if let Type::Function(args, _, _, unconstrained) = &func_type {
+                (Some(args), *unconstrained)
+            } else {
+                (None, false)
+            };
+
+        // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
+        let was_in_unconstrained_args =
+            std::mem::replace(&mut self.in_unconstrained_args, unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -643,6 +651,10 @@ impl Elaborator<'_> {
 
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let mut typ = self.type_check_call(&hir_call, func_type, args, location);
+
+        // Restore the old one after type checking.
+        self.in_unconstrained_args = was_in_unconstrained_args;
+
         // Macro calls that aren't in comptime context should be evaluated and their
         // result should be inlined rather than keeping the call.
         if is_macro_call {
@@ -1357,15 +1369,22 @@ impl Elaborator<'_> {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
         if let Some(Type::Function(args, _, _, unconstrained)) = target_type {
-            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args), unconstrained)
+            self.elaborate_lambda_with_parameter_type_hints(
+                lambda,
+                Some(&args),
+                unconstrained || self.in_unconstrained_args,
+            )
         } else {
             self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
         }
     }
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
-    /// call that has this lambda as the argument.
-    /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
+    /// call that has this lambda as the argument. The parameter type hints will be the types of
+    /// the function type corresponding to the lambda argument.
+    ///
+    /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
+    /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
     fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
