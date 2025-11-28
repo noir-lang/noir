@@ -118,9 +118,8 @@ impl Ssa {
                 entry_point
             } else {
                 new_functions_map
-                    .entry(entry_point)
-                    .or_default()
-                    .get(&function_to_update)
+                    .get(&entry_point)
+                    .and_then(|m| m.get(&function_to_update))
                     .copied()
                     .unwrap_or(function_to_update)
             };
