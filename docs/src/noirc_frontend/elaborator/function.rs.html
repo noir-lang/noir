@@ -575,7 +575,9 @@
 <a href="#574" id="574">574</a>
 <a href="#575" id="575">575</a>
 <a href="#576" id="576">576</a>
-<a href="#577" id="577">577</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -912,7 +914,9 @@
             <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
-
+            <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
+                lints::databus_on_non_entry_point(func, visibility, is_entry_point).map(Into::into)
+            });
             <span class="kw">let </span>type_location = typ.location;
             <span class="kw">let </span>typ = <span class="kw">match </span>typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) =&gt; {

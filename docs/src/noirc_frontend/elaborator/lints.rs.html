@@ -420,7 +420,28 @@
 <a href="#419" id="419">419</a>
 <a href="#420" id="420">420</a>
 <a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
 
 </span><span class="kw">use crate</span>::{
     NamedGeneric, Type, TypeBinding,
@@ -695,6 +716,27 @@
             ident: func.name_ident().clone(),
             position: PubPosition::Parameter,
         })
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+}
+
+<span class="doccomment">/// call_data and return_data visibility modifiers are only allowed on entry point functions.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>databus_on_non_entry_point(
+    func: <span class="kw-2">&amp;</span>NoirFunction,
+    visibility: Visibility,
+    is_entry_point: bool,
+) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
+    <span class="kw">if </span>!is_entry_point {
+        <span class="kw">match </span>visibility {
+            Visibility::CallData(<span class="kw">_</span>) | Visibility::ReturnData =&gt; {
+                <span class="prelude-val">Some</span>(ResolverError::DataBusOnNonEntryPoint {
+                    ident: func.name_ident().clone(),
+                    visibility: visibility.to_string(),
+                })
+            }
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
     } <span class="kw">else </span>{
         <span class="prelude-val">None
     </span>}

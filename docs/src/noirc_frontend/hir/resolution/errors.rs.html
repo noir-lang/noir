@@ -878,7 +878,20 @@
 <a href="#877" id="877">877</a>
 <a href="#878" id="878">878</a>
 <a href="#879" id="879">879</a>
-<a href="#880" id="880">880</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1080,6 +1093,8 @@
     </span>BuiltinWithBody { location: Location },
     <span class="attr">#[error(<span class="string">"Identifier `{ident}` is bound more than once in the same pattern"</span>)]
     </span>PatternBoundMoreThanOnce { ident: Ident },
+    <span class="attr">#[error(<span class="string">"{visibility} attribute is only allowed on entry point functions"</span>)]
+    </span>DataBusOnNonEntryPoint { visibility: String, ident: Ident },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1157,6 +1172,7 @@
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
+            | ResolverError::DataBusOnNonEntryPoint { ident, .. }
             | ResolverError::PatternBoundMoreThanOnce { ident } =&gt; ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) =&gt; {
                 path_resolution_error.location()
@@ -1755,6 +1771,16 @@
                     ident.location(),
                 )
             }
+            ResolverError::DataBusOnNonEntryPoint { visibility, ident } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"unnecessary {visibility} attribute for function {ident}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"unnecessary {visibility}"</span>),
+                    ident.location(),
+                );
+                diag.add_note(
+                    <span class="macro">format!</span>(<span class="string">"The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"</span>));
+                diag
+            },
         }
     }
 }
