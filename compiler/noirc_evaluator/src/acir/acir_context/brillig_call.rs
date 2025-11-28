@@ -1,7 +1,10 @@
-use acvm::acir::{
-    AcirField,
-    circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-    native_types::{Expression, Witness},
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+        native_types::{Expression, Witness},
+    },
 };
 use iter_extended::{try_vecmap, vecmap};
 
@@ -117,7 +120,14 @@ impl<F: AcirField> AcirContext<F> {
                 AcirValue::Var(var, numeric_type) => {
                     // Predicate is one so that the constrain is always applied, because
                     // values returned from Brillig will be 0 under a false predicate.
-                    context.range_constrain_var(*var, numeric_type, None, one)?;
+                    if !numeric_type.is_field() {
+                        context.range_constrain_var(
+                            *var,
+                            numeric_type.bit_size::<FieldElement>(),
+                            None,
+                            one,
+                        )?;
+                    }
                 }
                 AcirValue::Array(values) => {
                     for value in values {
