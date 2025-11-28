@@ -918,7 +918,10 @@
 <a href="#917" id="917">917</a>
 <a href="#918" id="918">918</a>
 <a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1319,10 +1322,18 @@
         numeric_type: <span class="kw-2">&amp;</span>NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>acir_var = <span class="self">self</span>.acir_context.add_variable();
-        <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
-        <span class="comment">// The predicate is one so that this constraint is is always applied to Signed/Unsigned
-        // NumericType's
-        </span><span class="self">self</span>.acir_context.range_constrain_var(acir_var, numeric_type, <span class="prelude-val">None</span>, one)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>!numeric_type.is_field() {
+            <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
+            <span class="comment">// The predicate is one so that this constraint is is always applied to Signed/Unsigned NumericTypes
+
+            </span><span class="self">self</span>.acir_context.range_constrain_var(
+                acir_var,
+                numeric_type.bit_size::&lt;FieldElement&gt;(),
+                <span class="prelude-val">None</span>,
+                one,
+            )<span class="question-mark">?</span>;
+        }
         <span class="prelude-val">Ok</span>(acir_var)
     }
 
@@ -1411,7 +1422,7 @@
                 // handled in the RangeCheck instruction during the flattening pass.
                 </span><span class="self">self</span>.acir_context.range_constrain_var(
                     acir_var,
-                    <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: <span class="kw-2">*</span>max_bit_size },
+                    <span class="kw-2">*</span>max_bit_size,
                     assert_message.clone(),
                     one,
                 )<span class="question-mark">?</span>;
@@ -1698,12 +1709,7 @@
             <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(result),
         };
 
-        <span class="self">self</span>.acir_context.range_constrain_var(
-            result,
-            <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size },
-            <span class="prelude-val">Some</span>(msg.to_string()),
-            predicate,
-        )
+        <span class="self">self</span>.acir_context.range_constrain_var(result, bit_size, <span class="prelude-val">Some</span>(msg.to_string()), predicate)
     }
 
     <span class="doccomment">/// Operands in a binary operation are checked to have the same type.

@@ -403,7 +403,11 @@
 <a href="#402" id="402">402</a>
 <a href="#403" id="403">403</a>
 <a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -484,6 +488,10 @@
             }
             NumericType::NativeField =&gt; <span class="prelude-val">None</span>,
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, NumericType::NativeField)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {

@@ -1591,35 +1591,7 @@
 <a href="#1590" id="1590">1590</a>
 <a href="#1591" id="1591">1591</a>
 <a href="#1592" id="1592">1592</a>
-<a href="#1593" id="1593">1593</a>
-<a href="#1594" id="1594">1594</a>
-<a href="#1595" id="1595">1595</a>
-<a href="#1596" id="1596">1596</a>
-<a href="#1597" id="1597">1597</a>
-<a href="#1598" id="1598">1598</a>
-<a href="#1599" id="1599">1599</a>
-<a href="#1600" id="1600">1600</a>
-<a href="#1601" id="1601">1601</a>
-<a href="#1602" id="1602">1602</a>
-<a href="#1603" id="1603">1603</a>
-<a href="#1604" id="1604">1604</a>
-<a href="#1605" id="1605">1605</a>
-<a href="#1606" id="1606">1606</a>
-<a href="#1607" id="1607">1607</a>
-<a href="#1608" id="1608">1608</a>
-<a href="#1609" id="1609">1609</a>
-<a href="#1610" id="1610">1610</a>
-<a href="#1611" id="1611">1611</a>
-<a href="#1612" id="1612">1612</a>
-<a href="#1613" id="1613">1613</a>
-<a href="#1614" id="1614">1614</a>
-<a href="#1615" id="1615">1615</a>
-<a href="#1616" id="1616">1616</a>
-<a href="#1617" id="1617">1617</a>
-<a href="#1618" id="1618">1618</a>
-<a href="#1619" id="1619">1619</a>
-<a href="#1620" id="1620">1620</a>
-<a href="#1621" id="1621">1621</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1593" id="1593">1593</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2528,12 +2500,7 @@
         //
         // We do not need to use a predicate in the range constraint because
         // `quotient_var` is the output of a brillig call
-        </span><span class="self">self</span>.range_constrain_var(
-            quotient_var,
-            <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: max_q_bits },
-            <span class="prelude-val">None</span>,
-            one,
-        )<span class="question-mark">?</span>;
+        </span><span class="self">self</span>.range_constrain_var(quotient_var, max_q_bits, <span class="prelude-val">None</span>, one)<span class="question-mark">?</span>;
 
         <span class="comment">// Constrain `r &lt; 2^{max_rhs_bits}`.
         //
@@ -2543,12 +2510,7 @@
         // This opcode will be optimized out if it is redundant so we always add it for safety.
         // Furthermore, we do not need to use a predicate in the range constraint because
         // the remainder is the output of a brillig call
-        </span><span class="self">self</span>.range_constrain_var(
-            remainder_var,
-            <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: max_rhs_bits },
-            <span class="prelude-val">None</span>,
-            one,
-        )<span class="question-mark">?</span>;
+        </span><span class="self">self</span>.range_constrain_var(remainder_var, max_rhs_bits, <span class="prelude-val">None</span>, one)<span class="question-mark">?</span>;
 
         <span class="comment">// Constrain `r &lt; rhs`.
         //
@@ -2694,23 +2656,13 @@
                 <span class="kw">let </span>aor = <span class="self">self</span>.add_var(lhs_offset, r_var)<span class="question-mark">?</span>;
 
                 <span class="comment">// lhs_offset&lt;=rhs_offset &lt;=&gt; lhs_offset + r &lt; rhs_offset + r = 2^bit_size &lt;=&gt; witness &lt; 2^bit_size
-                </span><span class="self">self</span>.range_constrain_var(
-                    aor,
-                    <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size },
-                    <span class="prelude-val">None</span>,
-                    predicate,
-                )<span class="question-mark">?</span>;
+                </span><span class="self">self</span>.range_constrain_var(aor, bit_size, <span class="prelude-val">None</span>, predicate)<span class="question-mark">?</span>;
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(());
             }
         }
         <span class="comment">// General case: lhs_offset&lt;=rhs &lt;=&gt; rhs-lhs_offset&gt;=0 &lt;=&gt; rhs-lhs_offset is a 'bits' bit integer
         </span><span class="kw">let </span>sub_expression = <span class="self">self</span>.sub_var(rhs, lhs_offset)<span class="question-mark">?</span>; <span class="comment">// rhs-lhs_offset
-        </span><span class="self">self</span>.range_constrain_var(
-            sub_expression,
-            <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: bits },
-            <span class="prelude-val">None</span>,
-            predicate,
-        )<span class="question-mark">?</span>;
+        </span><span class="self">self</span>.range_constrain_var(sub_expression, bits, <span class="prelude-val">None</span>, predicate)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -2733,38 +2685,30 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>range_constrain_var(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         variable: AcirVar,
-        numeric_type: <span class="kw-2">&amp;</span>NumericType,
+        bit_size: u32,
         message: <span class="prelude-ty">Option</span>&lt;String&gt;,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-        <span class="kw">match </span>numeric_type {
-            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } =&gt; {
-                <span class="comment">// If `variable` is constant then we don't need to add a constraint.
-                // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = <span class="self">self</span>.var_to_expression(variable)<span class="question-mark">?</span>.to_const() {
-                    <span class="kw">if </span>constant.num_bits() &lt;= <span class="kw-2">*</span>bit_size {
-                        <span class="kw">return </span><span class="prelude-val">Ok</span>(variable);
-                    }
-                }
-                <span class="comment">// Under a predicate, a range check must not fail, so we
-                // range check `predicate * variable` instead.
-                </span><span class="kw">let </span>predicate_range = <span class="self">self</span>.mul_var(variable, predicate)<span class="question-mark">?</span>;
-                <span class="kw">let </span>witness_var = <span class="self">self</span>.get_or_create_witness_var(predicate_range)<span class="question-mark">?</span>;
-                <span class="kw">let </span>witness = <span class="self">self</span>.var_to_witness(witness_var)<span class="question-mark">?</span>;
-                <span class="self">self</span>.acir_ir.range_constraint(witness, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = message {
-                    <span class="kw">let </span>payload = <span class="self">self</span>.generate_assertion_message_payload(message.clone());
-                    <span class="self">self</span>.acir_ir
-                        .assertion_payloads
-                        .insert(<span class="self">self</span>.acir_ir.last_acir_opcode_location(), payload);
-                }
-                <span class="prelude-val">Ok</span>(predicate_range)
-            }
-            NumericType::NativeField =&gt; {
-                <span class="comment">// Range constraining a Field is a no-op
-                </span><span class="prelude-val">Ok</span>(variable)
+        <span class="comment">// If `variable` is constant then we don't need to add a constraint.
+        // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = <span class="self">self</span>.var_to_expression(variable)<span class="question-mark">?</span>.to_const() {
+            <span class="kw">if </span>constant.num_bits() &lt;= bit_size {
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(variable);
             }
         }
+        <span class="comment">// Under a predicate, a range check must not fail, so we
+        // range check `predicate * variable` instead.
+        </span><span class="kw">let </span>predicate_range = <span class="self">self</span>.mul_var(variable, predicate)<span class="question-mark">?</span>;
+        <span class="kw">let </span>witness_var = <span class="self">self</span>.get_or_create_witness_var(predicate_range)<span class="question-mark">?</span>;
+        <span class="kw">let </span>witness = <span class="self">self</span>.var_to_witness(witness_var)<span class="question-mark">?</span>;
+        <span class="self">self</span>.acir_ir.range_constraint(witness, bit_size)<span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = message {
+            <span class="kw">let </span>payload = <span class="self">self</span>.generate_assertion_message_payload(message.clone());
+            <span class="self">self</span>.acir_ir
+                .assertion_payloads
+                .insert(<span class="self">self</span>.acir_ir.last_acir_opcode_location(), payload);
+        }
+        <span class="prelude-val">Ok</span>(predicate_range)
     }
 
     <span class="doccomment">/// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}

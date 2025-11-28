@@ -224,7 +224,14 @@
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
@@ -343,7 +350,14 @@
                 AcirValue::Var(var, numeric_type) =&gt; {
                     <span class="comment">// Predicate is one so that the constrain is always applied, because
                     // values returned from Brillig will be 0 under a false predicate.
-                    </span>context.range_constrain_var(<span class="kw-2">*</span>var, numeric_type, <span class="prelude-val">None</span>, one)<span class="question-mark">?</span>;
+                    </span><span class="kw">if </span>!numeric_type.is_field() {
+                        context.range_constrain_var(
+                            <span class="kw-2">*</span>var,
+                            numeric_type.bit_size::&lt;G&gt;(),
+                            <span class="prelude-val">None</span>,
+                            one,
+                        )<span class="question-mark">?</span>;
+                    }
                 }
                 AcirValue::Array(values) =&gt; {
                     <span class="kw">for </span>value <span class="kw">in </span>values {
