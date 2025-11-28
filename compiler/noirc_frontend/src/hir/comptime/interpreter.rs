@@ -942,10 +942,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
-    /// - `<`:  `ordering == Ordering::Less`
-    /// - `<=`: `ordering != Ordering::Greater`
-    /// - `>`:  `ordering == Ordering::Greater`
-    /// - `<=`: `ordering != Ordering::Less`
     fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
         let ordering = match ordering {
             Value::Struct(fields, _) => match &*fields.into_iter().next().unwrap().1.borrow() {
@@ -955,18 +951,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             _ => unreachable!("`cmp` should always return an Ordering value"),
         };
 
-        use BinaryOpKind::*;
-        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
-            SignedField::zero() // Ordering::Less
-        } else {
-            SignedField::positive(2u128) // Ordering::Greater
+        // Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
+        let result = match operator {
+            // `<`:  `ordering == Ordering::Less`
+            BinaryOpKind::Less => ordering.is_zero(),
+            // `<=`: `ordering != Ordering::Greater`
+            BinaryOpKind::LessEqual => ordering != SignedField::positive(2_u128),
+            // `>`:  `ordering == Ordering::Greater`
+            BinaryOpKind::Greater => ordering == SignedField::positive(2_u128),
+            // `>=`: `ordering != Ordering::Less`
+            BinaryOpKind::GreaterEqual => !ordering.is_zero(),
+            _ => unreachable!("evaluate_ordering called with non-ordering operator"),
         };
-
-        if matches!(operator, Less | Greater) {
-            Ok(Value::Bool(ordering == less_or_greater))
-        } else {
-            Ok(Value::Bool(ordering != less_or_greater))
-        }
+        Ok(Value::Bool(result))
     }
 
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
