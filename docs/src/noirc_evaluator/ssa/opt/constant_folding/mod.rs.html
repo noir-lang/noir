@@ -2453,7 +2453,13 @@
 <a href="#2452" id="2452">2452</a>
 <a href="#2453" id="2453">2453</a>
 <a href="#2454" id="2454">2454</a>
-<a href="#2455" id="2455">2455</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2455" id="2455">2455</a>
+<a href="#2456" id="2456">2456</a>
+<a href="#2457" id="2457">2457</a>
+<a href="#2458" id="2458">2458</a>
+<a href="#2459" id="2459">2459</a>
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -3073,8 +3079,14 @@
         </span>Noop =&gt; CanBeDeduplicated::Always,
 
         <span class="comment">// These instructions can always be deduplicated
-        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } | IfElse { .. } =&gt; CanBeDeduplicated::Always,
-
+        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } =&gt; CanBeDeduplicated::Always,
+        IfElse { then_value, .. } =&gt; {
+            <span class="kw">if </span>dfg.type_of_value(<span class="kw-2">*</span>then_value).is_array() &amp;&amp; dfg.runtime().is_brillig() {
+                CanBeDeduplicated::Never
+            } <span class="kw">else </span>{
+                CanBeDeduplicated::Always
+            }
+        }
         <span class="comment">// Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
         // deduplicating. Since we don't know if the containing pass checks for this, we
