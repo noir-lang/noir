@@ -415,7 +415,12 @@
 <a href="#414" id="414">414</a>
 <a href="#415" id="415">415</a>
 <a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
 
 </span><span class="kw">use crate</span>::{
     NamedGeneric, Type, TypeBinding,
@@ -642,13 +647,18 @@
         .collect()
 }
 
-<span class="doccomment">/// Check that we are not passing a slice from an unconstrained runtime to a constrained runtime.
+<span class="doccomment">/// Check that that a type returned from an unconstrained to a constrained runtime is safe:
+/// * cannot return slices
+/// * cannot return functions
+/// * cannot return types which in general cannot be passed between runtimes, e.g. references
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>unconstrained_function_return(
     return_type: <span class="kw-2">&amp;</span>Type,
     location: Location,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;TypeCheckError&gt; {
     <span class="kw">if </span>return_type.contains_slice() {
         <span class="prelude-val">Some</span>(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
+    } <span class="kw">else if </span>return_type.contains_function() {
+        <span class="prelude-val">Some</span>(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } <span class="kw">else if </span>!return_type.is_valid_for_unconstrained_boundary() {
         <span class="prelude-val">Some</span>(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } <span class="kw">else </span>{

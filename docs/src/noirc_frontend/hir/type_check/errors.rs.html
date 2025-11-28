@@ -905,7 +905,11 @@
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -1109,6 +1113,8 @@
     </span>UnconstrainedReferenceToConstrained { location: Location },
     <span class="attr">#[error(<span class="string">"Slices cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
     </span>UnconstrainedSliceReturnToConstrained { location: Location },
+    <span class="attr">#[error(<span class="string">"Functions cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
+    </span>UnconstrainedFunctionReturnToConstrained { location: Location },
     <span class="attr">#[error(
         <span class="string">"Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
     </span>)]
@@ -1240,6 +1246,7 @@
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
@@ -1432,6 +1439,7 @@
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } =&gt; {

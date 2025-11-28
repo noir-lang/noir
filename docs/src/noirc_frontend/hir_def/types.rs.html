@@ -3119,7 +3119,54 @@
 <a href="#3118" id="3118">3118</a>
 <a href="#3119" id="3119">3119</a>
 <a href="#3120" id="3120">3120</a>
-<a href="#3121" id="3121">3121</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3121" id="3121">3121</a>
+<a href="#3122" id="3122">3122</a>
+<a href="#3123" id="3123">3123</a>
+<a href="#3124" id="3124">3124</a>
+<a href="#3125" id="3125">3125</a>
+<a href="#3126" id="3126">3126</a>
+<a href="#3127" id="3127">3127</a>
+<a href="#3128" id="3128">3128</a>
+<a href="#3129" id="3129">3129</a>
+<a href="#3130" id="3130">3130</a>
+<a href="#3131" id="3131">3131</a>
+<a href="#3132" id="3132">3132</a>
+<a href="#3133" id="3133">3133</a>
+<a href="#3134" id="3134">3134</a>
+<a href="#3135" id="3135">3135</a>
+<a href="#3136" id="3136">3136</a>
+<a href="#3137" id="3137">3137</a>
+<a href="#3138" id="3138">3138</a>
+<a href="#3139" id="3139">3139</a>
+<a href="#3140" id="3140">3140</a>
+<a href="#3141" id="3141">3141</a>
+<a href="#3142" id="3142">3142</a>
+<a href="#3143" id="3143">3143</a>
+<a href="#3144" id="3144">3144</a>
+<a href="#3145" id="3145">3145</a>
+<a href="#3146" id="3146">3146</a>
+<a href="#3147" id="3147">3147</a>
+<a href="#3148" id="3148">3148</a>
+<a href="#3149" id="3149">3149</a>
+<a href="#3150" id="3150">3150</a>
+<a href="#3151" id="3151">3151</a>
+<a href="#3152" id="3152">3152</a>
+<a href="#3153" id="3153">3153</a>
+<a href="#3154" id="3154">3154</a>
+<a href="#3155" id="3155">3155</a>
+<a href="#3156" id="3156">3156</a>
+<a href="#3157" id="3157">3157</a>
+<a href="#3158" id="3158">3158</a>
+<a href="#3159" id="3159">3159</a>
+<a href="#3160" id="3160">3160</a>
+<a href="#3161" id="3161">3161</a>
+<a href="#3162" id="3162">3162</a>
+<a href="#3163" id="3163">3163</a>
+<a href="#3164" id="3164">3164</a>
+<a href="#3165" id="3165">3165</a>
+<a href="#3166" id="3166">3166</a>
+<a href="#3167" id="3167">3167</a>
+<a href="#3168" id="3168">3168</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -4805,6 +4852,53 @@
                 lhs.contains_reference() || rhs.contains_reference()
             }
             Type::Reference(..) =&gt; <span class="bool-val">true</span>,
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            Type::FieldElement
+            | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Bool
+            | Type::String(<span class="kw">_</span>)
+            | Type::Unit
+            | Type::Quoted(<span class="kw">_</span>)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Error =&gt; <span class="bool-val">false</span>,
+
+            Type::Function(..) =&gt; <span class="bool-val">true</span>,
+
+            Type::Reference(typ, <span class="kw">_</span>) =&gt; typ.contains_function(),
+            Type::Array(length, typ) =&gt; length.contains_function() || typ.contains_function(),
+            Type::Slice(typ) =&gt; typ.contains_function(),
+            Type::FmtString(length, typ) =&gt; length.contains_function() || typ.contains_function(),
+            Type::Tuple(types) =&gt; types.iter().any(|typ| typ.contains_function()),
+            Type::DataType(typ, generics) =&gt; {
+                <span class="kw">let </span>typ = typ.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(generics) {
+                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.contains_function()) {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = typ.get_variants(generics) {
+                    <span class="kw">if </span>variants.iter().flat_map(|(<span class="kw">_</span>, args)| args).any(|typ| typ.contains_function())
+                    {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                }
+                <span class="bool-val">false
+            </span>}
+            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).contains_function(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
+                <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+                    TypeBinding::Bound(binding) =&gt; binding.contains_function(),
+                    TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+                }
+            }
+            Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; to.contains_function(),
+            Type::InfixExpr(lhs, _op, rhs, <span class="kw">_</span>) =&gt; lhs.contains_function() || rhs.contains_function(),
         }
     }
 

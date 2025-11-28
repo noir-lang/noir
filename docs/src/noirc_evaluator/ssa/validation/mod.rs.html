@@ -1917,7 +1917,47 @@
 <a href="#1916" id="1916">1916</a>
 <a href="#1917" id="1917">1917</a>
 <a href="#1918" id="1918">1918</a>
-<a href="#1919" id="1919">1919</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a>
+<a href="#1952" id="1952">1952</a>
+<a href="#1953" id="1953">1953</a>
+<a href="#1954" id="1954">1954</a>
+<a href="#1955" id="1955">1955</a>
+<a href="#1956" id="1956">1956</a>
+<a href="#1957" id="1957">1957</a>
+<a href="#1958" id="1958">1958</a>
+<a href="#1959" id="1959">1959</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2845,9 +2885,9 @@
         }
     }
 
-    <span class="doccomment">/// Check that we are not trying to pass references from constrained to unconstrained code.
-    ///
-    /// See the discussion in [#10262](https://github.com/noir-lang/noir/pull/10264) about the difficulty of catching this in the frontend.
+    <span class="doccomment">/// Check the inputs and outputs of function calls going from ACIR to Brillig:
+    /// * cannot pass references from constrained to unconstrained code
+    /// * cannot return functions
     </span><span class="kw">fn </span>check_calls_in_constrained(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) {
         <span class="kw">if </span>!<span class="self">self</span>.function.runtime().is_acir() {
             <span class="kw">return</span>;
@@ -2868,6 +2908,18 @@
                 <span class="comment">// If we don't panic here, we would have a different, more obscure panic later on.
                 </span><span class="macro">panic!</span>(
                     <span class="string">"Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}"</span>,
+                    <span class="self">self</span>.function.name(),
+                    <span class="self">self</span>.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
+            }
+        }
+        <span class="kw">for </span>result_id <span class="kw">in </span><span class="self">self</span>.function.dfg.instruction_results(instruction) {
+            <span class="kw">let </span>typ = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>result_id);
+            <span class="kw">if </span>typ.contains_function() {
+                <span class="macro">panic!</span>(
+                    <span class="string">"Trying to return a function value to ACIR function '{} {}' from unconstrained '{} {}' in {result_id}: {typ}"</span>,
                     <span class="self">self</span>.function.name(),
                     <span class="self">self</span>.function.id(),
                     called_function.name(),
@@ -3644,6 +3696,34 @@
         brillig(inline) fn foo f1 {
           b0(v0: &amp;mut u32):
             return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(
+        expected = <span class="string">"Trying to return a function value to ACIR function 'main f0' from unconstrained 'foo f1' in v2: function"
+    </span>)]
+    </span><span class="kw">fn </span>disallows_returning_functions_from_brillig_to_acir() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1, v2 = call f1() -&gt; (function, function)
+            v3 = call v1(v0) -&gt; u32
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return f2, f3
+        }
+        acir(inline) fn identity f2 {
+          b0(v0: u32):
+            return v0
+        }
+        brillig(inline) fn identity f3 {
+          b0(v0: u32):
+            return v0
         }
         "</span>;
         <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
