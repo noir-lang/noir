@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.event_name == 'pull_request'
     permissions:
-      issues: write
+      pull-requests: write
     outputs:
       has_label: ${{ steps.check-labels.outputs.result }}
     steps:

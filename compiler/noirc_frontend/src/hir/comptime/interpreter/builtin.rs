@@ -79,6 +79,8 @@ impl Interpreter<'_, '_> {
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(arguments, location),
+            "as_witness" => as_witness(arguments, location),
+            "black_box" => black_box(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -181,7 +183,7 @@ impl Interpreter<'_, '_> {
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
-            "slice_insert" => slice_insert(arguments, location),
+            "slice_insert" => slice_insert(arguments, location, call_stack),
             "slice_pop_back" => slice_pop_back(arguments, location, call_stack),
             "slice_pop_front" => slice_pop_front(arguments, location, call_stack),
             "slice_push_back" => slice_push_back(arguments, location),
@@ -314,6 +316,14 @@ fn as_slice(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Va
             Err(InterpreterError::TypeMismatch { expected, actual, location: array_location })
         }
     }
+}
+
+fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -799,11 +809,25 @@ fn slice_pop_back(
     }
 }
 
-fn slice_insert(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn slice_insert(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &Vector<Location>,
+) -> IResult<Value> {
     let (slice, index, (element, _)) = check_three_arguments(arguments, location)?;
 
     let (mut values, typ) = get_slice(slice)?;
     let index = get_u32(index)? as usize;
+
+    // If index is equal to the length, the insert is equivalent to a push
+    if index > values.len() {
+        let message = format!(
+            "slice_insert: index {index} is out of bounds for a slice of length {}",
+            values.len()
+        );
+        return failing_constraint(message, location, call_stack);
+    }
+
     values.insert(index, element);
     Ok(Value::Slice(values, typ))
 }
@@ -2320,13 +2344,14 @@ fn expr_resolve(
         panic!("Expected second argument to be a struct");
     };
 
-    let is_some = fields.get(&Rc::new("_is_some".to_string())).unwrap();
+    // It's fine to do a linear search here as Option just has two fields
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
     let Value::Bool(is_some) = is_some.borrow().clone() else {
         panic!("Expected is_some to be a boolean");
     };
 
     let function_to_resolve_in = if is_some {
-        let value = fields.get(&Rc::new("_value".to_string())).unwrap();
+        let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
         let Value::FunctionDefinition(func_id) = value.borrow().clone() else {
             panic!("Expected option value to be a FunctionDefinition");
         };
@@ -2684,6 +2709,7 @@ fn function_def_set_parameters(
     let mut parameters = Vec::new();
     let mut parameter_types = Vec::new();
     let mut parameter_idents = Vec::new();
+    let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
 
     for input_parameter in input_parameters {
         let mut tuple = get_tuple((input_parameter, parameters_argument_location))?;
@@ -2706,6 +2732,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                &mut parameter_names_in_list,
             )
         });
 
@@ -3130,7 +3157,7 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = FieldElement::zero();
+    let is_infinite = false;
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
@@ -3145,10 +3172,8 @@ fn derive_generators(
             .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
             .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-        embedded_curve_point_fields.insert(
-            is_infinite_field_name.clone(),
-            Shared::new(Value::Field(SignedField::positive(is_infinite))),
-        );
+        embedded_curve_point_fields
+            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);

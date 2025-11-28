@@ -72,6 +72,8 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
+    #[error("Oracle functions cannot return multiple slices")]
+    OracleReturnsMultipleSlices { location: Location },
     #[error("Oracle functions cannot be called directly from constrained functions")]
     UnconstrainedOracleReturnToConstrained { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -196,6 +198,8 @@ pub enum ResolverError {
     OracleWithBody { location: Location },
     #[error("Builtin and low-level function declarations cannot have a body")]
     BuiltinWithBody { location: Location },
+    #[error("Identifier `{ident}` is bound more than once in the same pattern")]
+    PatternBoundMoreThanOnce { ident: Ident },
 }
 
 impl ResolverError {
@@ -257,6 +261,7 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
+            | ResolverError::OracleReturnsMultipleSlices { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -271,7 +276,8 @@ impl ResolverError {
             | ResolverError::NoSuchField { field: ident, .. }
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
-            | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
+            | ResolverError::UnconstrainedTypeParameter { ident }
+            | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
             }
@@ -470,6 +476,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
                 diagnostic
+            },
+            ResolverError::OracleReturnsMultipleSlices { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
             },
             ResolverError::UnconstrainedOracleReturnToConstrained { location } => Diagnostic::simple_error(
                 error.to_string(),
@@ -706,7 +719,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, location, missing_trait_location} => {
                 let mut diagnostic = Diagnostic::simple_error(
-                    format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
+                    format!("The trait bound `{typ}: {the_trait}` is not satisfied"),
                     format!("The trait `{the_trait}` is not implemented for `{typ}`")
                     , *location);
                 diagnostic.add_secondary(format!("required by this bound in `{impl_trait}`"), *missing_trait_location);
@@ -714,14 +727,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::ExpectedTrait { found, location  } => {
                 Diagnostic::simple_error(
-                    format!("Expected a trait, found {found}"), 
+                    format!("Expected a trait, found {found}"),
                     String::new(),
                     *location,
                 )
             }
             ResolverError::InvalidSyntaxInPattern { location } => {
                 Diagnostic::simple_error(
-                    "Invalid syntax in match pattern".into(), 
+                    "Invalid syntax in match pattern".into(),
                     "Only literal, constructor, and variable patterns are allowed".into(),
                     *location,
                 )
@@ -740,42 +753,42 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::TypeUnsupportedInMatch { typ, location } => {
                 Diagnostic::simple_error(
-                    format!("Cannot match on values of type `{typ}`"), 
+                    format!("Cannot match on values of type `{typ}`"),
                     String::new(),
                     *location,
                 )
             },
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
-                    format!("Expected a struct, enum, or literal pattern, but found a {item}"), 
+                    format!("Expected a struct, enum, or literal pattern, but found a {item}"),
                     String::new(),
                     *location,
                 )
             },
             ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } => {
                 Diagnostic::simple_error(
-                    format!("Trait `{trait_name}` has no method named `{method_name}`"), 
+                    format!("Trait `{trait_name}` has no method named `{method_name}`"),
                     String::new(),
                     *location,
                 )
             },
             ResolverError::RecursiveTypeAlias { location } => {
                 Diagnostic::simple_error(
-                    "Cannot use a type alias inside a type alias".to_string(), 
+                    "Cannot use a type alias inside a type alias".to_string(),
                     String::new(),
                     *location,
                 )
             },
             ResolverError::ExpectedNumericExpression { typ, location } => {
                 Diagnostic::simple_error(
-                    format!("Expected a numeric expression, but got `{typ}`"), 
+                    format!("Expected a numeric expression, but got `{typ}`"),
                     String::new(),
                     *location,
                 )
             },
             ResolverError::NonU32Index { location } => {
                 Diagnostic::simple_warning(
-                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(), 
+                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(),
                     String::new(),
                     *location,
                 )
@@ -853,6 +866,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "Builtin and low-level function declarations cannot have a body".to_string(),
                     "This function body should be removed".to_string(),
                     *location,
+                )
+            }
+            ResolverError::PatternBoundMoreThanOnce { ident } => {
+                Diagnostic::simple_error(
+                    format!("Identifier `{ident}` is bound more than once in the same pattern"),
+                    "Used in a pattern more than once".to_string(),
+                    ident.location(),
                 )
             }
         }
