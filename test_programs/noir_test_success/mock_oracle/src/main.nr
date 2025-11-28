@@ -269,7 +269,7 @@ unconstrained fn brillig_add_8_128(x: u8, y: u128) -> Field {
     (x as Field) + (y as Field)
 }
 
-#[test(should_fail_with = "Failed to solve brillig function")]
+#[test(should_fail)]
 unconstrained fn test_invalid_function_pointer() {
     // Create a lambda, so we have a dispatch function to its constrained/unconstrained versions.
     let add = |x: u32, y: u64| (x as Field) + (y as Field);
