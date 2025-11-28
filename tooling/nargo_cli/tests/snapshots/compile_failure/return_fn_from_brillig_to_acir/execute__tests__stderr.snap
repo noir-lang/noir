@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Trying to return a function value to ACIR function 'main f0' from unconstrained 'inc_or_dec f1' in v3: function
+
+Aborting due to 1 previous error
