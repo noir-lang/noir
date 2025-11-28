@@ -1,10 +1,7 @@
-use acvm::{
-    FieldElement,
-    acir::{
-        AcirField,
-        circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        native_types::{Expression, Witness},
-    },
+use acvm::acir::{
+    AcirField,
+    circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+    native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
 
