@@ -305,11 +305,19 @@ fn apply_range_constraint(
     let field = input.to_field_element();
 
     let num_bits = get_u32(num_bits)?;
+    let field_num_bits = field.num_bits();
 
-    if field.num_bits() < num_bits {
+    if field_num_bits <= num_bits {
         Ok(Value::Unit)
     } else {
-        failing_constraint("value exceeds range check bounds", location, call_stack)
+        failing_constraint(
+            format!(
+                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                field.to_short_hex()
+            ),
+            location,
+            call_stack,
+        )
     }
 }
 
