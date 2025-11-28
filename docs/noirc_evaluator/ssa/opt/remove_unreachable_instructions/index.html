@@ -3,7 +3,7 @@ For example, if an instruction in a block is <code>constrain u1 0 == u1 1</code>
 any subsequent instructions in that block will never be executed. This pass
 then removes those subsequent instructions and replaces the block’s terminator
 with a special <code>unreachable</code> value.</p>
-<p>This pass might also add constrain checks after existing instructions,
+<p>This pass might also replace existing instructions with constrain checks,
 for example binary operations that are guaranteed to overflow.</p>
 <h3 id="handling-of-constrain"><a class="doc-anchor" href="#handling-of-constrain">§</a>Handling of <code>constrain</code></h3>
 <p>Given an SSA like this:</p>
