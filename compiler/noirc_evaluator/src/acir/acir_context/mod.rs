@@ -1007,18 +1007,19 @@ impl<F: AcirField> AcirContext<F> {
         Ok((quotient_var, remainder_var))
     }
 
-    /// Generate constraints that are satisfied iff
-    /// lhs < rhs , when offset is 1, or
-    /// lhs <= rhs, when offset is 0
-    /// bits is the bit size of a and b (or an upper bound of the bit size)
-    /// predicate is assumed to be 0 or 1, and when it is 0, the generated constrains will never fail.
+    /// Generate constraints that are satisfied iff:
     ///
-    /// lhs<=rhs is done by constraining b-a to a bit size of 'bits':
-    /// if lhs<=rhs, 0 <= rhs-lhs <= b < 2^bits
-    /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
-    /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
-    /// lhs < rhs <=> a+1<=b
-    /// TODO(<https://github.com/noir-lang/noir/issues/10270>): Consolidate this with bounds_check function.
+    /// - lhs < rhs , when offset is 1, or
+    /// - lhs <= rhs, when offset is 0
+    ///
+    /// `bits` is the bit size of `lhs` and `rhs` (or an upper bound of the bit size)
+    /// `predicate` is assumed to be 0 or 1, and when it is 0, the generated constrains will never fail.
+    ///
+    /// `lhs<=rhs` is done by constraining `rhs-lhs` to a bit size of `bits`:
+    /// - if `lhs<=rhs`, `0 <= rhs-lhs <= b < 2^bits`
+    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) >= bits + 1`)
+    ///
+    /// n.b: we do NOT check here that `lhs` and `rhs` are indeed `bits` size
     pub(super) fn bound_constraint_with_offset(
         &mut self,
         lhs: AcirVar,
@@ -1041,38 +1042,48 @@ impl<F: AcirField> AcirContext<F> {
             "range check with bit size >= the prime field size is not implemented yet"
         );
 
-        let mut lhs_offset = self.add_var(lhs, offset)?;
-
-        // Optimization when rhs is const and fits within a u128
-        let rhs_expr = self.var_to_expression(rhs)?;
-        // Do not attempt this optimization when the q_c is zero as otherwise
+        // If `rhs` is a constant, we can try to optimize the operation by shifting `lhs + offset` such that if
+        // `lhs + offset == rhs` then the shifted value will fail the range constraint.
+        //
+        // ```
+        // lhs + offset < rhs_const
+        // => lhs + offset + (2^N - rhs_const) < 2^N
+        // ```
+        //
+        // Do not attempt this optimization when rhs is zero as otherwise
         // we will compute an rhs offset of zero and ultimately lay down a range constrain of zero bits
         // which will always fail.
-        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 && !rhs_expr.q_c.is_zero() {
-            // We try to move the offset to rhs
-            let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
-                lhs_offset = lhs;
-                rhs_expr.q_c.to_u128() - 1
+        if let Some(rhs_const) = self
+            .var_to_expression(rhs)?
+            .to_const()
+            .and_then(|c| c.try_into_u128())
+            .filter(|c| *c != 0)
+        {
+            // We try to move the offset to rhs if possible.
+            let can_move_offset_to_rhs = self.is_constant_one(&offset);
+            let (lhs_offset, rhs_offset) = if can_move_offset_to_rhs {
+                (lhs, rhs_const - 1)
             } else {
-                rhs_expr.q_c.to_u128()
+                (self.add_var(lhs, offset)?, rhs_const)
             };
-            // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
+            // We now want to find the smallest `r` such that rhs_offset + r = 2^N - 1 for some N
+            // => r = 2^N - rhs_offset - 1
             let bit_size = bit_size_u128(rhs_offset);
-            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
+            assert!(bit_size <= bits, "rhs constant has more bits than allowed");
             let two_pow_bit_size_minus_one =
                 if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
             let r = two_pow_bit_size_minus_one - rhs_offset;
-            // however, since it is a constant, we can compute its actual bit size
-            let r_bit_size = bit_size_u128(r);
 
-            //we need to ensure lhs_offset + r does not overflow
-            if bits + r_bit_size < F::max_num_bits() {
-                // witness = lhs_offset + r
+            // we need to ensure lhs_offset + r does not overflow
+            if bits + bit_size_u128(r) < F::max_num_bits() {
+                // lhs_offset < rhs_offset
+                // -> lhs_offset + r < rhs_offset + r = 2^bit_size
+                // -> lhs_offset + r < 2^bit_size
+
                 let r_var = self.add_constant(r);
                 let aor = self.add_var(lhs_offset, r_var)?;
 
-                // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
                 self.range_constrain_var(
                     aor,
                     &NumericType::Unsigned { bit_size },
@@ -1082,8 +1093,15 @@ impl<F: AcirField> AcirContext<F> {
                 return Ok(());
             }
         }
-        // General case: lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
-        let sub_expression = self.sub_var(rhs, lhs_offset)?; // rhs-lhs_offset
+
+        // If we cannot apply the above optimization, we fall back to the general case.
+        //
+        // We calculate `lhs + offset <= rhs` implies that `rhs - (lhs + offset) >= 0`.
+        // This is then enforced by range constraining `rhs - (lhs + offset)` to be a `bits` bit integer.
+        // Should `lhs + offset > rhs`, then `rhs - (lhs + offset)` will overflow the field and become a large integer
+        // which cannot be represented in `bits` bits.
+        let lhs_offset = self.add_var(lhs, offset)?;
+        let sub_expression = self.sub_var(rhs, lhs_offset)?;
         self.range_constrain_var(
             sub_expression,
             &NumericType::Unsigned { bit_size: bits },
@@ -1596,8 +1614,21 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWid
 
 #[cfg(test)]
 mod test {
-    use acvm::{AcirField, FieldElement};
+    use std::collections::BTreeMap;
+
+    use acvm::{
+        AcirField, FieldElement,
+        acir::native_types::WitnessMap,
+        blackbox_solver::StubbedBlackBoxSolver,
+        pwg::{ACVM, ACVMStatus},
+    };
+    use noirc_frontend::shared::Visibility;
     use proptest::prelude::*;
+
+    use crate::{
+        acir::acir_context::{AcirContext, BrilligStdLib},
+        ssa::convert_generated_acir_into_circuit,
+    };
 
     use super::power_of_two;
 
@@ -1617,5 +1648,58 @@ mod test {
             prop_assert_eq!(power_of_two_opt, power_of_two_general);
         }
 
+
+        #[test]
+        fn fuzz_bound_constraint_with_offset(limit: u128, offset: bool) {
+            let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+
+            let lhs = context.add_variable();
+            let rhs = context.add_constant(limit);
+            let offset_var = context.add_constant(offset);
+            let one = context.add_constant(1_u128);
+
+            let lhs_witness = context.var_to_witness(lhs).unwrap();
+            context.acir_ir.input_witnesses = vec![lhs_witness];
+
+            context.bound_constraint_with_offset(lhs, rhs, offset_var, 128, one).unwrap();
+
+            let circuit = context.finish(Vec::new(), Vec::new());
+            let circuit = convert_generated_acir_into_circuit(
+                circuit,
+                &[(1, Visibility::Private)],
+                BTreeMap::default(),
+                BTreeMap::default(),
+                BTreeMap::default(),
+            )
+            .circuit;
+
+            let solver = StubbedBlackBoxSolver::default();
+
+            let mut witness_map = WitnessMap::new();
+            witness_map.insert(lhs_witness,  FieldElement::from(limit));
+            let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
+
+            if offset {
+                prop_assert!(matches!(acvm.solve(), ACVMStatus::Failure(..)));
+            } else {
+                prop_assert!(matches!(acvm.solve(), ACVMStatus::Solved));
+            }
+
+            if let Some(just_below_limit) = limit.checked_sub(1)  {
+                let mut witness_map = WitnessMap::new();
+                witness_map.insert(lhs_witness, FieldElement::from(just_below_limit));
+                let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
+
+                prop_assert!(matches!(acvm.solve(), ACVMStatus::Solved));
+            }
+
+            if let Some(just_above_limit) = limit.checked_add(1)  {
+                let mut witness_map = WitnessMap::new();
+                witness_map.insert(lhs_witness, FieldElement::from(just_above_limit));
+                let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
+
+                prop_assert!(matches!(acvm.solve(), ACVMStatus::Failure(..)));
+            }
+        }
     }
 }
