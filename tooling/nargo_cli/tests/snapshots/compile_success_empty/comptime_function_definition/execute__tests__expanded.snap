@@ -203,7 +203,7 @@ mod test_as_typed_expr_4 {
     }
 
     fn baz() -> Field {
-        let x: Field = { bar() };
+        let x: Field = 1_Field;
         x
     }
 
