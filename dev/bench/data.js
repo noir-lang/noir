@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764329887401,
+  "lastUpdate": 1764332558579,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0ffef1c383ce73611cad6cdd678bce64a1cbceb1",
-          "message": "feat(LSP): semantic tokens for doc comment code blocks (#10565)",
-          "timestamp": "2025-11-21T20:34:44Z",
-          "tree_id": "300a8b7765cf167d9ac9a0c595ce2eda63ec5f5a",
-          "url": "https://github.com/noir-lang/noir/commit/0ffef1c383ce73611cad6cdd678bce64a1cbceb1"
-        },
-        "date": 1763758559090,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250426,
-            "range": "± 664",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220531,
-            "range": "± 4060",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779186,
-            "range": "± 1035",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2797279,
             "range": "± 10807",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d5f1d15992c399fc7650b42bd469bbe312b16a58",
+          "message": "fix: subtraction operator for witness (#10675)",
+          "timestamp": "2025-11-28T12:00:41Z",
+          "tree_id": "6eae890e7701712c8f50d6d4b4dccef55734bf7d",
+          "url": "https://github.com/noir-lang/noir/commit/d5f1d15992c399fc7650b42bd469bbe312b16a58"
+        },
+        "date": 1764332531356,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256061,
+            "range": "± 1062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229897,
+            "range": "± 4163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792904,
+            "range": "± 15388",
             "unit": "ns/iter"
           }
         ]
