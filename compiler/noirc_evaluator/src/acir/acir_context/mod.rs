@@ -21,7 +21,7 @@ use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
 use rustc_hash::FxHashMap as HashMap;
-use std::{borrow::Cow, cmp::Ordering};
+use std::borrow::Cow;
 
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use crate::{
@@ -705,56 +705,6 @@ impl<F: AcirField> AcirContext<F> {
         let rhs_expr = self.var_to_expression(rhs)?;
 
         let sum_expr = &lhs_expr + &rhs_expr;
-        if fits_in_one_identity(&sum_expr, self.expression_width) {
-            let sum_var = self.add_data(AcirVarData::from(sum_expr));
-
-            return Ok(sum_var);
-        }
-
-        let sum_expr = match lhs_expr.width().cmp(&rhs_expr.width()) {
-            Ordering::Greater => {
-                let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
-                let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-
-                let new_sum_expr = &lhs_witness_expr + &rhs_expr;
-                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
-                    new_sum_expr
-                } else {
-                    let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                    let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-
-                    &lhs_expr + &rhs_witness_expr
-                }
-            }
-            Ordering::Less => {
-                let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-
-                let new_sum_expr = &lhs_expr + &rhs_witness_expr;
-                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
-                    new_sum_expr
-                } else {
-                    let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
-                    let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-
-                    &lhs_witness_expr + &rhs_expr
-                }
-            }
-            Ordering::Equal => {
-                let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
-                let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-
-                let new_sum_expr = &lhs_witness_expr + &rhs_expr;
-                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
-                    new_sum_expr
-                } else {
-                    let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                    let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-
-                    &lhs_witness_expr + &rhs_witness_expr
-                }
-            }
-        };
 
         let sum_var = self.add_data(AcirVarData::from(sum_expr));
 
@@ -1575,23 +1525,6 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
             AcirVarData::Expr(expr)
         }
     }
-}
-
-/// Checks if this expression can fit into one arithmetic identity
-fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWidth) -> bool {
-    let width = match &width {
-        ExpressionWidth::Unbounded => {
-            return true;
-        }
-        ExpressionWidth::Bounded { width } => *width,
-    };
-
-    // A Polynomial with more than one mul term cannot fit into one opcode
-    if expr.mul_terms.len() > 1 {
-        return false;
-    };
-
-    expr.width() <= width
 }
 
 #[cfg(test)]
