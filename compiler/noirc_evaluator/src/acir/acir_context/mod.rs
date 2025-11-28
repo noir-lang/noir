@@ -11,7 +11,7 @@
 use acvm::acir::{
     AcirField, BlackBoxFunc,
     circuit::{
-        AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
     },
     native_types::{Expression, Witness},
@@ -61,8 +61,6 @@ pub(crate) struct AcirContext<F: AcirField> {
     /// addition.
     pub(super) acir_ir: GeneratedAcir<F>,
 
-    expression_width: ExpressionWidth,
-
     pub(super) warnings: Vec<SsaReport>,
 }
 
@@ -73,13 +71,8 @@ impl<F: AcirField> AcirContext<F> {
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
-            expression_width: Default::default(),
             warnings: Default::default(),
         }
-    }
-
-    pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
-        self.expression_width = expression_width;
     }
 
     pub(crate) fn current_witness_index(&self) -> Witness {
