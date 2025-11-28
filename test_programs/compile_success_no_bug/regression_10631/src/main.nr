@@ -17,7 +17,7 @@ fn main() {
     constrained_to_unconstrained();
 }
 
-// Test cases of creating lambdas in an unconstrained environment and passing them to unconstrained functions.
+// // Test cases of creating lambdas in an unconstrained environment and passing them to unconstrained functions.
 unconstrained fn unconstrained_to_unconstrained() {
     // Passing the known unconstrained `foo` does not end up in a constrained lambda.
     bar(foo);
@@ -51,17 +51,17 @@ fn constrained_to_unconstrained() {
         // Passing the known unconstrained `foo` works.
         bar(foo);
 
-        // `bar` states that it needs an unconstrained lambda, so the frontend could recognize that it would
+        // `bar` states that it needs an unconstrained lambda, so the frontend can recognize that it would
         // not be passing a mutable reference from constrained to unconstrained.
         bar(|x| foo(x));
 
-        // `baz` is unconstrained, so the frontend could recognize that it would
+        // `baz` is unconstrained, so the frontend can recognize that it would
         // not be passing a mutable reference from constrained to unconstrained.
         baz(|x| foo(x));
 
         // Here we don't know whether `f` will be used as constrained or unconstrained, or both,
         // so the frontend rejects this because it looks like it would be passing a mutable reference
-        // to an unconstrained function (at least in the constrained variant of the lambda).
+        // to an unconstrained function.
         // let f = |x| foo(x);
         // bar(f);
         // baz(f);

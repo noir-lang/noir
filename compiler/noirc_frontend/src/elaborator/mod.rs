@@ -682,17 +682,17 @@ impl<'context> Elaborator<'context> {
             return false;
         }
 
-        if let Some(lambda_context) = self.lambda_stack.last() {
-            return !lambda_context.unconstrained;
-        }
-
-        if let Some(id) = self.current_item {
+        let in_unconstrained_function = self.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
-                return !self.interner.function_modifiers(&id).is_unconstrained;
+                self.interner.function_modifiers(&id).is_unconstrained
+            } else {
+                false
             }
-        }
+        });
 
-        true
+        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+
+        !in_unconstrained_function && !in_unconstrained_lambda
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not
