@@ -338,6 +338,12 @@ mod tests {
         let mut not_implemented = Vec::new();
 
         for blackbox in BlackBoxFunc::iter() {
+            // There's no implementation for RANGE as it's actually a builtin function,
+            // and in the comptime interpreter it's not transformed to a foreign function call
+            if blackbox == BlackBoxFunc::RANGE {
+                continue;
+            }
+
             let name = blackbox.name();
             let pedantic_solving = true;
             match call_foreign(name, Vec::new(), Type::Unit, no_location, pedantic_solving) {
