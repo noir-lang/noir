@@ -1002,3 +1002,13 @@ fn empty_comptime_block() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unify_comptime_block_expression_with_target_type() {
+    let src = r#"
+    fn main() {
+        let _: u8 = comptime { 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
