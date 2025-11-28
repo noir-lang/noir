@@ -225,13 +225,18 @@ pub(super) fn unconstrained_function_args(
         .collect()
 }
 
-/// Check that we are not passing a slice from an unconstrained runtime to a constrained runtime.
+/// Check that that a type returned from an unconstrained to a constrained runtime is safe:
+/// * cannot return slices
+/// * cannot return functions
+/// * cannot return types which in general cannot be passed between runtimes, e.g. references
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
+    } else if return_type.contains_function() {
+        Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
