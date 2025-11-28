@@ -40,7 +40,7 @@ comptime fn example_attribute(function: FunctionDefinition) {
 }
 
 #[example_attribute]
-pub fn foo() { }
+pub fn foo() {}
 
 fn main() {
     comptime {
