@@ -640,19 +640,9 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
     )
 }
 
-/// Type to be used in `Value::Slice(<values>, <slice-type>)`.
-pub(crate) fn byte_slice_type() -> Type {
-    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
-}
-
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
-}
-
-/// Create a `Value::Slice` from bytes.
-pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
-    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
