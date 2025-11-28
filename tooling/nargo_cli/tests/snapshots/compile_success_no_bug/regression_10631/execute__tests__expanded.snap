@@ -16,6 +16,7 @@ fn main() {
 
 unconstrained fn unconstrained_to_unconstrained() {
     bar(foo);
+    baz(foo);
     bar(|x: &mut u32| foo(x));
     baz(|x: &mut u32| foo(x));
     let f: fn(&mut u32) = |x: &mut u32| foo(x);
@@ -27,6 +28,7 @@ fn constrained_to_unconstrained() {
     // Safety: comment added by `nargo expand`
     unsafe {
         bar(foo);
+        baz(foo);
         bar(|x: &mut u32| foo(x));
         baz(|x: &mut u32| foo(x));
     }

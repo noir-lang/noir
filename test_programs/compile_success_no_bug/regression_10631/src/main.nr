@@ -22,8 +22,9 @@ unconstrained fn unconstrained_to_unconstrained() {
     // Passing the known unconstrained `foo` does not end up in a constrained lambda.
     bar(foo);
 
-    // This is rejected by the frontend as an unsafe conversion of an unconstrained function to constrained function parameter.
-    // baz(foo);
+    // The frontend understands that even though we need to coerce an unconstrained function
+    // to match the type of a seemingly constrained lambda, it is okay because `baz` is unconstrained.
+    baz(foo);
 
     // Passing an inline lambda, we can figure out that `bar` needs it to be unconstrained,
     // and avoid generating the constrained lambda.
@@ -34,8 +35,9 @@ unconstrained fn unconstrained_to_unconstrained() {
     baz(|x| foo(x));
 
     // Here we don't know whether `f` will be used as constrained or unconstrained, or both;
-    // it will be monomorphized as constrained and unconstrained, and cause an error even if unused.
-    // But since `main` is itself `unconstrained`, in this instance we know we won't ever use the constrained variant.
+    // it would normally be monomorphized as constrained and unconstrained, and cause an error even if unused.
+    // But, since `unconstrained_to_unconstrained` is itself `unconstrained`, in this instance we know we
+    // won't ever use the constrained variant, and can avoid creating it.
     let f = |x| foo(x);
 
     // When passing a variable lambda to `bar`, we know it's only interested in the unconstrained version,
@@ -48,8 +50,11 @@ unconstrained fn unconstrained_to_unconstrained() {
 fn constrained_to_unconstrained() {
     // safety: test
     unsafe {
-        // Passing the known unconstrained `foo` works.
+        // Passing the known unconstrained `foo` works when `unconstrained fn` is expected.
         bar(foo);
+
+        // The frontend can also figure out that passing it to the unconstrained `baz` is okay.
+        baz(foo);
 
         // `bar` states that it needs an unconstrained lambda, so the frontend can recognize that it would
         // not be passing a mutable reference from constrained to unconstrained.
