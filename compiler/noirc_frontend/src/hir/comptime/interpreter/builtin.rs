@@ -71,9 +71,7 @@ impl Interpreter<'_, '_> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            "apply_range_constraint" => {
-                self.call_foreign("range", arguments, return_type, location)
-            }
+            "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
@@ -293,6 +291,25 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
             let actual = value.get_type().into_owned();
             Err(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
         }
+    }
+}
+
+fn apply_range_constraint(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &Vector<Location>,
+) -> IResult<Value> {
+    let (value, num_bits) = check_two_arguments(arguments, location)?;
+
+    let input = get_field(value)?;
+    let field = input.to_field_element();
+
+    let num_bits = get_u32(num_bits)?;
+
+    if field.num_bits() < num_bits {
+        Ok(Value::Unit)
+    } else {
+        failing_constraint("value exceeds range check bounds", location, call_stack)
     }
 }
 
