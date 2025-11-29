@@ -1277,4 +1277,17 @@ mod test {
 
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
+
+    #[test]
+    fn keeps_bit_shifts_by_known_large_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 33
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
 }
