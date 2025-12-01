@@ -42,7 +42,7 @@
 //! - If DIE was run after mem2reg and flattening, no unreachable
 //!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
-use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use acvm::{AcirField, FieldElement};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
