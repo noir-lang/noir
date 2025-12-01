@@ -335,7 +335,9 @@ impl Elaborator<'_> {
             self.run_lint(|_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
-
+            self.run_lint(|_| {
+                lints::databus_on_non_entry_point(func, visibility, is_entry_point).map(Into::into)
+            });
             let type_location = typ.location;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {

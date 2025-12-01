@@ -907,12 +907,7 @@ impl<F: AcirField> AcirContext<F> {
         //
         // We do not need to use a predicate in the range constraint because
         // `quotient_var` is the output of a brillig call
-        self.range_constrain_var(
-            quotient_var,
-            &NumericType::Unsigned { bit_size: max_q_bits },
-            None,
-            one,
-        )?;
+        self.range_constrain_var(quotient_var, max_q_bits, None, one)?;
 
         // Constrain `r < 2^{max_rhs_bits}`.
         //
@@ -922,12 +917,7 @@ impl<F: AcirField> AcirContext<F> {
         // This opcode will be optimized out if it is redundant so we always add it for safety.
         // Furthermore, we do not need to use a predicate in the range constraint because
         // the remainder is the output of a brillig call
-        self.range_constrain_var(
-            remainder_var,
-            &NumericType::Unsigned { bit_size: max_rhs_bits },
-            None,
-            one,
-        )?;
+        self.range_constrain_var(remainder_var, max_rhs_bits, None, one)?;
 
         // Constrain `r < rhs`.
         //
@@ -1084,12 +1074,7 @@ impl<F: AcirField> AcirContext<F> {
                 let r_var = self.add_constant(r);
                 let aor = self.add_var(lhs_offset, r_var)?;
 
-                self.range_constrain_var(
-                    aor,
-                    &NumericType::Unsigned { bit_size },
-                    None,
-                    predicate,
-                )?;
+                self.range_constrain_var(aor, bit_size, None, predicate)?;
                 return Ok(());
             }
         }
@@ -1102,12 +1087,7 @@ impl<F: AcirField> AcirContext<F> {
         // which cannot be represented in `bits` bits.
         let lhs_offset = self.add_var(lhs, offset)?;
         let sub_expression = self.sub_var(rhs, lhs_offset)?;
-        self.range_constrain_var(
-            sub_expression,
-            &NumericType::Unsigned { bit_size: bits },
-            None,
-            predicate,
-        )?;
+        self.range_constrain_var(sub_expression, bits, None, predicate)?;
 
         Ok(())
     }
@@ -1130,38 +1110,30 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn range_constrain_var(
         &mut self,
         variable: AcirVar,
-        numeric_type: &NumericType,
+        bit_size: u32,
         message: Option<String>,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        match numeric_type {
-            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                // If `variable` is constant then we don't need to add a constraint.
-                // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
-                if let Some(constant) = self.var_to_expression(variable)?.to_const() {
-                    if constant.num_bits() <= *bit_size {
-                        return Ok(variable);
-                    }
-                }
-                // Under a predicate, a range check must not fail, so we
-                // range check `predicate * variable` instead.
-                let predicate_range = self.mul_var(variable, predicate)?;
-                let witness_var = self.get_or_create_witness_var(predicate_range)?;
-                let witness = self.var_to_witness(witness_var)?;
-                self.acir_ir.range_constraint(witness, *bit_size)?;
-                if let Some(message) = message {
-                    let payload = self.generate_assertion_message_payload(message.clone());
-                    self.acir_ir
-                        .assertion_payloads
-                        .insert(self.acir_ir.last_acir_opcode_location(), payload);
-                }
-                Ok(predicate_range)
-            }
-            NumericType::NativeField => {
-                // Range constraining a Field is a no-op
-                Ok(variable)
+        // If `variable` is constant then we don't need to add a constraint.
+        // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+        if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+            if constant.num_bits() <= bit_size {
+                return Ok(variable);
             }
         }
+        // Under a predicate, a range check must not fail, so we
+        // range check `predicate * variable` instead.
+        let predicate_range = self.mul_var(variable, predicate)?;
+        let witness_var = self.get_or_create_witness_var(predicate_range)?;
+        let witness = self.var_to_witness(witness_var)?;
+        self.acir_ir.range_constraint(witness, bit_size)?;
+        if let Some(message) = message {
+            let payload = self.generate_assertion_message_payload(message.clone());
+            self.acir_ir
+                .assertion_payloads
+                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+        }
+        Ok(predicate_range)
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
