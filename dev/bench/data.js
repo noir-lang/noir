@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764616349477,
+  "lastUpdate": 1764620540530,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "87ab9215b902f918c5ca6e48676c90fa0a9f8286",
-          "message": "chore: remove dead code in `nargo info` (#10594)",
-          "timestamp": "2025-11-24T18:58:26Z",
-          "tree_id": "9d0a629488250007e907e4df5b8f6ae20aaaf6e6",
-          "url": "https://github.com/noir-lang/noir/commit/87ab9215b902f918c5ca6e48676c90fa0a9f8286"
-        },
-        "date": 1764012036507,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249514,
-            "range": "± 1071",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220325,
-            "range": "± 3463",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780041,
-            "range": "± 2236",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791016,
             "range": "± 37402",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e47304d210c6d9510d1412d14436871446287d61",
+          "message": "chore(comptime): Additional cast test cases (#10649)",
+          "timestamp": "2025-12-01T19:58:39Z",
+          "tree_id": "c594fe09e558a96c8ba3be6c1048e6f5a9dd6ce1",
+          "url": "https://github.com/noir-lang/noir/commit/e47304d210c6d9510d1412d14436871446287d61"
+        },
+        "date": 1764620508233,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251934,
+            "range": "± 883",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221509,
+            "range": "± 2754",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2255925,
+            "range": "± 13710",
             "unit": "ns/iter"
           }
         ]
