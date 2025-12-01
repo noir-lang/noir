@@ -56,10 +56,9 @@ const webConfig: webpack.Configuration = {
       'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG),
     }),
     new webpack.ProvidePlugin({
-      process: 'process/browser',
-    }),
-    new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
+      process: 'process/browser',
+      stream: 'stream-browserify',
     }),
   ],
   module: {
