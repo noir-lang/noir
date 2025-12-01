@@ -155,8 +155,11 @@ pub(super) fn evaluate_cast_one_step(
                 Err(InterpreterError::TypeUnsupported { typ, location })
             }
         },
-        // Checking `lhs_is_negative` is necessary to account for negative values that get truncated to zero
-        Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
+        Type::Bool => {
+            panic!(
+                "ICE: It is expected that casting to a bool has been blocked by the type checker"
+            )
+        }
         typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
     }
 }
@@ -278,27 +281,12 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
     fn bool_casts() {
         let location = Location::dummy();
 
-        let tests = [
-            (Value::Field(SignedField::positive(0u32)), Type::Bool, Value::Bool(false)),
-            (Value::Field(SignedField::positive(1u32)), Type::Bool, Value::Bool(true)),
-            (Value::Field(SignedField::positive(255u32)), Type::Bool, Value::Bool(true)),
-            (Value::Field(SignedField::negative(1u32)), Type::Bool, Value::Bool(true)),
-            (Value::Field(SignedField::negative(0u32)), Type::Bool, Value::Bool(false)),
-            (Value::U8(0), Type::Bool, Value::Bool(false)),
-            (Value::I8(0), Type::Bool, Value::Bool(false)),
-            (Value::I8(-1), Type::Bool, Value::Bool(true)),
-        ];
-
-        for (lhs, typ, expected) in tests {
-            let actual = evaluate_cast_one_step(&typ, location, lhs.clone());
-            assert_eq!(
-                actual,
-                Ok(expected.clone()),
-                "{lhs:?} as {typ}, expected {expected:?}, got {actual:?}"
-            );
-        }
+        let lhs = Value::Field(SignedField::positive(0u32));
+        let typ = Type::Bool;
+        let _ = evaluate_cast_one_step(&typ, location, lhs.clone());
     }
 }
