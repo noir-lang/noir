@@ -2858,7 +2858,7 @@
     ) -&gt; Type {
         <span class="kw">let </span>location = typ.location;
         <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
-        <span class="kw">if </span>resolved_type.is_nested_slice() {
+        <span class="kw">if </span>!<span class="self">self</span>.in_comptime_context &amp;&amp; resolved_type.is_nested_slice() {
             <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type

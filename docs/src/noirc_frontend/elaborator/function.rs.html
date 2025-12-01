@@ -577,7 +577,10 @@
 <a href="#576" id="576">576</a>
 <a href="#577" id="577">577</a>
 <a href="#578" id="578">578</a>
-<a href="#579" id="579">579</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -728,6 +731,8 @@
     ) {
         <span class="self">self</span>.scopes.start_function();
         <span class="self">self</span>.current_item = <span class="prelude-val">Some</span>(DependencyId::Function(func_id));
+        <span class="kw">let </span>old_comptime_value =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_comptime_context, func.def.is_comptime);
 
         <span class="kw">let </span>location = func.name_ident().location();
         <span class="kw">let </span>id = <span class="self">self</span>.interner.function_definition_id(func_id);
@@ -832,6 +837,7 @@
         <span class="self">self</span>.interner.push_fn_meta(meta, func_id);
         <span class="self">self</span>.scopes.end_function();
         <span class="self">self</span>.current_item = <span class="prelude-val">None</span>;
+        <span class="self">self</span>.in_comptime_context = old_comptime_value;
     }
 
     <span class="doccomment">/// Adds function generics and associated generics (from where clause) to scope.

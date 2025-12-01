@@ -3067,7 +3067,23 @@
 <a href="#3066" id="3066">3066</a>
 <a href="#3067" id="3067">3067</a>
 <a href="#3068" id="3068">3068</a>
-<a href="#3069" id="3069">3069</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#3069" id="3069">3069</a>
+<a href="#3070" id="3070">3070</a>
+<a href="#3071" id="3071">3071</a>
+<a href="#3072" id="3072">3072</a>
+<a href="#3073" id="3073">3073</a>
+<a href="#3074" id="3074">3074</a>
+<a href="#3075" id="3075">3075</a>
+<a href="#3076" id="3076">3076</a>
+<a href="#3077" id="3077">3077</a>
+<a href="#3078" id="3078">3078</a>
+<a href="#3079" id="3079">3079</a>
+<a href="#3080" id="3080">3080</a>
+<a href="#3081" id="3081">3081</a>
+<a href="#3082" id="3082">3082</a>
+<a href="#3083" id="3083">3083</a>
+<a href="#3084" id="3084">3084</a>
+<a href="#3085" id="3085">3085</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4518,6 +4534,9 @@
             }
             HirType::Unit =&gt; ast::Type::Unit,
             HirType::Array(length, element) =&gt; {
+                <span class="kw">if </span>element.contains_slice() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+                }
                 <span class="kw">let </span>element =
                     Box::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
                 <span class="kw">let </span>length = <span class="kw">match </span>length.evaluate_to_u32(location) {
@@ -4534,6 +4553,9 @@
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) =&gt; {
+                <span class="kw">if </span>element.contains_slice() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+                }
                 <span class="kw">let </span>element =
                     Box::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
                 ast::Type::Slice(element)
@@ -4718,8 +4740,18 @@
             }
 
             HirType::FmtString(_size, fields) =&gt; <span class="self">Self</span>::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) =&gt; <span class="self">Self</span>::check_type(element.as_ref(), location),
-            HirType::Slice(element) =&gt; <span class="self">Self</span>::check_type(element.as_ref(), location),
+            HirType::Array(_length, element) =&gt; {
+                <span class="kw">if </span>element.contains_slice() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+                }
+                <span class="self">Self</span>::check_type(element.as_ref(), location)
+            }
+            HirType::Slice(element) =&gt; {
+                <span class="kw">if </span>element.contains_slice() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+                }
+                <span class="self">Self</span>::check_type(element.as_ref(), location)
+            }
             HirType::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
                 <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>type_var.borrow() {
                     <span class="kw">return </span><span class="self">Self</span>::check_type(binding, location);
