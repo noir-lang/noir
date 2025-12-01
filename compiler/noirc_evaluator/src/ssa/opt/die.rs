@@ -1252,7 +1252,7 @@ mod test {
         }}
         "#;
 
-        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
