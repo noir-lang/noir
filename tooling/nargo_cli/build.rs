@@ -153,18 +153,13 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 11] = [
     "regression_7323",
 ];
 
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 /// We usually check that the stdout of `nargo execute --force-comptime` matches
 /// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
 /// this can be solved.
 /// There are two Noir types that show out differently in comptime: functions and references.
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
-
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 2] = [
-    // TODO(https://github.com/noir-lang/noir/issues/10625): Bits and byte decomposition does not validate output size in comptime
-    "invalid_comptime_bits_decomposition",
-    "invalid_comptime_bytes_decomposition",
-];
 
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
