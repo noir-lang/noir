@@ -21,7 +21,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
-use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
+use crate::{Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -514,7 +514,7 @@ impl ModCollector<'_> {
             };
 
             let mut method_ids = HashMap::default();
-            let mut associated_types = Generics::new();
+            let mut associated_types = ResolvedGenerics::new();
             let mut associated_constant_ids = HashMap::default();
 
             for item in &mut trait_definition.items {
