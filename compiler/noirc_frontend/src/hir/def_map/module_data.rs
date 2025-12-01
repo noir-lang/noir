@@ -190,6 +190,9 @@ impl ModuleData {
         self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
+    /// Find an [Ident] in the types and values in scope.
+    ///
+    /// Returns the preferred, unambiguous result in both.
     pub fn find_name(&self, name: &Ident) -> PerNs {
         self.scope.find_name(name)
     }

@@ -5,17 +5,21 @@ use crate::node_interner::{FuncId, TraitId};
 use std::collections::{BTreeMap, btree_map};
 use std::collections::{HashMap, hash_map};
 
+/// Definitions of an [Ident]: it can be a standalone without a [TraitId],
+/// or it can appear across multiple traits.
 type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
 
+/// All the definitions of [Ident]s in scope, either as `types` or `values`.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
     types: BTreeMap<Ident, Scope>,
     values: BTreeMap<Ident, Scope>,
-
     defs: Vec<ModuleDefId>,
 }
 
 impl ItemScope {
+    /// Add an [Ident] and its [ModuleDefId] to the namespace,
+    /// and also push the definition to the `defs`.
     pub fn add_definition(
         &mut self,
         name: Ident,
@@ -28,9 +32,11 @@ impl ItemScope {
         Ok(())
     }
 
-    /// Returns an Err if there is already an item
-    /// in the namespace with that exact name.
-    /// The Err will return (old_item, new_item)
+    /// Add an [Ident] and its [ModuleDefId] to either `types` or `values`,
+    /// depending on what its definition is.
+    ///
+    /// Returns an `Err` with `(old_item, new_item)` if there is already an
+    /// item in the namespace with that exact name.
     pub fn add_item_to_namespace(
         &mut self,
         name: Ident,
@@ -75,6 +81,7 @@ impl ItemScope {
         }
     }
 
+    /// Look up an [Ident] in `types` with no [TraitId], and return it _iff_ it's a [ModuleDefId::ModuleId].
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
         let (module_def, _, _) = self.types.get(mod_name)?.get(&None)?;
         match module_def {
@@ -83,6 +90,11 @@ impl ItemScope {
         }
     }
 
+    /// Look up an [Ident] in `values` with no [TraitId], then return the [FuncId]
+    /// if the definition is a [ModuleDef::FunctionId] in the following order:
+    /// * if a definition without a [TraitId] exists, use that
+    /// * if there is a single trait definition, use that
+    /// * otherwise return nothing, as it is ambiguous
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
         let trait_hashmap = self.values.get(func_name)?;
         // methods introduced without trait take priority and hide methods with the same name that come from a trait
@@ -107,55 +119,34 @@ impl ItemScope {
         }
     }
 
-    pub fn find_func_with_name_and_trait_id(
-        &self,
-        func_name: &Ident,
-        trait_id: &Option<TraitId>,
-    ) -> Option<FuncId> {
-        let (module_def, _, _) = self.values.get(func_name)?.get(trait_id)?;
-        match module_def {
-            ModuleDefId::FunctionId(id) => Some(*id),
-            _ => None,
+    /// Look for an [Ident] in both `types` and `values`.
+    ///
+    /// Returns the preferred, unambiguous result in both.
+    pub fn find_name(&self, name: &Ident) -> PerNs {
+        PerNs {
+            types: Self::find_name_in(name, &self.types).cloned(),
+            values: Self::find_name_in(name, &self.values).cloned(),
         }
     }
 
-    pub fn find_name(&self, name: &Ident) -> PerNs {
-        // Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
-        // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
-        let find_name_in = |a: &BTreeMap<Ident, Scope>| {
-            if let Some(t) = a.get(name) {
-                if let Some(tt) = t.get(&None) {
-                    Some(*tt)
-                } else if t.len() == 1 {
-                    t.values().last().cloned()
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        };
-
-        PerNs { types: find_name_in(&self.types), values: find_name_in(&self.values) }
-    }
-
+    /// Look for an [Ident] in both `types` and `values`,
+    ///
+    /// It returns the entry matching the `trait_id`, that is, either the standalone definition,
+    /// or one in a specific trait (regardless of the presence of other traits).
     pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
         PerNs {
-            types: if let Some(t) = self.types.get(name) { t.get(trait_id).cloned() } else { None },
-            values: if let Some(v) = self.values.get(name) {
-                v.get(trait_id).cloned()
-            } else {
-                None
-            },
+            types: self.types.get(name).and_then(|t| t.get(trait_id)).cloned(),
+            values: self.values.get(name).and_then(|v| v.get(trait_id)).cloned(),
         }
     }
 
+    /// All [Ident]s in `types` and `values`.
     pub fn names(&self) -> impl Iterator<Item = &Ident> {
         self.types.keys().chain(self.values.keys())
     }
 
-    pub fn definitions(&self) -> Vec<ModuleDefId> {
-        self.defs.clone()
+    pub fn definitions(&self) -> &[ModuleDefId] {
+        &self.defs
     }
 
     pub fn types(&self) -> &BTreeMap<Ident, Scope> {
@@ -169,5 +160,26 @@ impl ItemScope {
     pub fn remove_definition(&mut self, name: &Ident) {
         self.types.remove(name);
         self.values.remove(name);
+    }
+
+    /// Look up an [Ident] in `types` or `values`:
+    /// * if a definition without a [TraitId] exists, return that
+    /// * if there is exactly 1 definition with a [TraitId], return that
+    /// * otherwise return nothing, as the name is ambiguous, exists in multiple traits
+    fn find_name_in<'a>(
+        name: &Ident,
+        map: &'a BTreeMap<Ident, Scope>,
+    ) -> Option<&'a (ModuleDefId, ItemVisibility, bool)> {
+        if let Some(t) = map.get(name) {
+            if let Some(tt) = t.get(&None) {
+                Some(tt)
+            } else if t.len() == 1 {
+                t.values().last()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }

@@ -45,8 +45,8 @@ pub fn item_in_module_is_visible(
     }
 }
 
-// Returns true if `current` is a (potentially nested) child module of `target`.
-// This is also true if `current == target`.
+/// Returns true if `current` is a (potentially nested) child module of `target`.
+/// This is also true if `current == target`.
 pub(crate) fn module_descendent_of_target(
     def_map: &CrateDefMap,
     target: LocalModuleId,

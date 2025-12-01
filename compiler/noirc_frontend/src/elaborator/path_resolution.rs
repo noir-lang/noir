@@ -126,7 +126,7 @@ enum MethodLookupResult {
     FoundTraitMethod(PerNs, Ident),
     /// There's only one trait method that matches, but it's not in scope.
     FoundOneTraitMethodButNotInScope(PerNs, TraitId),
-    /// Multiple trait method matches were found and they are all in scope.
+    /// Multiple (ambiguous) trait method matches were found and they are all in scope.
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
@@ -502,7 +502,10 @@ impl Elaborator<'_> {
         let first_segment_is_always_visible = match path.kind {
             PathKind::Crate => true,
             PathKind::Plain => importing_module == starting_module,
-            PathKind::Dep | PathKind::Super | PathKind::Resolved(_) => false,
+            PathKind::Super | PathKind::Resolved(_) => false,
+            PathKind::Dep => {
+                unreachable!("ICE: Dependency path kinds should have been turned into Plain.")
+            }
         };
 
         // The current module and module ID as we resolve path segments
@@ -511,6 +514,7 @@ impl Elaborator<'_> {
 
         let first_segment =
             &path.segments.first().expect("ICE: could not fetch first segment").ident;
+
         let mut current_ns = current_module.find_name(first_segment);
         if current_ns.is_none() {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
@@ -526,50 +530,51 @@ impl Elaborator<'_> {
         }
 
         let mut errors = Vec::new();
-        for (index, (last_segment, current_segment)) in
+        for (index, (prev_segment, current_segment)) in
             path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
         {
-            let last_ident = &last_segment.ident;
+            let prev_ident = &prev_segment.ident;
             let current_ident = &current_segment.ident;
-            let last_segment_generics = &last_segment.generics;
+            let prev_segment_generics = &prev_segment.generics;
 
+            // We are looking up the `current_segment` in the lookup result of the `prev_segment`.
             let (typ, visibility) = match current_ns.types {
-                None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
+                None => return Err(PathResolutionError::Unresolved(prev_ident.clone())),
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            let location = last_segment.location;
+            let location = prev_segment.location;
             self.interner.add_module_def_id_reference(
                 typ,
                 location,
-                last_segment.ident.is_self_type_name(),
+                prev_segment.ident.is_self_type_name(),
             );
 
             let current_module_id_is_type;
 
             (current_module_id, current_module_id_is_type, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
-                    if last_segment_generics.is_some() {
+                    if prev_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                            item: format!("module `{last_ident}`"),
-                            location: last_segment.turbofish_location(),
+                            item: format!("module `{prev_ident}`"),
+                            location: prev_segment.turbofish_location(),
                         });
                     }
 
                     (id, false, IntermediatePathResolutionItem::Module)
                 }
                 ModuleDefId::TypeId(id) => {
-                    let item = IntermediatePathResolutionItem::Type(id, last_segment.turbofish());
+                    let item = IntermediatePathResolutionItem::Type(id, prev_segment.turbofish());
                     (id.module_id(), true, item)
                 }
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
                     let Some(module_id) = get_type_alias_module_def_id(&type_alias) else {
-                        return Err(PathResolutionError::Unresolved(last_ident.clone()));
+                        return Err(PathResolutionError::Unresolved(prev_ident.clone()));
                     };
 
                     let item =
-                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
+                        IntermediatePathResolutionItem::TypeAlias(id, prev_segment.turbofish());
                     (module_id, true, item)
                 }
                 ModuleDefId::TraitAssociatedTypeId(..) => {
@@ -577,7 +582,7 @@ impl Elaborator<'_> {
                     return Err(PathResolutionError::Unresolved(current_ident.clone()));
                 }
                 ModuleDefId::TraitId(id) => {
-                    let item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
+                    let item = IntermediatePathResolutionItem::Trait(id, prev_segment.turbofish());
                     (id.0, false, item)
                 }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
@@ -594,9 +599,10 @@ impl Elaborator<'_> {
                     visibility,
                 ))
             {
-                errors.push(PathResolutionError::Private(last_ident.clone()));
+                errors.push(PathResolutionError::Private(prev_ident.clone()));
             }
 
+            // Switch to the module the current segment is defined in.
             current_module = self.get_module(current_module_id);
 
             // Check if namespace
@@ -668,35 +674,24 @@ impl Elaborator<'_> {
             PathResolutionTarget::Value => (current_ns.values, current_ns.types),
         };
 
-        let item = target_ns
-            .map(|(module_def_id, visibility, ..)| {
-                self.per_ns_item_to_path_resolution_item(
-                    path.clone(),
-                    importing_module,
-                    intermediate_item.clone(),
-                    current_module_id,
-                    &mut errors,
-                    module_def_id,
-                    visibility,
-                )
-            })
-            .unwrap_or_else(|| {
-                let (module_def_id, visibility, ..) =
-                    fallback_ns.expect("A namespace should never be empty");
-                self.per_ns_item_to_path_resolution_item(
-                    path.clone(),
-                    importing_module,
-                    intermediate_item,
-                    current_module_id,
-                    &mut errors,
-                    module_def_id,
-                    visibility,
-                )
-            });
+        let (module_def_id, visibility, _) =
+            target_ns.or(fallback_ns).expect("A namespace should never be empty");
+
+        let item = self.per_ns_item_to_path_resolution_item(
+            path,
+            importing_module,
+            intermediate_item,
+            current_module_id,
+            &mut errors,
+            module_def_id,
+            visibility,
+        );
 
         Ok(PathResolution { item, errors })
     }
 
+    /// Transform a result from [PerNs] into a [PathResolutionItem],
+    /// pushing any visibility errors.
     #[allow(clippy::too_many_arguments)]
     fn per_ns_item_to_path_resolution_item(
         &mut self,
@@ -718,7 +713,12 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if !(self.self_type_module_id() == Some(current_module_id)
+        // This condition allows module to extend a type defined in a different module,
+        // e.g. add another `impl other::Type` block, and access an `other::Type::private`
+        // path in the methods added in that block. Rust would not allow this.
+        let inside_self_type = self.self_type_module_id() == Some(current_module_id);
+
+        if !(inside_self_type
             || item_in_module_is_visible(
                 self.def_maps,
                 importing_module,
@@ -732,6 +732,7 @@ impl Elaborator<'_> {
         item
     }
 
+    /// The [ModuleId] of the [Type::DataType] currently being elaborated, if any.
     fn self_type_module_id(&self) -> Option<ModuleId> {
         if let Some(Type::DataType(datatype, _)) = &self.self_type {
             Some(datatype.borrow().id.module_id())
@@ -740,6 +741,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Assuming that the current path segment is a type or type alias defined in the `current_module`,
+    /// resolve the `ident` as a method on that type.
     fn resolve_method(
         &self,
         importing_module_id: ModuleId,
@@ -894,6 +897,10 @@ impl Elaborator<'_> {
     }
 }
 
+/// Transform a [ModuleDefId] into a [PathResolutionItem].
+///
+/// If it's a [ModuleDefId::FunctionId], merge it with the [IntermediatePathResolutionItem]
+/// representing the item it was found in, such as a module, type, trait, alias, or Self.
 fn merge_intermediate_path_resolution_item_with_module_def_id(
     intermediate_item: IntermediatePathResolutionItem,
     module_def_id: ModuleDefId,

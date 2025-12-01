@@ -899,10 +899,10 @@ impl Elaborator<'_> {
         let trait_id = self.current_trait?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let name = path.segments[0].ident.as_str();
+            let is_self_type = path.segments[0].ident.is_self_type_name();
             let method = &path.segments[1].ident;
 
-            if name == SELF_TYPE_NAME {
+            if is_self_type {
                 let the_trait = self.interner.get_trait(trait_id);
                 // Allow referring to trait constants via Self:: as well
                 let definition =
