@@ -1120,7 +1120,14 @@
 <a href="#1119" id="1119">1119</a>
 <a href="#1120" id="1120">1120</a>
 <a href="#1121" id="1121">1121</a>
-<a href="#1122" id="1122">1122</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -1994,7 +2001,14 @@
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 </span>dfg.type_of_value(<span class="self">self</span>.rhs).is_unsigned()
             }
-            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr =&gt; <span class="bool-val">true</span>,
+            BinaryOp::Shl | BinaryOp::Shr =&gt; {
+                <span class="comment">// Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                </span>dfg.get_numeric_constant(<span class="self">self</span>.rhs).is_none_or(|c| {
+                    <span class="kw">let </span>typ = dfg.type_of_value(<span class="self">self</span>.lhs);
+                    c &gt;= typ.bit_size().into()
+                })
+            }
+            BinaryOp::Div | BinaryOp::Mod =&gt; <span class="bool-val">true</span>,
             BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
             | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}
             | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}
