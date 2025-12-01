@@ -327,3 +327,27 @@ fn constructor_private_field() {
     // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
     check_errors(src);
 }
+
+#[test]
+fn set_fields_duplicate_field() {
+    let src = "
+        #[set_fields]
+        struct Foo {}
+
+        comptime fn set_fields(s: TypeDefinition) {
+            let fields = [
+                (quote { x }, quote { Field }.as_type(), quote { pub }),
+                (quote { x }, quote { Field }.as_type(), quote { pub }),
+            ];
+
+            s.set_fields(fields);
+                         ^^^^^^ Duplicate field name in call to `set_fields`
+        }
+
+        fn main() {
+            let _ = Foo { x: 1 };
+                          ^ no such field x defined in struct Foo
+        }
+    ";
+    check_errors(src);
+}

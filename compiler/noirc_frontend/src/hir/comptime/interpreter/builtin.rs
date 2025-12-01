@@ -21,7 +21,8 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings,
+    TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -43,7 +44,6 @@ use crate::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{
-        self,
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -696,46 +696,56 @@ fn type_def_set_fields(
         .enumerate()
         .collect::<Vec<_>>();
 
-    let mut new_fields = Vec::new();
+    let mut new_fields = Vec::<StructField>::new();
 
     for (index, mut field_pair) in fields {
-        if field_pair.len() == 3 {
-            let visibility = field_pair.pop().unwrap().unwrap_or_clone();
-            let typ = field_pair.pop().unwrap().unwrap_or_clone();
-            let name_value = field_pair.pop().unwrap().unwrap_or_clone();
-
-            let name_tokens = get_quoted((name_value.clone(), field_location))?;
-            let typ = get_type((typ, field_location))?;
-
-            match name_tokens.first().map(|t| t.token()) {
-                Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                    let visibility = parse(
-                        elaborator,
-                        (visibility, field_location),
-                        Parser::parse_item_visibility,
-                        "a visibility",
-                    )?;
-
-                    let name = Ident::new(name.clone(), field_location);
-                    new_fields.push(hir_def::types::StructField { visibility, name, typ });
-                }
-                _ => {
-                    let value = name_value.display(elaborator.interner).to_string();
-                    let location = field_location;
-                    return Err(InterpreterError::ExpectedIdentForStructField {
-                        value,
-                        index,
-                        location,
-                    });
-                }
-            }
-        } else {
+        if field_pair.len() != 3 {
             let expected = "tuple".to_string();
 
             let actual =
                 Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
 
             return Err(InterpreterError::TypeMismatch { expected, actual, location });
+        }
+
+        let visibility = field_pair.pop().unwrap().unwrap_or_clone();
+        let typ = field_pair.pop().unwrap().unwrap_or_clone();
+        let name_value = field_pair.pop().unwrap().unwrap_or_clone();
+
+        let name_tokens = get_quoted((name_value.clone(), field_location))?;
+        let typ = get_type((typ, field_location))?;
+
+        match name_tokens.first().map(|t| t.token()) {
+            Some(Token::Ident(name)) if name_tokens.len() == 1 => {
+                let visibility = parse(
+                    elaborator,
+                    (visibility, field_location),
+                    Parser::parse_item_visibility,
+                    "a visibility",
+                )?;
+
+                let name = Ident::new(name.clone(), field_location);
+                let previous_index = new_fields.iter().position(|field| field.name == name);
+
+                if let Some(previous_index) = previous_index {
+                    return Err(InterpreterError::DuplicateStructFieldInSetFields {
+                        name,
+                        index,
+                        previous_index,
+                    });
+                }
+
+                new_fields.push(StructField { visibility, name, typ });
+            }
+            _ => {
+                let value = name_value.display(elaborator.interner).to_string();
+                let location = field_location;
+                return Err(InterpreterError::ExpectedIdentForStructField {
+                    value,
+                    index,
+                    location,
+                });
+            }
         }
     }
 

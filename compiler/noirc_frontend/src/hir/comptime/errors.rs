@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     Type,
-    ast::TraitBound,
+    ast::{Ident, TraitBound},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
@@ -267,6 +267,11 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
+    DuplicateStructFieldInSetFields {
+        name: Ident,
+        index: usize,
+        previous_index: usize,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -348,6 +353,7 @@ impl InterpreterError {
             | InterpreterError::GlobalCouldNotBeResolved { location } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
+            InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
@@ -735,13 +741,21 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
                             .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
+            }
+            InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
+                let msg = "Duplicate field name in call to `set_fields`".to_string();
+                let secondary = format!(
+                    "`{name}` first used as field {} then again as field {}",
+                    previous_index + 1,
+                    index + 1
+                );
+                CustomDiagnostic::simple_error(msg, secondary, name.location())
             }
         }
     }
