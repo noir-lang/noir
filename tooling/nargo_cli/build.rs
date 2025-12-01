@@ -136,32 +136,14 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 29] = [
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 11] = [
     // bugs
     "array_sort",
-    "as_witness",
-    "brillig_cow_regression",
-    "brillig_pedersen",
-    "generics",
     "higher_order_functions",
-    "hint_black_box",
-    "import",
-    "merkle_insert",
-    "pedersen_check",
-    "pedersen_commitment",
-    "pedersen_hash",
-    "poseidon_bn254_hash_width_3",
-    "poseidonsponge_x5_254", // cSpell::disable-line
-    "regression_10156",
     "regression_11294",
-    "regression_5252",
-    "regression_6451",
     "regression_8755",
     "regression_9208",
     "regression_9303",
-    "simple_shield",
-    "strings",
-    "struct",
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
@@ -171,9 +153,14 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 29] = [
     "regression_7323",
 ];
 
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 3] = [
-    // TODO(https://github.com/noir-lang/noir/issues/10623): Panic on OOB insertion
-    "slice_insert_failure",
+/// We usually check that the stdout of `nargo execute --force-comptime` matches
+/// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
+/// this can be solved.
+/// There are two Noir types that show out differently in comptime: functions and references.
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
+    ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
+
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 2] = [
     // TODO(https://github.com/noir-lang/noir/issues/10625): Bits and byte decomposition does not validate output size in comptime
     "invalid_comptime_bits_decomposition",
     "invalid_comptime_bytes_decomposition",
@@ -559,6 +546,8 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             } else {
                 ""
             };
+        let check_stdout =
+            !IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS.contains(&test_name.as_str());
 
         let test_dir = test_dir.display();
 
@@ -569,7 +558,7 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             {should_panic}
             fn test_{test_name}() {{
                 let test_program_dir = PathBuf::from("{test_dir}");
-                nargo_execute_comptime(test_program_dir);
+                nargo_execute_comptime(test_program_dir, {check_stdout});
             }}
             "#
         )

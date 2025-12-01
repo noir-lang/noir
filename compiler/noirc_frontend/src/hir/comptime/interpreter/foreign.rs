@@ -139,11 +139,12 @@ fn blake_hash(
 // cSpell:disable-next-line
 /// Run one of the Secp256 signature verifications.
 /// ```text
-/// pub fn verify_signature<let N: u32>(
-///   public_key_x: [u8; 32],
-///   public_key_y: [u8; 32],
-///   signature: [u8; 64],
-///   message_hash: [u8; N],
+/// pub fn _verify_signature(
+///     public_key_x: [u8; 32],
+///     public_key_y: [u8; 32],
+///     signature: [u8; 64],
+///     message_hash: [u8; 32],
+///     predicate: bool,
 /// ) -> bool
 // cSpell:disable-next-line
 fn ecdsa_secp256_verify(
@@ -207,6 +208,7 @@ fn embedded_curve_add(
 /// pub fn multi_scalar_mul<let N: u32>(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
+///     predicate: bool,
 /// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn multi_scalar_mul(
@@ -216,7 +218,7 @@ fn multi_scalar_mul(
     pedantic_solving: bool,
 ) -> IResult<Value> {
     let (points, scalars, predicate) = check_three_arguments(arguments, location)?;
-    assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
+    assert_eq!(predicate.0, Value::Bool(true), "multi_scalar_mul predicate should be true");
 
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;

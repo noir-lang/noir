@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn foo(_x: &mut u32) {}
+
+unconstrained fn bar(_f: unconstrained fn(&mut u32)) {}
+
+unconstrained fn baz(_f: fn(&mut u32)) {}
+
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe { unconstrained_to_unconstrained(); };
+    constrained_to_unconstrained();
+}
+
+unconstrained fn unconstrained_to_unconstrained() {
+    bar(foo);
+    baz(foo);
+    bar(|x: &mut u32| foo(x));
+    baz(|x: &mut u32| foo(x));
+    let f: fn(&mut u32) = |x: &mut u32| foo(x);
+    bar(f);
+    baz(f);
+}
+
+fn constrained_to_unconstrained() {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        bar(foo);
+        baz(foo);
+        bar(|x: &mut u32| foo(x));
+        baz(|x: &mut u32| foo(x));
+    }
+}
