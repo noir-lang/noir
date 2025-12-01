@@ -131,7 +131,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let location = typ.location;
         let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
-        if resolved_type.is_nested_slice() {
+        if !self.in_comptime_context && resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type
