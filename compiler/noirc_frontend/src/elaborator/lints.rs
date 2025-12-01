@@ -225,13 +225,18 @@ pub(super) fn unconstrained_function_args(
         .collect()
 }
 
-/// Check that we are not passing a slice from an unconstrained runtime to a constrained runtime.
+/// Check that that a type returned from an unconstrained to a constrained runtime is safe:
+/// * cannot return slices
+/// * cannot return functions
+/// * cannot return types which in general cannot be passed between runtimes, e.g. references
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
+    } else if return_type.contains_function() {
+        Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
@@ -268,6 +273,27 @@ pub(super) fn unnecessary_pub_argument(
             ident: func.name_ident().clone(),
             position: PubPosition::Parameter,
         })
+    } else {
+        None
+    }
+}
+
+/// call_data and return_data visibility modifiers are only allowed on entry point functions.
+pub(super) fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    if !is_entry_point {
+        match visibility {
+            Visibility::CallData(_) | Visibility::ReturnData => {
+                Some(ResolverError::DataBusOnNonEntryPoint {
+                    ident: func.name_ident().clone(),
+                    visibility: visibility.to_string(),
+                })
+            }
+            _ => None,
+        }
     } else {
         None
     }

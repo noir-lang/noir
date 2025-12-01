@@ -2344,13 +2344,14 @@ fn expr_resolve(
         panic!("Expected second argument to be a struct");
     };
 
-    let is_some = fields.get(&"_is_some".to_string()).unwrap();
+    // It's fine to do a linear search here as Option just has two fields
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
     let Value::Bool(is_some) = is_some.borrow().clone() else {
         panic!("Expected is_some to be a boolean");
     };
 
     let function_to_resolve_in = if is_some {
-        let value = fields.get(&"_value".to_string()).unwrap();
+        let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
         let Value::FunctionDefinition(func_id) = value.borrow().clone() else {
             panic!("Expected option value to be a FunctionDefinition");
         };
