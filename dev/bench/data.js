@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764584863465,
+  "lastUpdate": 1764584993250,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7bfd95395dc4cef3c5dcfa06ba79bcff87458bf7",
-          "message": "chore(deps): bump algolia/algoliasearch-crawler-github-actions from 1.1.0 to 1.1.13 (#10579)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2025-11-24T13:37:17Z",
-          "tree_id": "a60fd892f5ff5bd31b632225e16770604e0fc332",
-          "url": "https://github.com/noir-lang/noir/commit/7bfd95395dc4cef3c5dcfa06ba79bcff87458bf7"
-        },
-        "date": 1763991586641,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252681,
-            "range": "± 1356",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220601,
-            "range": "± 9407",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779942,
-            "range": "± 1413",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "7fe5338fb019bdbae9eb837db51a5904dea2be5f",
           "message": "chore(deps): bump amannn/action-semantic-pull-request from 5 to 6 (#10580)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2025-11-24T13:37:53Z",
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798180,
             "range": "± 46008",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "316aef679a9cd8a1faabec66c7052f7ee4319bfc",
+          "message": "feat: remove bit shifts by small known amounts in DIE (#10680)",
+          "timestamp": "2025-12-01T10:04:14Z",
+          "tree_id": "981dabddefba00396abeeb83927ff4dac5fe25ac",
+          "url": "https://github.com/noir-lang/noir/commit/316aef679a9cd8a1faabec66c7052f7ee4319bfc"
+        },
+        "date": 1764584963768,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256288,
+            "range": "± 511",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230697,
+            "range": "± 1603",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793193,
+            "range": "± 10450",
             "unit": "ns/iter"
           }
         ]
