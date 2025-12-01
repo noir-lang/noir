@@ -109,16 +109,9 @@ pub(super) fn simplify_call(
         Intrinsic::AsSlice => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {
-                // Compute the resulting slice length by dividing the flattened
-                // array length by the size of each array element
-                let elements_size = array_type.element_size();
+                // Compute the resulting slice length
                 let inner_element_types = array_type.element_types();
-                assert_eq!(
-                    0,
-                    array.len() % elements_size,
-                    "expected array length to be multiple of its elements size"
-                );
-                let slice_length_value = array.len() / elements_size;
+                let slice_length_value = dfg.try_get_slice_capacity(arguments[0]).unwrap();
                 let slice_length =
                     dfg.make_constant(slice_length_value.into(), NumericType::length_type());
                 let new_slice =
@@ -779,7 +772,10 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::Ssa,
+    };
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
@@ -933,5 +929,27 @@ mod tests {
         }
         "#;
         let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    #[test]
+    fn can_handle_zero_len_slice() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            v1 = make_array [] : [()]
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            v1 = make_array [] : [()]
+            return
+        }
+        ");
     }
 }
