@@ -937,13 +937,6 @@ impl<F: AcirField> AcirContext<F> {
         //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
         //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
         //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
-        if max_r_bits != max_rhs_bits {
-            // If `rhs` is a power of 2, then `max_r_bits < rhs_bits, however when constraining `r < rhs`
-            // we assert `rhs - (r + predicate) < 2^max_r_bits`.
-            //
-            // If `predicate` is not known to be 1 then this may fail if `r` is zero.
-            assert!(predicate_expr.is_one());
-        }
         self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_r_bits, one)?;
 
         // a * predicate == (b * q + r) * predicate
