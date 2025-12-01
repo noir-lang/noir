@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@cookbookdev/docsbot": "^4.24.9",
-    "@docusaurus/core": "^3.7.0",
-    "@docusaurus/preset-classic": "^3.7.0",
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/preset-classic": "^3.9.2",
     "@easyops-cn/docusaurus-search-local": "^0.35.0",
     "@mdx-js/react": "^3.0.0",
     "axios": "^1.13.2",
@@ -30,12 +30,12 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.7.0",
+    "@docusaurus/module-type-aliases": "^3.9.2",
     "@docusaurus/tsconfig": "^3.9.2",
     "@docusaurus/types": "^3.9.2",
     "@types/prettier": "^3.0.0",
     "docusaurus-plugin-llms": "^0.2.2",
-    "docusaurus-plugin-typedoc": "1.2.3",
+    "docusaurus-plugin-typedoc": "1.4.2",
     "eslint-plugin-prettier": "^5.5.4",
     "prettier": "3.7.3",
     "serve": "^14.2.1",
