@@ -1447,7 +1447,77 @@
 <a href="#1446" id="1446">1446</a>
 <a href="#1447" id="1447">1447</a>
 <a href="#1448" id="1448">1448</a>
-<a href="#1449" id="1449">1449</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
 </span><span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, SsaReport};
@@ -1835,6 +1905,7 @@
         <span class="comment">//Then, go over the instructions
         </span><span class="kw">for </span>instruction <span class="kw">in </span>function.dfg[block].instructions().iter() {
             <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
 
             <span class="comment">// Collect non-constant instruction arguments
             </span>function.dfg[<span class="kw-2">*</span>instruction].for_each_value(|value_id| {
@@ -1843,15 +1914,34 @@
                 }
             });
 
+            <span class="comment">// Collect non-constant instruction results
+            </span><span class="kw">for </span>value_id <span class="kw">in </span>function.dfg.instruction_results(<span class="kw-2">*</span>instruction).iter() {
+                <span class="kw">if </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>value_id).is_none() {
+                    results.push(<span class="kw-2">*</span>value_id);
+                }
+            }
+
             <span class="comment">// If the lookback feature is enabled, start tracking calls when
-            // their argument value ids first appear, or when their
+            // their value ids first appear in arguments or results, or when their
             // instruction id comes up (in case there were no non-constant arguments)
             </span><span class="kw">if </span><span class="self">self</span>.enable_lookback {
-                <span class="kw">for </span>argument <span class="kw">in </span><span class="kw-2">&amp;</span>arguments {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(calls) = <span class="self">self</span>.call_arguments.get(argument) {
+                <span class="kw">for </span>id <span class="kw">in </span>arguments.iter().chain(<span class="kw-2">&amp;</span>results) {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(calls) = <span class="self">self</span>.call_arguments.get(id) {
                         <span class="kw">for </span>call <span class="kw">in </span>calls {
                             <span class="kw">if </span><span class="self">self</span>.tainted.contains_key(call) {
                                 <span class="self">self</span>.tracking.insert(<span class="kw-2">*</span>call);
+
+                                <span class="comment">// If the instruction is a cast or truncate, also update the
+                                // tainted arguments of the call with its argument
+                                // (fixes #10547)
+                                </span><span class="kw">if </span><span class="macro">matches!</span>(
+                                    <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction],
+                                    Instruction::Cast(..) | Instruction::Truncate { .. }
+                                ) {
+                                    <span class="kw">if let </span><span class="prelude-val">Some</span>(tainted_ids) = <span class="self">self</span>.tainted.get_mut(call) {
+                                        tainted_ids.arguments.extend(<span class="kw-2">&amp;</span>arguments);
+                                    }
+                                }
                             }
                         }
                     }
@@ -1863,15 +1953,6 @@
 
             <span class="comment">// We can skip over instructions while nothing is being tracked
             </span><span class="kw">if </span>!<span class="self">self</span>.tracking.is_empty() {
-                <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
-
-                <span class="comment">// Collect non-constant instruction results
-                </span><span class="kw">for </span>value_id <span class="kw">in </span>function.dfg.instruction_results(<span class="kw-2">*</span>instruction).iter() {
-                    <span class="kw">if </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>value_id).is_none() {
-                        results.push(<span class="kw-2">*</span>value_id);
-                    }
-                }
-
                 <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction] {
                     <span class="comment">// For memory operations, we have to link up the stored value as a parent
                     // of one loaded from the same memory slot
@@ -2893,6 +2974,65 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(program).unwrap();
         <span class="kw">let </span>ssa_level_warnings = ssa.check_for_missing_brillig_constraints(<span class="bool-val">false</span>);
+        <span class="macro">assert_eq!</span>(ssa_level_warnings.len(), <span class="number">0</span>);
+    }
+
+    <span class="attr">#[test]
+    #[traced_test]
+    </span><span class="doccomment">/// Test for programs equivalent to the below (#10547):
+    ///
+    /// ```noir
+    /// unconstrained fn identity(input: u64) -&gt; u64 {
+    ///     input
+    /// }
+    ///
+    /// pub fn main(input: u32) {
+    ///     let casted_input = input as u64;
+    ///     let input_copy = unsafe { identity(casted_input) };
+    ///     assert_eq(input_copy as Field, casted_input as Field);
+    /// }
+    /// ```
+    </span><span class="kw">fn </span>multiple_casts_on_brillig_input_does_not_result_in_warning() {
+        <span class="kw">let </span>program = <span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+            v1 = cast v0 as u64
+            v3 = call f1(v1) -&gt; u64
+            v4 = cast v3 as Field
+            v5 = cast v0 as Field
+            constrain v4 == v5
+            return
+        }
+        brillig(inline) predicate_pure fn identity f1 {
+            b0(v0: u64):
+            return v0
+        }
+        "#</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(program).unwrap();
+        <span class="kw">let </span>ssa_level_warnings = ssa.check_for_missing_brillig_constraints(<span class="bool-val">true</span>);
+        <span class="macro">assert_eq!</span>(ssa_level_warnings.len(), <span class="number">0</span>);
+    }
+
+    <span class="attr">#[test]
+    #[traced_test]
+    </span><span class="kw">fn </span>truncating_brillig_argument_does_not_result_in_warning() {
+        <span class="kw">let </span>program = <span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: Field):
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = call f1(v1) -&gt; Field
+            constrain v2 == v0
+            return
+        }
+        brillig(inline) predicate_pure fn identity32 f1 {
+            b0(v0: Field):
+            return v0
+        }
+        "#</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(program).unwrap();
+        <span class="kw">let </span>ssa_level_warnings = ssa.check_for_missing_brillig_constraints(<span class="bool-val">true</span>);
         <span class="macro">assert_eq!</span>(ssa_level_warnings.len(), <span class="number">0</span>);
     }
 }
