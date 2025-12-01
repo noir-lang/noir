@@ -271,7 +271,38 @@
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -428,7 +459,8 @@
                 <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location })
             }
         },
-        Type::Bool =&gt; <span class="prelude-val">Ok</span>(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
+        <span class="comment">// Checking `lhs_is_negative` is necessary to account for negative values that get truncated to zero
+        </span>Type::Bool =&gt; <span class="prelude-val">Ok</span>(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
         typ =&gt; <span class="prelude-val">Err</span>(InterpreterError::CastToNonNumericType { typ, location }),
     }
 }
@@ -478,6 +510,7 @@
             <span class="comment">// Widen
             </span>(Value::U8(<span class="number">255</span>), unsigned(SixtyFour), Value::U64(<span class="number">255</span>)),
             (Value::U8(<span class="number">255</span>), signed(SixtyFour), Value::I64(<span class="number">255</span>)),
+            (Value::U64(u64::MAX), unsigned(HundredTwentyEight), Value::U128(u128::from(u64::MAX))),
             <span class="comment">// Reinterpret as negative
             </span>(Value::U8(<span class="number">255</span>), signed(Eight), Value::I8(-<span class="number">1</span>)),
             (Value::Field(SignedField::positive(<span class="number">255u32</span>)), signed(Eight), Value::I8(-<span class="number">1</span>)),
@@ -488,6 +521,9 @@
             (Value::Field(SignedField::positive(<span class="number">300u32</span>)), unsigned(Eight), Value::U8(<span class="number">44</span>)),
             (Value::Field(SignedField::positive(<span class="number">300u32</span>)), signed(Eight), Value::I8(<span class="number">44</span>)),
             (Value::Field(SignedField::positive(<span class="number">10u32</span>)), unsigned(Sixteen), Value::U16(<span class="number">10</span>)),
+            (Value::Field(SignedField::positive(<span class="number">256u32</span>)), unsigned(Eight), Value::U8(<span class="number">0</span>)),
+            (Value::Field(SignedField::positive(<span class="number">255u32</span>)), unsigned(Eight), Value::U8(<span class="number">255</span>)),
+            (Value::U128(u128::MAX), unsigned(SixtyFour), Value::U64(u64::MAX)),
         ];
 
         <span class="kw">for </span>(lhs, typ, expected) <span class="kw">in </span>tests {
@@ -532,6 +568,32 @@
             (Value::Field(SignedField::negative(<span class="number">1u32</span>)), signed(Eight), Value::I8(<span class="number">0</span>)),
             (Value::Field(SignedField::negative(<span class="number">2u32</span>)), unsigned(Sixteen), Value::U16(<span class="number">65535</span>)),
             (Value::Field(SignedField::negative(<span class="number">2u32</span>)), signed(Sixteen), Value::I16(-<span class="number">1</span>)),
+            (Value::Field(SignedField::positive(u128::MAX)), signed(Eight), Value::I8(-<span class="number">1</span>)),
+        ];
+
+        <span class="kw">for </span>(lhs, typ, expected) <span class="kw">in </span>tests {
+            <span class="kw">let </span>actual = evaluate_cast_one_step(<span class="kw-2">&amp;</span>typ, location, lhs.clone());
+            <span class="macro">assert_eq!</span>(
+                actual,
+                <span class="prelude-val">Ok</span>(expected.clone()),
+                <span class="string">"{lhs:?} as {typ}, expected {expected:?}, got {actual:?}"
+            </span>);
+        }
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>bool_casts() {
+        <span class="kw">let </span>location = Location::dummy();
+
+        <span class="kw">let </span>tests = [
+            (Value::Field(SignedField::positive(<span class="number">0u32</span>)), Type::Bool, Value::Bool(<span class="bool-val">false</span>)),
+            (Value::Field(SignedField::positive(<span class="number">1u32</span>)), Type::Bool, Value::Bool(<span class="bool-val">true</span>)),
+            (Value::Field(SignedField::positive(<span class="number">255u32</span>)), Type::Bool, Value::Bool(<span class="bool-val">true</span>)),
+            (Value::Field(SignedField::negative(<span class="number">1u32</span>)), Type::Bool, Value::Bool(<span class="bool-val">true</span>)),
+            (Value::Field(SignedField::negative(<span class="number">0u32</span>)), Type::Bool, Value::Bool(<span class="bool-val">false</span>)),
+            (Value::U8(<span class="number">0</span>), Type::Bool, Value::Bool(<span class="bool-val">false</span>)),
+            (Value::I8(<span class="number">0</span>), Type::Bool, Value::Bool(<span class="bool-val">false</span>)),
+            (Value::I8(-<span class="number">1</span>), Type::Bool, Value::Bool(<span class="bool-val">true</span>)),
         ];
 
         <span class="kw">for </span>(lhs, typ, expected) <span class="kw">in </span>tests {
