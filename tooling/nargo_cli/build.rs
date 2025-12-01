@@ -154,6 +154,12 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 11] = [
 ];
 
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+/// We usually check that the stdout of `nargo execute --force-comptime` matches
+/// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
+/// this can be solved.
+/// There are two Noir types that show out differently in comptime: functions and references.
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
+    ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
@@ -535,6 +541,8 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             } else {
                 ""
             };
+        let check_stdout =
+            !IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS.contains(&test_name.as_str());
 
         let test_dir = test_dir.display();
 
@@ -545,7 +553,7 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             {should_panic}
             fn test_{test_name}() {{
                 let test_program_dir = PathBuf::from("{test_dir}");
-                nargo_execute_comptime(test_program_dir);
+                nargo_execute_comptime(test_program_dir, {check_stdout});
             }}
             "#
         )

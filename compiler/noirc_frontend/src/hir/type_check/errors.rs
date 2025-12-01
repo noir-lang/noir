@@ -202,6 +202,8 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { location: Location },
+    #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedFunctionReturnToConstrained { location: Location },
     #[error(
         "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
@@ -333,6 +335,7 @@ impl TypeCheckError {
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
@@ -525,6 +528,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {

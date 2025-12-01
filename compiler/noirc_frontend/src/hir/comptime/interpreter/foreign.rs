@@ -139,11 +139,12 @@ fn blake_hash(
 // cSpell:disable-next-line
 /// Run one of the Secp256 signature verifications.
 /// ```text
-/// pub fn verify_signature<let N: u32>(
-///   public_key_x: [u8; 32],
-///   public_key_y: [u8; 32],
-///   signature: [u8; 64],
-///   message_hash: [u8; N],
+/// pub fn _verify_signature(
+///     public_key_x: [u8; 32],
+///     public_key_y: [u8; 32],
+///     signature: [u8; 64],
+///     message_hash: [u8; 32],
+///     predicate: bool,
 /// ) -> bool
 // cSpell:disable-next-line
 fn ecdsa_secp256_verify(

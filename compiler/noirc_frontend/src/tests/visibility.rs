@@ -648,3 +648,21 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn databus_only_allowed_in_main() {
+    let src = "
+fn main(a: u32) -> pub u32 {
+    let a = inner(a);
+    let c = a << 2;
+    c
+}
+
+fn inner(a: call_data(0) u32) -> return_data u32 {
+   ~~~~~ unnecessary call_data(0)
+   ^^^^^ unnecessary call_data(0) attribute for function inner
+    a
+}
+    ";
+    check_errors(src);
+}
