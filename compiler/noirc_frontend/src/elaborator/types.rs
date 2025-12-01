@@ -1324,7 +1324,7 @@ impl Elaborator<'_> {
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
             Type::Function(parameters, ret, _env, _unconstrained) => {
-                self.bind_function_type_impl(&parameters, &ret, &args, location)
+                self.bind_function_type_impl(parameters, ret, &args, location)
             }
             Type::Error => Type::Error,
             found => {
