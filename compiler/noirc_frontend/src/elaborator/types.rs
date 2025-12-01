@@ -1303,8 +1303,8 @@ impl Elaborator<'_> {
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
-        match function {
-            Type::TypeVariable(binding) if binding.kind() == Kind::Normal => {
+        match function.follow_bindings_shallow().as_ref() {
+            Type::TypeVariable(binding) if binding.kind().is_normal_or_any() => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
                     return self.bind_function_type(typ.clone(), args, location);
                 }
@@ -1328,7 +1328,7 @@ impl Elaborator<'_> {
             }
             Type::Error => Type::Error,
             found => {
-                self.push_err(TypeCheckError::ExpectedFunction { found, location });
+                self.push_err(TypeCheckError::ExpectedFunction { found: found.clone(), location });
                 Type::Error
             }
         }
