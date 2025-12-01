@@ -17,7 +17,7 @@
     "@cookbookdev/docsbot": "^4.24.9",
     "@docusaurus/core": "^3.9.2",
     "@docusaurus/preset-classic": "^3.9.2",
-    "@easyops-cn/docusaurus-search-local": "^0.35.0",
+    "@easyops-cn/docusaurus-search-local": "^0.52.2",
     "@mdx-js/react": "^3.0.0",
     "axios": "^1.13.2",
     "clsx": "^1.2.1",
