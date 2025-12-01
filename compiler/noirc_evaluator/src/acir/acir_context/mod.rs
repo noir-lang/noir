@@ -1065,7 +1065,6 @@ impl<F: AcirField> AcirContext<F> {
             // We now want to find the smallest `r` such that rhs_offset + r = 2^N - 1 for some N
             // => r = 2^N - rhs_offset - 1
             let bit_size = bit_size_u128(rhs_offset);
-            assert!(bit_size <= bits, "rhs constant has more bits than allowed");
             let two_pow_bit_size_minus_one =
                 if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
             let r = two_pow_bit_size_minus_one - rhs_offset;
