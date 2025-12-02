@@ -573,10 +573,7 @@
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
 <a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a>
-<a href="#576" id="576">576</a>
-<a href="#577" id="577">577</a>
-<a href="#578" id="578">578</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -597,7 +594,7 @@
 <span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
-        circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation, PublicInputs},
+        circuit::{AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs},
         native_types::Witness,
     },
 };
@@ -665,9 +662,6 @@
 
     <span class="doccomment">/// Pretty print benchmark times of each code generation pass
     </span><span class="kw">pub </span>print_codegen_timings: bool,
-
-    <span class="doccomment">/// Width of expressions to be used for ACIR
-    </span><span class="kw">pub </span>expression_width: ExpressionWidth,
 
     <span class="doccomment">/// Dump the unoptimized SSA to the supplied path if it exists
     </span><span class="kw">pub </span>emit_ssa: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
@@ -920,7 +914,7 @@
 
     drop(ssa_gen_span_guard);
     <span class="kw">let </span>artifacts = time(<span class="string">"SSA to ACIR"</span>, options.print_codegen_timings, || {
-        ssa.into_acir(<span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options.brillig_options, options.expression_width)
+        ssa.into_acir(<span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options.brillig_options)
     })<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(ArtifactsAndWarnings(artifacts, ssa_level_warnings))

@@ -230,10 +230,7 @@
 <a href="#229" id="229">229</a>
 <a href="#230" id="230">230</a>
 <a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
-<span class="kw">use </span>color_eyre::eyre;
+<a href="#232" id="232">232</a></pre></div><pre class="rust"><code><span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{
     CompareCompiled, CompareCompiledResult, CompareComptime, CompareInterpreted,
@@ -264,7 +261,6 @@
         ssa_logging: <span class="kw">if </span>show_ssa() { ssa::SsaLogging::All } <span class="kw">else </span>{ ssa::SsaLogging::None },
         brillig_options: BrilligOptions::default(),
         print_codegen_timings: <span class="bool-val">false</span>,
-        expression_width: ExpressionWidth::default(),
         emit_ssa: <span class="prelude-val">None</span>,
         skip_underconstrained_check: <span class="bool-val">true</span>,
         skip_brillig_constraints_check: <span class="bool-val">true</span>,

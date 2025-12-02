@@ -99,11 +99,8 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
+<a href="#101" id="101">101</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
@@ -121,7 +118,6 @@
             ssa_logging: SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: <span class="bool-val">false</span>,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: <span class="prelude-val">None</span>,
             skip_underconstrained_check: <span class="bool-val">true</span>,
             enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,

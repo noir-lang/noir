@@ -919,9 +919,7 @@
 <a href="#918" id="918">918</a>
 <a href="#919" id="919">919</a>
 <a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#921" id="921">921</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -934,7 +932,7 @@
 <span class="kw">use </span>types::{AcirDynamicArray, AcirValue};
 
 <span class="kw">use </span>acvm::acir::{
-    circuit::{AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId},
+    circuit::{AssertionPayload, brillig::BrilligFunctionId},
     native_types::Witness,
 };
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -1036,13 +1034,11 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Context&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">fn </span>new(
         shared_context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>SharedContext&lt;FieldElement&gt;,
-        expression_width: ExpressionWidth,
         brillig: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Brillig,
         brillig_stdlib: BrilligStdLib&lt;FieldElement&gt;,
         brillig_options: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BrilligOptions,
     ) -&gt; Context&lt;<span class="lifetime">'a</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>acir_context = AcirContext::new(brillig_stdlib);
-        acir_context.set_expression_width(expression_width);
         <span class="kw">let </span>current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {

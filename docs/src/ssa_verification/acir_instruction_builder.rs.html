@@ -341,11 +341,10 @@
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
-        circuit::{Circuit, ExpressionWidth, Program <span class="kw">as </span>AcirProgram},
+        circuit::{Circuit, Program <span class="kw">as </span>AcirProgram},
         native_types::Witness,
     },
 };
@@ -582,7 +581,6 @@
     <span class="kw">let </span>ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: <span class="bool-val">false</span>,
-        expression_width: ExpressionWidth::default(),
         emit_ssa: { <span class="prelude-val">None </span>},
         skip_underconstrained_check: <span class="bool-val">true</span>,
         skip_brillig_constraints_check: <span class="bool-val">true</span>,

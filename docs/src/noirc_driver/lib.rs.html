@@ -907,19 +907,7 @@
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#909" id="909">909</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -984,12 +972,6 @@
     <span class="doccomment">/// Specify the backend expression width that should be targeted
     </span><span class="attr">#[arg(long, value_parser = parse_expression_width)]
     </span><span class="kw">pub </span>expression_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
-
-    <span class="doccomment">/// Generate ACIR with the target backend expression width.
-    /// The default is to generate ACIR without a bound and split expressions after code generation.
-    /// Activating this flag can sometimes provide optimizations for certain programs.
-    </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
-    </span><span class="kw">pub </span>bounded_codegen: bool,
 
     <span class="doccomment">/// Force a full recompilation.
     </span><span class="attr">#[arg(long = <span class="string">"force"</span>)]
@@ -1157,7 +1139,6 @@
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             expression_width: <span class="prelude-val">None</span>,
-            bounded_codegen: <span class="bool-val">false</span>,
             force_compile: <span class="bool-val">false</span>,
             show_ssa: <span class="bool-val">false</span>,
             show_ssa_pass: Vec::new(),
@@ -1211,11 +1192,6 @@
                 layout: Default::default(),
             },
             print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
-            expression_width: <span class="kw">if </span><span class="self">self</span>.bounded_codegen {
-                <span class="self">self</span>.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-            } <span class="kw">else </span>{
-                ExpressionWidth::default()
-            },
             emit_ssa: <span class="kw">if </span><span class="self">self</span>.emit_ssa { <span class="prelude-val">Some</span>(package_build_path) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
             skip_underconstrained_check: !<span class="self">self</span>.silence_warnings &amp;&amp; <span class="self">self</span>.skip_underconstrained_check,
             enable_brillig_constraints_check_lookback: <span class="self">self

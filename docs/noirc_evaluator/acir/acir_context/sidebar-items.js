@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AcirVarData"],"fn":["fits_in_one_identity","power_of_two"],"mod":["black_box","brillig_call","generated_acir"],"struct":["AcirContext"]};
+window.SIDEBAR_ITEMS = {"enum":["AcirVarData"],"fn":["power_of_two"],"mod":["black_box","brillig_call","generated_acir"],"struct":["AcirContext"]};
