@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     Type,
-    ast::TraitBound,
+    ast::{Ident, TraitBound},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
@@ -267,6 +267,16 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
+    DuplicateStructFieldInSetFields {
+        name: Ident,
+        index: usize,
+        previous_index: usize,
+    },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -358,9 +368,11 @@ impl InterpreterError {
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location }
-            | InterpreterError::GlobalCouldNotBeResolved { location } => *location,
+            | InterpreterError::GlobalCouldNotBeResolved { location }
+            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
+            InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
             InterpreterError::Break
             | InterpreterError::Continue
             | InterpreterError::SkippedDueToEarlierErrors => {
@@ -750,7 +762,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
                             .to_string();
@@ -762,6 +773,20 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 unreachable!(
                     "SkippedDueToTypeErrors should be handled internally like Break/Continue"
                 )
+            }
+            InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
+                let msg = "Duplicate field name in call to `set_fields`".to_string();
+                let secondary = format!(
+                    "`{name}` first used as field {} then again as field {}",
+                    previous_index + 1,
+                    index + 1
+                );
+                CustomDiagnostic::simple_error(msg, secondary, name.location())
+            }
+            InterpreterError::CheckedTransmuteFailed { actual, expected, location } => {
+                let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");
+                let secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
         }
     }
