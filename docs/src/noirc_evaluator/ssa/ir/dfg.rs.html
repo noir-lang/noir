@@ -963,7 +963,32 @@
 <a href="#962" id="962">962</a>
 <a href="#963" id="963">963</a>
 <a href="#964" id="964">964</a>
-<a href="#965" id="965">965</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1618,6 +1643,31 @@
             Type::Array(<span class="kw">_</span>, length) =&gt; <span class="prelude-val">Some</span>(length),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
+    }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_slice_capacity(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+        <span class="comment">// For arrays we know the size statically
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(length) = <span class="self">self</span>.try_get_array_length(value) {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(length);
+        }
+
+        <span class="comment">// Check if the value was made by a MakeArray instruction, which can create slices as well.
+        </span><span class="kw">let </span>(array, typ) = <span class="self">self</span>.get_array_constant(value)<span class="question-mark">?</span>;
+        <span class="kw">let </span>elements_size = typ.element_size();
+
+        <span class="kw">let </span>length = <span class="kw">if </span>elements_size == <span class="number">0 </span>{
+            array.len()
+        } <span class="kw">else </span>{
+            <span class="comment">// Compute the slice length by dividing the flattened
+            // array length by the size of each array element
+            </span><span class="macro">assert_eq!</span>(
+                array.len() % elements_size,
+                <span class="number">0</span>,
+                <span class="string">"expected array length to be multiple of its elements size"
+            </span>);
+            array.len() / elements_size
+        };
+
+        <span class="prelude-val">Some</span>(length <span class="kw">as </span>u32)
     }
 
     <span class="doccomment">/// If this value points to an array of constant bytes, returns a string

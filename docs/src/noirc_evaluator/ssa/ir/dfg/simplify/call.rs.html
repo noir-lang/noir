@@ -935,7 +935,22 @@
 <a href="#934" id="934">934</a>
 <a href="#935" id="935">935</a>
 <a href="#936" id="936">936</a>
-<a href="#937" id="937">937</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -1046,16 +1061,9 @@
         Intrinsic::AsSlice =&gt; {
             <span class="kw">let </span>array = dfg.get_array_constant(arguments[<span class="number">0</span>]);
             <span class="kw">if let </span><span class="prelude-val">Some</span>((array, array_type)) = array {
-                <span class="comment">// Compute the resulting slice length by dividing the flattened
-                // array length by the size of each array element
-                </span><span class="kw">let </span>elements_size = array_type.element_size();
-                <span class="kw">let </span>inner_element_types = array_type.element_types();
-                <span class="macro">assert_eq!</span>(
-                    <span class="number">0</span>,
-                    array.len() % elements_size,
-                    <span class="string">"expected array length to be multiple of its elements size"
-                </span>);
-                <span class="kw">let </span>slice_length_value = array.len() / elements_size;
+                <span class="comment">// Compute the resulting slice length
+                </span><span class="kw">let </span>inner_element_types = array_type.element_types();
+                <span class="kw">let </span>slice_length_value = dfg.try_get_slice_capacity(arguments[<span class="number">0</span>]).unwrap();
                 <span class="kw">let </span>slice_length =
                     dfg.make_constant(slice_length_value.into(), NumericType::length_type());
                 <span class="kw">let </span>new_slice =
@@ -1870,6 +1878,28 @@
         }
         "#</span>;
         <span class="kw">let _ </span>= Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>can_handle_zero_len_slice() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            v1 = make_array [] : [()]
+            return
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            v1 = make_array [] : [()]
+            return
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

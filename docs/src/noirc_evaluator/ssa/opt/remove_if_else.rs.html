@@ -965,7 +965,40 @@
 <a href="#964" id="964">964</a>
 <a href="#965" id="965">965</a>
 <a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1233,14 +1266,8 @@
         <span class="kw">match </span><span class="self">self</span>.slice_sizes.entry(value) {
             Entry::Occupied(entry) =&gt; <span class="kw-2">*</span>entry.get(),
             Entry::Vacant(entry) =&gt; {
-                <span class="comment">// For arrays we know the size statically, and we don't need to store it.
-                </span><span class="kw">if let </span>Type::Array(<span class="kw">_</span>, length) = dfg.type_of_value(value) {
-                    <span class="kw">return </span>length;
-                }
-                <span class="comment">// Check if the item was made by a MakeArray instruction, which can create slices as well.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>((array, typ)) = dfg.get_array_constant(value) {
-                    <span class="kw">let </span>length = array.len() / typ.element_size();
-                    <span class="kw">return </span><span class="kw-2">*</span>entry.insert(length <span class="kw">as </span>u32);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(length) = dfg.try_get_slice_capacity(value) {
+                    <span class="kw">return </span><span class="kw-2">*</span>entry.insert(length);
                 }
                 <span class="comment">// For non-constant slices we can't tell the size, which would mean we can't merge it.
                 </span><span class="kw">let </span>dbg_value = <span class="kw-2">&amp;</span>dfg[value];
@@ -1927,6 +1954,45 @@
             v24, v25, v26 = call slice_remove(v15, v22, u32 0) -&gt; (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -&gt; Field
             constrain v27 == Field 1
+            return
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>can_handle_slice_with_zero_size_elements() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) impure fn main f0 {
+            b0(v0: u32):
+                v3 = make_array [] : [()]
+                v4 = make_array [] : [()]
+                v6 = eq v0, u32 4
+                jmpif v6 then: b1, else: b2
+            b1():
+                jmp b3(u32 1, v3)
+            b2():
+                jmp b3(u32 2, v4)
+            b3(v1: u32, v2: [()]):
+                return
+        }
+        "</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.flatten_cfg().remove_if_else().unwrap();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [()]
+            v2 = make_array [] : [()]
+            v4 = eq v0, u32 4
+            enable_side_effects v4
+            v5 = not v4
+            enable_side_effects u1 1
+            v7 = cast v4 as u32
+            v8 = cast v5 as u32
+            v10 = unchecked_mul v8, u32 2
+            v11 = unchecked_add v7, v10
+            v12 = make_array [] : [()]
             return
         }
         "</span>);
