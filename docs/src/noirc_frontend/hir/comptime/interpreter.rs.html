@@ -1815,30 +1815,7 @@
 <a href="#1814" id="1814">1814</a>
 <a href="#1815" id="1815">1815</a>
 <a href="#1816" id="1816">1816</a>
-<a href="#1817" id="1817">1817</a>
-<a href="#1818" id="1818">1818</a>
-<a href="#1819" id="1819">1819</a>
-<a href="#1820" id="1820">1820</a>
-<a href="#1821" id="1821">1821</a>
-<a href="#1822" id="1822">1822</a>
-<a href="#1823" id="1823">1823</a>
-<a href="#1824" id="1824">1824</a>
-<a href="#1825" id="1825">1825</a>
-<a href="#1826" id="1826">1826</a>
-<a href="#1827" id="1827">1827</a>
-<a href="#1828" id="1828">1828</a>
-<a href="#1829" id="1829">1829</a>
-<a href="#1830" id="1830">1830</a>
-<a href="#1831" id="1831">1831</a>
-<a href="#1832" id="1832">1832</a>
-<a href="#1833" id="1833">1833</a>
-<a href="#1834" id="1834">1834</a>
-<a href="#1835" id="1835">1835</a>
-<a href="#1836" id="1836">1836</a>
-<a href="#1837" id="1837">1837</a>
-<a href="#1838" id="1838">1838</a>
-<a href="#1839" id="1839">1839</a>
-<a href="#1840" id="1840">1840</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1817" id="1817">1817</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -3416,95 +3393,72 @@
 }
 
 <span class="kw">fn </span>evaluate_integer(typ: Type, value: SignedField, location: Location) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">if let </span>Type::FieldElement = <span class="kw-2">&amp;</span>typ {
-        <span class="prelude-val">Ok</span>(Value::Field(value))
-    } <span class="kw">else if let </span>Type::Integer(sign, bit_size) = <span class="kw-2">&amp;</span>typ {
-        <span class="kw">match </span>(sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) =&gt; {
-                <span class="kw">let </span>field_value = value.to_field_element();
-                <span class="kw">if </span>field_value.is_zero() {
-                    <span class="prelude-val">Ok</span>(Value::U1(<span class="bool-val">false</span>))
-                } <span class="kw">else if </span>field_value.is_one() {
-                    <span class="prelude-val">Ok</span>(Value::U1(<span class="bool-val">true</span>))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
-                }
-            }
-            (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::U8(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::U16(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::U32(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::U64(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) =&gt; {
-                <span class="kw">let </span>value: u128 = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::U128(value))
-            }
-            (Signedness::Signed, IntegerBitSize::One) =&gt; {
-                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location })
-            }
-            (Signedness::Signed, IntegerBitSize::Eight) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::I8(value))
-            }
-            (Signedness::Signed, IntegerBitSize::Sixteen) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::I16(value))
-            }
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::I32(value))
-            }
-            (Signedness::Signed, IntegerBitSize::SixtyFour) =&gt; {
-                <span class="kw">let </span>value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(Value::I64(value))
-            }
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) =&gt; {
-                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location })
-            }
-        }
-    } <span class="kw">else if let </span>Type::TypeVariable(variable) = <span class="kw-2">&amp;</span>typ {
-        <span class="kw">if </span>variable.is_integer_or_field() {
-            <span class="prelude-val">Ok</span>(Value::Field(value))
-        } <span class="kw">else if </span>variable.is_integer() {
+    <span class="kw">use </span>IntegerBitSize::<span class="kw-2">*</span>;
+    <span class="kw">use </span>Signedness::<span class="kw-2">*</span>;
+    <span class="kw">use </span>Type::<span class="kw-2">*</span>;
+
+    <span class="macro">macro_rules!</span> evaluate_unsigned {
+        (<span class="macro-nonterminal">$typ</span>:ident) =&gt; {{
             <span class="kw">let </span>value = value
                 .try_to_unsigned()
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-            <span class="comment">// TODO: This should probably be a U32
-            </span><span class="prelude-val">Ok</span>(Value::U64(value))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Err</span>(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+            <span class="prelude-val">Ok</span>(Value::<span class="macro-nonterminal">$typ</span>(value))
+        }};
+    }
+
+    <span class="macro">macro_rules!</span> evaluate_signed {
+        (<span class="macro-nonterminal">$typ</span>:ident) =&gt; {{
+            <span class="kw">let </span>value = value
+                .try_to_signed()
+                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(Value::<span class="macro-nonterminal">$typ</span>(value))
+        }};
+    }
+
+    <span class="kw">match </span>typ {
+        FieldElement =&gt; <span class="prelude-val">Ok</span>(Value::Field(value)),
+        Integer(Unsigned, One) =&gt; {
+            <span class="kw">let </span>field_value = value.to_field_element();
+            <span class="kw">if </span>field_value.is_zero() {
+                <span class="prelude-val">Ok</span>(Value::U1(<span class="bool-val">false</span>))
+            } <span class="kw">else if </span>field_value.is_one() {
+                <span class="prelude-val">Ok</span>(Value::U1(<span class="bool-val">true</span>))
+            } <span class="kw">else </span>{
+                <span class="prelude-val">Err</span>(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
+            }
         }
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+        Integer(Unsigned, Eight) =&gt; {
+            <span class="macro">evaluate_unsigned!</span>(U8)
+        }
+        Integer(Unsigned, Sixteen) =&gt; {
+            <span class="macro">evaluate_unsigned!</span>(U16)
+        }
+        Integer(Unsigned, ThirtyTwo) =&gt; {
+            <span class="macro">evaluate_unsigned!</span>(U32)
+        }
+        Integer(Unsigned, SixtyFour) =&gt; {
+            <span class="macro">evaluate_unsigned!</span>(U64)
+        }
+        Integer(Unsigned, HundredTwentyEight) =&gt; {
+            <span class="macro">evaluate_unsigned!</span>(U128)
+        }
+        Integer(Signed, One) =&gt; <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location }),
+        Integer(Signed, Eight) =&gt; {
+            <span class="macro">evaluate_signed!</span>(I8)
+        }
+        Integer(Signed, Sixteen) =&gt; {
+            <span class="macro">evaluate_signed!</span>(I16)
+        }
+        Integer(Signed, ThirtyTwo) =&gt; {
+            <span class="macro">evaluate_signed!</span>(I32)
+        }
+        Integer(Signed, SixtyFour) =&gt; {
+            <span class="macro">evaluate_signed!</span>(I64)
+        }
+        Integer(Signed, HundredTwentyEight) =&gt; {
+            <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location })
+        }
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(InterpreterError::NonIntegerIntegerLiteral { typ, location }),
     }
 }
 
