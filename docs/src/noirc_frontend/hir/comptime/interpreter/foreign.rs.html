@@ -365,31 +365,9 @@
 <a href="#364" id="364">364</a>
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+<a href="#367" id="367">367</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-</span><span class="kw">use </span>acvm::{
-    AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
-    blackbox_solver::BlackBoxFunctionSolver,
-};
+</span><span class="kw">use </span>acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver; <span class="comment">// Currently locked to only bn254!
 </span><span class="kw">use </span>im::{Vector, vector};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -451,7 +429,6 @@
         <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location, pedantic_solving),
         <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location, pedantic_solving),
         <span class="string">"keccakf1600" </span>=&gt; keccakf1600(args, location),
-        <span class="string">"range" </span>=&gt; apply_range_constraint(args, location),
         <span class="string">"sha256_compression" </span>=&gt; sha256_compression(args, location),
         <span class="kw">_ </span>=&gt; {
             <span class="kw">let </span>explanation = <span class="kw">match </span>name {
@@ -481,27 +458,6 @@
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(to_byte_slice(<span class="kw-2">&amp;</span>output))
-}
-
-<span class="kw">fn </span>apply_range_constraint(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>(value, num_bits) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>input = get_field(value)<span class="question-mark">?</span>;
-    <span class="kw">let </span>field = input.to_field_element();
-
-    <span class="kw">let </span>num_bits = get_u32(num_bits)<span class="question-mark">?</span>;
-
-    <span class="kw">if </span>field.num_bits() &lt; num_bits {
-        <span class="prelude-val">Ok</span>(Value::Unit)
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(InterpreterError::BlackBoxError(
-            BlackBoxResolutionError::Failed(
-                BlackBoxFunc::RANGE,
-                <span class="string">"value exceeds range check bounds"</span>.to_owned(),
-            ),
-            location,
-        ))
-    }
 }
 
 <span class="doccomment">/// Run one of the Blake hash functions.
@@ -749,6 +705,12 @@
         <span class="kw">let </span><span class="kw-2">mut </span>not_implemented = Vec::new();
 
         <span class="kw">for </span>blackbox <span class="kw">in </span>BlackBoxFunc::iter() {
+            <span class="comment">// There's no implementation for RANGE as it's actually a builtin function,
+            // and in the comptime interpreter it's not transformed to a foreign function call
+            </span><span class="kw">if </span>blackbox == BlackBoxFunc::RANGE {
+                <span class="kw">continue</span>;
+            }
+
             <span class="kw">let </span>name = blackbox.name();
             <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
             <span class="kw">match </span>call_foreign(name, Vec::new(), Type::Unit, no_location, pedantic_solving) {

@@ -3203,7 +3203,32 @@
 <a href="#3202" id="3202">3202</a>
 <a href="#3203" id="3203">3203</a>
 <a href="#3204" id="3204">3204</a>
-<a href="#3205" id="3205">3205</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3205" id="3205">3205</a>
+<a href="#3206" id="3206">3206</a>
+<a href="#3207" id="3207">3207</a>
+<a href="#3208" id="3208">3208</a>
+<a href="#3209" id="3209">3209</a>
+<a href="#3210" id="3210">3210</a>
+<a href="#3211" id="3211">3211</a>
+<a href="#3212" id="3212">3212</a>
+<a href="#3213" id="3213">3213</a>
+<a href="#3214" id="3214">3214</a>
+<a href="#3215" id="3215">3215</a>
+<a href="#3216" id="3216">3216</a>
+<a href="#3217" id="3217">3217</a>
+<a href="#3218" id="3218">3218</a>
+<a href="#3219" id="3219">3219</a>
+<a href="#3220" id="3220">3220</a>
+<a href="#3221" id="3221">3221</a>
+<a href="#3222" id="3222">3222</a>
+<a href="#3223" id="3223">3223</a>
+<a href="#3224" id="3224">3224</a>
+<a href="#3225" id="3225">3225</a>
+<a href="#3226" id="3226">3226</a>
+<a href="#3227" id="3227">3227</a>
+<a href="#3228" id="3228">3228</a>
+<a href="#3229" id="3229">3229</a>
+<a href="#3230" id="3230">3230</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3276,9 +3301,7 @@
         <span class="kw">let </span>interner = <span class="kw-2">&amp;mut </span><span class="self">self</span>.elaborator.interner;
         <span class="kw">let </span>call_stack = <span class="kw-2">&amp;</span><span class="self">self</span>.elaborator.interpreter_call_stack;
         <span class="kw">match </span>name {
-            <span class="string">"apply_range_constraint" </span>=&gt; {
-                <span class="self">self</span>.call_foreign(<span class="string">"range"</span>, arguments, return_type, location)
-            }
+            <span class="string">"apply_range_constraint" </span>=&gt; apply_range_constraint(arguments, location, call_stack),
             <span class="string">"array_as_str_unchecked" </span>=&gt; array_as_str_unchecked(arguments, location),
             <span class="string">"array_len" </span>=&gt; array_len(arguments, location),
             <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
@@ -3498,6 +3521,33 @@
             <span class="kw">let </span>actual = value.get_type().into_owned();
             <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
         }
+    }
+}
+
+<span class="kw">fn </span>apply_range_constraint(
+    arguments: Vec&lt;(Value, Location)&gt;,
+    location: Location,
+    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
+) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">let </span>(value, num_bits) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>input = get_field(value)<span class="question-mark">?</span>;
+    <span class="kw">let </span>field = input.to_field_element();
+
+    <span class="kw">let </span>num_bits = get_u32(num_bits)<span class="question-mark">?</span>;
+    <span class="kw">let </span>field_num_bits = field.num_bits();
+
+    <span class="kw">if </span>field_num_bits &lt;= num_bits {
+        <span class="prelude-val">Ok</span>(Value::Unit)
+    } <span class="kw">else </span>{
+        failing_constraint(
+            <span class="macro">format!</span>(
+                <span class="string">"{} has {field_num_bits} bits which do not fit in {num_bits} bits"</span>,
+                field.to_short_hex()
+            ),
+            location,
+            call_stack,
+        )
     }
 }
 
