@@ -493,9 +493,9 @@ impl FunctionContext<'_> {
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
-        let type_size = Self::convert_type(element_type).size_of_type();
+        let type_size_usize = Self::convert_type(element_type).size_of_type();
         let type_size =
-            self.builder.numeric_constant(type_size as u128, NumericType::length_type());
+            self.builder.numeric_constant(type_size_usize as u128, NumericType::length_type());
 
         let array_type = &self.builder.type_of_value(array);
         let runtime = self.builder.current_function.runtime();
@@ -503,9 +503,10 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-                // We then only need to inject it for brillig functions.
-                if runtime.is_brillig() {
+                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
+                // except when the inner elements have no size, because the array access can be optimized out in that case.
+                // We then only need to inject it for brillig functions or for 'unit' elements.
+                if runtime.is_brillig() || type_size_usize == 0 {
                     let len =
                         self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
                     self.codegen_access_check(index, len);
