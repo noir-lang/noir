@@ -71,9 +71,7 @@ impl Interpreter<'_, '_> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            "apply_range_constraint" => {
-                self.call_foreign("range", arguments, return_type, location)
-            }
+            "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
@@ -81,6 +79,7 @@ impl Interpreter<'_, '_> {
             "as_slice" => as_slice(arguments, location),
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
+            "checked_transmute" => checked_transmute(arguments, return_type, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -296,6 +295,33 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     }
 }
 
+fn apply_range_constraint(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &Vector<Location>,
+) -> IResult<Value> {
+    let (value, num_bits) = check_two_arguments(arguments, location)?;
+
+    let input = get_field(value)?;
+    let field = input.to_field_element();
+
+    let num_bits = get_u32(num_bits)?;
+    let field_num_bits = field.num_bits();
+
+    if field_num_bits <= num_bits {
+        Ok(Value::Unit)
+    } else {
+        failing_constraint(
+            format!(
+                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                field.to_short_hex()
+            ),
+            location,
+            call_stack,
+        )
+    }
+}
+
 fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
@@ -324,6 +350,24 @@ fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<
 
 fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn checked_transmute(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, location) = check_one_argument(arguments, location)?;
+
+    if value.get_type().as_ref() != &return_type {
+        return Err(InterpreterError::CheckedTransmuteFailed {
+            actual: value.get_type().into_owned(),
+            expected: return_type,
+            location,
+        });
+    }
+
+    Ok(value)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
