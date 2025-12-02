@@ -1832,7 +1832,13 @@
 <a href="#1831" id="1831">1831</a>
 <a href="#1832" id="1832">1832</a>
 <a href="#1833" id="1833">1833</a>
-<a href="#1834" id="1834">1834</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1834" id="1834">1834</a>
+<a href="#1835" id="1835">1835</a>
+<a href="#1836" id="1836">1836</a>
+<a href="#1837" id="1837">1837</a>
+<a href="#1838" id="1838">1838</a>
+<a href="#1839" id="1839">1839</a>
+<a href="#1840" id="1840">1840</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2993,8 +2999,14 @@
 
     <span class="kw">fn </span>evaluate_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lambda: HirLambda, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-        <span class="kw">let </span>env =
-            try_vecmap(<span class="kw-2">&amp;</span>lambda.captures, |capture| <span class="self">self</span>.lookup_id(capture.ident.id, location))<span class="question-mark">?</span>;
+        <span class="kw">let </span>env = try_vecmap(<span class="kw-2">&amp;</span>lambda.captures, |capture| {
+            <span class="kw">let </span>value = <span class="self">self</span>.lookup_id(capture.ident.id, location)<span class="question-mark">?</span>;
+            <span class="kw">match </span>value {
+                <span class="comment">// Dereference mutable variables to capture by value
+                </span>Value::Pointer(elem, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(elem.unwrap_or_clone()),
+                other =&gt; <span class="prelude-val">Ok</span>(other),
+            }
+        })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id).follow_bindings();
         <span class="kw">let </span>module_scope = <span class="self">self</span>.elaborator.module_id();
