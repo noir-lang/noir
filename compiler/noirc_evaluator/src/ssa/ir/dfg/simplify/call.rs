@@ -772,10 +772,7 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        assert_ssa_snapshot,
-        ssa::Ssa,
-    };
+    use crate::{assert_ssa_snapshot, ssa::Ssa};
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
