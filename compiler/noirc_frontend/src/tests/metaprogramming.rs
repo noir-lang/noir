@@ -1100,4 +1100,3 @@ fn comptime_uhashmap_of_slices_attribute() {
     "#;
     assert_no_errors(src);
 }
-
