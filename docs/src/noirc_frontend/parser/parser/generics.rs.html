@@ -312,10 +312,17 @@
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, Path,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     shared::Signedness,
@@ -428,7 +435,14 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedGeneric::Numeric { ident, typ });
         }
 
-        <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_error();
+        <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.parse_type_or_error();
+
+        <span class="comment">// If we failed to parse a type, default to u32 instead of Type::Error
+        // to prevent more type errors down the line
+        </span><span class="kw">if </span>typ.typ == UnresolvedTypeData::Error {
+            <span class="kw">let </span>path = Path::from_single(<span class="string">"u32"</span>.to_string(), <span class="self">self</span>.location_at_previous_token_end());
+            typ.typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), <span class="bool-val">true</span>);
+        }
 
         <span class="prelude-val">Some</span>(UnresolvedGeneric::Numeric { ident, typ })
     }
