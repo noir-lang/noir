@@ -130,7 +130,6 @@ fn main() {
     all_artifacts.push(InstructionArtifacts::new_shl(&i8_var, &i8_var));
     all_artifacts.push(InstructionArtifacts::new_shr(&i8_var, &i8_var));
 
-
     // Test binary operations with 32 bits
     all_artifacts.push(InstructionArtifacts::new_xor(&u32_var, &u32_var));
     all_artifacts.push(InstructionArtifacts::new_and(&u32_var, &u32_var));
