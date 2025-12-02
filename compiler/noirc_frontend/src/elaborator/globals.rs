@@ -54,7 +54,7 @@ impl Elaborator<'_> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = std::mem::replace(&mut self.local_module, Some(global.module_id));
+        let old_module = self.local_module.replace(global.module_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;

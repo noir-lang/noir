@@ -492,6 +492,10 @@ impl Loop {
                 //    jmpif v2 then: b2, else: b3
                 Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
             }
+            Instruction::Cast(_, _) => {
+                // A cast of a constant would already be simplified
+                None
+            }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }

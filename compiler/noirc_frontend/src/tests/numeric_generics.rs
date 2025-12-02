@@ -610,3 +610,17 @@ fn integer_with_suffix_used_as_tuple_index() {
     ";
     assert_no_errors(src);
 }
+
+// Regression for https://github.com/noir-lang/noir/issues/10711
+#[test]
+fn no_panic_on_numeric_generic_parse_error() {
+    let src = "
+        fn foo<let N: >() {
+                      ^ Expected a type but found '>'
+            let _ = N;
+        }
+
+        fn main() { foo::<3>(); }
+    ";
+    check_errors(src);
+}

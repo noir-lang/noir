@@ -1449,6 +1449,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
@@ -1465,6 +1468,9 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Slice(element)
@@ -1649,8 +1655,18 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
-            HirType::Slice(element) => Self::check_type(element.as_ref(), location),
+            HirType::Array(_length, element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
+                Self::check_type(element.as_ref(), location)
+            }
+            HirType::Slice(element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
+                Self::check_type(element.as_ref(), location)
+            }
             HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::check_type(binding, location);
@@ -1857,7 +1873,12 @@ impl<'interner> Monomorphizer<'interner> {
             // monomorphization consistent regardless of whether the flag is set, since the type
             // of functions would also need to be updated, which affects how closures are detected,
             // etc.
-            let is_unconstrained = self.force_unconstrained;
+            // If we are in an unconstrained function, then we know that any function we call will
+            // be monomorphized as unconstrained as well, and we'll never call a constrained one;
+            // therefore we can never make use of a constrained variant of a lambda, and by not
+            // generating it we can avoid some illegal corner cases, should the constrained lambda
+            // that never gets used try to call unconstrained code in its body.
+            let is_unconstrained = self.force_unconstrained || self.in_unconstrained_function;
 
             let old_value =
                 std::mem::replace(&mut self.in_unconstrained_function, is_unconstrained);
@@ -1878,7 +1899,36 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
-        let mut arguments = try_vecmap(&call.arguments, |id| self.expr(*id))?;
+        let func_type = self.interner.id_type(call.func);
+
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+        if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
+            assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
+            for (typ, id) in params.iter().zip(&call.arguments) {
+                // If we know that the function expects an unconstrained lambda, or can only make use
+                // of the unconstrained variant, being itself unconstrained, we can generate a pair of
+                // two unconstrained functions, and avoid potential illegal passing of mutable references
+                // from constrained to unconstrained code in a lambda that we know will never be called.
+                let expr = match typ {
+                    Type::Function(_, _, _, lambda_unconstrained)
+                        if *lambda_unconstrained || *callee_unconstrained =>
+                    {
+                        let old_force_unconstrained =
+                            std::mem::replace(&mut self.force_unconstrained, true);
+                        let expr = self.expr(*id)?;
+                        self.force_unconstrained = old_force_unconstrained;
+                        expr
+                    }
+                    _ => self.expr(*id)?,
+                };
+                arguments.push(expr);
+            }
+        } else {
+            for id in &call.arguments {
+                arguments.push(self.expr(*id)?);
+            }
+        };
+
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
         self.patch_debug_instrumentation_call(&call, &original_func, &mut arguments)?;
@@ -1888,6 +1938,8 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(&return_type, location)?;
 
         let location = call.location;
+        let func_type = Self::convert_type(&func_type, location)?;
+        let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
@@ -1910,9 +1962,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let mut block_expressions = vec![];
-        let func_type = self.interner.id_type(call.func);
-        let func_type = Self::convert_type(&func_type, location)?;
-        let is_closure = self.is_closure_type(&func_type);
 
         let func = if is_closure {
             let local_id = self.next_local_id();

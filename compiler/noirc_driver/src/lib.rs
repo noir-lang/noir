@@ -63,12 +63,6 @@ pub struct CompileOptions {
     #[arg(long, value_parser = parse_expression_width)]
     pub expression_width: Option<ExpressionWidth>,
 
-    /// Generate ACIR with the target backend expression width.
-    /// The default is to generate ACIR without a bound and split expressions after code generation.
-    /// Activating this flag can sometimes provide optimizations for certain programs.
-    #[arg(long, default_value = "false")]
-    pub bounded_codegen: bool,
-
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -235,7 +229,6 @@ impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             expression_width: None,
-            bounded_codegen: false,
             force_compile: false,
             show_ssa: false,
             show_ssa_pass: Vec::new(),
@@ -286,14 +279,9 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
-                ..Default::default()
+                layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
-            expression_width: if self.bounded_codegen {
-                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-            } else {
-                ExpressionWidth::default()
-            },
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
             enable_brillig_constraints_check_lookback: self

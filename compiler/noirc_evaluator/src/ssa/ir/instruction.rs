@@ -872,7 +872,14 @@ impl Binary {
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
-            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => true,
+            BinaryOp::Shl | BinaryOp::Shr => {
+                // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                dfg.get_numeric_constant(self.rhs).is_none_or(|c| {
+                    let typ = dfg.type_of_value(self.lhs);
+                    c >= typ.bit_size().into()
+                })
+            }
+            BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }

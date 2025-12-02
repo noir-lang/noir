@@ -282,6 +282,10 @@ impl Kind {
             _ => None,
         }
     }
+
+    pub(crate) fn is_normal_or_any(&self) -> bool {
+        matches!(self, Kind::Normal | Kind::Any)
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -1602,8 +1606,52 @@ impl Type {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
+
             Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            _ => false,
+            Type::FmtString(_size, elem) => elem.as_ref().is_nested_slice(),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.is_nested_slice()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_slice()) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    if typ.is_nested_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_nested_slice(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.is_nested_slice() || to.is_nested_slice(),
+            Type::Reference(element, _) => element.is_nested_slice(),
+            Type::Forall(_, typ) => typ.is_nested_slice(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
         }
     }
 
@@ -1612,6 +1660,7 @@ impl Type {
         match self {
             Type::Slice(_) => true,
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1633,7 +1682,29 @@ impl Type {
                 }
                 false
             }
-            _ => false,
+            Type::FmtString(_size, elem) => elem.contains_slice(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_slice(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.contains_slice() || to.contains_slice(),
+            Type::Reference(element, _) => element.contains_slice(),
+            Type::Forall(_, typ) => typ.contains_slice(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
         }
     }
 
@@ -1651,7 +1722,7 @@ impl Type {
             | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Slice(length) => length.contains_reference(),
+            Type::Slice(typ) => typ.contains_reference(),
             Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
             Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
             Type::DataType(typ, generics) => {
@@ -1671,7 +1742,7 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -1684,6 +1755,53 @@ impl Type {
                 lhs.contains_reference() || rhs.contains_reference()
             }
             Type::Reference(..) => true,
+        }
+    }
+
+    pub(crate) fn contains_function(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Quoted(_)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Error => false,
+
+            Type::Function(..) => true,
+
+            Type::Reference(typ, _) => typ.contains_function(),
+            Type::Array(length, typ) => length.contains_function() || typ.contains_function(),
+            Type::Slice(typ) => typ.contains_function(),
+            Type::FmtString(length, typ) => length.contains_function() || typ.contains_function(),
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_function()),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_function()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_function())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_function(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_function(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => to.contains_function(),
+            Type::InfixExpr(lhs, _op, rhs, _) => lhs.contains_function() || rhs.contains_function(),
         }
     }
 

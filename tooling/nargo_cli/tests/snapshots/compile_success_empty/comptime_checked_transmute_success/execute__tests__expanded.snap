@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::mem::checked_transmute;
+
+fn main() {
+    ()
+}

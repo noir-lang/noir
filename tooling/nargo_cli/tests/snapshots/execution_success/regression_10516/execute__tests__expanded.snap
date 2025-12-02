@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    foo(true, 1_Field);
+}
+
+unconstrained fn foo(a: bool, mut b: Field) -> Field {
+    if a {
+        0_Field
+    } else {
+        for i in 0_u32..if (b as u128) != (b as u128) {
+            0_u32
+        } else {
+            0_u32
+        } {
+            foo(true, 1_Field);
+            b = -1_Field / if a { 1_Field } else { -1_Field };
+        }
+        a as Field
+    }
+}
