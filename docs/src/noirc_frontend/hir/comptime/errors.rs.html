@@ -787,7 +787,17 @@
 <a href="#786" id="786">786</a>
 <a href="#787" id="787">787</a>
 <a href="#788" id="788">788</a>
-<a href="#789" id="789">789</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -1056,6 +1066,11 @@
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
 
     <span class="comment">// These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -1134,7 +1149,8 @@
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location }
-            | InterpreterError::GlobalCouldNotBeResolved { location } =&gt; <span class="kw-2">*</span>location,
+            | InterpreterError::GlobalCouldNotBeResolved { location }
+            | InterpreterError::CheckedTransmuteFailed { location, .. } =&gt; <span class="kw-2">*</span>location,
             InterpreterError::FailedToParseMacro { error, .. } =&gt; error.location(),
             InterpreterError::NoMatchingImplFound { error } =&gt; error.location,
             InterpreterError::Break | InterpreterError::Continue =&gt; {
@@ -1524,13 +1540,17 @@
                 <span class="kw">let </span>secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
             }
-
             InterpreterError::LoopHaltedForUiResponsiveness { location } =&gt; {
                 <span class="kw">let </span>msg = <span class="string">"This loop took too much time to execute so it was halted for UI responsiveness"
                             </span>.to_string();
                 <span class="kw">let </span>secondary =
                     <span class="string">"This error doesn't happen in normal executions of `nargo`"</span>.to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, <span class="kw-2">*</span>location)
+            }
+            InterpreterError::CheckedTransmuteFailed { actual, expected, location } =&gt; {
+                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Checked transmute failed: `{actual:?}` != `{expected:?}`"</span>);
+                <span class="kw">let </span>secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
             }
         }
     }

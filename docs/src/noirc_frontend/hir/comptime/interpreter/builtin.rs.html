@@ -3228,7 +3228,26 @@
 <a href="#3227" id="3227">3227</a>
 <a href="#3228" id="3228">3228</a>
 <a href="#3229" id="3229">3229</a>
-<a href="#3230" id="3230">3230</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3230" id="3230">3230</a>
+<a href="#3231" id="3231">3231</a>
+<a href="#3232" id="3232">3232</a>
+<a href="#3233" id="3233">3233</a>
+<a href="#3234" id="3234">3234</a>
+<a href="#3235" id="3235">3235</a>
+<a href="#3236" id="3236">3236</a>
+<a href="#3237" id="3237">3237</a>
+<a href="#3238" id="3238">3238</a>
+<a href="#3239" id="3239">3239</a>
+<a href="#3240" id="3240">3240</a>
+<a href="#3241" id="3241">3241</a>
+<a href="#3242" id="3242">3242</a>
+<a href="#3243" id="3243">3243</a>
+<a href="#3244" id="3244">3244</a>
+<a href="#3245" id="3245">3245</a>
+<a href="#3246" id="3246">3246</a>
+<a href="#3247" id="3247">3247</a>
+<a href="#3248" id="3248">3248</a>
+<a href="#3249" id="3249">3249</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3309,6 +3328,7 @@
             <span class="string">"as_slice" </span>=&gt; as_slice(arguments, location),
             <span class="string">"as_witness" </span>=&gt; as_witness(arguments, location),
             <span class="string">"black_box" </span>=&gt; black_box(arguments, location),
+            <span class="string">"checked_transmute" </span>=&gt; checked_transmute(arguments, return_type, location),
             <span class="string">"ctstring_eq" </span>=&gt; ctstring_eq(arguments, location),
             <span class="string">"ctstring_hash" </span>=&gt; ctstring_hash(arguments, location),
             <span class="string">"derive_pedersen_generators" </span>=&gt; derive_generators(arguments, return_type, location),
@@ -3579,6 +3599,24 @@
 
 <span class="kw">fn </span>black_box(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="prelude-val">Ok</span>(check_one_argument(arguments, location)<span class="question-mark">?</span>.<span class="number">0</span>)
+}
+
+<span class="kw">fn </span>checked_transmute(
+    arguments: Vec&lt;(Value, Location)&gt;,
+    return_type: Type,
+    location: Location,
+) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">let </span>(value, location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+
+    <span class="kw">if </span>value.get_type().as_ref() != <span class="kw-2">&amp;</span>return_type {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::CheckedTransmuteFailed {
+            actual: value.get_type().into_owned(),
+            expected: return_type,
+            location,
+        });
+    }
+
+    <span class="prelude-val">Ok</span>(value)
 }
 
 <span class="kw">fn </span>slice_push_back(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
