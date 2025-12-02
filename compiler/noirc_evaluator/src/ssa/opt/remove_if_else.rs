@@ -192,7 +192,7 @@ impl Context {
                     self.ensure_capacity(context.dfg, then_value);
                     self.ensure_capacity(context.dfg, else_value);
 
-                    // Because the ValueMerge might produce some `array_get` instructions, we
+                    // Because the ValueMerger might produce some `array_get` instructions, we
                     // need those to always execute as otherwise they'll produce incorrect
                     // merged arrays. For this, we set the side effects var to `true` for the merge.
                     let old_side_effects = context.enable_side_effects;
