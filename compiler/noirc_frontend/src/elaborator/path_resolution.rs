@@ -656,6 +656,7 @@ impl Elaborator<'_> {
             } else {
                 current_module.find_name(current_ident)
             };
+
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
@@ -719,7 +720,7 @@ impl Elaborator<'_> {
         // This condition allows module to extend a type defined in a different module,
         // e.g. add another `impl other::Type` block, and access an `other::Type::private`
         // path in the methods added in that block. Rust would not allow this.
-        let inside_self_type = self.self_type_module_id() == Some(current_module_id);
+        let inside_self_type = false && self.self_type_module_id() == Some(current_module_id);
 
         if !(inside_self_type
             || item_in_module_is_visible(

@@ -128,6 +128,7 @@ fn type_member_is_visible(
 
 /// Returns whether a method call `func_id` on an object of type `object_type` is visible from
 /// `current_module`.
+///
 /// If there's a self type at the current location it must be passed as `self_type`. This is
 /// used for the case of calling, inside a generic trait impl, a private method on the same
 /// type as `self_type` regardless of its generic arguments (in this case the call is allowed).
@@ -166,10 +167,24 @@ pub fn method_call_is_visible(
 
             // A private method defined on `Foo<i32>` should be visible when calling
             // it from an impl on `Foo<i64>`, even though the generics are different.
-            if self_type
-                .is_some_and(|self_type| is_same_type_regardless_generics(self_type, object_type))
-            {
-                return true;
+            if let Some(self_type) = self_type {
+                if is_same_type_regardless_generics(self_type, object_type) {
+                    if modifiers.visibility.is_private() {
+                        // Only allow accessing private methods of a type if we are under the same
+                        // module where the type was defined. OTOH if we are in an `impl Foo<i32>`
+                        // block in a different module, extending the type with new methods, then
+                        // we should only access public parts defined in other modules, or private
+                        // ones defined in the same extension.
+                        let def_map = &def_maps[&current_module.krate];
+                        return module_is_descendant_of_target(
+                            def_map,
+                            current_module.local_id,
+                            func_meta.source_module,
+                        );
+                    } else {
+                        return true;
+                    }
+                }
             }
 
             if let Some(struct_id) = func_meta.type_id {
