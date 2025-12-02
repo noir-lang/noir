@@ -1835,10 +1835,7 @@
 <a href="#1834" id="1834">1834</a>
 <a href="#1835" id="1835">1835</a>
 <a href="#1836" id="1836">1836</a>
-<a href="#1837" id="1837">1837</a>
-<a href="#1838" id="1838">1838</a>
-<a href="#1839" id="1839">1839</a>
-<a href="#1840" id="1840">1840</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1837" id="1837">1837</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -1877,7 +1874,7 @@
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>im::Vector;
-<span class="kw">use </span>iter_extended::try_vecmap;
+<span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -1916,7 +1913,7 @@
 };
 
 <span class="kw">use </span><span class="kw">super</span>::errors::{IResult, InterpreterError};
-<span class="kw">use </span><span class="kw">super</span>::value::{Closure, StructFields, Value, unwrap_rc};
+<span class="kw">use </span><span class="kw">super</span>::value::{Closure, Value, unwrap_rc};
 
 <span class="kw">mod </span>builtin;
 <span class="kw">mod </span>cast;
@@ -2851,15 +2848,8 @@
     <span class="kw">fn </span>evaluate_access(<span class="kw-2">&amp;mut </span><span class="self">self</span>, access: HirMemberAccess, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>lhs = <span class="self">self</span>.evaluate_no_dereference(access.lhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>is_offset = access.is_offset &amp;&amp; lhs.get_type().is_ref();
-        <span class="kw">let </span>(fields, struct_type) = <span class="self">self</span>.get_fields(lhs, id)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
-            <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-            <span class="kw">let </span>value = Value::Struct(fields, struct_type);
-            <span class="kw">let </span>field_name = access.rhs.into_string();
-            <span class="kw">let </span>typ = value.get_type().into_owned();
-            InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
-        })<span class="question-mark">?</span>;
+        <span class="kw">let </span>field = <span class="self">self</span>.get_field(lhs, id, access.rhs.as_string())<span class="question-mark">?</span>;
 
         <span class="comment">// Return a reference to the field so that `&amp;mut foo.bar.baz` can use this reference.
         // We set auto_deref to true so that when it is used elsewhere it is dereferenced
@@ -2871,30 +2861,34 @@
         <span class="prelude-val">Ok</span>(Value::Pointer(field, auto_deref, <span class="bool-val">false</span>))
     }
 
-    <span class="doccomment">/// Given a value, return the struct/tuple fields of the value, automatically dereferencing any
+    <span class="doccomment">/// Given a value, return the struct/tuple field with the given name, automatically dereferencing any
     /// pointers found.
-    </span><span class="kw">fn </span>get_fields(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Value, id: ExprId) -&gt; IResult&lt;(StructFields, Type)&gt; {
-        <span class="kw">match </span>value {
-            Value::Struct(fields, typ) =&gt; <span class="prelude-val">Ok</span>((fields, typ)),
-            Value::Tuple(fields) =&gt; {
-                <span class="kw">let </span>(fields, field_types) = fields
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, field)| {
-                        <span class="kw">let </span>field_type = field.borrow().get_type().into_owned();
-                        <span class="kw">let </span>key_val_pair = (Rc::new(i.to_string()), field);
-                        (key_val_pair, field_type)
-                    })
-                    .unzip();
-                <span class="prelude-val">Ok</span>((fields, Type::Tuple(field_types)))
+    </span><span class="kw">fn </span>get_field(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Value, id: ExprId, name: <span class="kw-2">&amp;</span>String) -&gt; IResult&lt;Shared&lt;Value&gt;&gt; {
+        <span class="kw">let </span>typ = <span class="kw">match </span>value {
+            Value::Struct(fields, struct_type) =&gt; <span class="kw">match </span>fields.get(name) {
+                <span class="prelude-val">Some</span>(field) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(field.clone()),
+                <span class="prelude-val">None </span>=&gt; struct_type,
+            },
+            Value::Tuple(types) =&gt; {
+                <span class="kw">let </span>index = name.parse::&lt;usize&gt;().ok();
+                <span class="kw">match </span>index.and_then(|index| types.get(index)) {
+                    <span class="prelude-val">Some</span>(value) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(value.clone()),
+                    <span class="prelude-val">None </span>=&gt; Type::Tuple(vecmap(types, |typ| typ.borrow().get_type().into_owned())),
+                }
             }
-            Value::Pointer(element, ..) =&gt; <span class="self">self</span>.get_fields(element.unwrap_or_clone(), id),
+            Value::Pointer(element, ..) =&gt; {
+                <span class="kw">return </span><span class="self">self</span>.get_field(element.unwrap_or_clone(), id, name);
+            }
             value =&gt; {
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
                 <span class="kw">let </span>typ = value.get_type().into_owned();
-                <span class="prelude-val">Err</span>(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
             }
-        }
+        };
+
+        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
+        <span class="kw">let </span>field_name = name.to_string();
+        <span class="prelude-val">Err</span>(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
     }
 
     <span class="doccomment">/// Evaluates a call expression, deferring to [Self::call_function] or [Self::call_closure]
