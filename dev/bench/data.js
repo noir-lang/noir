@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764678676157,
+  "lastUpdate": 1764680382789,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f5f3ac5139fbd94471a28499a0e52afd57fc5a48",
-          "message": "chore(frontend): Reject foreign calls returning multiple slices (#10608)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-11-25T16:09:50Z",
-          "tree_id": "99e89f64a8ed2bd306e0597c33672b9f8bed66da",
-          "url": "https://github.com/noir-lang/noir/commit/f5f3ac5139fbd94471a28499a0e52afd57fc5a48"
-        },
-        "date": 1764088413365,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255748,
-            "range": "± 578",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228998,
-            "range": "± 1315",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791188,
-            "range": "± 2037",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792730,
             "range": "± 3216",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2c47c5ab47c230cfa186c2eb27383cc8f5b533ce",
+          "message": "fix: apply_range_constraint off-by-one error (#10692)",
+          "timestamp": "2025-12-02T12:36:21Z",
+          "tree_id": "945cec80233a123fbc019fe91a50f6b3e6c2fb0b",
+          "url": "https://github.com/noir-lang/noir/commit/2c47c5ab47c230cfa186c2eb27383cc8f5b533ce"
+        },
+        "date": 1764680354914,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261390,
+            "range": "± 1185",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229522,
+            "range": "± 7306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791177,
+            "range": "± 2348",
             "unit": "ns/iter"
           }
         ]
