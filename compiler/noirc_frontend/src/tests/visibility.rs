@@ -299,9 +299,8 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     assert_no_errors(src);
 }
 
-// FIXME (#10718): Trying to access private methods from other namespaces should fail.
 #[test]
-fn does_not_error_if_calling_private_struct_function_from_extension() {
+fn error_if_calling_private_struct_function_from_extension() {
     let src = r#"
     pub mod foo {
         pub struct Foo {}
@@ -322,7 +321,11 @@ fn does_not_error_if_calling_private_struct_function_from_extension() {
             pub fn extension() {
                 let f = Foo {};
                 let _x = Foo::x();
+                              ^ x is private and not visible from the current module
+                              ~ x is private
                 let _y = f.y();
+                           ^ y is private and not visible from the current module
+                           ~ y is private
             }
         }
     }
@@ -330,7 +333,6 @@ fn does_not_error_if_calling_private_struct_function_from_extension() {
     fn main() {
         let _f = foo::Foo {};
     }
-
     "#;
     assert_no_errors(src);
 }
