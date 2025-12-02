@@ -286,7 +286,7 @@ impl PathResolutionTargetResolver<'_, '_> {
 
     /// Resolve a path such as `dep::foo:bar::baz`:
     /// * find the `foo` crate among the dependencies of the current importing module
-    /// * change the crate `foo` from the path, returning a plain path `bar::baz` along with the dependency module
+    /// * remove the crate `foo` from the path, returning a plain path `bar::baz` along with the dependency module
     fn resolve_dep_path(
         &mut self,
         mut path: TypedPath,
