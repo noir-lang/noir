@@ -429,7 +429,27 @@
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
 //! as mutable _iff_ the array is not potentially shared with the callers or callees of the
 //! function and won't be used again in the function itself either. In other words, if this
 //! is the last time we use this version of the array, we can mutate it in place, and avoid
@@ -652,12 +672,7 @@
                         }
                     }
                 }
-                <span class="comment">// Arrays loaded from memory might reference an existing array
-                // For instance if the array comes from a load we may potentially be mutating an array
-                // at a reference that is loaded from by other values.
-                </span>Instruction::Load { .. } =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">"Load instruction exists before `array_set_optimization` pass"</span>);
-                }
+
                 <span class="comment">// Arrays nested in other arrays are a use.
                 </span>Instruction::MakeArray { elements, .. } =&gt; {
                     <span class="kw">for </span>element <span class="kw">in </span>elements {
@@ -666,12 +681,37 @@
                         }
                     }
                 }
-                Instruction::IfElse { .. } =&gt; {
-                    <span class="macro">panic!</span>(
-                        <span class="string">"IfElse instructions are assumed to be removed before array_set optimization"
-                    </span>)
+
+                <span class="comment">// The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
+                // so we assert that such instructions have already been removed by the `remove_if_else` pass.
+                </span>Instruction::IfElse { .. } =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"IfElse instruction exists before `array_set_optimization` pass"</span>);
                 }
-                <span class="kw">_ </span>=&gt; (),
+
+                <span class="comment">// Arrays loaded from memory might reference an existing array
+                // For instance if the array comes from a load we may potentially be mutating an array
+                // at a reference that is loaded from by other values.
+                </span>Instruction::Load { .. } =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"Load instruction exists before `array_set_optimization` pass"</span>);
+                }
+                <span class="comment">// We also disallow Store instructions for the same reason.
+                </span>Instruction::Store { .. } =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"Store instruction exists before `array_set_optimization` pass"</span>);
+                }
+
+                <span class="comment">// These instructions do not interact with arrays, so we do not need to track them.
+                </span>Instruction::Binary(..)
+                | Instruction::Cast(..)
+                | Instruction::Not(..)
+                | Instruction::Truncate { .. }
+                | Instruction::Constrain(..)
+                | Instruction::ConstrainNotEqual(..)
+                | Instruction::RangeCheck { .. }
+                | Instruction::Allocate
+                | Instruction::EnableSideEffectsIf { .. }
+                | Instruction::IncrementRc { .. }
+                | Instruction::DecrementRc { .. }
+                | Instruction::Noop =&gt; (),
             }
         }
     }
