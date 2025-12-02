@@ -100,11 +100,13 @@
 
 use std::collections::hash_map::Entry;
 
+use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -190,6 +192,21 @@ impl Context {
                     self.ensure_capacity(context.dfg, then_value);
                     self.ensure_capacity(context.dfg, else_value);
 
+                    let old_side_effects = context.enable_side_effects;
+                    let old_side_effects_is_not_one = context
+                        .dfg
+                        .get_numeric_constant(old_side_effects)
+                        .is_none_or(|value| !value.is_one());
+
+                    if old_side_effects_is_not_one {
+                        let one =
+                            context.dfg.make_constant(FieldElement::one(), NumericType::bool());
+                        let _ = context.insert_instruction(
+                            Instruction::EnableSideEffectsIf { condition: one },
+                            None,
+                        );
+                    }
+
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
                         ValueMerger::new(context.dfg, block, &self.slice_sizes, call_stack);
@@ -200,6 +217,13 @@ impl Context {
                         then_value,
                         else_value,
                     )?;
+
+                    if old_side_effects_is_not_one {
+                        let _ = context.insert_instruction(
+                            Instruction::EnableSideEffectsIf { condition: old_side_effects },
+                            None,
+                        );
+                    }
 
                     let [result] = context.dfg.instruction_result(instruction_id);
 
@@ -996,6 +1020,9 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_if_else().unwrap();
 
+        // During the merge we set `enable_side_effects u1`, as otherwise `array_get`
+        // would not be executed (it would return dummy values).
+        // After the merge we set the original `enable_side_effects v11`.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
@@ -1013,25 +1040,27 @@ mod tests {
             v19 = unchecked_mul v17, v14
             v20 = unchecked_mul v18, u32 2
             v21 = unchecked_add v19, v20
-            v22 = array_get v15, index u32 0 -> Field
-            v23 = array_get v9, index u32 0 -> Field
-            v24 = cast v11 as Field
-            v25 = cast v16 as Field
-            v26 = mul v24, v22
+            enable_side_effects u1 1
+            v23 = array_get v15, index u32 0 -> Field
+            v24 = array_get v9, index u32 0 -> Field
+            v25 = cast v11 as Field
+            v26 = cast v16 as Field
             v27 = mul v25, v23
-            v28 = add v26, v27
-            v30 = array_get v15, index u32 1 -> Field
-            v31 = array_get v9, index u32 1 -> Field
-            v32 = cast v11 as Field
-            v33 = cast v16 as Field
-            v34 = mul v32, v30
+            v28 = mul v26, v24
+            v29 = add v27, v28
+            v31 = array_get v15, index u32 1 -> Field
+            v32 = array_get v9, index u32 1 -> Field
+            v33 = cast v11 as Field
+            v34 = cast v16 as Field
             v35 = mul v33, v31
-            v36 = add v34, v35
-            v37 = array_get v15, index u32 2 -> Field
-            v38 = make_array [v28, v36, v37] : [Field]
+            v36 = mul v34, v32
+            v37 = add v35, v36
+            v38 = array_get v15, index u32 2 -> Field
+            v39 = make_array [v29, v37, v38] : [Field]
+            enable_side_effects v11
             enable_side_effects u1 1
             v40 = lt v0, v21
-            v41 = array_get v38, index v0 -> Field
+            v41 = array_get v39, index v0 -> Field
             constrain v41 == Field 4
             return
         }
