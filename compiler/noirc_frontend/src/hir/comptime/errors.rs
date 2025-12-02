@@ -267,6 +267,11 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -345,7 +350,8 @@ impl InterpreterError {
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location }
-            | InterpreterError::GlobalCouldNotBeResolved { location } => *location,
+            | InterpreterError::GlobalCouldNotBeResolved { location }
+            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::Break | InterpreterError::Continue => {
@@ -735,13 +741,17 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
                             .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
+            }
+            InterpreterError::CheckedTransmuteFailed { actual, expected, location } => {
+                let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");
+                let secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
         }
     }

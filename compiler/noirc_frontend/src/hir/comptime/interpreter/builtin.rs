@@ -79,6 +79,7 @@ impl Interpreter<'_, '_> {
             "as_slice" => as_slice(arguments, location),
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
+            "checked_transmute" => checked_transmute(arguments, return_type, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -349,6 +350,24 @@ fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<
 
 fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn checked_transmute(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, location) = check_one_argument(arguments, location)?;
+
+    if value.get_type().as_ref() != &return_type {
+        return Err(InterpreterError::CheckedTransmuteFailed {
+            actual: value.get_type().into_owned(),
+            expected: return_type,
+            location,
+        });
+    }
+
+    Ok(value)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
