@@ -503,9 +503,8 @@ impl Elaborator<'_> {
         }
 
         let first_segment_is_always_visible = match path.kind {
-            PathKind::Crate => true,
+            PathKind::Crate | PathKind::Super => true,
             PathKind::Plain => importing_module == starting_module,
-            PathKind::Super => false,
             PathKind::Resolved(_) => {
                 unreachable!("ICE: Resolved path kinds should have been turned into Crate.")
             }
