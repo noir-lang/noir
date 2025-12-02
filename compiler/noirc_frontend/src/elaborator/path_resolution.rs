@@ -482,6 +482,9 @@ impl Elaborator<'_> {
     /// Resolves a [TypedPath] assuming it is inside `starting_module`.
     ///
     /// `importing_module` is the module where the lookup originally started.
+    ///
+    /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
+    /// Pushes errors if segments refer to private items.
     fn resolve_name_in_module(
         &mut self,
         path: TypedPath,

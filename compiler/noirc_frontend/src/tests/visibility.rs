@@ -335,6 +335,49 @@ fn does_not_error_if_calling_private_struct_function_from_extension() {
     assert_no_errors(src);
 }
 
+// FIXME (#10730): Going through super should work, as it does in Rust.
+#[test]
+fn error_when_accessing_private_module_through_super() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+    }
+
+    mod bar {
+        pub fn bar() {
+            let _f = super::foo::Foo {};
+                            ^^^ foo is private and not visible from the current module
+                            ~~~ foo is private
+        }
+    }
+
+    fn main() {
+        bar::bar();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_when_accessing_private_module_through_crate() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+    }
+
+    mod bar {
+        pub fn bar() {
+            let _f = crate::foo::Foo {};
+        }
+    }
+
+    fn main() {
+        bar::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn does_not_error_if_calling_private_struct_function_from_same_module() {
     let src = r#"
