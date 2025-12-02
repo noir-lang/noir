@@ -90,33 +90,13 @@ impl ItemScope {
         }
     }
 
-    /// Look up an [Ident] in `values` with no [TraitId], then return the [FuncId]
-    /// if the definition is a [ModuleDef::FunctionId] in the following order:
-    /// * if a definition without a [TraitId] exists, use that
-    /// * if there is a single trait definition, use that
-    /// * otherwise return nothing, as it is ambiguous
+    /// Look up an [Ident] in `values`, then return the [FuncId] if the definition is a [ModuleDefId::FunctionId],
+    ///
+    /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
-        let trait_hashmap = self.values.get(func_name)?;
-        // methods introduced without trait take priority and hide methods with the same name that come from a trait
-        let a = trait_hashmap.get(&None);
-        match a {
-            Some((module_def, _, _)) => match module_def {
-                ModuleDefId::FunctionId(id) => Some(*id),
-                _ => None,
-            },
-            None => {
-                if trait_hashmap.len() == 1 {
-                    let (module_def, _, _) = trait_hashmap.get(trait_hashmap.keys().last()?)?;
-                    match module_def {
-                        ModuleDefId::FunctionId(id) => Some(*id),
-                        _ => None,
-                    }
-                } else {
-                    // ambiguous name (multiple traits, containing the same function name)
-                    None
-                }
-            }
-        }
+        Self::find_name_in(func_name, &self.values).and_then(|(module_def, _, _)| {
+            if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
+        })
     }
 
     /// Look for an [Ident] in both `types` and `values`.

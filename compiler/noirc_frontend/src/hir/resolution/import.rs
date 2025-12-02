@@ -186,8 +186,8 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
     TypedPathSegment { ident: segment.ident, generics: None, location: segment.location }
 }
 
-/// Given a [TypedPath] and a [ModuleId] it's being used in, this function returns a [TypedPath]
-/// and a [ModuleId] where that [TypedPath] should be resolved.
+/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
+/// and a [ModuleId] where that `TypedPath` should be resolved.
 ///
 /// For a [PathKind::Dep] with a value such as `dep::foo::bar::baz`, the path will be turned into a
 /// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
@@ -217,7 +217,7 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
 }
 
 impl PathResolutionTargetResolver<'_, '_> {
-    /// Resolve a [TypedPath] based on its [PathKind] to the target [ModuleId].
+    /// Resolve a `TypedPath` based on its [PathKind] to the target [ModuleId].
     fn resolve(&mut self, path: TypedPath) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
