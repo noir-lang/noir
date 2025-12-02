@@ -1,3 +1,5 @@
+mod skip_interpreter_on_fail;
+
 use crate::{
     elaborator::UnstableFeature,
     hir::{
@@ -1097,4 +1099,27 @@ fn comptime_uhashmap_of_slices_attribute() {
     fn main() { }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn failing_comptime_function_not_run() {
+    let src = "
+    comptime mut global FLAG: bool = false; 
+    
+    fn main() {
+        comptime {
+            bad(); 
+            // We expect the `FLAG` to remain `false`
+            assert_eq(FLAG, false);
+        }
+    }
+
+    comptime fn bad() {
+        // Type error here
+        let _: i32 = 10_u32;
+                     ^^^^^^ Expected type i32, found type u32
+        FLAG = true;
+    }
+    ";
+    check_errors(src);
 }

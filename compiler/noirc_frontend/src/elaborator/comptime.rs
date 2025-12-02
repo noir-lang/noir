@@ -151,6 +151,9 @@ impl<'context> Elaborator<'context> {
         };
 
         self.errors.extend(errors);
+        // Transfer the set of functions with errors from the fresh elaborator
+        // so the interpreter can skip calling them
+        self.functions_with_errors.extend(elaborator.functions_with_errors);
         result
     }
 

@@ -614,10 +614,16 @@ impl Elaborator<'_> {
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let location = statement.location;
-        let (hir_statement, _typ) =
-            self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
-        let mut interpreter = self.setup_interpreter();
-        let value = interpreter.evaluate_statement(hir_statement);
+        let ((hir_statement, _typ), has_errors) = self.with_error_guard(|this| {
+            this.elaborate_in_comptime_context(|this| this.elaborate_statement(statement))
+        });
+
+        let value = if has_errors {
+            Err(crate::hir::comptime::InterpreterError::SkippedDueToEarlierErrors)
+        } else {
+            let mut interpreter = self.setup_interpreter();
+            interpreter.evaluate_statement(hir_statement)
+        };
         let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);

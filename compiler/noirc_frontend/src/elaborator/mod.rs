@@ -80,13 +80,14 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
 };
+use rustc_hash::FxHashSet as HashSet;
 
 mod comptime;
 mod enums;
@@ -259,6 +260,10 @@ pub struct Elaborator<'context> {
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+
+    /// Tracks functions that had errors during elaboration.
+    /// Used to prevent the interpreter from running functions with errors.
+    pub(crate) functions_with_errors: HashSet<FuncId>,
 }
 
 #[derive(Copy, Clone)]
@@ -326,6 +331,7 @@ impl<'context> Elaborator<'context> {
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
+            functions_with_errors: HashSet::default(),
         }
     }
 
@@ -458,14 +464,32 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        self.errors.push(error);
+        // Filter out internal control flow errors that should not be displayed
+        if !error.should_be_filtered() {
+            self.errors.push(error);
+        }
     }
 
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        self.errors.extend(errors.into_iter().map(|e| e.into()));
+        for error in errors {
+            self.push_err(error);
+        }
+    }
+
+    /// Run a given function while also tracking whether any new errors were generated as a result.
+    pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
+        // Count actual errors (ignore warnings)
+        // Note: We could optimize this filter by keeping track of the true error count in a separate field
+        let initial_error_count = self.errors.iter().filter(|e| e.is_error()).count();
+        // dbg!(initial_error_count);
+        let result = f(self);
+        let final_error_count = self.errors.iter().filter(|e| e.is_error()).count();
+        // dbg!(final_error_count);
+        let has_new_errors = final_error_count > initial_error_count;
+        (result, has_new_errors)
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {

@@ -23,11 +23,41 @@ use noirc_errors::Location;
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        let ((id, typ, is_comptime_local, location), has_errors) =
+            self.with_error_guard(|this| this.elaborate_variable_inner(variable));
+
+        // Only check has_errors when we need to call the interpreter
+        // If this variable is a comptime local variable, use its current value as the final expression
+        if is_comptime_local {
+            if has_errors {
+                return (id, typ);
+            }
+
+            let mut interpreter = self.setup_interpreter();
+            let value = interpreter.evaluate(id);
+            // If the value is an error it means the variable already had an error, so don't report it here again
+            // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
+            // but that's not true)
+            if value.is_ok() {
+                let (id, typ) = self.inline_comptime_value(value, location);
+                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                (id, typ)
+            } else {
+                (id, typ)
+            }
+        } else {
+            (id, typ)
+        }
+    }
+
+    /// Helper function containing the elaboration logic for a variable.
+    /// Returns the expression ID, type, whether it's a comptime local, and location.
+    fn elaborate_variable_inner(&mut self, variable: Path) -> (ExprId, Type, bool, Location) {
         let variable = self.validate_path(variable);
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
         {
-            return (expr_id, typ);
+            return (expr_id, typ, false, variable.location);
         }
 
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
@@ -44,7 +74,8 @@ impl Elaborator<'_> {
             if let Some(expr) = &type_alias.borrow().numeric_expr {
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
                 let expr = Expression::new(expr, type_alias.borrow().location);
-                return self.elaborate_expression(expr);
+                let (id, typ) = self.elaborate_expression(expr);
+                return (id, typ, false, location);
             }
         }
 
@@ -104,23 +135,7 @@ impl Elaborator<'_> {
         );
         let id = self.intern_expr_type(id, typ.clone());
 
-        // If this variable it a comptime local variable, use its current value as the final expression
-        if is_comptime_local {
-            let mut interpreter = self.setup_interpreter();
-            let value = interpreter.evaluate(id);
-            // If the value is an error it means the variable already had an error, so don't report it here again
-            // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
-            // but that's not true)
-            if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
-                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
-                (id, typ)
-            } else {
-                (id, typ)
-            }
-        } else {
-            (id, typ)
-        }
+        (id, typ, is_comptime_local, location)
     }
 
     /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
