@@ -302,7 +302,7 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
 #[test]
 fn error_if_calling_private_struct_function_from_extension() {
     let src = r#"
-    pub mod foo {
+    mod foo {
         pub struct Foo {
             z: u32
         }
