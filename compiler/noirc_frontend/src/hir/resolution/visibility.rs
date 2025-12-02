@@ -176,12 +176,16 @@ pub fn method_call_is_visible(
                         // we should only access public parts defined in other modules, or private
                         // ones defined in the same extension.
                         let def_map = &def_maps[&current_module.krate];
+                        // Cannot call `type_member_is_visible` because it goes up to the parent;
+                        // the `func_meta.source_module` already seems to be the parent.
                         return module_is_descendant_of_target(
                             def_map,
                             current_module.local_id,
                             func_meta.source_module,
                         );
                     } else {
+                        // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
+                        // already checked that the types are the same, so we are in the same crate.
                         return true;
                     }
                 }
