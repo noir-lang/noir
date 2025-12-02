@@ -116,8 +116,8 @@ fn does_not_error_if_pub_function_is_on_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        impl Bar { 
-            pub fn bar() -> Bar { 
+        impl Bar {
+            pub fn bar() -> Bar {
                 Bar {}
             }
         }
@@ -137,15 +137,15 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
         struct Bar {}
         pub struct Foo {}
 
-        impl Foo { 
-            pub fn bar() -> Bar { 
+        impl Foo {
+            pub fn bar() -> Bar {
                    ^^^ Type `Bar` is more private than item `bar`
                 Bar {}
             }
         }
 
         pub fn no_unused_warnings() {
-            let _ = Foo {};            
+            let _ = Foo {};
         }
     }
     "#;
@@ -158,12 +158,12 @@ fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        pub trait Foo { 
+        pub trait Foo {
             fn foo() -> Self;
         }
 
         impl Foo for Bar {
-            fn foo() -> Self { 
+            fn foo() -> Self {
                 Bar {}
             }
         }
@@ -182,7 +182,7 @@ fn errors_if_pub_trait_returns_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        pub trait Foo { 
+        pub trait Foo {
             fn foo() -> Bar;
                ^^^ Type `Bar` is more private than item `foo`
         }
@@ -295,6 +295,42 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     fn main() {
         let _ = Foo {};
     }
+    "#;
+    assert_no_errors(src);
+}
+
+// FIXME (#10718): Trying to access private methods from other namespaces should fail.
+#[test]
+fn does_not_error_if_calling_private_struct_function_from_extension() {
+    let src = r#"
+    pub mod foo {
+        pub struct Foo {}
+
+        impl Foo {
+            fn x() -> u32 {
+                0
+            }
+            fn y(_self: Self) -> u32 {
+                0
+            }
+        }
+    }
+
+    mod ext {
+        use super::foo::Foo;
+        impl Foo {
+            pub fn extension() {
+                let f = Foo {};
+                let _x = Foo::x();
+                let _y = f.y();
+            }
+        }
+    }
+
+    fn main() {
+        let _f = foo::Foo {};
+    }
+
     "#;
     assert_no_errors(src);
 }
@@ -439,16 +475,16 @@ fn visibility_bug_inside_comptime() {
         pub struct Foo {
             inner: Field,
         }
-    
+
         impl Foo {
             pub fn new(inner: Field) -> Self {
                 Self { inner }
             }
         }
     }
-    
+
     use foo::Foo;
-    
+
     fn main() {
         let _ = Foo::new(5);
         let _ = comptime { Foo::new(5) };
@@ -464,18 +500,18 @@ fn errors_if_accessing_private_struct_member_inside_comptime_context() {
         pub struct Foo {
             inner: Field,
         }
-    
+
         impl Foo {
             pub fn new(inner: Field) -> Self {
                 Self { inner }
             }
         }
     }
-    
+
     use foo::Foo;
-    
+
     fn main() {
-        comptime { 
+        comptime {
             let foo = Foo::new(5);
             let _ = foo.inner;
                         ^^^^^ inner is private and not visible from the current module
