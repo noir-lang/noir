@@ -1159,8 +1159,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
-        let env =
-            try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
+        let env = try_vecmap(&lambda.captures, |capture| {
+            let value = self.lookup_id(capture.ident.id, location)?;
+            match value {
+                // Dereference mutable variables to capture by value
+                Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone()),
+                other => Ok(other),
+            }
+        })?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();
