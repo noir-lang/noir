@@ -19,7 +19,9 @@ use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -33,10 +35,6 @@ use noir_debugger::errors::{DapError, LoadError};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
-    /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    expression_width: ExpressionWidth,
-
     #[clap(long)]
     preflight_check: bool,
 
@@ -63,19 +61,6 @@ pub(crate) struct DapCommand {
     /// This is disabled by default.
     #[arg(long, default_value = "false")]
     pedantic_solving: bool,
-}
-
-fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        _ => Ok(ExpressionWidth::Bounded { width }),
-    }
 }
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
@@ -378,13 +363,13 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     if args.preflight_check {
-        return run_preflight_check(args.expression_width, args).map_err(CliError::DapError);
+        return run_preflight_check(DEFAULT_EXPRESSION_WIDTH, args).map_err(CliError::DapError);
     }
 
     let output = BufWriter::new(std::io::stdout());
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving)
+    loop_uninitialized_dap(server, DEFAULT_EXPRESSION_WIDTH, args.pedantic_solving)
         .map_err(CliError::DapError)
 }
