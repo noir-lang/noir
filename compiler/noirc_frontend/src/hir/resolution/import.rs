@@ -228,9 +228,9 @@ impl PathResolutionTargetResolver<'_, '_> {
         }
     }
 
-    /// Resolve a path such as `crate::foo::bar`.
+    /// Resolve a path such as `crate::foo::bar` or `$crate::foo::bar`.
     ///
-    /// Returns a path still with [PathKind::Crate], paired up with the importing module itself as the target.
+    /// Returns a path with its kind unchanged, paired up with the importing or defining module itself as the target.
     fn resolve_crate_path(
         &mut self,
         path: TypedPath,

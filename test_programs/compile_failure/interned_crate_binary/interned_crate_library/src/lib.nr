@@ -8,7 +8,7 @@ comptime fn derive_foo(t: TypeDefinition) -> Quoted {
     quote {
         impl $crate::Foo for $typ {
             fn foo(self) {
-                $crate::my_private_fn_that_cannot_be_imported();
+                $crate::fun::my_public_fn_that_cannot_be_imported();
             }
         }
     }
@@ -22,4 +22,6 @@ pub fn lib_fn() {
     LibStruct {}.foo();
 }
 
-fn my_private_fn_that_cannot_be_imported() {}
+mod fun {
+    pub fn my_public_fn_that_cannot_be_imported() {}
+}
