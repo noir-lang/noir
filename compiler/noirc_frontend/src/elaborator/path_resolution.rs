@@ -802,6 +802,10 @@ impl Elaborator<'_> {
         MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 
+    /// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
+    ///
+    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
+    /// or an unambiguous trait method among the traits which are in scope.
     fn resolve_primitive_type_or_function(
         &mut self,
         path: TypedPath,
@@ -864,25 +868,22 @@ impl Elaborator<'_> {
                 let item =
                     PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, *func_id);
                 return Some(Ok(PathResolution { item, errors }));
+            } else if trait_methods.is_empty() {
+                return Some(Err(PathResolutionError::Unresolved(method_name_ident.clone())));
             } else {
-                let trait_ids = vecmap(trait_methods, |(_, trait_id)| trait_id);
-                if trait_ids.is_empty() {
-                    return Some(Err(PathResolutionError::Unresolved(method_name_ident.clone())));
-                } else {
-                    let traits = vecmap(trait_ids, |trait_id| {
-                        self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
-                    });
-                    let ident = method_name_ident.clone();
-                    let error =
-                        PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
-                    return Some(Err(error));
-                }
+                let traits = vecmap(trait_methods, |(_, trait_id)| {
+                    self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
+                });
+                let ident = method_name_ident.clone();
+                let error =
+                    PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
+                return Some(Err(error));
             }
         }
 
         if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
-            let traits = vecmap(trait_ids, |(trait_id, name)| {
+            let traits = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
+            let traits = vecmap(traits, |(trait_id, name)| {
                 let trait_ = self.interner.get_trait(trait_id);
                 self.usage_tracker.mark_as_used(importing_module_id, &name);
                 self.fully_qualified_trait_path(trait_)
