@@ -331,7 +331,6 @@ fn properly_constrains_quotient_when_truncating_fields_to_u128() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
-        ExpressionWidth::default(),
     )
     .expect("Should compile manually written SSA into ACIR");
 
