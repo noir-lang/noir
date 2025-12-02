@@ -670,29 +670,3 @@ fn slice_remove_affected_by_predicate() {
     let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
-
-#[test]
-fn as_slice_for_composite_slice() {
-    let src = "
-    acir(inline) predicate_pure fn main f0 {
-      b0():
-        v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [(Field, Field); 2]
-        v4, v5 = call as_slice(v3) -> (u32, [(Field, Field)])
-        return v4
-    }
-    ";
-    let program = ssa_to_acir_program(src);
-
-    // Note that 2 is returned, not 4 (as there are two `(Field, Field)` elements)
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    private parameters: []
-    public parameters: []
-    return values: [w0]
-    ASSERT w1 = 10
-    ASSERT w2 = 20
-    ASSERT w3 = 30
-    ASSERT w4 = 40
-    ASSERT w0 = 2
-    ");
-}
