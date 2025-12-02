@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764696142830,
+  "lastUpdate": 1764696611853,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "05ca94450e702f206467a2654ed348260ca9e799",
-          "message": "chore: bump axios (#10629)",
-          "timestamp": "2025-11-26T10:09:57Z",
-          "tree_id": "c39780b9e1e5439770b2a6df10358b9514d73e98",
-          "url": "https://github.com/noir-lang/noir/commit/05ca94450e702f206467a2654ed348260ca9e799"
-        },
-        "date": 1764151951179,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258939,
-            "range": "± 939",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229314,
-            "range": "± 1975",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795297,
-            "range": "± 10561",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791726,
             "range": "± 5607",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9493100ea745f2bea79632f4132220b773494a01",
+          "message": "fix: Fix calling type variables of kind `Any` (#10724)",
+          "timestamp": "2025-12-02T17:05:29Z",
+          "tree_id": "d5fe3133c9d0854a9fbc4440dcf6273fbfe19f8d",
+          "url": "https://github.com/noir-lang/noir/commit/9493100ea745f2bea79632f4132220b773494a01"
+        },
+        "date": 1764696582934,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258008,
+            "range": "± 1053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227392,
+            "range": "± 2919",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790281,
+            "range": "± 8466",
             "unit": "ns/iter"
           }
         ]
