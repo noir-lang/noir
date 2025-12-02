@@ -37,7 +37,7 @@ use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::AcirField;
 use im::Vector;
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -76,7 +76,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{Closure, StructFields, Value, unwrap_rc};
+use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
@@ -942,10 +942,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
-    /// - `<`:  `ordering == Ordering::Less`
-    /// - `<=`: `ordering != Ordering::Greater`
-    /// - `>`:  `ordering == Ordering::Greater`
-    /// - `<=`: `ordering != Ordering::Less`
     fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
         let ordering = match ordering {
             Value::Struct(fields, _) => match &*fields.into_iter().next().unwrap().1.borrow() {
@@ -955,18 +951,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             _ => unreachable!("`cmp` should always return an Ordering value"),
         };
 
-        use BinaryOpKind::*;
-        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
-            SignedField::zero() // Ordering::Less
-        } else {
-            SignedField::positive(2u128) // Ordering::Greater
+        // Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
+        let result = match operator {
+            // `<`:  `ordering == Ordering::Less`
+            BinaryOpKind::Less => ordering.is_zero(),
+            // `<=`: `ordering != Ordering::Greater`
+            BinaryOpKind::LessEqual => ordering != SignedField::positive(2_u128),
+            // `>`:  `ordering == Ordering::Greater`
+            BinaryOpKind::Greater => ordering == SignedField::positive(2_u128),
+            // `>=`: `ordering != Ordering::Less`
+            BinaryOpKind::GreaterEqual => !ordering.is_zero(),
+            _ => unreachable!("evaluate_ordering called with non-ordering operator"),
         };
-
-        if matches!(operator, Less | Greater) {
-            Ok(Value::Bool(ordering == less_or_greater))
-        } else {
-            Ok(Value::Bool(ordering != less_or_greater))
-        }
+        Ok(Value::Bool(result))
     }
 
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
@@ -1011,15 +1008,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
         let lhs = self.evaluate_no_dereference(access.lhs)?;
         let is_offset = access.is_offset && lhs.get_type().is_ref();
-        let (fields, struct_type) = self.get_fields(lhs, id)?;
 
-        let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
-            let location = self.elaborator.interner.expr_location(&id);
-            let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.into_string();
-            let typ = value.get_type().into_owned();
-            InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
-        })?;
+        let field = self.get_field(lhs, id, access.rhs.as_string())?;
 
         // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
         // We set auto_deref to true so that when it is used elsewhere it is dereferenced
@@ -1031,30 +1021,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Pointer(field, auto_deref, false))
     }
 
-    /// Given a value, return the struct/tuple fields of the value, automatically dereferencing any
+    /// Given a value, return the struct/tuple field with the given name, automatically dereferencing any
     /// pointers found.
-    fn get_fields(&mut self, value: Value, id: ExprId) -> IResult<(StructFields, Type)> {
-        match value {
-            Value::Struct(fields, typ) => Ok((fields, typ)),
-            Value::Tuple(fields) => {
-                let (fields, field_types) = fields
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, field)| {
-                        let field_type = field.borrow().get_type().into_owned();
-                        let key_val_pair = (Rc::new(i.to_string()), field);
-                        (key_val_pair, field_type)
-                    })
-                    .unzip();
-                Ok((fields, Type::Tuple(field_types)))
+    fn get_field(&mut self, value: Value, id: ExprId, name: &String) -> IResult<Shared<Value>> {
+        let typ = match value {
+            Value::Struct(fields, struct_type) => match fields.get(name) {
+                Some(field) => return Ok(field.clone()),
+                None => struct_type,
+            },
+            Value::Tuple(types) => {
+                let index = name.parse::<usize>().ok();
+                match index.and_then(|index| types.get(index)) {
+                    Some(value) => return Ok(value.clone()),
+                    None => Type::Tuple(vecmap(types, |typ| typ.borrow().get_type().into_owned())),
+                }
             }
-            Value::Pointer(element, ..) => self.get_fields(element.unwrap_or_clone(), id),
+            Value::Pointer(element, ..) => {
+                return self.get_field(element.unwrap_or_clone(), id, name);
+            }
             value => {
                 let location = self.elaborator.interner.expr_location(&id);
                 let typ = value.get_type().into_owned();
-                Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
+                return Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
             }
-        }
+        };
+
+        let location = self.elaborator.interner.expr_location(&id);
+        let field_name = name.to_string();
+        Err(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
     }
 
     /// Evaluates a call expression, deferring to [Self::call_function] or [Self::call_closure]
@@ -1165,8 +1159,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
-        let env =
-            try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
+        let env = try_vecmap(&lambda.captures, |capture| {
+            let value = self.lookup_id(capture.ident.id, location)?;
+            match value {
+                // Dereference mutable variables to capture by value
+                Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone()),
+                other => Ok(other),
+            }
+        })?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();

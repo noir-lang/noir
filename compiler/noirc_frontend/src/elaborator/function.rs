@@ -149,6 +149,8 @@ impl Elaborator<'_> {
     ) {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
+        let old_comptime_value =
+            std::mem::replace(&mut self.in_comptime_context, func.def.is_comptime);
 
         let location = func.name_ident().location();
         let id = self.interner.function_definition_id(func_id);
@@ -253,6 +255,7 @@ impl Elaborator<'_> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+        self.in_comptime_context = old_comptime_value;
     }
 
     /// Adds function generics and associated generics (from where clause) to scope.
