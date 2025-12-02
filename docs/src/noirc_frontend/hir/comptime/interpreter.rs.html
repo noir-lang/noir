@@ -1832,10 +1832,7 @@
 <a href="#1831" id="1831">1831</a>
 <a href="#1832" id="1832">1832</a>
 <a href="#1833" id="1833">1833</a>
-<a href="#1834" id="1834">1834</a>
-<a href="#1835" id="1835">1835</a>
-<a href="#1836" id="1836">1836</a>
-<a href="#1837" id="1837">1837</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1834" id="1834">1834</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2779,10 +2776,6 @@
     }
 
     <span class="doccomment">/// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
-    /// - `&lt;`:  `ordering == Ordering::Less`
-    /// - `&lt;=`: `ordering != Ordering::Greater`
-    /// - `&gt;`:  `ordering == Ordering::Greater`
-    /// - `&lt;=`: `ordering != Ordering::Less`
     </span><span class="kw">fn </span>evaluate_ordering(<span class="kw-2">&amp;</span><span class="self">self</span>, ordering: Value, operator: BinaryOpKind) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>ordering = <span class="kw">match </span>ordering {
             Value::Struct(fields, <span class="kw">_</span>) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>fields.into_iter().next().unwrap().<span class="number">1</span>.borrow() {
@@ -2792,18 +2785,19 @@
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"`cmp` should always return an Ordering value"</span>),
         };
 
-        <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
-        <span class="kw">let </span>less_or_greater = <span class="kw">if </span><span class="macro">matches!</span>(operator, Less | GreaterEqual) {
-            SignedField::zero() <span class="comment">// Ordering::Less
-        </span>} <span class="kw">else </span>{
-            SignedField::positive(<span class="number">2u128</span>) <span class="comment">// Ordering::Greater
-        </span>};
-
-        <span class="kw">if </span><span class="macro">matches!</span>(operator, Less | Greater) {
-            <span class="prelude-val">Ok</span>(Value::Bool(ordering == less_or_greater))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(Value::Bool(ordering != less_or_greater))
-        }
+        <span class="comment">// Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
+        </span><span class="kw">let </span>result = <span class="kw">match </span>operator {
+            <span class="comment">// `&lt;`:  `ordering == Ordering::Less`
+            </span>BinaryOpKind::Less =&gt; ordering.is_zero(),
+            <span class="comment">// `&lt;=`: `ordering != Ordering::Greater`
+            </span>BinaryOpKind::LessEqual =&gt; ordering != SignedField::positive(<span class="number">2_u128</span>),
+            <span class="comment">// `&gt;`:  `ordering == Ordering::Greater`
+            </span>BinaryOpKind::Greater =&gt; ordering == SignedField::positive(<span class="number">2_u128</span>),
+            <span class="comment">// `&gt;=`: `ordering != Ordering::Less`
+            </span>BinaryOpKind::GreaterEqual =&gt; !ordering.is_zero(),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"evaluate_ordering called with non-ordering operator"</span>),
+        };
+        <span class="prelude-val">Ok</span>(Value::Bool(result))
     }
 
     <span class="kw">fn </span>evaluate_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: HirIndexExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
