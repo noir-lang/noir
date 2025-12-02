@@ -4030,8 +4030,8 @@
     ) -&gt; Type {
         <span class="comment">// Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
-        </span><span class="kw">match </span>function {
-            Type::TypeVariable(binding) <span class="kw">if </span>binding.kind() == Kind::Normal =&gt; {
+        </span><span class="kw">match </span>function.follow_bindings_shallow().as_ref() {
+            Type::TypeVariable(binding) <span class="kw">if </span>binding.kind().is_normal_or_any() =&gt; {
                 <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>binding.borrow() {
                     <span class="kw">return </span><span class="self">self</span>.bind_function_type(typ.clone(), args, location);
                 }
@@ -4051,11 +4051,11 @@
             <span class="comment">// The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
             </span>Type::Function(parameters, ret, _env, _unconstrained) =&gt; {
-                <span class="self">self</span>.bind_function_type_impl(<span class="kw-2">&amp;</span>parameters, <span class="kw-2">&amp;</span>ret, <span class="kw-2">&amp;</span>args, location)
+                <span class="self">self</span>.bind_function_type_impl(parameters, ret, <span class="kw-2">&amp;</span>args, location)
             }
             Type::Error =&gt; Type::Error,
             found =&gt; {
-                <span class="self">self</span>.push_err(TypeCheckError::ExpectedFunction { found, location });
+                <span class="self">self</span>.push_err(TypeCheckError::ExpectedFunction { found: found.clone(), location });
                 Type::Error
             }
         }
