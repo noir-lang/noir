@@ -340,11 +340,14 @@ fn does_not_error_when_accessing_private_module_through_super() {
     let src = r#"
     mod foo {
         pub struct Foo {}
+        pub struct Qux {}
     }
 
     mod bar {
+        use super::foo::Qux;
         pub fn bar() {
             let _f = super::foo::Foo {};
+            let _q = Qux {};
         }
     }
 
@@ -360,11 +363,14 @@ fn does_not_error_when_accessing_private_module_through_crate() {
     let src = r#"
     mod foo {
         pub struct Foo {}
+        pub struct Qux {}
     }
 
     mod bar {
+        use crate::foo::Qux;
         pub fn bar() {
             let _f = crate::foo::Foo {};
+            let _q = Qux {};
         }
     }
 

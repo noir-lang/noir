@@ -5,7 +5,9 @@ use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
-use crate::hir::resolution::import::{PathResolutionError, resolve_path_kind};
+use crate::hir::resolution::import::{
+    PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
+};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
@@ -502,14 +504,8 @@ impl Elaborator<'_> {
             });
         }
 
-        let first_segment_is_always_visible = match path.kind {
-            PathKind::Crate | PathKind::Super => true,
-            PathKind::Plain => importing_module == starting_module,
-            PathKind::Resolved(_) => false,
-            PathKind::Dep => {
-                unreachable!("ICE: Dep path kinds should have been turned into Plain.")
-            }
-        };
+        let first_segment_is_always_visible =
+            first_segment_is_always_visible(&path, importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;

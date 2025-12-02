@@ -210,6 +210,25 @@ pub fn resolve_path_kind<'r>(
     Ok((path, module_id, solver.references_tracker))
 }
 
+/// Returns `true` if the first segment of a `TypedPath` in the `starting_module`
+/// should always be visible to the `importing_module`.
+///
+/// Assumes that we have called [resolve_path_kind] before.
+pub(crate) fn first_segment_is_always_visible(
+    path: &TypedPath,
+    importing_module: ModuleId,
+    starting_module: ModuleId,
+) -> bool {
+    match path.kind {
+        PathKind::Crate | PathKind::Super => true,
+        PathKind::Plain => importing_module == starting_module,
+        PathKind::Resolved(_) => false,
+        PathKind::Dep => {
+            unreachable!("ICE: Dep path kinds should have been turned into Plain.")
+        }
+    }
+}
+
 struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
     importing_module: ModuleId,
     def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
@@ -330,6 +349,9 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Self { importing_module, def_maps, usage_tracker, references_tracker }
     }
 
+    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    ///
+    /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
         &mut self,
         path: TypedPath,
@@ -343,11 +365,8 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             });
         }
 
-        let first_segment_is_always_visible = match path.kind {
-            PathKind::Crate => true,
-            PathKind::Plain => self.importing_module == starting_module,
-            PathKind::Dep | PathKind::Super | PathKind::Resolved(_) => false,
-        };
+        let first_segment_is_always_visible =
+            first_segment_is_always_visible(&path, self.importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
