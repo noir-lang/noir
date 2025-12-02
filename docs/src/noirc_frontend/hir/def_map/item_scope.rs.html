@@ -163,33 +163,29 @@
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use super</span>::{ModuleDefId, ModuleId, namespace::PerNs};
+<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="kw">use super</span>::{ModuleDefId, ModuleId, namespace::PerNs};
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, TraitId};
 
 <span class="kw">use </span>std::collections::{BTreeMap, btree_map};
 <span class="kw">use </span>std::collections::{HashMap, hash_map};
 
-<span class="kw">type </span>Scope = HashMap&lt;<span class="prelude-ty">Option</span>&lt;TraitId&gt;, (ModuleDefId, ItemVisibility, bool <span class="comment">/*is_prelude*/</span>)&gt;;
+<span class="doccomment">/// Definitions of an [Ident]: it can be a standalone without a [TraitId],
+/// or it can appear across multiple traits.
+</span><span class="kw">type </span>Scope = HashMap&lt;<span class="prelude-ty">Option</span>&lt;TraitId&gt;, (ModuleDefId, ItemVisibility, bool <span class="comment">/*is_prelude*/</span>)&gt;;
 
-<span class="attr">#[derive(Default, Debug, PartialEq, Eq)]
+<span class="doccomment">/// All the definitions of [Ident]s in scope, either as `types` or `values`.
+</span><span class="attr">#[derive(Default, Debug, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>ItemScope {
     types: BTreeMap&lt;Ident, Scope&gt;,
     values: BTreeMap&lt;Ident, Scope&gt;,
-
     defs: Vec&lt;ModuleDefId&gt;,
 }
 
 <span class="kw">impl </span>ItemScope {
-    <span class="kw">pub fn </span>add_definition(
+    <span class="doccomment">/// Add an [Ident] and its [ModuleDefId] to the namespace,
+    /// and also push the definition to the `defs`.
+    </span><span class="kw">pub fn </span>add_definition(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: Ident,
         visibility: ItemVisibility,
@@ -201,9 +197,11 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Returns an Err if there is already an item
-    /// in the namespace with that exact name.
-    /// The Err will return (old_item, new_item)
+    <span class="doccomment">/// Add an [Ident] and its [ModuleDefId] to either `types` or `values`,
+    /// depending on what its definition is.
+    ///
+    /// Returns an `Err` with `(old_item, new_item)` if there is already an
+    /// item in the namespace with that exact name.
     </span><span class="kw">pub fn </span>add_item_to_namespace(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: Ident,
@@ -248,7 +246,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>find_module_with_name(<span class="kw-2">&amp;</span><span class="self">self</span>, mod_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleId&gt; {
+    <span class="doccomment">/// Look up an [Ident] in `types` with no [TraitId], and return it _iff_ it's a [ModuleDefId::ModuleId].
+    </span><span class="kw">pub fn </span>find_module_with_name(<span class="kw-2">&amp;</span><span class="self">self</span>, mod_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleId&gt; {
         <span class="kw">let </span>(module_def, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="self">self</span>.types.get(mod_name)<span class="question-mark">?</span>.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
         <span class="kw">match </span>module_def {
             ModuleDefId::ModuleId(id) =&gt; <span class="prelude-val">Some</span>(id),
@@ -256,79 +255,43 @@
         }
     }
 
-    <span class="kw">pub fn </span>find_func_with_name(<span class="kw-2">&amp;</span><span class="self">self</span>, func_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
-        <span class="kw">let </span>trait_hashmap = <span class="self">self</span>.values.get(func_name)<span class="question-mark">?</span>;
-        <span class="comment">// methods introduced without trait take priority and hide methods with the same name that come from a trait
-        </span><span class="kw">let </span>a = trait_hashmap.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>);
-        <span class="kw">match </span>a {
-            <span class="prelude-val">Some</span>((module_def, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>module_def {
-                ModuleDefId::FunctionId(id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>id),
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-            },
-            <span class="prelude-val">None </span>=&gt; {
-                <span class="kw">if </span>trait_hashmap.len() == <span class="number">1 </span>{
-                    <span class="kw">let </span>(module_def, <span class="kw">_</span>, <span class="kw">_</span>) = trait_hashmap.get(trait_hashmap.keys().last()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
-                    <span class="kw">match </span>module_def {
-                        ModuleDefId::FunctionId(id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>id),
-                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-                    }
-                } <span class="kw">else </span>{
-                    <span class="comment">// ambiguous name (multiple traits, containing the same function name)
-                    </span><span class="prelude-val">None
-                </span>}
-            }
-        }
+    <span class="doccomment">/// Look up an [Ident] in `values`, then return the [FuncId] if the definition is a [ModuleDefId::FunctionId],
+    ///
+    /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
+    </span><span class="kw">pub fn </span>find_func_with_name(<span class="kw-2">&amp;</span><span class="self">self</span>, func_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
+        <span class="self">Self</span>::find_name_in(func_name, <span class="kw-2">&amp;</span><span class="self">self</span>.values).and_then(|(module_def, <span class="kw">_</span>, <span class="kw">_</span>)| {
+            <span class="kw">if let </span>ModuleDefId::FunctionId(id) = module_def { <span class="prelude-val">Some</span>(<span class="kw-2">*</span>id) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+        })
     }
 
-    <span class="kw">pub fn </span>find_func_with_name_and_trait_id(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        func_name: <span class="kw-2">&amp;</span>Ident,
-        trait_id: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;TraitId&gt;,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
-        <span class="kw">let </span>(module_def, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="self">self</span>.values.get(func_name)<span class="question-mark">?</span>.get(trait_id)<span class="question-mark">?</span>;
-        <span class="kw">match </span>module_def {
-            ModuleDefId::FunctionId(id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>id),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>find_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) -&gt; PerNs {
-        <span class="comment">// Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
-        // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
-        </span><span class="kw">let </span>find_name_in = |a: <span class="kw-2">&amp;</span>BTreeMap&lt;Ident, Scope&gt;| {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(t) = a.get(name) {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(tt) = t.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>) {
-                    <span class="prelude-val">Some</span>(<span class="kw-2">*</span>tt)
-                } <span class="kw">else if </span>t.len() == <span class="number">1 </span>{
-                    t.values().last().cloned()
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
-            } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        };
-
-        PerNs { types: find_name_in(<span class="kw-2">&amp;</span><span class="self">self</span>.types), values: find_name_in(<span class="kw-2">&amp;</span><span class="self">self</span>.values) }
-    }
-
-    <span class="kw">pub fn </span>find_name_for_trait_id(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, trait_id: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;TraitId&gt;) -&gt; PerNs {
+    <span class="doccomment">/// Look for an [Ident] in both `types` and `values`.
+    ///
+    /// Returns the preferred, unambiguous result in both.
+    </span><span class="kw">pub fn </span>find_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) -&gt; PerNs {
         PerNs {
-            types: <span class="kw">if let </span><span class="prelude-val">Some</span>(t) = <span class="self">self</span>.types.get(name) { t.get(trait_id).cloned() } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
-            values: <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = <span class="self">self</span>.values.get(name) {
-                v.get(trait_id).cloned()
-            } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>},
+            types: <span class="self">Self</span>::find_name_in(name, <span class="kw-2">&amp;</span><span class="self">self</span>.types).cloned(),
+            values: <span class="self">Self</span>::find_name_in(name, <span class="kw-2">&amp;</span><span class="self">self</span>.values).cloned(),
         }
     }
 
-    <span class="kw">pub fn </span>names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>Ident&gt; {
+    <span class="doccomment">/// Look for an [Ident] in both `types` and `values`,
+    ///
+    /// It returns the entry matching the `trait_id`, that is, either the standalone definition,
+    /// or one in a specific trait (regardless of the presence of other traits).
+    </span><span class="kw">pub fn </span>find_name_for_trait_id(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, trait_id: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;TraitId&gt;) -&gt; PerNs {
+        PerNs {
+            types: <span class="self">self</span>.types.get(name).and_then(|t| t.get(trait_id)).cloned(),
+            values: <span class="self">self</span>.values.get(name).and_then(|v| v.get(trait_id)).cloned(),
+        }
+    }
+
+    <span class="doccomment">/// All [Ident]s in `types` and `values`.
+    </span><span class="kw">pub fn </span>names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>Ident&gt; {
         <span class="self">self</span>.types.keys().chain(<span class="self">self</span>.values.keys())
     }
 
-    <span class="kw">pub fn </span>definitions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;ModuleDefId&gt; {
-        <span class="self">self</span>.defs.clone()
+    <span class="kw">pub fn </span>definitions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[ModuleDefId] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.defs
     }
 
     <span class="kw">pub fn </span>types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;Ident, Scope&gt; {
@@ -342,6 +305,27 @@
     <span class="kw">pub fn </span>remove_definition(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) {
         <span class="self">self</span>.types.remove(name);
         <span class="self">self</span>.values.remove(name);
+    }
+
+    <span class="doccomment">/// Look up an [Ident] in `types` or `values`:
+    /// * if a definition without a [TraitId] exists, return that
+    /// * if there is exactly 1 definition with a [TraitId], return that
+    /// * otherwise return nothing, as the name is ambiguous, exists in multiple traits
+    </span><span class="kw">fn </span>find_name_in&lt;<span class="lifetime">'a</span>&gt;(
+        name: <span class="kw-2">&amp;</span>Ident,
+        map: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;Ident, Scope&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>(ModuleDefId, ItemVisibility, bool)&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(t) = map.get(name) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(tt) = t.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>) {
+                <span class="prelude-val">Some</span>(tt)
+            } <span class="kw">else if </span>t.len() == <span class="number">1 </span>{
+                t.values().last()
+            } <span class="kw">else </span>{
+                <span class="prelude-val">None
+            </span>}
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
     }
 }
 </code></pre></div></section></main></body></html>

@@ -247,7 +247,26 @@
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Type;
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Type;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::ItemVisibility;
@@ -281,10 +300,10 @@
             }
 
             <span class="kw">let </span>target_crate_def_map = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span>target_module.krate];
-            module_descendent_of_target(
+            module_is_descendant_of_target(
                 target_crate_def_map,
-                target_module.local_id,
                 current_module.local_id,
+                target_module.local_id,
             ) || module_is_parent_of_struct_module(
                 target_crate_def_map,
                 current_module.local_id,
@@ -294,12 +313,12 @@
     }
 }
 
-<span class="comment">// Returns true if `current` is a (potentially nested) child module of `target`.
-// This is also true if `current == target`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>module_descendent_of_target(
+<span class="doccomment">/// Returns true if `current` is a (potentially nested) child module of `target`.
+/// This is also true if `current == target`.
+</span><span class="kw">fn </span>module_is_descendant_of_target(
     def_map: <span class="kw-2">&amp;</span>CrateDefMap,
-    target: LocalModuleId,
     current: LocalModuleId,
+    target: LocalModuleId,
 ) -&gt; bool {
     <span class="kw">if </span>current == target {
         <span class="kw">return </span><span class="bool-val">true</span>;
@@ -307,7 +326,7 @@
 
     def_map[current]
         .parent
-        .is_some_and(|parent| module_descendent_of_target(def_map, target, parent))
+        .is_some_and(|parent| module_is_descendant_of_target(def_map, parent, target))
 }
 
 <span class="doccomment">/// Returns true if `target` is a struct and its parent is `current`.
@@ -366,10 +385,10 @@
             }
 
             <span class="kw">let </span>def_map = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span>current_module_id.krate];
-            module_descendent_of_target(
+            module_is_descendant_of_target(
                 def_map,
-                type_parent_module_id.local_id,
                 current_module_id.local_id,
+                type_parent_module_id.local_id,
             )
         }
     }
@@ -377,6 +396,7 @@
 
 <span class="doccomment">/// Returns whether a method call `func_id` on an object of type `object_type` is visible from
 /// `current_module`.
+///
 /// If there's a self type at the current location it must be passed as `self_type`. This is
 /// used for the case of calling, inside a generic trait impl, a private method on the same
 /// type as `self_type` regardless of its generic arguments (in this case the call is allowed).
@@ -415,10 +435,28 @@
 
             <span class="comment">// A private method defined on `Foo&lt;i32&gt;` should be visible when calling
             // it from an impl on `Foo&lt;i64&gt;`, even though the generics are different.
-            </span><span class="kw">if </span>self_type
-                .is_some_and(|self_type| is_same_type_regardless_generics(self_type, object_type))
-            {
-                <span class="kw">return </span><span class="bool-val">true</span>;
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(self_type) = self_type {
+                <span class="kw">if </span>is_same_type_regardless_generics(self_type, object_type) {
+                    <span class="kw">if </span>modifiers.visibility.is_private() {
+                        <span class="comment">// Only allow accessing private methods of a type if we are under the same
+                        // module where the type was defined. OTOH if we are in an `impl Foo&lt;i32&gt;`
+                        // block in a different module, extending the type with new methods, then
+                        // we should only access public parts defined in other modules, or private
+                        // ones defined in the same extension.
+                        </span><span class="kw">let </span>def_map = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span>current_module.krate];
+                        <span class="comment">// Cannot call `type_member_is_visible` because it goes up to the parent;
+                        // the `func_meta.source_module` already seems to be the parent.
+                        </span><span class="kw">return </span>module_is_descendant_of_target(
+                            def_map,
+                            current_module.local_id,
+                            func_meta.source_module,
+                        );
+                    } <span class="kw">else </span>{
+                        <span class="comment">// If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
+                        // already checked that the types are the same, so we are in the same crate.
+                        </span><span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                }
             }
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(struct_id) = func_meta.type_id {

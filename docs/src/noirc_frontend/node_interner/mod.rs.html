@@ -2544,7 +2544,7 @@
             .and_then(|methods| methods.find_direct_method(typ, check_self_param, <span class="self">self</span>))
     }
 
-    <span class="doccomment">/// Looks up a methods that apply to the given type but are defined in traits.
+    <span class="doccomment">/// Looks up methods that apply to the given type but are defined in traits.
     </span><span class="kw">pub fn </span>lookup_trait_methods(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>Type,

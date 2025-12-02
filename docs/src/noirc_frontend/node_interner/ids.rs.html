@@ -134,7 +134,8 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt;
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt;
 
 <span class="kw">use </span>noirc_arena::Index;
 <span class="kw">use </span>noirc_errors::Location;
@@ -193,7 +194,8 @@
     }
 }
 
-<span class="attr">#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+<span class="doccomment">/// A [TypeId] wraps a [ModuleId], because types are represented by an anonymous module.
+</span><span class="attr">#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>TypeId(<span class="kw">pub</span>(<span class="kw">super</span>) ModuleId);
 
 <span class="kw">impl </span>TypeId {

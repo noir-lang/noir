@@ -432,7 +432,44 @@
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -620,9 +657,14 @@
     TypedPathSegment { ident: segment.ident, generics: <span class="prelude-val">None</span>, location: segment.location }
 }
 
-<span class="doccomment">/// Given a Path and a ModuleId it's being used in, this function returns a plain Path
-/// and a ModuleId where that plain Path should be resolved. That is, this method will
-/// resolve the Path kind and translate it to a plain path.
+<span class="doccomment">/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
+/// and a [ModuleId] where that `TypedPath` should be resolved.
+///
+/// For a [PathKind::Dep] with a value such as `dep::foo::bar::baz`, the path will be turned into a
+/// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
+/// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
+/// up with the module where it should be looked up. If the module cannot be found, and error is
+/// returned.
 ///
 /// The third value in the tuple is a reference tracker that must be passed to this
 /// method, which is used in case the path kind is `dep`: the segment after `dep`
@@ -639,6 +681,25 @@
     <span class="prelude-val">Ok</span>((path, module_id, solver.references_tracker))
 }
 
+<span class="doccomment">/// Returns `true` if the first segment of a `TypedPath` in the `starting_module`
+/// should always be visible to the `importing_module`.
+///
+/// Assumes that we have called [resolve_path_kind] before.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>first_segment_is_always_visible(
+    path: <span class="kw-2">&amp;</span>TypedPath,
+    importing_module: ModuleId,
+    starting_module: ModuleId,
+) -&gt; bool {
+    <span class="kw">match </span>path.kind {
+        PathKind::Crate | PathKind::Super =&gt; <span class="bool-val">true</span>,
+        PathKind::Plain =&gt; importing_module == starting_module,
+        PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+        PathKind::Dep =&gt; {
+            <span class="macro">unreachable!</span>(<span class="string">"ICE: Dep path kinds should have been turned into Plain."</span>)
+        }
+    }
+}
+
 <span class="kw">struct </span>PathResolutionTargetResolver&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'references_tracker</span>&gt; {
     importing_module: ModuleId,
     def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_maps </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
@@ -646,7 +707,8 @@
 }
 
 <span class="kw">impl </span>PathResolutionTargetResolver&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-    <span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
+    <span class="doccomment">/// Resolve a `TypedPath` based on its [PathKind] to the target [ModuleId].
+    </span><span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="kw">match </span>path.kind {
             PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path, <span class="self">self</span>.importing_module.krate),
             PathKind::Plain =&gt; <span class="self">self</span>.resolve_plain_path(path, <span class="self">self</span>.importing_module),
@@ -656,7 +718,10 @@
         }
     }
 
-    <span class="kw">fn </span>resolve_crate_path(
+    <span class="doccomment">/// Resolve a path such as `crate::foo::bar` or `$crate::foo::bar`.
+    ///
+    /// Returns a path with its kind unchanged, paired up with the importing or defining module itself as the target.
+    </span><span class="kw">fn </span>resolve_crate_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         krate: CrateId,
@@ -666,7 +731,10 @@
         <span class="prelude-val">Ok</span>((path, current_module))
     }
 
-    <span class="kw">fn </span>resolve_plain_path(
+    <span class="doccomment">/// Resolve a path such as `foo::bar`:
+    /// * check if `foo` module can be found in the current importing module
+    /// * if not, treat the path as if it were `dep::foo::bar` and look for a `foo` crate instead
+    </span><span class="kw">fn </span>resolve_plain_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         current_module: ModuleId,
@@ -678,7 +746,7 @@
         }
 
         <span class="kw">let </span>first_segment =
-            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ice: could not fetch first segment"</span>).ident;
+            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ICE: could not fetch first segment"</span>).ident;
         <span class="kw">if </span>get_module(<span class="self">self</span>.def_maps, current_module).find_name(first_segment).is_none() {
             <span class="comment">// Resolve externally when first segment is unresolved
             </span><span class="kw">return </span><span class="self">self</span>.resolve_dep_path(path);
@@ -687,7 +755,10 @@
         <span class="prelude-val">Ok</span>((path, current_module))
     }
 
-    <span class="kw">fn </span>resolve_dep_path(
+    <span class="doccomment">/// Resolve a path such as `dep::foo:bar::baz`:
+    /// * find the `foo` crate among the dependencies of the current importing module
+    /// * remove the crate `foo` from the path, returning a plain path `bar::baz` along with the dependency module
+    </span><span class="kw">fn </span>resolve_dep_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         <span class="kw-2">mut </span>path: TypedPath,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
@@ -713,7 +784,10 @@
         <span class="prelude-val">Ok</span>((path, <span class="kw-2">*</span>dep_module))
     }
 
-    <span class="kw">fn </span>resolve_super_path(
+    <span class="doccomment">/// Resolve a path such as `super::foo::bar`:
+    /// * get the parent of the current importing module
+    /// * return the path still with [PathKind::Super], paired up with the parent module
+    </span><span class="kw">fn </span>resolve_super_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
@@ -746,7 +820,10 @@
         <span class="self">Self </span>{ importing_module, def_maps, usage_tracker, references_tracker }
     }
 
-    <span class="kw">fn </span>resolve_name_in_module(
+    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    ///
+    /// This is very similar to `Elaborator::resolve_name_in_module`.
+    </span><span class="kw">fn </span>resolve_name_in_module(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         starting_module: ModuleId,
@@ -759,18 +836,15 @@
             });
         }
 
-        <span class="kw">let </span>first_segment_is_always_visible = <span class="kw">match </span>path.kind {
-            PathKind::Crate =&gt; <span class="bool-val">true</span>,
-            PathKind::Plain =&gt; <span class="self">self</span>.importing_module == starting_module,
-            PathKind::Dep | PathKind::Super | PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-        };
+        <span class="kw">let </span>first_segment_is_always_visible =
+            first_segment_is_always_visible(<span class="kw-2">&amp;</span>path, <span class="self">self</span>.importing_module, starting_module);
 
         <span class="comment">// The current module and module ID as we resolve path segments
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_module_id = starting_module;
         <span class="kw">let </span><span class="kw-2">mut </span>current_module = get_module(<span class="self">self</span>.def_maps, starting_module);
 
         <span class="kw">let </span>first_segment =
-            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ice: could not fetch first segment"</span>).ident;
+            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ICE: could not fetch first segment"</span>).ident;
         <span class="kw">let </span><span class="kw-2">mut </span>current_ns = current_module.find_name(first_segment);
         <span class="kw">if </span>current_ns.is_none() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(first_segment.clone()));

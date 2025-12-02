@@ -25,10 +25,18 @@
 <a href="#24" id="24">24</a>
 <a href="#25" id="25">25</a>
 <a href="#26" id="26">26</a>
-<a href="#27" id="27">27</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::ModuleDefId;
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::ModuleDefId;
 <span class="kw">use </span><span class="kw">crate</span>::ast::ItemVisibility;
 
-<span class="comment">// This works exactly the same as in r-a, just simplified
+<span class="doccomment">/// Result of looking up a name in type and value definitions in scope.
+///
+/// This works exactly the same as in r-a, just simplified.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
 </span><span class="kw">pub struct </span>PerNs {
     <span class="kw">pub </span>types: <span class="prelude-ty">Option</span>&lt;(ModuleDefId, ItemVisibility, bool)&gt;,
@@ -36,19 +44,23 @@
 }
 
 <span class="kw">impl </span>PerNs {
-    <span class="kw">pub fn </span>types(t: ModuleDefId) -&gt; PerNs {
+    <span class="doccomment">/// Creates a [PerNs] with a public [ModuleDefId] in `types`, and no `values`.
+    </span><span class="kw">pub fn </span>types(t: ModuleDefId) -&gt; PerNs {
         PerNs { types: <span class="prelude-val">Some</span>((t, ItemVisibility::Public, <span class="bool-val">false</span>)), values: <span class="prelude-val">None </span>}
     }
 
-    <span class="kw">pub fn </span>iter_defs(<span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = ModuleDefId&gt; {
-        <span class="self">self</span>.types.map(|it| it.<span class="number">0</span>).into_iter().chain(<span class="self">self</span>.values.map(|it| it.<span class="number">0</span>))
+    <span class="doccomment">/// Iterate the [ModuleDefId]s in both `types` and `values`.
+    </span><span class="kw">pub fn </span>iter_defs(<span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = ModuleDefId&gt; {
+        <span class="self">self</span>.iter_items().map(|it| it.<span class="number">0</span>)
     }
 
-    <span class="kw">pub fn </span>iter_items(<span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (ModuleDefId, ItemVisibility, bool)&gt; {
+    <span class="doccomment">/// Iterate the results in both `types` and `values`.
+    </span><span class="kw">pub fn </span>iter_items(<span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (ModuleDefId, ItemVisibility, bool)&gt; {
         <span class="self">self</span>.types.into_iter().chain(<span class="self">self</span>.values)
     }
 
-    <span class="kw">pub fn </span>is_none(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="doccomment">/// Returns `true` if both `types` and `values` are empty.
+    </span><span class="kw">pub fn </span>is_none(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.types.is_none() &amp;&amp; <span class="self">self</span>.values.is_none()
     }
 }

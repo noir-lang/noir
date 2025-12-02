@@ -1040,7 +1040,8 @@
 <a href="#1039" id="1039">1039</a>
 <a href="#1040" id="1040">1040</a>
 <a href="#1041" id="1041">1041</a>
-<a href="#1042" id="1042">1042</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1365,7 +1366,8 @@
     Dep,
     Plain,
     Super,
-    <span class="doccomment">/// This path is a Crate or Dep path which always points to the given crate
+    <span class="doccomment">/// This path is a Crate or Dep path which always points to the given crate.
+    /// This is used to implement `$crate::&lt;path-in-macro-crate&gt;` imports for macros, similar to Rust.
     </span>Resolved(CrateId),
 }
 

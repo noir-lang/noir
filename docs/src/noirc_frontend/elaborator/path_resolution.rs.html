@@ -916,14 +916,27 @@
 <a href="#915" id="915">915</a>
 <a href="#916" id="916">916</a>
 <a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, PathKind};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
-<span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::{PathResolutionError, resolve_path_kind};
+<span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::{
+    PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
+};
 
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::visibility::item_in_module_is_visible;
@@ -1044,7 +1057,7 @@
     </span>FoundTraitMethod(PerNs, Ident),
     <span class="doccomment">/// There's only one trait method that matches, but it's not in scope.
     </span>FoundOneTraitMethodButNotInScope(PerNs, TraitId),
-    <span class="doccomment">/// Multiple trait method matches were found and they are all in scope.
+    <span class="doccomment">/// Multiple (ambiguous) trait method matches were found and they are all in scope.
     </span>FoundMultipleTraitMethods(Vec&lt;(TraitId, Ident)&gt;),
 }
 
@@ -1104,24 +1117,28 @@
 }
 
 <span class="kw">impl </span>TypedPath {
-    <span class="kw">pub fn </span>plain(segments: Vec&lt;TypedPathSegment&gt;, location: Location) -&gt; <span class="self">Self </span>{
+    <span class="doccomment">/// Construct a [PathKind::Plain] from a number of segments.
+    </span><span class="kw">pub fn </span>plain(segments: Vec&lt;TypedPathSegment&gt;, location: Location) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ segments, location, kind: PathKind::Plain, kind_location: location }
     }
 
-    <span class="kw">pub fn </span>pop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; TypedPathSegment {
+    <span class="doccomment">/// Removes and returns the last segment.
+    ///
+    /// Panics if there are no more segments in the path.
+    </span><span class="kw">pub fn </span>pop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; TypedPathSegment {
         <span class="self">self</span>.segments.pop().unwrap()
     }
 
-    <span class="doccomment">/// Construct a PathKind::Plain from this single
+    <span class="doccomment">/// Construct a [PathKind::Plain] from a single identifier name.
     </span><span class="kw">pub fn </span>from_single(name: String, location: Location) -&gt; TypedPath {
         <span class="kw">let </span>segment = Ident::from(Located::from(location, name));
         TypedPath::from_ident(segment)
     }
 
-    <span class="kw">pub fn </span>from_ident(name: Ident) -&gt; TypedPath {
-        <span class="kw">let </span>segment =
-            TypedPathSegment { ident: name.clone(), generics: <span class="prelude-val">None</span>, location: name.location() };
+    <span class="doccomment">/// Construct a [PathKind::Plain] from a single identifier segment.
+    </span><span class="kw">pub fn </span>from_ident(name: Ident) -&gt; TypedPath {
         <span class="kw">let </span>location = name.location();
+        <span class="kw">let </span>segment = TypedPathSegment { ident: name, generics: <span class="prelude-val">None</span>, location };
         TypedPath::plain(<span class="macro">vec!</span>[segment], location)
     }
 
@@ -1129,20 +1146,32 @@
         <span class="self">self</span>.location.span
     }
 
-    <span class="kw">pub fn </span>last_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TypedPathSegment {
+    <span class="doccomment">/// Returns a clone of the last segment.
+    ///
+    /// Panics if there are no segments in the path.
+    </span><span class="kw">pub fn </span>last_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TypedPathSegment {
         <span class="macro">assert!</span>(!<span class="self">self</span>.segments.is_empty());
         <span class="self">self</span>.segments.last().unwrap().clone()
     }
 
-    <span class="kw">pub fn </span>last_ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
+    <span class="doccomment">/// The [Ident] of the last segment.
+    ///
+    /// Panics if there are no segments in the path.
+    </span><span class="kw">pub fn </span>last_ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
         <span class="self">self</span>.last_segment().ident
     }
 
-    <span class="kw">pub fn </span>first_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
+    <span class="doccomment">/// The name of the [Ident] in the first segment.
+    ///
+    /// Returns `None` if there are no segments in the path.
+    </span><span class="kw">pub fn </span>first_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
         <span class="self">self</span>.segments.first().map(|segment| segment.ident.as_str())
     }
 
-    <span class="kw">pub fn </span>last_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+    <span class="doccomment">/// The name of the [Ident] in the last segment.
+    ///
+    /// Panics if there are no segments in the path.
+    </span><span class="kw">pub fn </span>last_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
         <span class="macro">assert!</span>(!<span class="self">self</span>.segments.is_empty());
         <span class="self">self</span>.segments.last().unwrap().ident.as_str()
     }
@@ -1184,7 +1213,7 @@
     ///       ~^^^^
     /// ```
     ///
-    /// Returns an empty span at the end of `foo` if there's no turbofish.
+    /// Returns an empty [Span] at the end of `foo` if there's no turbofish.
     </span><span class="kw">pub fn </span>turbofish_span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
         <span class="kw">if </span><span class="self">self</span>.ident.location().file == <span class="self">self</span>.location.file {
             <span class="comment">// The `location` contains both the `ident` and the potential turbofish.
@@ -1201,7 +1230,8 @@
         Location::new(<span class="self">self</span>.turbofish_span(), <span class="self">self</span>.location.file)
     }
 
-    <span class="kw">pub fn </span>turbofish(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Turbofish&gt; {
+    <span class="doccomment">/// Returns the turbofish if there are generics in the path.
+    </span><span class="kw">pub fn </span>turbofish(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Turbofish&gt; {
         <span class="self">self</span>.generics.as_ref().map(|generics| Turbofish {
             location: <span class="self">self</span>.turbofish_location(),
             generics: generics.clone(),
@@ -1272,6 +1302,7 @@
     }
 
     <span class="doccomment">/// Resolves a path in the current module.
+    ///
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
@@ -1303,7 +1334,7 @@
         <span class="kw">let </span>last_segment_turbofish_location = path
             .segments
             .last()
-            .and_then(|segment| segment.generics.as_ref().map(|<span class="kw">_</span>| segment.turbofish_location()));
+            .and_then(|segment| segment.generics.is_some().then(|| segment.turbofish_location()));
 
         <span class="kw">let </span>result = <span class="self">self</span>.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
         <span class="kw">let </span><span class="prelude-val">Some</span>(last_segment_turbofish_location) = last_segment_turbofish_location <span class="kw">else </span>{
@@ -1341,7 +1372,8 @@
         })
     }
 
-    <span class="doccomment">/// Resolves a path in `current_module`.
+    <span class="doccomment">/// Resolves a [TypedPath].
+    ///
     /// `importing_module` is the module where the lookup originally started.
     </span><span class="kw">fn </span>resolve_path_in_module(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1351,13 +1383,12 @@
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -&gt; PathResolutionResult {
-        <span class="kw">let </span>references_tracker = <span class="kw">if </span><span class="self">self</span>.interner.is_in_lsp_mode() {
-            <span class="prelude-val">Some</span>(ReferencesTracker::new(<span class="self">self</span>.interner))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+        <span class="kw">let </span>references_tracker =
+            <span class="self">self</span>.interner.is_in_lsp_mode().then(|| ReferencesTracker::new(<span class="self">self</span>.interner));
+
         <span class="kw">let </span>res =
             resolve_path_kind(path.clone(), importing_module, <span class="self">self</span>.def_maps, references_tracker);
+
         <span class="kw">match </span>res {
             <span class="prelude-val">Ok</span>((path, module_id, <span class="kw">_</span>)) =&gt; <span class="self">self</span>.resolve_name_in_module(
                 path,
@@ -1367,20 +1398,24 @@
                 target,
                 mode,
             ),
-            <span class="prelude-val">Err</span>(PathResolutionError::Unresolved(err)) =&gt; {
+            <span class="prelude-val">Err</span>(error @ PathResolutionError::Unresolved(<span class="kw">_</span>)) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(result) =
                     <span class="self">self</span>.resolve_primitive_type_or_function(path, importing_module)
                 {
                     <span class="kw">return </span>result;
                 }
-                <span class="prelude-val">Err</span>(PathResolutionError::Unresolved(err))
+                <span class="prelude-val">Err</span>(error)
             }
             <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(error),
         }
     }
 
-    <span class="doccomment">/// Resolves a Path assuming we are inside `starting_module`.
+    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    ///
     /// `importing_module` is the module where the lookup originally started.
+    ///
+    /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
+    /// Pushes errors if segments refer to private items.
     </span><span class="kw">fn </span>resolve_name_in_module(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
@@ -1398,18 +1433,16 @@
             });
         }
 
-        <span class="kw">let </span>first_segment_is_always_visible = <span class="kw">match </span>path.kind {
-            PathKind::Crate =&gt; <span class="bool-val">true</span>,
-            PathKind::Plain =&gt; importing_module == starting_module,
-            PathKind::Dep | PathKind::Super | PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-        };
+        <span class="kw">let </span>first_segment_is_always_visible =
+            first_segment_is_always_visible(<span class="kw-2">&amp;</span>path, importing_module, starting_module);
 
         <span class="comment">// The current module and module ID as we resolve path segments
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_module_id = starting_module;
         <span class="kw">let </span><span class="kw-2">mut </span>current_module = <span class="self">self</span>.get_module(starting_module);
 
         <span class="kw">let </span>first_segment =
-            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ice: could not fetch first segment"</span>).ident;
+            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ICE: could not fetch first segment"</span>).ident;
+
         <span class="kw">let </span><span class="kw-2">mut </span>current_ns = current_module.find_name(first_segment);
         <span class="kw">if </span>current_ns.is_none() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(first_segment.clone()));
@@ -1425,50 +1458,51 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
-        <span class="kw">for </span>(index, (last_segment, current_segment)) <span class="kw">in
+        <span class="kw">for </span>(index, (prev_segment, current_segment)) <span class="kw">in
             </span>path.segments.iter().zip(path.segments.iter().skip(<span class="number">1</span>)).enumerate()
         {
-            <span class="kw">let </span>last_ident = <span class="kw-2">&amp;</span>last_segment.ident;
+            <span class="kw">let </span>prev_ident = <span class="kw-2">&amp;</span>prev_segment.ident;
             <span class="kw">let </span>current_ident = <span class="kw-2">&amp;</span>current_segment.ident;
-            <span class="kw">let </span>last_segment_generics = <span class="kw-2">&amp;</span>last_segment.generics;
+            <span class="kw">let </span>prev_segment_generics = <span class="kw-2">&amp;</span>prev_segment.generics;
 
-            <span class="kw">let </span>(typ, visibility) = <span class="kw">match </span>current_ns.types {
-                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(last_ident.clone())),
+            <span class="comment">// We are looking up the `current_segment` in the lookup result of the `prev_segment`.
+            </span><span class="kw">let </span>(typ, visibility) = <span class="kw">match </span>current_ns.types {
+                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(prev_ident.clone())),
                 <span class="prelude-val">Some</span>((typ, visibility, <span class="kw">_</span>)) =&gt; (typ, visibility),
             };
 
-            <span class="kw">let </span>location = last_segment.location;
+            <span class="kw">let </span>location = prev_segment.location;
             <span class="self">self</span>.interner.add_module_def_id_reference(
                 typ,
                 location,
-                last_segment.ident.is_self_type_name(),
+                prev_segment.ident.is_self_type_name(),
             );
 
             <span class="kw">let </span>current_module_id_is_type;
 
             (current_module_id, current_module_id_is_type, intermediate_item) = <span class="kw">match </span>typ {
                 ModuleDefId::ModuleId(id) =&gt; {
-                    <span class="kw">if </span>last_segment_generics.is_some() {
+                    <span class="kw">if </span>prev_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                            item: <span class="macro">format!</span>(<span class="string">"module `{last_ident}`"</span>),
-                            location: last_segment.turbofish_location(),
+                            item: <span class="macro">format!</span>(<span class="string">"module `{prev_ident}`"</span>),
+                            location: prev_segment.turbofish_location(),
                         });
                     }
 
                     (id, <span class="bool-val">false</span>, IntermediatePathResolutionItem::Module)
                 }
                 ModuleDefId::TypeId(id) =&gt; {
-                    <span class="kw">let </span>item = IntermediatePathResolutionItem::Type(id, last_segment.turbofish());
+                    <span class="kw">let </span>item = IntermediatePathResolutionItem::Type(id, prev_segment.turbofish());
                     (id.module_id(), <span class="bool-val">true</span>, item)
                 }
                 ModuleDefId::TypeAliasId(id) =&gt; {
                     <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(id);
                     <span class="kw">let </span><span class="prelude-val">Some</span>(module_id) = get_type_alias_module_def_id(<span class="kw-2">&amp;</span>type_alias) <span class="kw">else </span>{
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(last_ident.clone()));
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(prev_ident.clone()));
                     };
 
                     <span class="kw">let </span>item =
-                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
+                        IntermediatePathResolutionItem::TypeAlias(id, prev_segment.turbofish());
                     (module_id, <span class="bool-val">true</span>, item)
                 }
                 ModuleDefId::TraitAssociatedTypeId(..) =&gt; {
@@ -1476,7 +1510,7 @@
                     </span><span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
                 }
                 ModuleDefId::TraitId(id) =&gt; {
-                    <span class="kw">let </span>item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
+                    <span class="kw">let </span>item = IntermediatePathResolutionItem::Trait(id, prev_segment.turbofish());
                     (id.<span class="number">0</span>, <span class="bool-val">false</span>, item)
                 }
                 ModuleDefId::FunctionId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"functions cannot be in the type namespace"</span>),
@@ -1493,10 +1527,11 @@
                     visibility,
                 ))
             {
-                errors.push(PathResolutionError::Private(last_ident.clone()));
+                errors.push(PathResolutionError::Private(prev_ident.clone()));
             }
 
-            current_module = <span class="self">self</span>.get_module(current_module_id);
+            <span class="comment">// Switch to the module the current segment is defined in.
+            </span>current_module = <span class="self">self</span>.get_module(current_module_id);
 
             <span class="comment">// Check if namespace
             </span><span class="kw">let </span>found_ns = <span class="kw">if </span>current_module_id_is_type {
@@ -1546,6 +1581,7 @@
             } <span class="kw">else </span>{
                 current_module.find_name(current_ident)
             };
+
             <span class="kw">if </span>found_ns.is_none() {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
             }
@@ -1567,36 +1603,25 @@
             PathResolutionTarget::Value =&gt; (current_ns.values, current_ns.types),
         };
 
-        <span class="kw">let </span>item = target_ns
-            .map(|(module_def_id, visibility, ..)| {
-                <span class="self">self</span>.per_ns_item_to_path_resolution_item(
-                    path.clone(),
-                    importing_module,
-                    intermediate_item.clone(),
-                    current_module_id,
-                    <span class="kw-2">&amp;mut </span>errors,
-                    module_def_id,
-                    visibility,
-                )
-            })
-            .unwrap_or_else(|| {
-                <span class="kw">let </span>(module_def_id, visibility, ..) =
-                    fallback_ns.expect(<span class="string">"A namespace should never be empty"</span>);
-                <span class="self">self</span>.per_ns_item_to_path_resolution_item(
-                    path.clone(),
-                    importing_module,
-                    intermediate_item,
-                    current_module_id,
-                    <span class="kw-2">&amp;mut </span>errors,
-                    module_def_id,
-                    visibility,
-                )
-            });
+        <span class="kw">let </span>(module_def_id, visibility, <span class="kw">_</span>) =
+            target_ns.or(fallback_ns).expect(<span class="string">"A namespace should never be empty"</span>);
+
+        <span class="kw">let </span>item = <span class="self">self</span>.per_ns_item_to_path_resolution_item(
+            path,
+            importing_module,
+            intermediate_item,
+            current_module_id,
+            <span class="kw-2">&amp;mut </span>errors,
+            module_def_id,
+            visibility,
+        );
 
         <span class="prelude-val">Ok</span>(PathResolution { item, errors })
     }
 
-    <span class="attr">#[allow(clippy::too_many_arguments)]
+    <span class="doccomment">/// Transform a result from [PerNs] into a [PathResolutionItem],
+    /// pushing any visibility errors.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>per_ns_item_to_path_resolution_item(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
@@ -1617,29 +1642,21 @@
             module_def_id,
         );
 
-        <span class="kw">if </span>!(<span class="self">self</span>.self_type_module_id() == <span class="prelude-val">Some</span>(current_module_id)
-            || item_in_module_is_visible(
-                <span class="self">self</span>.def_maps,
-                importing_module,
-                current_module_id,
-                visibility,
-            ))
-        {
+        <span class="kw">if </span>!item_in_module_is_visible(
+            <span class="self">self</span>.def_maps,
+            importing_module,
+            current_module_id,
+            visibility,
+        ) {
             errors.push(PathResolutionError::Private(name.clone()));
         }
 
         item
     }
 
-    <span class="kw">fn </span>self_type_module_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::DataType(datatype, <span class="kw">_</span>)) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
-            <span class="prelude-val">Some</span>(datatype.borrow().id.module_id())
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>}
-    }
-
-    <span class="kw">fn </span>resolve_method(
+    <span class="doccomment">/// Assuming that the current path segment is a type or type alias defined in the `current_module`,
+    /// resolve the `ident` as a method on that type.
+    </span><span class="kw">fn </span>resolve_method(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         importing_module_id: ModuleId,
         current_module: <span class="kw-2">&amp;</span>ModuleData,
@@ -1695,7 +1712,11 @@
         MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 
-    <span class="kw">fn </span>resolve_primitive_type_or_function(
+    <span class="doccomment">/// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
+    ///
+    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
+    /// or an unambiguous trait method among the traits which are in scope.
+    </span><span class="kw">fn </span>resolve_primitive_type_or_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         importing_module_id: ModuleId,
@@ -1757,25 +1778,22 @@
                 <span class="kw">let </span>item =
                     PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, <span class="kw-2">*</span>func_id);
                 <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
+            } <span class="kw">else if </span>trait_methods.is_empty() {
+                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(PathResolutionError::Unresolved(method_name_ident.clone())));
             } <span class="kw">else </span>{
-                <span class="kw">let </span>trait_ids = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id)| trait_id);
-                <span class="kw">if </span>trait_ids.is_empty() {
-                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(PathResolutionError::Unresolved(method_name_ident.clone())));
-                } <span class="kw">else </span>{
-                    <span class="kw">let </span>traits = vecmap(trait_ids, |trait_id| {
-                        <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
-                    });
-                    <span class="kw">let </span>ident = method_name_ident.clone();
-                    <span class="kw">let </span>error =
-                        PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
-                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error));
-                }
+                <span class="kw">let </span>traits = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id)| {
+                    <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
+                });
+                <span class="kw">let </span>ident = method_name_ident.clone();
+                <span class="kw">let </span>error =
+                    PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
+                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error));
             }
         }
 
         <span class="kw">if </span>results.len() &gt; <span class="number">1 </span>{
-            <span class="kw">let </span>trait_ids = vecmap(results, |(trait_id, <span class="kw">_</span>, name)| (trait_id, name.clone()));
-            <span class="kw">let </span>traits = vecmap(trait_ids, |(trait_id, name)| {
+            <span class="kw">let </span>traits = vecmap(results, |(trait_id, <span class="kw">_</span>, name)| (trait_id, name.clone()));
+            <span class="kw">let </span>traits = vecmap(traits, |(trait_id, name)| {
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="self">self</span>.usage_tracker.mark_as_used(importing_module_id, <span class="kw-2">&amp;</span>name);
                 <span class="self">self</span>.fully_qualified_trait_path(trait_)
@@ -1793,7 +1811,11 @@
     }
 }
 
-<span class="kw">fn </span>merge_intermediate_path_resolution_item_with_module_def_id(
+<span class="doccomment">/// Transform a [ModuleDefId] into a [PathResolutionItem].
+///
+/// If it's a [ModuleDefId::FunctionId], merge it with the [IntermediatePathResolutionItem]
+/// representing the item it was found in, such as a module, type, trait, alias, or Self.
+</span><span class="kw">fn </span>merge_intermediate_path_resolution_item_with_module_def_id(
     intermediate_item: IntermediatePathResolutionItem,
     module_def_id: ModuleDefId,
 ) -&gt; PathResolutionItem {

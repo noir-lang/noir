@@ -210,7 +210,10 @@
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
 <a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -232,7 +235,7 @@
     </span><span class="kw">pub </span>child_declaration_order: Vec&lt;LocalModuleId&gt;,
 
     <span class="doccomment">/// Contains all definitions visible to the current module. This includes
-    /// all definitions in self.definitions as well as all imported definitions.
+    /// all definitions in `self.definitions` as well as all imported definitions.
     </span>scope: ItemScope,
 
     <span class="doccomment">/// Contains only the definitions directly defined in the current module
@@ -402,7 +405,10 @@
         <span class="self">self</span>.scope.add_item_to_namespace(name, visibility, id, <span class="prelude-val">None</span>, is_prelude)
     }
 
-    <span class="kw">pub fn </span>find_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) -&gt; PerNs {
+    <span class="doccomment">/// Find an [Ident] in the types and values in scope.
+    ///
+    /// Returns the preferred, unambiguous result in both.
+    </span><span class="kw">pub fn </span>find_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) -&gt; PerNs {
         <span class="self">self</span>.scope.find_name(name)
     }
 

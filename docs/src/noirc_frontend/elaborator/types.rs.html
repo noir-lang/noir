@@ -3626,10 +3626,10 @@
         <span class="kw">let </span>trait_id = <span class="self">self</span>.current_trait<span class="question-mark">?</span>;
 
         <span class="kw">if </span>path.kind == PathKind::Plain &amp;&amp; path.segments.len() == <span class="number">2 </span>{
-            <span class="kw">let </span>name = path.segments[<span class="number">0</span>].ident.as_str();
+            <span class="kw">let </span>is_self_type = path.segments[<span class="number">0</span>].ident.is_self_type_name();
             <span class="kw">let </span>method = <span class="kw-2">&amp;</span>path.segments[<span class="number">1</span>].ident;
 
-            <span class="kw">if </span>name == SELF_TYPE_NAME {
+            <span class="kw">if </span>is_self_type {
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="comment">// Allow referring to trait constants via Self:: as well
                 </span><span class="kw">let </span>definition =

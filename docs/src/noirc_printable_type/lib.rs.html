@@ -723,7 +723,22 @@
 <a href="#722" id="722">722</a>
 <a href="#723" id="723">723</a>
 <a href="#724" id="724">724</a>
-<a href="#725" id="725">725</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -1225,7 +1240,7 @@
         </span>char_byte
     });
 
-    <span class="kw">let </span>final_string = str::from_utf8(<span class="kw-2">&amp;</span>string_as_slice).unwrap();
+    <span class="kw">let </span>final_string = String::from_utf8_lossy(<span class="kw-2">&amp;</span>string_as_slice).to_string();
     final_string.to_owned()
 }
 
@@ -1434,6 +1449,21 @@
         <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field, PrintableType::Field] };
         <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
         <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01, 0x02)"</span>);
+    }
+
+    <span class="comment">// Test for issue: https://github.com/noir-lang/noir/issues/10710
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>invalid_string() {
+        <span class="kw">use </span><span class="kw">super</span>::decode_string_value;
+        <span class="kw">let </span>field_elements: Vec&lt;FieldElement&gt; = <span class="macro">vec!</span>[
+            FieldElement::from(<span class="number">255_u128</span>),
+            FieldElement::from(<span class="number">255_u128</span>),
+            FieldElement::from(<span class="number">255_u128</span>),
+        ];
+
+        <span class="comment">// [255, 255, 255] is not valid UTF-8, and is converted using replacement char.
+        </span><span class="kw">let </span>result = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
+        <span class="macro">assert_eq!</span>(result, <span class="string">"���"</span>);
     }
 
     <span class="macro">proptest!</span> {
