@@ -652,6 +652,7 @@ impl Elaborator<'_> {
             } else {
                 current_module.find_name(current_ident)
             };
+
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
@@ -712,32 +713,16 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        // This condition allows module to extend a type defined in a different module,
-        // e.g. add another `impl other::Type` block, and access an `other::Type::private`
-        // path in the methods added in that block. Rust would not allow this.
-        let inside_self_type = self.self_type_module_id() == Some(current_module_id);
-
-        if !(inside_self_type
-            || item_in_module_is_visible(
-                self.def_maps,
-                importing_module,
-                current_module_id,
-                visibility,
-            ))
-        {
+        if !item_in_module_is_visible(
+            self.def_maps,
+            importing_module,
+            current_module_id,
+            visibility,
+        ) {
             errors.push(PathResolutionError::Private(name.clone()));
         }
 
         item
-    }
-
-    /// The [ModuleId] of the [Type::DataType] currently being elaborated, if any.
-    fn self_type_module_id(&self) -> Option<ModuleId> {
-        if let Some(Type::DataType(datatype, _)) = &self.self_type {
-            Some(datatype.borrow().id.module_id())
-        } else {
-            None
-        }
     }
 
     /// Assuming that the current path segment is a type or type alias defined in the `current_module`,

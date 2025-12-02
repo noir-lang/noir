@@ -299,19 +299,29 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     assert_no_errors(src);
 }
 
-// FIXME (#10718): Trying to access private methods from other namespaces should fail.
 #[test]
-fn does_not_error_if_calling_private_struct_function_from_extension() {
+fn error_if_calling_private_struct_function_from_extension() {
     let src = r#"
-    pub mod foo {
-        pub struct Foo {}
+    mod foo {
+        pub struct Foo {
+            z: u32
+        }
 
         impl Foo {
+            pub fn new() -> Foo {
+                Foo { z: 0 }
+            }
             fn x() -> u32 {
                 0
             }
             fn y(_self: Self) -> u32 {
                 0
+            }
+            fn e(self: Self) {
+                self.private_extension();
+                     ^^^^^^^^^^^^^^^^^ private_extension is private and not visible from the current module
+                     ~~~~~~~~~~~~~~~~~ private_extension is private
+                Self::extension();
             }
         }
     }
@@ -320,19 +330,32 @@ fn does_not_error_if_calling_private_struct_function_from_extension() {
         use super::foo::Foo;
         impl Foo {
             pub fn extension() {
-                let f = Foo {};
+                let f = Foo::new();
+
                 let _x = Foo::x();
+                              ^ x is private and not visible from the current module
+                              ~ x is private
+
                 let _y = f.y();
+                           ^ y is private and not visible from the current module
+                           ~ y is private
+
+                let _z = f.z;
+                           ^ z is private and not visible from the current module
+                           ~ z is private
+
+                f.private_extension();
             }
+
+            fn private_extension(_self: Self) {}
         }
     }
 
     fn main() {
-        let _f = foo::Foo {};
+        let _f = foo::Foo::new();
     }
-
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
