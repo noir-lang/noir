@@ -332,7 +332,7 @@ fn checked_transmute(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let (value, _) = check_one_argument(arguments, location)?;
+    let (value, location) = check_one_argument(arguments, location)?;
 
     if value.get_type().as_ref() != &return_type {
         return Err(InterpreterError::CheckedTransmuteFailed {

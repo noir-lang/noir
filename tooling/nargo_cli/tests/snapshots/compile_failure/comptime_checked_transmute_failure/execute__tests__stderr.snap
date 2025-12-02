@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Checked transmute failed: `Field` != `u32`
-  ┌─ src/main.nr:6:22
+  ┌─ src/main.nr:6:40
   │
 6 │         let _: u32 = checked_transmute(x);
-  │                      --------------------
+  │                                        -
   │
 
 Aborting due to 1 previous error
