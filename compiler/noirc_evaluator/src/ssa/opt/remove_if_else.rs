@@ -519,21 +519,23 @@ mod tests {
             v5 = array_set v1, index u32 0, value u32 2
             v8 = array_set v5, index u32 1, value u32 3
             v9 = not v0
-            v10 = array_get v1, index u32 0 -> u32
-            v11 = cast v0 as u32
-            v12 = cast v9 as u32
-            v13 = unchecked_mul v11, u32 2
-            v14 = unchecked_mul v12, v10
-            v15 = unchecked_add v13, v14
-            v16 = array_get v1, index u32 1 -> u32
-            v17 = cast v0 as u32
-            v18 = cast v9 as u32
-            v19 = unchecked_mul v17, u32 3
-            v20 = unchecked_mul v18, v16
-            v21 = unchecked_add v19, v20
-            v22 = make_array [v15, v21] : [u32; 2]
             enable_side_effects u1 1
-            v24 = add v15, v21
+            v11 = array_get v1, index u32 0 -> u32
+            v12 = cast v0 as u32
+            v13 = cast v9 as u32
+            v14 = unchecked_mul v12, u32 2
+            v15 = unchecked_mul v13, v11
+            v16 = unchecked_add v14, v15
+            v17 = array_get v1, index u32 1 -> u32
+            v18 = cast v0 as u32
+            v19 = cast v9 as u32
+            v20 = unchecked_mul v18, u32 3
+            v21 = unchecked_mul v19, v17
+            v22 = unchecked_add v20, v21
+            v23 = make_array [v16, v22] : [u32; 2]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24 = add v16, v22
             v26 = eq v24, u32 5
             constrain v24 == u32 5
             return
@@ -586,22 +588,24 @@ mod tests {
             enable_side_effects v0
             v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
-            v7 = array_get v1, index u32 0 -> u32
-            v8 = cast v0 as u32
-            v9 = cast v6 as u32
-            v10 = unchecked_mul v8, u32 2
-            v11 = unchecked_mul v9, v7
-            v12 = unchecked_add v10, v11
-            v14 = array_get v1, index u32 1 -> u32
-            v15 = array_get v1, index u32 1 -> u32
-            v16 = cast v0 as u32
-            v17 = cast v6 as u32
-            v18 = unchecked_mul v16, v14
-            v19 = unchecked_mul v17, v15
-            v20 = unchecked_add v18, v19
-            v21 = make_array [v12, v20] : [u32; 2]
             enable_side_effects u1 1
-            v23 = add v12, v20
+            v8 = array_get v1, index u32 0 -> u32
+            v9 = cast v0 as u32
+            v10 = cast v6 as u32
+            v11 = unchecked_mul v9, u32 2
+            v12 = unchecked_mul v10, v8
+            v13 = unchecked_add v11, v12
+            v15 = array_get v1, index u32 1 -> u32
+            v16 = array_get v1, index u32 1 -> u32
+            v17 = cast v0 as u32
+            v18 = cast v6 as u32
+            v19 = unchecked_mul v17, v15
+            v20 = unchecked_mul v18, v16
+            v21 = unchecked_add v19, v20
+            v22 = make_array [v13, v21] : [u32; 2]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v23 = add v13, v21
             v25 = eq v23, u32 3
             constrain v23 == u32 3
             return
@@ -646,19 +650,21 @@ mod tests {
             v8, v9 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
             v10 = not v0
             v11 = cast v0 as u32
-            v13 = array_get v9, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v14 = array_get v9, index u32 0 -> Field
+            v15 = make_array [v14] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v17 = eq v11, u32 1
             v18 = not v17
             v19 = add v11, u32 1
-            v20 = make_array [v13, v2] : [Field]
+            v20 = make_array [v14, v2] : [Field]
             v21 = array_set v20, index v11, value v2
             v22 = array_get v21, index u32 0 -> Field
             v23 = cast v18 as Field
             v24 = cast v17 as Field
             v25 = mul v23, v22
-            v26 = mul v24, v13
+            v26 = mul v24, v14
             v27 = add v25, v26
             v28 = array_get v21, index u32 1 -> Field
             v29 = cast v18 as Field
@@ -710,11 +716,13 @@ mod tests {
             v8, v9 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
             v10 = not v0
             v11 = cast v0 as u32
-            v13 = array_get v9, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v14 = array_get v9, index u32 0 -> Field
+            v15 = make_array [v14] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v17 = add v11, u32 1
-            v18 = make_array [v2, v13] : [Field]
+            v18 = make_array [v2, v14] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -762,11 +770,13 @@ mod tests {
             v11, v12 = call slice_push_front(v9, v6, v2) -> (u32, [Field])
             v13 = not v0
             v14 = cast v0 as u32
-            v16 = array_get v12, index u32 0 -> Field
-            v17 = make_array [v16] : [Field]
+            enable_side_effects u1 1
+            v17 = array_get v12, index u32 0 -> Field
+            v18 = make_array [v17] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v20 = add v14, u32 1
-            v21 = make_array [v2, v16] : [Field]
+            v21 = make_array [v2, v17] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -810,11 +820,13 @@ mod tests {
             v9, v10 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
             v11 = not v0
             v12 = cast v0 as u32
-            v13 = array_get v10, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v14 = array_get v10, index u32 0 -> Field
+            v15 = make_array [v14] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v17 = add v12, u32 1
-            v18 = make_array [v2, v13] : [Field]
+            v18 = make_array [v2, v14] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -859,15 +871,17 @@ mod tests {
             v10, v11, v12 = call slice_pop_back(v8, v5) -> (u32, [Field], Field)
             v13 = not v0
             v14 = cast v0 as u32
-            v16 = array_get v11, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v13 as Field
-            v19 = mul v17, v16
-            v20 = mul v18, Field 2
-            v21 = add v19, v20
-            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_pop_back(v14, v22) -> (u32, [Field], Field)
+            v17 = array_get v11, index u32 0 -> Field
+            v18 = cast v0 as Field
+            v19 = cast v13 as Field
+            v20 = mul v18, v17
+            v21 = mul v19, Field 2
+            v22 = add v20, v21
+            v23 = make_array [v22, Field 3] : [Field]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_pop_back(v14, v23) -> (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -> Field
             constrain v27 == Field 1
             return
@@ -913,15 +927,17 @@ mod tests {
             v10, v11, v12 = call slice_pop_front(v8, v5) -> (Field, u32, [Field])
             v13 = not v0
             v14 = cast v0 as u32
-            v16 = array_get v12, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v13 as Field
-            v19 = mul v17, v16
-            v20 = mul v18, Field 2
-            v21 = add v19, v20
-            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_pop_front(v14, v22) -> (Field, u32, [Field])
+            v17 = array_get v12, index u32 0 -> Field
+            v18 = cast v0 as Field
+            v19 = cast v13 as Field
+            v20 = mul v18, v17
+            v21 = mul v19, Field 2
+            v22 = add v20, v21
+            v23 = make_array [v22, Field 3] : [Field]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_pop_front(v14, v23) -> (Field, u32, [Field])
             v27 = array_get v26, index u32 0 -> Field
             constrain v27 == Field 1
             return
@@ -967,15 +983,17 @@ mod tests {
             v11, v12, v13 = call slice_remove(v8, v5, u32 0) -> (u32, [Field], Field)
             v14 = not v0
             v15 = cast v0 as u32
-            v16 = array_get v12, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v14 as Field
-            v19 = mul v17, v16
-            v20 = mul v18, Field 2
-            v21 = add v19, v20
-            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_remove(v15, v22, u32 0) -> (u32, [Field], Field)
+            v17 = array_get v12, index u32 0 -> Field
+            v18 = cast v0 as Field
+            v19 = cast v14 as Field
+            v20 = mul v18, v17
+            v21 = mul v19, Field 2
+            v22 = add v20, v21
+            v23 = make_array [v22, Field 3] : [Field]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_remove(v15, v23, u32 0) -> (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -> Field
             constrain v27 == Field 1
             return
