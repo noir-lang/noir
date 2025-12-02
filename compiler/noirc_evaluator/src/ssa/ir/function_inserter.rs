@@ -16,7 +16,9 @@ use rustc_hash::FxHashMap as HashMap;
 pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
-    values: HashMap<ValueId, ValueId>,
+    /// Reaching into `values` directly from outside this module is discouraged but
+    /// unfortunately sometimes necessary to avoid double mutable borrows of `function`.
+    pub(crate) values: HashMap<ValueId, ValueId>,
 }
 
 impl<'f> FunctionInserter<'f> {
@@ -28,9 +30,24 @@ impl<'f> FunctionInserter<'f> {
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
     pub(crate) fn resolve(&self, value: ValueId) -> ValueId {
-        match self.values.get(&value) {
-            Some(new_value) => self.resolve(*new_value),
-            None => value,
+        Self::resolve_detached(value, &self.values)
+    }
+
+    /// Resolves a ValueId to its new, updated value.
+    /// If there is no updated value for this id, this returns the same
+    /// ValueId that was passed in.
+    ///
+    /// Unlike [Self::resolve], this function does not borrow self, allowing it to be used when
+    /// [Self::function] is also mutably borrowed.
+    pub(crate) fn resolve_detached(
+        mut value: ValueId,
+        values: &HashMap<ValueId, ValueId>,
+    ) -> ValueId {
+        loop {
+            match values.get(&value) {
+                Some(new_value) => value = *new_value,
+                None => break value,
+            }
         }
     }
 
@@ -42,27 +59,36 @@ impl<'f> FunctionInserter<'f> {
             self.values.remove(&key);
         } else {
             #[cfg(debug_assertions)]
-            self.validate_map_value(key, value);
+            Self::validate_map_value(key, value, &self.values);
             self.values.entry(key).or_insert(value);
         }
     }
 
     /// Insert a key, value pair in the map
     pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
+        Self::map_value_detached(key, value, &mut self.values);
+    }
+
+    /// Insert a key, value pair in the map without borrowing `self.function`
+    pub(crate) fn map_value_detached(
+        key: ValueId,
+        value: ValueId,
+        values: &mut HashMap<ValueId, ValueId>,
+    ) {
         if key == value {
-            self.values.remove(&key);
+            values.remove(&key);
         } else {
             #[cfg(debug_assertions)]
-            self.validate_map_value(key, value);
-            self.values.insert(key, value);
+            Self::validate_map_value(key, value, values);
+            values.insert(key, value);
         }
     }
 
     /// Sanity check that we are not creating back-and-forth cycles.
     /// Doesn't catch longer cycles, but has detected mistakes with reusing instructions.
     #[cfg(debug_assertions)]
-    fn validate_map_value(&self, key: ValueId, value: ValueId) {
-        if let Some(value_of_value) = self.values.get(&value) {
+    fn validate_map_value(key: ValueId, value: ValueId, values: &HashMap<ValueId, ValueId>) {
+        if let Some(value_of_value) = values.get(&value) {
             assert!(*value_of_value != key, "mapping short-circuit: {key} <-> {value}");
         }
     }
