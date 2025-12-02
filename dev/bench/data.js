@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764708630322,
+  "lastUpdate": 1764709120365,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19274,50 +19274,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9fd1b3ed5e4c97c4410d3146e22cd3c689cb3c3f",
-          "message": "chore(deps): bump EmbarkStudios/cargo-deny-action from 2.0.13 to 2.0.14 (#10627)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2025-11-26T09:34:03Z",
-          "tree_id": "4576be1213db03e8207f04e4aca4ceee40ac3f58",
-          "url": "https://github.com/noir-lang/noir/commit/9fd1b3ed5e4c97c4410d3146e22cd3c689cb3c3f"
-        },
-        "date": 1764149959242,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 17,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -23152,6 +23108,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir_rsa_",
             "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a5edaa61161198bd1f0f66952c671bc879366dfd",
+          "message": "fix: Error on duplicate field in set_fields (#10726)",
+          "timestamp": "2025-12-02T20:26:44Z",
+          "tree_id": "51ee42dc7d57be7a2e701ddb40bbebdc37a10fbe",
+          "url": "https://github.com/noir-lang/noir/commit/a5edaa61161198bd1f0f66952c671bc879366dfd"
+        },
+        "date": 1764709052127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 161,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 165,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 334,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 114,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 164,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 276,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 14,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 2,
             "unit": "s"
           }
         ]
