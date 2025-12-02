@@ -397,10 +397,18 @@ impl<'a> Context<'a> {
         numeric_type: &NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
-        let one = self.acir_context.add_constant(FieldElement::one());
-        // The predicate is one so that this constraint is is always applied to Signed/Unsigned
-        // NumericType's
-        self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
+
+        if !numeric_type.is_field() {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            // The predicate is one so that this constraint is is always applied to Signed/Unsigned NumericTypes
+
+            self.acir_context.range_constrain_var(
+                acir_var,
+                numeric_type.bit_size::<FieldElement>(),
+                None,
+                one,
+            )?;
+        }
         Ok(acir_var)
     }
 
@@ -489,7 +497,7 @@ impl<'a> Context<'a> {
                 // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
                     acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    *max_bit_size,
                     assert_message.clone(),
                     one,
                 )?;
@@ -776,12 +784,7 @@ impl<'a> Context<'a> {
             _ => return Ok(result),
         };
 
-        self.acir_context.range_constrain_var(
-            result,
-            &NumericType::Unsigned { bit_size },
-            Some(msg.to_string()),
-            predicate,
-        )
+        self.acir_context.range_constrain_var(result, bit_size, Some(msg.to_string()), predicate)
     }
 
     /// Operands in a binary operation are checked to have the same type.

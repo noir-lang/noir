@@ -71,9 +71,7 @@ impl Interpreter<'_, '_> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            "apply_range_constraint" => {
-                self.call_foreign("range", arguments, return_type, location)
-            }
+            "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
@@ -81,6 +79,7 @@ impl Interpreter<'_, '_> {
             "as_slice" => as_slice(arguments, location),
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
+            "checked_transmute" => checked_transmute(arguments, return_type, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -193,10 +192,10 @@ impl Interpreter<'_, '_> {
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
-            "to_be_radix" => to_be_radix(arguments, return_type, location),
-            "to_le_radix" => to_le_radix(arguments, return_type, location),
-            "to_be_bits" => to_be_bits(arguments, return_type, location),
-            "to_le_bits" => to_le_bits(arguments, return_type, location),
+            "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
+            "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
+            "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
+            "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -296,6 +295,33 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     }
 }
 
+fn apply_range_constraint(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &Vector<Location>,
+) -> IResult<Value> {
+    let (value, num_bits) = check_two_arguments(arguments, location)?;
+
+    let input = get_field(value)?;
+    let field = input.to_field_element();
+
+    let num_bits = get_u32(num_bits)?;
+    let field_num_bits = field.num_bits();
+
+    if field_num_bits <= num_bits {
+        Ok(Value::Unit)
+    } else {
+        failing_constraint(
+            format!(
+                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                field.to_short_hex()
+            ),
+            location,
+            call_stack,
+        )
+    }
+}
+
 fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
@@ -324,6 +350,24 @@ fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<
 
 fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn checked_transmute(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, location) = check_one_argument(arguments, location)?;
+
+    if value.get_type().as_ref() != &return_type {
+        return Err(InterpreterError::CheckedTransmuteFailed {
+            actual: value.get_type().into_owned(),
+            expected: return_type,
+            location,
+        });
+    }
+
+    Ok(value)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -943,28 +987,31 @@ fn to_be_bits(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_be_radix(vec![value, radix], return_type, location)
+    to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
 fn to_le_bits(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_le_radix(vec![value, radix], return_type, location)
+    to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
 fn to_be_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
-    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+    let le_radix_limbs = to_le_radix(arguments, return_type, location, call_stack)?;
 
     let Value::Array(limbs, typ) = le_radix_limbs else {
         unreachable!("`to_le_radix` should always return an array");
@@ -978,6 +1025,7 @@ fn to_le_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (value, radix) = check_two_arguments(arguments, location)?;
 
@@ -1002,7 +1050,16 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+
+    // Validate that the value fits in the requested number of limbs.
+    // This matches the runtime behavior in our black box solvers.
+    let limb_count_usize = limb_count.to_u128() as usize;
+    if limb_count_usize < decomposed_integer.len() {
+        let message = format!("Field failed to decompose into specified {limb_count_usize} limbs");
+        return failing_constraint(message, location, call_stack);
+    }
+
+    let decomposed_integer = vecmap(0..limb_count_usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
