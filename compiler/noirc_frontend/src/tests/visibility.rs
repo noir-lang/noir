@@ -317,6 +317,12 @@ fn error_if_calling_private_struct_function_from_extension() {
             fn y(_self: Self) -> u32 {
                 0
             }
+            fn e(self: Self) {
+                self.private_extension();
+                     ^^^^^^^^^^^^^^^^^ private_extension is private and not visible from the current module
+                     ~~~~~~~~~~~~~~~~~ private_extension is private
+                Self::extension();
+            }
         }
     }
 
