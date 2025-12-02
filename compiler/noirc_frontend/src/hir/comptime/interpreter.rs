@@ -1576,95 +1576,72 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 }
 
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
-    if let Type::FieldElement = &typ {
-        Ok(Value::Field(value))
-    } else if let Type::Integer(sign, bit_size) = &typ {
-        match (sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) => {
-                let field_value = value.to_field_element();
-                if field_value.is_zero() {
-                    Ok(Value::U1(false))
-                } else if field_value.is_one() {
-                    Ok(Value::U1(true))
-                } else {
-                    Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
-                }
-            }
-            (Signedness::Unsigned, IntegerBitSize::Eight) => {
-                let value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::U8(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                let value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::U16(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                let value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::U32(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                let value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::U64(value))
-            }
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                let value: u128 = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::U128(value))
-            }
-            (Signedness::Signed, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ, location })
-            }
-            (Signedness::Signed, IntegerBitSize::Eight) => {
-                let value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::I8(value))
-            }
-            (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                let value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::I16(value))
-            }
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                let value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::I32(value))
-            }
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                let value = value
-                    .try_to_signed()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::I64(value))
-            }
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                Err(InterpreterError::TypeUnsupported { typ, location })
-            }
-        }
-    } else if let Type::TypeVariable(variable) = &typ {
-        if variable.is_integer_or_field() {
-            Ok(Value::Field(value))
-        } else if variable.is_integer() {
+    use IntegerBitSize::*;
+    use Signedness::*;
+    use Type::*;
+
+    macro_rules! evaluate_unsigned {
+        ($typ:ident) => {{
             let value = value
                 .try_to_unsigned()
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            // TODO: This should probably be a U32
-            Ok(Value::U64(value))
-        } else {
-            Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+            Ok(Value::$typ(value))
+        }};
+    }
+
+    macro_rules! evaluate_signed {
+        ($typ:ident) => {{
+            let value = value
+                .try_to_signed()
+                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+            Ok(Value::$typ(value))
+        }};
+    }
+
+    match typ {
+        FieldElement => Ok(Value::Field(value)),
+        Integer(Unsigned, One) => {
+            let field_value = value.to_field_element();
+            if field_value.is_zero() {
+                Ok(Value::U1(false))
+            } else if field_value.is_one() {
+                Ok(Value::U1(true))
+            } else {
+                Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
+            }
         }
-    } else {
-        Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+        Integer(Unsigned, Eight) => {
+            evaluate_unsigned!(U8)
+        }
+        Integer(Unsigned, Sixteen) => {
+            evaluate_unsigned!(U16)
+        }
+        Integer(Unsigned, ThirtyTwo) => {
+            evaluate_unsigned!(U32)
+        }
+        Integer(Unsigned, SixtyFour) => {
+            evaluate_unsigned!(U64)
+        }
+        Integer(Unsigned, HundredTwentyEight) => {
+            evaluate_unsigned!(U128)
+        }
+        Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
+        Integer(Signed, Eight) => {
+            evaluate_signed!(I8)
+        }
+        Integer(Signed, Sixteen) => {
+            evaluate_signed!(I16)
+        }
+        Integer(Signed, ThirtyTwo) => {
+            evaluate_signed!(I32)
+        }
+        Integer(Signed, SixtyFour) => {
+            evaluate_signed!(I64)
+        }
+        Integer(Signed, HundredTwentyEight) => {
+            Err(InterpreterError::TypeUnsupported { typ, location })
+        }
+        _ => Err(InterpreterError::NonIntegerIntegerLiteral { typ, location }),
     }
 }
 

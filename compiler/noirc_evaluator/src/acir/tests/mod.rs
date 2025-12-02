@@ -2,7 +2,7 @@ use acvm::{
     AcirField, FieldElement,
     acir::{
         brillig::{BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
-        circuit::{ExpressionWidth, Program},
+        circuit::Program,
         native_types::{Witness, WitnessMap},
     },
     assert_circuit_snapshot,
@@ -59,7 +59,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let (acir_functions, brillig_functions, _) = ssa
         .generate_entry_point_index()
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
 
     let artifacts =
@@ -232,7 +232,6 @@ fn properly_constrains_quotient_when_truncating_fields() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
-        ExpressionWidth::default(),
     )
     .expect("Should compile manually written SSA into ACIR");
 
@@ -268,7 +267,7 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
     let (acir_functions, _brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
 
     assert_eq!(acir_functions.len(), 1);
@@ -332,7 +331,6 @@ fn properly_constrains_quotient_when_truncating_fields_to_u128() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
-        ExpressionWidth::default(),
     )
     .expect("Should compile manually written SSA into ACIR");
 
@@ -365,7 +363,7 @@ fn derive_pedersen_generators_requires_constant_input() {
 
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    ssa.into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+    ssa.into_acir(&brillig, &BrilligOptions::default())
         .expect_err("Should fail with assert constant");
 }
 
@@ -407,7 +405,7 @@ fn execute_ssa(
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
     let (acir_functions, brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
