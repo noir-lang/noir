@@ -32,10 +32,10 @@ pub fn item_in_module_is_visible(
             }
 
             let target_crate_def_map = &def_maps[&target_module.krate];
-            module_descendent_of_target(
+            module_is_descendant_of_target(
                 target_crate_def_map,
-                target_module.local_id,
                 current_module.local_id,
+                target_module.local_id,
             ) || module_is_parent_of_struct_module(
                 target_crate_def_map,
                 current_module.local_id,
@@ -47,10 +47,10 @@ pub fn item_in_module_is_visible(
 
 /// Returns true if `current` is a (potentially nested) child module of `target`.
 /// This is also true if `current == target`.
-pub(crate) fn module_descendent_of_target(
+fn module_is_descendant_of_target(
     def_map: &CrateDefMap,
-    target: LocalModuleId,
     current: LocalModuleId,
+    target: LocalModuleId,
 ) -> bool {
     if current == target {
         return true;
@@ -58,7 +58,7 @@ pub(crate) fn module_descendent_of_target(
 
     def_map[current]
         .parent
-        .is_some_and(|parent| module_descendent_of_target(def_map, target, parent))
+        .is_some_and(|parent| module_is_descendant_of_target(def_map, parent, target))
 }
 
 /// Returns true if `target` is a struct and its parent is `current`.
@@ -117,10 +117,10 @@ fn type_member_is_visible(
             }
 
             let def_map = &def_maps[&current_module_id.krate];
-            module_descendent_of_target(
+            module_is_descendant_of_target(
                 def_map,
-                type_parent_module_id.local_id,
                 current_module_id.local_id,
+                type_parent_module_id.local_id,
             )
         }
     }
