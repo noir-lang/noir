@@ -117,7 +117,14 @@ impl<F: AcirField> AcirContext<F> {
                 AcirValue::Var(var, numeric_type) => {
                     // Predicate is one so that the constrain is always applied, because
                     // values returned from Brillig will be 0 under a false predicate.
-                    context.range_constrain_var(*var, numeric_type, None, one)?;
+                    if !numeric_type.is_field() {
+                        context.range_constrain_var(
+                            *var,
+                            numeric_type.bit_size::<G>(),
+                            None,
+                            one,
+                        )?;
+                    }
                 }
                 AcirValue::Array(values) => {
                     for value in values {

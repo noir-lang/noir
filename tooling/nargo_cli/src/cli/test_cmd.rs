@@ -51,9 +51,13 @@ pub(crate) struct TestCommand {
     #[clap(long)]
     exact: bool,
 
-    /// Print all matching test names.
-    #[clap(long, hide = true)]
+    /// Print all matching test names, without running them.
+    #[clap(long)]
     list_tests: bool,
+
+    /// Only compile the tests, without running them.
+    #[clap(long)]
+    no_run: bool,
 
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
@@ -624,6 +628,20 @@ impl<'a> TestRunner<'a> {
         let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
         let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, &pattern);
         let (_, test_function) = test_functions.first().expect("Test function should exist");
+
+        if self.args.no_run {
+            let status = match noirc_driver::compile_no_check(
+                &mut context,
+                &self.args.compile_options,
+                test_function.id,
+                None,
+                false,
+            ) {
+                Ok(_) => TestStatus::Skipped,
+                Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
+            };
+            return (status, String::new());
+        }
 
         let blackbox_solver = S::default();
         let mut output_buffer = Vec::new();

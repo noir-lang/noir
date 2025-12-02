@@ -14,12 +14,12 @@ pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 /// It gets manipulated by opcodes laid down for calls by codegen.
 pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
 
-/// The free memory pointer is always in slot 1.
+/// The _free memory pointer_ is always in slot 1.
 ///
-/// Usually it is a concern for the codegen to allocate space for arrays and vectors,
-/// however during foreign calls the VM writes vector outputs to the free memory;
-/// by sharing a constant address for it, we don't have to pass the address as
-/// part of the opcode.
+/// We added it here to be able to implement a workaround for wrapping around
+/// the free memory, ie. to detect "out of memory" events, but the AVM is not,
+/// and does not want to be aware of the _free memory pointer_, so we cannot,
+/// in general, build much functionality in the VM around it.
 pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
 
 /// Offset constants for arrays and vectors:

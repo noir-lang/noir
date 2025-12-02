@@ -3,7 +3,6 @@ use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 mod operators;
-mod ordering;
 
 /// An expression representing a quadratic polynomial.
 ///
@@ -139,6 +138,7 @@ impl<F> Expression<F> {
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
 
+    #[cfg(test)]
     pub(crate) fn is_sorted(&self) -> bool {
         self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
             && self.linear_combinations.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).is_le())
