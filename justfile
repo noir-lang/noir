@@ -186,6 +186,7 @@ spellcheck:
   yarn spellcheck
 
 stdlib_docs:
+  cargo build
   cd noir_stdlib && nargo doc
   rm -rf noir_stdlib/docs
   mv noir_stdlib/target/docs noir_stdlib/docs
