@@ -13,7 +13,10 @@ use crate::{
             registers::{RegisterAllocator, Stack},
         },
     },
-    ssa::ir::{basic_block::BasicBlockId, dfg::DataFlowGraph},
+    ssa::{
+        ir::{basic_block::BasicBlockId, function::Function},
+        opt::Loops,
+    },
 };
 
 pub(crate) enum OpcodeAdvisory {
@@ -23,37 +26,96 @@ pub(crate) enum OpcodeAdvisory {
     OverwrittenBeforeRead { write_at: OpcodeLocation, read_at: OpcodeLocation },
 }
 
-/// Go through opcodes and collect advisories, indicating opcodes which could potentially be removed:
-/// * writing to a `destination` to that isn't read from
-/// * writing to a `destination` that gets overwritten before being read, within the same block
-pub(crate) fn collect_opcode_advisories<F>(
-    dfg: &DataFlowGraph,
+/// Go through opcodes and collect advisories, indicating opcodes which could potentially be removed
+pub(crate) fn opcode_advisories<F>(
+    function: &Function,
     function_context: &FunctionContext,
     brillig_context: &BrilligContext<F, Stack>,
 ) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
-    let block_opcode_ranges = collect_block_opcode_ranges(brillig_context);
+    // Find where each block start and ends in the bytecode.
+    let block_opcode_ranges = block_opcode_ranges(brillig_context);
 
     // Accumulate stack addresses read. These are all in the same function context,
     // so they should fit in one stack frame, which makes relative addresses comparable.
     let registers = brillig_context.registers();
-    let registers: &Stack = &registers;
+    let addr_range = Range { start: registers.start(), end: registers.end() };
 
-    let mut ctx = CheckContext::new(registers, function_context.blocks[0]);
+    // First collect all reads per block.
+    let reads_in_blocks: HashMap<BasicBlockId, im::HashSet<MemoryAddress>> = function_context
+        .reverse_post_order()
+        .map(|block_id| {
+            let mut read_collector = ReadCollector::new(&addr_range);
+            let opcode_range = block_opcode_ranges[&block_id].clone();
+            for loc in opcode_range {
+                let opcode = &brillig_context.artifact().byte_code[loc];
+                read_collector.visit_opcode(opcode, loc);
+            }
+            (block_id, read_collector.into_reads())
+        })
+        .collect();
 
+    // Find each loop in the function. If a block is part of a loop and writes to an address,
+    // we need to consider all blocks that we can get to from the header as a potential descendant.
+    let blocks_in_loops: HashMap<BasicBlockId, _> = Loops::find_all(function)
+        .yet_to_unroll
+        .into_iter()
+        .map(|loop_| (loop_.header, loop_.blocks))
+        .collect();
+
+    // Collect all the reads that happen in the descendants of blocks.
+    let mut reads_in_descendants: HashMap<BasicBlockId, im::HashSet<MemoryAddress>> =
+        HashMap::default();
+
+    // Going in Post Order, so successors will have been processed already,
+    // except for back-edges: the header of the loop they return to comes later.
     for block_id in function_context.post_order() {
-        ctx.on_new_block();
-
-        let range =
-            block_opcode_ranges.get(block_id).expect("ICE: every block has a range").clone();
-
-        for i in range.rev() {
-            let opcode = &brillig_context.artifact().byte_code[i];
-
-            ctx.visit_opcode(opcode, i);
+        // The reads are a union of addresses read:
+        // * directly by the successors
+        // * indirectly by the descendants of the successors
+        let mut acc = im::HashSet::new();
+        for successor_id in function.dfg[block_id].successors() {
+            acc = acc.union(reads_in_blocks[&successor_id].clone());
+            acc = acc.union(reads_in_descendants[&successor_id].clone());
         }
+        // If the block is a header of a loop, then anything we can reach from the header,
+        // we can reach from any block in the loop too.
+        // For example say we have a CFG like this, b1 is the header of a loop [b1, b2, b3]
+        //      +-------+
+        //      v       |
+        // b0--b1--b2--b3
+        //      +----------b4
+        // An address can written in b3 and read in b1 (e.g. the loop variable),
+        // or written in b2 and read in b4 (e.g. a reference allocated in b0).
+        if let Some(blocks_in_loop) = blocks_in_loops.get(&block_id) {
+            for member_id in blocks_in_loop {
+                if *member_id == block_id {
+                    continue;
+                }
+                // Blocks in the loop are successors, they should be done already.
+                let member_reads = reads_in_descendants[member_id].clone();
+                reads_in_descendants.insert(*member_id, member_reads.union(acc.clone()));
+            }
+        }
+        // We are done with this node, can move on to its predecessors.
+        reads_in_descendants.insert(block_id, acc);
     }
 
-    ctx.into_advisories()
+    // Now that we have the reads in the blocks and their descendants, look at the writes.
+    let mut advisories = HashMap::new();
+    for block_id in function_context.reverse_post_order() {
+        let mut advisory_collector =
+            AdvisoryCollector::new(&addr_range, &reads_in_descendants[&block_id]);
+        let opcode_range = block_opcode_ranges[&block_id].clone();
+
+        // Going backwards, so reads at the end are recorded before earlier writes.
+        for loc in opcode_range.rev() {
+            let opcode = &brillig_context.artifact().byte_code[loc];
+            advisory_collector.visit_opcode(opcode, loc);
+        }
+
+        advisories.extend(advisory_collector.into_advisories());
+    }
+    advisories
 }
 
 /// Display the opcodes and their corresponding advisories.
@@ -66,6 +128,10 @@ pub(crate) fn show_opcode_advisories<F: Display>(
         advisories.len(),
         artifact.name
     );
+
+    if advisories.is_empty() {
+        return;
+    }
 
     println!("fn {}", artifact.name);
     let width = artifact.byte_code.len().to_string().len();
@@ -83,7 +149,7 @@ pub(crate) fn show_opcode_advisories<F: Display>(
 
 /// Go through the labels in the [BrilligContext] and collect the opcode locations
 /// where each block starts and ends.
-fn collect_block_opcode_ranges<F, R: RegisterAllocator>(
+fn block_opcode_ranges<F, R: RegisterAllocator>(
     brillig_context: &BrilligContext<F, R>,
 ) -> HashMap<BasicBlockId, Range<OpcodeLocation>> {
     let mut ranges = HashMap::new();
@@ -117,61 +183,115 @@ fn collect_block_opcode_ranges<F, R: RegisterAllocator>(
     ranges
 }
 
-struct CheckContext {
-    /// Range of acceptable relative stack addresses.
-    address_range: Range<usize>,
+/// Collect all the relative addresses read in a range.
+struct ReadCollector<'a> {
+    addr_range: &'a Range<OpcodeLocation>,
+    reads: im::HashSet<MemoryAddress>,
+}
 
-    /// Processing blocks in a DFS fashion:
-    /// 1. visit a block
-    /// 2. visit its successors
-    /// 3. visit the block again, after its successors are complete
-    ///
-    /// The flag indicates whether we are doing the 2nd visit.
-    block_stack: Vec<(BasicBlockId, bool)>,
+impl<'a> ReadCollector<'a> {
+    fn new(addr_range: &'a Range<usize>) -> Self {
+        Self { addr_range, reads: im::HashSet::new() }
+    }
 
-    /// Union of [MemoryAddress] which are read by the descendants of a block.
-    reads_after: im::HashMap<BasicBlockId, im::HashSet<MemoryAddress>>,
+    fn into_reads(self) -> im::HashSet<MemoryAddress> {
+        self.reads
+    }
+}
 
-    /// Advisories collected while visiting the opcodes.
+impl OpcodeAddressVisitor for ReadCollector<'_> {
+    fn read(&mut self, addr: &MemoryAddress, _location: OpcodeLocation) {
+        if addr.is_relative() && self.addr_range.contains(&addr.to_usize()) {
+            self.reads.insert(*addr);
+        }
+    }
+
+    fn write(&mut self, _addr: &MemoryAddress, _location: OpcodeLocation) {
+        // Ignore writes.
+    }
+}
+
+/// Collect advisories about the opcodes in a single block.
+///
+/// Assumes that we are visiting the opcodes going backwards.
+struct AdvisoryCollector<'a> {
+    addr_range: &'a Range<OpcodeLocation>,
+    /// Addresses read in any of the descendants of the block.
+    reads_in_descendants: &'a im::HashSet<MemoryAddress>,
+    /// Last location the address was read from in this block.
+    reads: HashMap<MemoryAddress, OpcodeLocation>,
+    /// Last location the address was written to in this block.
+    writes: HashMap<MemoryAddress, OpcodeLocation>,
+    /// Advisories collected in this block.
     advisories: HashMap<OpcodeLocation, OpcodeAdvisory>,
 }
 
-impl CheckContext {
-    fn new<R: RegisterAllocator>(registers: &R, entry_block_id: BasicBlockId) -> Self {
+impl<'a> AdvisoryCollector<'a> {
+    fn new(
+        addr_range: &'a Range<usize>,
+        reads_in_descendants: &'a im::HashSet<MemoryAddress>,
+    ) -> Self {
         Self {
-            address_range: Range { start: registers.start(), end: registers.end() },
-            block_stack: vec![(entry_block_id, false)],
-            reads_after: Default::default(),
-            advisories: Default::default(),
+            addr_range,
+            reads_in_descendants,
+            reads: HashMap::new(),
+            writes: HashMap::new(),
+            advisories: HashMap::new(),
         }
     }
 
-    /// Visit blocks and collect all opcode advisories.
-    fn collect_advisories(&mut self, dfg: &DataFlowGraph) {
-        while let Some((block_id, successors_ready)) = self.block_stack.pop() {
-            if successors_ready {
-                // Get the
-                // Merge all the reads from successors.
-                let reads_after =
-                    dfg[block_id].successors().fold(im::HashSet::new(), |acc, successor_id| {
-                        if let Some(addresses) = ctx.reads_after.get(&successor_id) {
-                            acc.union(addresses.clone())
-                        } else {
-                            acc
-                        }
-                    });
-                // Associate the reads in descendants by with the block.
-                ctx.reads_after.insert(block_id, reads_after);
-            } else {
-                // Revisit later.
-                ctx.block_stack.push((block_id, true));
-                // Visit successors first.
-                for successor_id in dfg[block_id].successors() {
-                    ctx.block_stack.push((successor_id, false));
+    fn into_advisories(self) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
+        self.advisories
+    }
+
+    fn addr_in_range(&self, addr: &MemoryAddress) -> bool {
+        addr.is_relative() && self.addr_range.contains(&addr.to_usize())
+    }
+}
+
+impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
+    /// Remember the opcode location where a memory address was last read.
+    fn read(&mut self, addr: &MemoryAddress, location: OpcodeLocation) {
+        if !self.addr_in_range(addr) {
+            return;
+        }
+        self.reads.insert(*addr, location);
+    }
+
+    /// Remember the opcode location where a memory address was last read.
+    ///
+    /// Insert an advisory if:
+    /// * the address is not read after this opcode
+    /// * the address is read after this, but before that there is another write
+    fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation) {
+        if !self.addr_in_range(addr) {
+            return;
+        }
+        if let Some(read_at) = self.reads.get(addr) {
+            if let Some(write_at) = self.writes.get(addr) {
+                if write_at < read_at {
+                    self.advisories.insert(
+                        location,
+                        OpcodeAdvisory::OverwrittenBeforeRead {
+                            write_at: *write_at,
+                            read_at: *read_at,
+                        },
+                    );
                 }
             }
+        } else if !self.reads_in_descendants.contains(addr) {
+            self.advisories.insert(location, OpcodeAdvisory::NeverRead);
         }
+        self.writes.insert(*addr, location);
     }
+}
+
+trait OpcodeAddressVisitor {
+    /// Called with all the addresses read by the opcode.
+    fn read(&mut self, addr: &MemoryAddress, location: OpcodeLocation);
+
+    /// Called with all addresses written by the opcode.
+    fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation);
 
     /// Expected to be called with each opcode, traversing blocks in Post Order,
     /// feeding the opcodes back to front.
@@ -229,54 +349,6 @@ impl CheckContext {
             Opcode::Stop { return_data } => self.read_heap_vector(return_data, location),
             Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return { .. } => {}
         }
-    }
-
-    /// Return the collected advisories.
-    fn into_advisories(self) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
-        self.advisories
-    }
-
-    /// Check if the address belongs to the stack.
-    fn is_within_bounds(&self, addr: &MemoryAddress) -> bool {
-        match addr {
-            MemoryAddress::Direct(_) => false,
-            MemoryAddress::Relative(idx) => self.address_range.contains(idx),
-        }
-    }
-
-    /// Remember the opcode location where a memory address was last read.
-    fn read(&mut self, addr: &MemoryAddress, location: OpcodeLocation) {
-        if !self.is_within_bounds(addr) {
-            return;
-        }
-        self.reads.insert(*addr, location);
-    }
-
-    /// Remember the opcode location where a memory address was last read.
-    ///
-    /// Insert an advisory if:
-    /// * the address is not read after this opcode
-    /// * the address is read after this, but before that there is another write
-    fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation) {
-        if !self.is_within_bounds(addr) {
-            return;
-        }
-        if let Some(read_at) = self.reads.get(addr) {
-            if let Some(write_at) = self.writes.get(addr) {
-                if write_at < read_at {
-                    self.advisories.insert(
-                        location,
-                        OpcodeAdvisory::OverwrittenBeforeRead {
-                            write_at: *write_at,
-                            read_at: *read_at,
-                        },
-                    );
-                }
-            }
-        } else {
-            self.advisories.insert(location, OpcodeAdvisory::NeverRead);
-        }
-        self.writes.insert(*addr, location);
     }
 
     fn read_heap_array(&mut self, array: &HeapArray, location: OpcodeLocation) {

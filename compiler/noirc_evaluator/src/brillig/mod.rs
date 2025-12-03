@@ -117,7 +117,7 @@ impl Brillig {
 
         brillig_context.call_check_max_stack_depth_procedure();
 
-        for block in function_context.blocks.clone() {
+        for block in function_context.reverse_post_order().collect::<Vec<_>>() {
             BrilligBlock::compile_block(
                 &mut function_context,
                 &mut brillig_context,
@@ -130,12 +130,10 @@ impl Brillig {
         }
 
         if options.show_opcode_advisories {
-            let advisories =
-                brillig_check::collect_opcode_advisories(&function_context, &brillig_context);
+            let opcode_advisories =
+                brillig_check::opcode_advisories(func, &function_context, &brillig_context);
 
-            if !advisories.is_empty() {
-                brillig_check::show_opcode_advisories(&advisories, brillig_context.artifact());
-            }
+            brillig_check::show_opcode_advisories(&opcode_advisories, brillig_context.artifact());
         }
 
         brillig_context.into_artifact()
