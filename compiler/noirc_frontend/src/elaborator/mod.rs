@@ -139,6 +139,8 @@ pub struct LambdaContext {
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
     pub scope_index: usize,
+    /// If we know this lambda to be unconstrained.
+    pub unconstrained: bool,
 }
 
 /// Determines whether we are in an unsafe block and, if so, whether
@@ -232,6 +234,9 @@ pub struct Elaborator<'context> {
     /// block, global, or attribute.
     in_comptime_context: bool,
 
+    /// True if we are elaborating arguments of a function call to an unconstrained function.
+    in_unconstrained_args: bool,
+
     crate_id: CrateId,
 
     /// These are the globals that have yet to be elaborated.
@@ -317,6 +322,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
@@ -669,16 +675,24 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
-    /// True if we're currently within a constrained function.
+    /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        !self.in_comptime_context()
-            && self.current_item.is_none_or(|id| match id {
-                DependencyId::Function(id) => {
-                    !self.interner.function_modifiers(&id).is_unconstrained
-                }
-                _ => true,
-            })
+        if self.in_comptime_context() {
+            return false;
+        }
+
+        let in_unconstrained_function = self.current_item.is_some_and(|id| {
+            if let DependencyId::Function(id) = id {
+                self.interner.function_modifiers(&id).is_unconstrained
+            } else {
+                false
+            }
+        });
+
+        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+
+        !in_unconstrained_function && !in_unconstrained_lambda
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not

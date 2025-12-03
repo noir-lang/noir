@@ -21,7 +21,8 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings,
+    TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -43,7 +44,6 @@ use crate::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{
-        self,
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -71,14 +71,15 @@ impl Interpreter<'_, '_> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            "apply_range_constraint" => {
-                self.call_foreign("range", arguments, return_type, location)
-            }
+            "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(arguments, location),
+            "as_witness" => as_witness(arguments, location),
+            "black_box" => black_box(arguments, location),
+            "checked_transmute" => checked_transmute(arguments, return_type, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -181,7 +182,7 @@ impl Interpreter<'_, '_> {
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
-            "slice_insert" => slice_insert(arguments, location),
+            "slice_insert" => slice_insert(arguments, location, call_stack),
             "slice_pop_back" => slice_pop_back(arguments, location, call_stack),
             "slice_pop_front" => slice_pop_front(arguments, location, call_stack),
             "slice_push_back" => slice_push_back(arguments, location),
@@ -191,10 +192,10 @@ impl Interpreter<'_, '_> {
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
-            "to_be_radix" => to_be_radix(arguments, return_type, location),
-            "to_le_radix" => to_le_radix(arguments, return_type, location),
-            "to_be_bits" => to_be_bits(arguments, return_type, location),
-            "to_le_bits" => to_le_bits(arguments, return_type, location),
+            "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
+            "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
+            "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
+            "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -294,6 +295,33 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     }
 }
 
+fn apply_range_constraint(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &Vector<Location>,
+) -> IResult<Value> {
+    let (value, num_bits) = check_two_arguments(arguments, location)?;
+
+    let input = get_field(value)?;
+    let field = input.to_field_element();
+
+    let num_bits = get_u32(num_bits)?;
+    let field_num_bits = field.num_bits();
+
+    if field_num_bits <= num_bits {
+        Ok(Value::Unit)
+    } else {
+        failing_constraint(
+            format!(
+                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                field.to_short_hex()
+            ),
+            location,
+            call_stack,
+        )
+    }
+}
+
 fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
@@ -314,6 +342,32 @@ fn as_slice(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Va
             Err(InterpreterError::TypeMismatch { expected, actual, location: array_location })
         }
     }
+}
+
+fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    Ok(check_one_argument(arguments, location)?.0)
+}
+
+fn checked_transmute(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, location) = check_one_argument(arguments, location)?;
+
+    if value.get_type().as_ref() != &return_type {
+        return Err(InterpreterError::CheckedTransmuteFailed {
+            actual: value.get_type().into_owned(),
+            expected: return_type,
+            location,
+        });
+    }
+
+    Ok(value)
 }
 
 fn slice_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -686,46 +740,56 @@ fn type_def_set_fields(
         .enumerate()
         .collect::<Vec<_>>();
 
-    let mut new_fields = Vec::new();
+    let mut new_fields = Vec::<StructField>::new();
 
     for (index, mut field_pair) in fields {
-        if field_pair.len() == 3 {
-            let visibility = field_pair.pop().unwrap().unwrap_or_clone();
-            let typ = field_pair.pop().unwrap().unwrap_or_clone();
-            let name_value = field_pair.pop().unwrap().unwrap_or_clone();
-
-            let name_tokens = get_quoted((name_value.clone(), field_location))?;
-            let typ = get_type((typ, field_location))?;
-
-            match name_tokens.first().map(|t| t.token()) {
-                Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                    let visibility = parse(
-                        elaborator,
-                        (visibility, field_location),
-                        Parser::parse_item_visibility,
-                        "a visibility",
-                    )?;
-
-                    let name = Ident::new(name.clone(), field_location);
-                    new_fields.push(hir_def::types::StructField { visibility, name, typ });
-                }
-                _ => {
-                    let value = name_value.display(elaborator.interner).to_string();
-                    let location = field_location;
-                    return Err(InterpreterError::ExpectedIdentForStructField {
-                        value,
-                        index,
-                        location,
-                    });
-                }
-            }
-        } else {
+        if field_pair.len() != 3 {
             let expected = "tuple".to_string();
 
             let actual =
                 Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
 
             return Err(InterpreterError::TypeMismatch { expected, actual, location });
+        }
+
+        let visibility = field_pair.pop().unwrap().unwrap_or_clone();
+        let typ = field_pair.pop().unwrap().unwrap_or_clone();
+        let name_value = field_pair.pop().unwrap().unwrap_or_clone();
+
+        let name_tokens = get_quoted((name_value.clone(), field_location))?;
+        let typ = get_type((typ, field_location))?;
+
+        match name_tokens.first().map(|t| t.token()) {
+            Some(Token::Ident(name)) if name_tokens.len() == 1 => {
+                let visibility = parse(
+                    elaborator,
+                    (visibility, field_location),
+                    Parser::parse_item_visibility,
+                    "a visibility",
+                )?;
+
+                let name = Ident::new(name.clone(), field_location);
+                let previous_index = new_fields.iter().position(|field| field.name == name);
+
+                if let Some(previous_index) = previous_index {
+                    return Err(InterpreterError::DuplicateStructFieldInSetFields {
+                        name,
+                        index,
+                        previous_index,
+                    });
+                }
+
+                new_fields.push(StructField { visibility, name, typ });
+            }
+            _ => {
+                let value = name_value.display(elaborator.interner).to_string();
+                let location = field_location;
+                return Err(InterpreterError::ExpectedIdentForStructField {
+                    value,
+                    index,
+                    location,
+                });
+            }
         }
     }
 
@@ -799,11 +863,25 @@ fn slice_pop_back(
     }
 }
 
-fn slice_insert(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn slice_insert(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &Vector<Location>,
+) -> IResult<Value> {
     let (slice, index, (element, _)) = check_three_arguments(arguments, location)?;
 
     let (mut values, typ) = get_slice(slice)?;
     let index = get_u32(index)? as usize;
+
+    // If index is equal to the length, the insert is equivalent to a push
+    if index > values.len() {
+        let message = format!(
+            "slice_insert: index {index} is out of bounds for a slice of length {}",
+            values.len()
+        );
+        return failing_constraint(message, location, call_stack);
+    }
+
     values.insert(index, element);
     Ok(Value::Slice(values, typ))
 }
@@ -919,28 +997,31 @@ fn to_be_bits(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_be_radix(vec![value, radix], return_type, location)
+    to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
 fn to_le_bits(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_le_radix(vec![value, radix], return_type, location)
+    to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
 fn to_be_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
-    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+    let le_radix_limbs = to_le_radix(arguments, return_type, location, call_stack)?;
 
     let Value::Array(limbs, typ) = le_radix_limbs else {
         unreachable!("`to_le_radix` should always return an array");
@@ -954,6 +1035,7 @@ fn to_le_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (value, radix) = check_two_arguments(arguments, location)?;
 
@@ -978,7 +1060,16 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+
+    // Validate that the value fits in the requested number of limbs.
+    // This matches the runtime behavior in our black box solvers.
+    let limb_count_usize = limb_count.to_u128() as usize;
+    if limb_count_usize < decomposed_integer.len() {
+        let message = format!("Field failed to decompose into specified {limb_count_usize} limbs");
+        return failing_constraint(message, location, call_stack);
+    }
+
+    let decomposed_integer = vecmap(0..limb_count_usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
@@ -2320,13 +2411,14 @@ fn expr_resolve(
         panic!("Expected second argument to be a struct");
     };
 
-    let is_some = fields.get(&Rc::new("_is_some".to_string())).unwrap();
+    // It's fine to do a linear search here as Option just has two fields
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
     let Value::Bool(is_some) = is_some.borrow().clone() else {
         panic!("Expected is_some to be a boolean");
     };
 
     let function_to_resolve_in = if is_some {
-        let value = fields.get(&Rc::new("_value".to_string())).unwrap();
+        let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
         let Value::FunctionDefinition(func_id) = value.borrow().clone() else {
             panic!("Expected option value to be a FunctionDefinition");
         };
@@ -3132,7 +3224,7 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = FieldElement::zero();
+    let is_infinite = false;
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
@@ -3147,10 +3239,8 @@ fn derive_generators(
             .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
             .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-        embedded_curve_point_fields.insert(
-            is_infinite_field_name.clone(),
-            Shared::new(Value::Field(SignedField::positive(is_infinite))),
-        );
+        embedded_curve_point_fields
+            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);

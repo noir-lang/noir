@@ -1242,4 +1242,52 @@ mod test {
         );
         assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
     }
+
+    #[test]
+    fn removes_unused_known_small_bit_shifts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 2
+            v2 = shr v0, u32 3
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_bit_shifts_by_unknown_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = shl v0, v1
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn keeps_bit_shifts_by_known_large_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 33
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
 }

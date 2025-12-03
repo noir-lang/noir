@@ -19,3 +19,22 @@ updates:
     # Check the npm registry for updates every Monday
     schedule:
       interval: "weekly"
+    groups:
+      # group updates for linter
+      linter:
+        patterns:
+          - "eslint*"
+          - "@eslint/**"
+          - "@typescript-eslint/**"
+          - "prettier"
+      docusaurus:
+        patterns:
+          - "@docusaurus/**"
+          - "docusaurus*"
+      webpack:
+        patterns:
+          - "webpack"
+          - "*-webpack-plugin"
+      typedoc:
+        patterns:
+          - "typedoc*"

@@ -76,3 +76,31 @@ fn error_on_cast_over_type_variable() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn cast_numeric_to_bool() {
+    let src = "
+    fn main() {
+        let x: u64 = 1;
+        let _ = x as bool;
+                ^^^^^^^^^ Cannot cast `u64` as `bool`
+                ~~~~~~~~~ compare with zero instead: ` != 0`
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn cast_numeric_to_bool_comptime() {
+    let src = "
+    fn main() {
+        comptime {
+            let x: u64 = 1;
+            let _ = x as bool;
+                    ^^^^^^^^^ Cannot cast `u64` as `bool`
+                    ~~~~~~~~~ compare with zero instead: ` != 0`
+        }
+    }
+    ";
+    check_errors(src);
+}

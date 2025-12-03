@@ -1,4 +1,3 @@
-use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{
@@ -31,7 +30,6 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         optimization_level: OptimizationLevel::All,
         brillig_options: BrilligOptions::default(),
         print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
         emit_ssa: None,
         skip_underconstrained_check: true,
         skip_brillig_constraints_check: true,

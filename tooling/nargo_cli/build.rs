@@ -45,6 +45,7 @@ fn main() -> Result<(), String> {
     generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
     generate_trace_tests(&mut test_file, &test_dir);
@@ -136,45 +137,13 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 10] = [
     // bugs
-    "a_5_over",
-    "arithmetic_binary_operations",
-    "array_oob_regression_7975",
     "array_sort",
-    "as_witness",
-    "bool_not",
-    "bool_or",
-    "brillig_cow_regression",
-    "brillig_pedersen",
-    "cast_signed_to_u1",
-    "generics",
-    "higher_order_functions",
-    "hint_black_box",
-    "import",
-    "merkle_insert",
-    "modulus",
-    "multi_scalar_mul",
-    "pedersen_check",
-    "pedersen_commitment",
-    "pedersen_hash",
-    "poseidon_bn254_hash_width_3",
-    "poseidonsponge_x5_254", // cSpell::disable-line
-    "regression_10156",
     "regression_11294",
-    "regression_1144_1169_2399_6609",
-    "regression_5252",
-    "regression_6451",
-    "regression_8329",
     "regression_8755",
     "regression_9208",
     "regression_9303",
-    "simple_radix",
-    "simple_shield",
-    "strings",
-    "struct",
-    "submodules",
-    "to_bytes_integration",
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
@@ -183,6 +152,14 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 42] = [
     // Enums are currently unsupported in comptime code
     "regression_7323",
 ];
+
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+/// We usually check that the stdout of `nargo execute --force-comptime` matches
+/// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
+/// this can be solved.
+/// There are two Noir types that show out differently in comptime: functions and references.
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
+    ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
@@ -267,7 +244,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 16] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
@@ -284,6 +261,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
     "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
     "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
     "noirc_frontend_tests_traits_trait_bound_on_implementing_type",
+    "function_registry",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
@@ -564,6 +542,8 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             } else {
                 ""
             };
+        let check_stdout =
+            !IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS.contains(&test_name.as_str());
 
         let test_dir = test_dir.display();
 
@@ -574,9 +554,47 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             {should_panic}
             fn test_{test_name}() {{
                 let test_program_dir = PathBuf::from("{test_dir}");
-                nargo_execute_comptime(test_program_dir);
+                nargo_execute_comptime(test_program_dir, {check_stdout});
             }}
             "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+          use super::*;
+      "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+              #[test]
+              {should_panic}
+              fn test_{test_name}() {{
+                  let test_program_dir = PathBuf::from("{test_dir}");
+                  nargo_execute_comptime_expect_failure(test_program_dir);
+              }}
+              "#
         )
         .unwrap();
     }

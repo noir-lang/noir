@@ -116,8 +116,8 @@ fn does_not_error_if_pub_function_is_on_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        impl Bar { 
-            pub fn bar() -> Bar { 
+        impl Bar {
+            pub fn bar() -> Bar {
                 Bar {}
             }
         }
@@ -137,15 +137,15 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
         struct Bar {}
         pub struct Foo {}
 
-        impl Foo { 
-            pub fn bar() -> Bar { 
+        impl Foo {
+            pub fn bar() -> Bar {
                    ^^^ Type `Bar` is more private than item `bar`
                 Bar {}
             }
         }
 
         pub fn no_unused_warnings() {
-            let _ = Foo {};            
+            let _ = Foo {};
         }
     }
     "#;
@@ -158,12 +158,12 @@ fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        pub trait Foo { 
+        pub trait Foo {
             fn foo() -> Self;
         }
 
         impl Foo for Bar {
-            fn foo() -> Self { 
+            fn foo() -> Self {
                 Bar {}
             }
         }
@@ -182,7 +182,7 @@ fn errors_if_pub_trait_returns_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        pub trait Foo { 
+        pub trait Foo {
             fn foo() -> Bar;
                ^^^ Type `Bar` is more private than item `foo`
         }
@@ -294,6 +294,111 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
 
     fn main() {
         let _ = Foo {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_if_calling_private_struct_function_from_extension() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {
+            z: u32
+        }
+
+        impl Foo {
+            pub fn new() -> Foo {
+                Foo { z: 0 }
+            }
+            fn x() -> u32 {
+                0
+            }
+            fn y(_self: Self) -> u32 {
+                0
+            }
+            fn e(self: Self) {
+                self.private_extension();
+                     ^^^^^^^^^^^^^^^^^ private_extension is private and not visible from the current module
+                     ~~~~~~~~~~~~~~~~~ private_extension is private
+                Self::extension();
+            }
+        }
+    }
+
+    mod ext {
+        use super::foo::Foo;
+        impl Foo {
+            pub fn extension() {
+                let f = Foo::new();
+
+                let _x = Foo::x();
+                              ^ x is private and not visible from the current module
+                              ~ x is private
+
+                let _y = f.y();
+                           ^ y is private and not visible from the current module
+                           ~ y is private
+
+                let _z = f.z;
+                           ^ z is private and not visible from the current module
+                           ~ z is private
+
+                f.private_extension();
+            }
+
+            fn private_extension(_self: Self) {}
+        }
+    }
+
+    fn main() {
+        let _f = foo::Foo::new();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_when_accessing_private_module_through_super() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+        pub struct Qux {}
+    }
+
+    mod bar {
+        use super::foo::Qux;
+        pub fn bar() {
+            let _f = super::foo::Foo {};
+            let _q = Qux {};
+        }
+    }
+
+    fn main() {
+        bar::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_when_accessing_private_module_through_crate() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+        pub struct Qux {}
+    }
+
+    mod bar {
+        use crate::foo::Qux;
+        pub fn bar() {
+            let _f = crate::foo::Foo {};
+            let _q = Qux {};
+        }
+    }
+
+    fn main() {
+        bar::bar();
     }
     "#;
     assert_no_errors(src);
@@ -439,16 +544,16 @@ fn visibility_bug_inside_comptime() {
         pub struct Foo {
             inner: Field,
         }
-    
+
         impl Foo {
             pub fn new(inner: Field) -> Self {
                 Self { inner }
             }
         }
     }
-    
+
     use foo::Foo;
-    
+
     fn main() {
         let _ = Foo::new(5);
         let _ = comptime { Foo::new(5) };
@@ -464,18 +569,18 @@ fn errors_if_accessing_private_struct_member_inside_comptime_context() {
         pub struct Foo {
             inner: Field,
         }
-    
+
         impl Foo {
             pub fn new(inner: Field) -> Self {
                 Self { inner }
             }
         }
     }
-    
+
     use foo::Foo;
-    
+
     fn main() {
-        comptime { 
+        comptime {
             let foo = Foo::new(5);
             let _ = foo.inner;
                         ^^^^^ inner is private and not visible from the current module
@@ -645,6 +750,24 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
         ^ cannot find `x` in this scope
         ~ not found in this scope
     }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn databus_only_allowed_in_main() {
+    let src = "
+fn main(a: u32) -> pub u32 {
+    let a = inner(a);
+    let c = a << 2;
+    c
+}
+
+fn inner(a: call_data(0) u32) -> return_data u32 {
+   ~~~~~ unnecessary call_data(0)
+   ^^^^^ unnecessary call_data(0) attribute for function inner
+    a
+}
     ";
     check_errors(src);
 }

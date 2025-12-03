@@ -323,7 +323,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
-    /// This path is a Crate or Dep path which always points to the given crate
+    /// This path is a Crate or Dep path which always points to the given crate.
+    /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
     Resolved(CrateId),
 }
 
