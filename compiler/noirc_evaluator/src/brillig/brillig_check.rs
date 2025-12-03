@@ -2,7 +2,13 @@
 
 use std::{collections::HashMap, fmt::Display, ops::Range};
 
-use acvm::acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, Opcode, ValueOrArray};
+use acvm::{
+    AcirField,
+    acir::brillig::{
+        BitSize, BlackBoxOp, HeapArray, HeapVector, IntegerBitSize, MemoryAddress, Opcode,
+        ValueOrArray,
+    },
+};
 
 use crate::{
     brillig::{
@@ -27,7 +33,7 @@ pub(crate) enum OpcodeAdvisory {
 }
 
 /// Go through opcodes and collect advisories, indicating opcodes which could potentially be removed
-pub(crate) fn opcode_advisories<F>(
+pub(crate) fn opcode_advisories<F: AcirField>(
     function: &Function,
     function_context: &FunctionContext,
     brillig_context: &BrilligContext<F, Stack>,
@@ -110,6 +116,9 @@ pub(crate) fn opcode_advisories<F>(
         // Going backwards, so reads at the end are recorded before earlier writes.
         for loc in opcode_range.rev() {
             let opcode = &brillig_context.artifact().byte_code[loc];
+            if ignore_opcode(opcode) {
+                continue;
+            }
             advisory_collector.visit_opcode(opcode, loc);
         }
 
@@ -465,5 +474,19 @@ trait OpcodeAddressVisitor {
                 self.read(output_pointer, location); // indirect
             }
         }
+    }
+}
+
+/// Whether to ignore the opcode when checking for advisories.
+fn ignore_opcode<F: AcirField>(opcode: &Opcode<F>) -> bool {
+    match opcode {
+        Opcode::Const { destination: _, bit_size: BitSize::Integer(IntegerBitSize::U1), value } => {
+            // A `constrain` of some arbitrary expression is usually broken up into an instruction with
+            // a boolean result, and then a constrain on the result being equal to 1. Constant allocation
+            // creates a constant for that 1, but the codegen later might not use it, but rather check
+            // the variable directly, since it's already a bool value.
+            value.is_one()
+        }
+        _ => false,
     }
 }
