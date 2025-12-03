@@ -86,6 +86,105 @@ fn failing_comptime_function_not_run() {
 }
 
 #[test]
+fn comptime_execution_stops_at_first_elaboration_error() {
+    // This test demonstrates the incremental execution model for comptime code,
+    // similar to Zig's comptime semantics. Execution proceeds by statement
+    // in order until an error is encountered, then stops completely.
+    //
+    // Execution flow:
+    // 1. COUNTER is incremented to 1 in the comptime block
+    // 2. foo() is called, which increments COUNTER to 2
+    // 3. The assertion `assert_eq(COUNTER, 2)` in foo() passes
+    // 4. The call to bar() happens, but execution stops immediately when bar()
+    //    encounters its type error during elaboration
+    // 5. We never execute any statements in bar() at comptime
+    //
+    // Evidence that bar() never executes:
+    // - The assertion `assert_eq(COUNTER, 0)` at the start of bar() succeeds,
+    //   proving COUNTER is still 0 inside bar() (because bar() never
+    //   actually runs). If it had run, it would see COUNTER = 2.
+    // - bar() has a type error that prevents it from executing at comptime
+    // - After bar() fails, we don't continue execution back in foo() or main()
+    //
+    // This test verifies that once we hit an error (the type error in bar()),
+    // execution stops completely and we don't continue in the calling function.
+    let src = "
+    comptime mut global COUNTER: Field = 0;
+
+    fn main() {
+        comptime {
+            COUNTER += 1;  // Would make COUNTER = 1
+            let _x = foo();
+            assert_eq(COUNTER, 0);
+        }
+    }
+
+    comptime fn foo() -> u32 {
+        COUNTER += 1;  // Would make COUNTER = 2
+        assert_eq(COUNTER, 2);
+        let result = bar();
+        assert_eq(COUNTER, 0);
+        result
+    }
+
+    comptime fn bar() -> u32 {
+        assert_eq(COUNTER, 0);
+        let _: u32 = true;
+                     ^^^^ Expected type u32, found type bool
+        assert_eq(COUNTER, 0);
+        3
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn comptime_execution_stops_at_assertion_failure() {
+    // Companion test to `comptime_execution_stops_at_first_error` that demonstrates
+    // execution stops at a runtime assertion failure (not just elaboration/type errors).
+    //
+    // This test shows that the incremental execution model applies to runtime errors:
+    // execution proceeds until hitting an assertion failure, then stops completely.
+    //
+    // Execution flow:
+    // 1. COUNTER is incremented to 1 in the comptime block
+    // 2. foo() is called, which increments COUNTER to 2
+    // 3. The assertion `assert_eq(COUNTER, 2)` in foo() passes
+    // 4. bar() is called and begins execution
+    // 5. The assertion `assert_eq(COUNTER, 99)` in bar() fails (COUNTER is 2)
+    // 6. Execution stops - the second assertion `assert_eq(COUNTER, 0)` never runs
+    // 7. Execution doesn't continue back in foo() (the assertion after bar() call
+    //    never runs) or in main()
+    let src = "
+    comptime mut global COUNTER: Field = 0;
+
+    fn main() {
+        comptime {
+            COUNTER += 1;  // Makes COUNTER = 1
+            let _x = foo();
+            assert_eq(COUNTER, 0);
+        }
+    }
+
+    comptime fn foo() -> u32 {
+        COUNTER += 1;  // Makes COUNTER = 2
+        assert_eq(COUNTER, 2);
+        let result = bar();
+        assert_eq(COUNTER, 0);
+        result
+    }
+
+    comptime fn bar() -> u32 {
+        assert_eq(COUNTER, 99);
+                  ^^^^^^^^^^^ Assertion failed
+        assert_eq(COUNTER, 0);
+        3
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
 fn function_with_error_called_from_comptime_global() {
     let src = "
         comptime fn bad() -> Field {
@@ -117,6 +216,8 @@ fn function_with_error_called_from_comptime_function() {
         comptime fn caller() {
             bad();
             assert_eq(FLAG, false);
+            // This comptime block will not be run at all
+            assert_eq(FLAG, true);
         }
 
         fn main() {
@@ -147,6 +248,8 @@ fn nested_function_calls_with_inner_error() {
             comptime {
                 outer();
                 assert_eq(FLAG, false);
+                // This comptime block will not be run at all
+                assert_eq(FLAG, true);
             }
         }
         ";
@@ -172,6 +275,8 @@ fn nested_function_calls_with_inner_post_call_mutation() {
             comptime {
                 outer();
                 assert_eq(FLAG, false);
+                // This comptime block will not be run at all
+                assert_eq(FLAG, true);
             }
         }
         ";
@@ -197,6 +302,8 @@ fn nested_function_calls_with_inner_error_pre_call_mutation() {
             comptime {
                 outer();
                 assert_eq(FLAG, false);
+                // This comptime block will not be run at all
+                assert_eq(FLAG, true);
             }
         }
         ";
@@ -217,6 +324,8 @@ fn nested_function_calls_with_inner_error_pre_call_mutation_decl_order() {
             comptime {
                 outer();
                 assert_eq(FLAG, false);
+                // This comptime block will not be run at all
+                assert_eq(FLAG, true);
             }
         }
 
@@ -244,6 +353,8 @@ fn function_with_error_in_comptime_variable() {
             comptime {
                 let _x = bad();
                 assert_eq(FLAG, false);
+                // This comptime block will not be run at all
+                assert_eq(FLAG, true);
             }
         }
         ";
@@ -258,13 +369,15 @@ fn function_with_error_in_local_comptime_variable() {
         comptime fn bad() -> Field {
             let _: i32 = 10_u32;
                          ^^^^^^ Expected type i32, found type u32
+            // This will not be run at all
             FLAG = true;
+            assert_eq(FLAG, false); 
             42
         }
 
         fn main() {
             comptime let _x = bad();
-            assert_eq(FLAG, false);
+            assert_eq(FLAG, false); 
         }
         ";
     check_errors(src);
@@ -289,8 +402,10 @@ fn multiple_functions_only_bad_one_skipped() {
         fn main() {
             comptime {
                 good();
-                bad();
                 assert_eq(FLAG, true);
+                bad();
+                // This code is not run thus we do not see an assertion error
+                assert_eq(FLAG, false);
                 assert_eq(FLAG2, false);
             }
         }
@@ -340,6 +455,8 @@ fn attribute_function_with_error_not_run() {
             comptime {
                 some_function();
                 assert_eq(FLAG, false);
+                assert_eq(FLAG, true);
+
             }
         }
         ";
@@ -368,6 +485,7 @@ fn attribute_with_error_prevents_function_execution() {
             comptime {
                 some_function();
                 assert_eq(FLAG, false);
+                assert_eq(FLAG, true);
             }
         }
         ";
