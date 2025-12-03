@@ -482,13 +482,9 @@ impl<'context> Elaborator<'context> {
     /// Run a given function while also tracking whether any new errors were generated as a result.
     pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
         // Count actual errors (ignore warnings)
-        // Note: We could optimize this filter by keeping track of the true error count in a separate field
-        let initial_error_count = self.errors.iter().filter(|e| e.is_error()).count();
-        // dbg!(initial_error_count);
+        let initial_error_count = self.errors.len();
         let result = f(self);
-        let final_error_count = self.errors.iter().filter(|e| e.is_error()).count();
-        // dbg!(final_error_count);
-        let has_new_errors = final_error_count > initial_error_count;
+        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
         (result, has_new_errors)
     }
 
