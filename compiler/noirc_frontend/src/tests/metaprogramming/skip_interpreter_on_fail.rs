@@ -70,6 +70,8 @@ fn failing_comptime_function_not_run() {
             bad(); 
             // We expect the `FLAG` to remain `false`
             assert_eq(FLAG, false);
+            // This comptime block will not be run at all as `bad` has errors
+            assert_eq(FLAG, true);
         }
     }
 
