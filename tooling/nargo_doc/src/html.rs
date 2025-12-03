@@ -89,6 +89,7 @@ impl HTMLCreator {
 
     fn process_workspace(&mut self, workspace: &Workspace) {
         self.create_styles();
+        self.create_js();
         self.create_all_items(workspace);
         self.create_index(workspace);
 
@@ -107,9 +108,15 @@ impl HTMLCreator {
         self.push_file(PathBuf::from("styles.css"));
     }
 
+    fn create_js(&mut self) {
+        let contents = include_str!("nargo_doc.js");
+        self.output.push_str(contents);
+        self.push_file(PathBuf::from("nargo_doc.js"));
+    }
+
     fn create_all_items(&mut self, workspace: &Workspace) {
         let all_items = all_items::compute_all_items(workspace);
-        self.html_start(&format!("All items in {}", workspace.name));
+        self.html_start(&format!("All items in {}", workspace.name), &workspace.name);
         self.sidebar_start();
         self.render_all_items_sidebar(&all_items);
         self.sidebar_end();
@@ -179,7 +186,11 @@ impl HTMLCreator {
             .collect::<Vec<_>>();
         let redirect =
             if crates.len() == 1 { Some(format!("{}/index.html", crates[0].name)) } else { None };
-        self.html_start_with_redirect(&format!("{} documentation", workspace.name), redirect);
+        self.html_start_with_redirect(
+            &format!("{} documentation", workspace.name),
+            &workspace.name,
+            redirect,
+        );
 
         // This sidebar is empty because there's not much we can list here.
         // It's here so that every page has a sidebar.
@@ -198,7 +209,7 @@ impl HTMLCreator {
         self.current_path.push(krate.name.clone());
         self.current_crate_version = krate.version.clone();
 
-        self.html_start(&format!("Crate {}", krate.name));
+        self.html_start(&format!("Crate {}", krate.name), &krate.name);
         self.sidebar_start();
         self.render_crate_sidebar(workspace, krate);
         self.sidebar_end();
@@ -454,7 +465,7 @@ impl HTMLCreator {
 
         let kind = if module.is_contract { "Contract" } else { "Module" };
 
-        self.html_start(&format!("{kind} {}", module.name));
+        self.html_start(&format!("{kind} {}", module.name), &module.name);
         self.sidebar_start();
         self.render_module_sidebar(parent_module, module);
         self.sidebar_end();
@@ -522,7 +533,7 @@ impl HTMLCreator {
     }
 
     fn create_struct(&mut self, parent_module: &Module, struct_: &Struct) {
-        self.html_start(&format!("Struct {}", struct_.name));
+        self.html_start(&format!("Struct {}", struct_.name), &struct_.name);
         self.sidebar_start();
         self.render_struct_sidebar(struct_);
         self.render_module_contents_sidebar(parent_module, 0);
@@ -584,7 +595,7 @@ impl HTMLCreator {
     }
 
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
-        self.html_start(&format!("Trait {}", trait_.name));
+        self.html_start(&format!("Trait {}", trait_.name), &trait_.name);
         self.sidebar_start();
         self.render_trait_sidebar(trait_);
         self.render_module_contents_sidebar(parent_module, 0);
@@ -674,7 +685,7 @@ impl HTMLCreator {
     }
 
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
-        self.html_start(&format!("Type alias {}", alias.name));
+        self.html_start(&format!("Type alias {}", alias.name), &alias.name);
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
@@ -688,7 +699,7 @@ impl HTMLCreator {
     }
 
     fn create_function(&mut self, parent_module: &Module, function: &Function) {
-        self.html_start(&format!("Function {}", function.name));
+        self.html_start(&format!("Function {}", function.name), &function.name);
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
@@ -703,7 +714,7 @@ impl HTMLCreator {
     }
 
     fn create_global(&mut self, parent_module: &Module, global: &Global) {
-        self.html_start(&format!("Global {}", global.name));
+        self.html_start(&format!("Global {}", global.name), &global.name);
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
@@ -717,7 +728,7 @@ impl HTMLCreator {
     }
 
     fn create_primitive_type(&mut self, parent_module: &Module, primitive: &PrimitiveType) {
-        self.html_start(&format!("Primitive type {}", primitive.kind));
+        self.html_start(&format!("Primitive type {}", primitive.kind), &primitive.kind.to_string());
         self.sidebar_start();
         self.render_primitive_sidebar(primitive);
         self.render_module_contents_sidebar(parent_module, 0);
@@ -1479,11 +1490,16 @@ impl HTMLCreator {
             .unwrap_or_else(|| trait_.trait_impls.clone())
     }
 
-    fn html_start(&mut self, title: &str) {
-        self.html_start_with_redirect(title, None);
+    fn html_start(&mut self, title: &str, short_title: &str) {
+        self.html_start_with_redirect(title, short_title, None);
     }
 
-    fn html_start_with_redirect(&mut self, title: &str, redirect: Option<String>) {
+    fn html_start_with_redirect(
+        &mut self,
+        title: &str,
+        short_title: &str,
+        redirect: Option<String>,
+    ) {
         self.output.push_str("<!DOCTYPE html>\n");
         self.output.push_str("<html>\n");
         self.output.push_str("<head>\n");
@@ -1499,12 +1515,22 @@ impl HTMLCreator {
             "<link rel=\"stylesheet\" href=\"{}styles.css\">\n",
             "../".repeat(nesting)
         ));
+        self.output.push_str(&format!(
+            "<script defer src=\"{}nargo_doc.js\"></script>\n",
+            "../".repeat(nesting)
+        ));
         self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
+        self.output.push_str("<div id=\"sidebar-toggle\">\n");
+        self.output.push_str("<button id=\"sidebar-toggle-button\"></button>\n");
+        self.output.push_str(&format!("<div id=\"sidebar-toggle-title\">{short_title}</div>\n"));
+        self.output.push_str("</div>\n");
+        self.output.push_str("<span id=\"main-contents\">\n");
     }
 
     fn html_end(&mut self) {
+        self.output.push_str("</span>\n");
         self.output.push_str("</body>\n");
         self.output.push_str("</html>\n");
     }
