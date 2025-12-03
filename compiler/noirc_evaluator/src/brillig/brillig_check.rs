@@ -124,7 +124,7 @@ pub(crate) fn show_opcode_advisories<F: Display>(
     artifact: &BrilligArtifact<F>,
 ) {
     println!(
-        "// There are {} Brillig opcode advisories for function {}",
+        "\n// There are {} Brillig opcode advisories for function '{}'",
         advisories.len(),
         artifact.name
     );
@@ -134,7 +134,8 @@ pub(crate) fn show_opcode_advisories<F: Display>(
     }
 
     println!("fn {}", artifact.name);
-    let width = artifact.byte_code.len().to_string().len();
+    let index_width = artifact.byte_code.len().to_string().len();
+    let opcode_width = 40;
     for (index, opcode) in artifact.byte_code.iter().enumerate() {
         let advisory = match advisories.get(&index) {
             Some(OpcodeAdvisory::NeverRead) => " // Never read",
@@ -143,7 +144,11 @@ pub(crate) fn show_opcode_advisories<F: Display>(
             }
             None => "",
         };
-        println!("{index:>width$}: {opcode}{advisory}");
+        let mut opcode = format!("{opcode}");
+        for _ in opcode.len()..opcode_width {
+            opcode.push(' ');
+        }
+        println!("{index:>index_width$}: {opcode}{advisory}");
     }
 }
 
