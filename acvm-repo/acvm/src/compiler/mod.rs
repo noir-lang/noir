@@ -1,14 +1,9 @@
-//! The `compiler` module contains several passes to transform an ACIR program.
-//! Roughly, the passes are separated into the `optimizers` which try to reduce the number of opcodes
-//! and the `transformers` which adapt the opcodes to the proving backend.
+//! The `compiler` module contains several passes to optimize an ACIR program on the opcode level.
 //!
 //! # Optimizers
 //! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
 //! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
 //! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
-//!
-//! # Transformers
-//! - CSAT: create intermediate variables so that AssertZero opcodes have the correct Circuit's `ExpressionWidth`.
 //!
 //! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an `Artifacts` type.
