@@ -142,7 +142,7 @@ fn debug_test_fn(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, package, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {

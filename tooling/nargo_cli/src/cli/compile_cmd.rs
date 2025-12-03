@@ -12,7 +12,6 @@ use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::{
     read_program_from_file, save_contract_to_file, save_program_to_file,
 };
-use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
 
@@ -237,8 +236,6 @@ fn compile_programs(
         if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program)) {
             return Ok(((), warnings));
         }
-        // Run ACVM optimizations and set the target width.
-        let program = nargo::ops::transform_program(program, DEFAULT_EXPRESSION_WIDTH);
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
@@ -276,8 +273,6 @@ fn compile_contracts(
         .map(|package| {
             let (contract, warnings) =
                 compile_contract(file_manager, parsed_files, package, compile_options)?;
-
-            let contract = nargo::ops::transform_contract(contract, DEFAULT_EXPRESSION_WIDTH);
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
