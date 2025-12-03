@@ -152,7 +152,7 @@ fn nested_function_calls_with_inner_error() {
 }
 
 #[test]
-fn nested_function_calls_with_inner_error_outer_mutation() {
+fn nested_function_calls_with_inner_post_call_mutation() {
     let src = "
         comptime mut global FLAG: bool = false;
 
@@ -171,6 +171,56 @@ fn nested_function_calls_with_inner_error_outer_mutation() {
                 outer();
                 assert_eq(FLAG, false);
             }
+        }
+        ";
+    check_errors(src);
+}
+
+#[test]
+fn nested_function_calls_with_inner_error_pre_call_mutation() {
+    let src = "
+        comptime mut global FLAG: bool = false;
+
+        comptime fn inner() {
+            let _: i32 = 10_u32;
+                         ^^^^^^ Expected type i32, found type u32
+        }
+
+        comptime fn outer() {
+            FLAG = true;
+            inner();
+        }
+
+        fn main() {
+            comptime {
+                outer();
+                assert_eq(FLAG, false);
+            }
+        }
+        ";
+    check_errors(src);
+}
+
+#[test]
+fn nested_function_calls_with_inner_error_pre_call_mutation_decl_order() {
+    let src = "
+        comptime mut global FLAG: bool = false;
+
+        comptime fn outer() {
+            FLAG = true;
+            inner();
+        }
+
+        fn main() {
+            comptime {
+                outer();
+                assert_eq(FLAG, false);
+            }
+        }
+
+        comptime fn inner() {
+            let _: i32 = 10_u32;
+                         ^^^^^^ Expected type i32, found type u32
         }
         ";
     check_errors(src);
