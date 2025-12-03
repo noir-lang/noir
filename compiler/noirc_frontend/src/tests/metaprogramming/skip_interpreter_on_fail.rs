@@ -332,12 +332,40 @@ fn attribute_function_with_error_not_run() {
         }
 
         #[my_attribute]
-        fn some_function() {}
+        fn some_function() { }
 
         fn main() {
-            some_function();
             comptime {
+                some_function();
                 assert_eq(FLAG, false);
+            }
+        }
+        ";
+    check_errors(src);
+}
+
+#[test]
+fn attribute_with_error_prevents_function_execution() {
+    // The annotated function should not be called when its attribute failed
+    let src = "
+        comptime mut global FLAG: bool = false;
+
+        comptime fn my_attribute(_f: FunctionDefinition) -> Quoted {
+            let _: i32 = 10_u32;
+                         ^^^^^^ Expected type i32, found type u32
+            FLAG = true;
+            quote {}
+        }
+
+        #[my_attribute]
+        comptime fn some_function() {
+            FLAG = true;
+        }
+
+        fn main() {
+            comptime {
+                some_function();
+                assert_eq(FLAG, true);
             }
         }
         ";
