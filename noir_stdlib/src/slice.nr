@@ -8,24 +8,29 @@ impl<T> [T] {
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the
     /// original unmodified slice.
-    #[builtin(slice_push_back)]
-    pub fn push_back(self, elem: T) -> Self {}
+    pub fn push_back(self, elem: T) -> Self {
+        self.insert(self.len(), elem)
+    }
 
     /// Push a new element to the front of the slice, returning a
     /// new slice with a length one greater than the
     /// original unmodified slice.
-    #[builtin(slice_push_front)]
-    pub fn push_front(self, elem: T) -> Self {}
+    pub fn push_front(self, elem: T) -> Self {
+        self.insert(0, elem)
+    }
 
     /// Remove the last element of the slice, returning the
     /// popped slice and the element in a tuple
-    #[builtin(slice_pop_back)]
-    pub fn pop_back(self) -> (Self, T) {}
+    pub fn pop_back(self) -> (Self, T) {
+        self.remove(self.len() - 1)
+    }
 
     /// Remove the first element of the slice, returning the
     /// element and the popped slice in a tuple
-    #[builtin(slice_pop_front)]
-    pub fn pop_front(self) -> (T, Self) {}
+    pub fn pop_front(self) -> (T, Self) {
+        let (slice, elem) = self.remove(0);
+        (elem, slice)
+    }
 
     /// Insert an element at a specified index, shifting all elements
     /// after it to the right
