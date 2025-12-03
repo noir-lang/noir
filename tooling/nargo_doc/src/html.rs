@@ -706,8 +706,9 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
         let as_header = false;
+        let link = false;
         let output_id = false;
-        self.render_function(function, 1, as_header, output_id);
+        self.render_function(function, 1, as_header, link, output_id);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(function.uri()));
@@ -842,7 +843,8 @@ impl HTMLCreator {
         let output_id = true;
 
         self.self_type = Some(impl_.r#type.clone());
-        self.render_methods(&impl_.methods, 3, output_id);
+        let link = true;
+        self.render_methods(&impl_.methods, 3, output_id, link);
         self.self_type = None;
     }
 
@@ -875,7 +877,8 @@ impl HTMLCreator {
         if show_methods {
             self.self_type = Some(trait_impl.r#type.clone());
             let output_id = false;
-            self.render_methods(&trait_impl.methods, 3, output_id);
+            let link = false;
+            self.render_methods(&trait_impl.methods, 3, output_id, link);
             self.self_type = None;
         }
     }
@@ -981,7 +984,8 @@ impl HTMLCreator {
 
         self.h2(title);
         let output_id = true;
-        self.render_methods(methods, 2, output_id);
+        let link = true;
+        self.render_methods(methods, 2, output_id, link);
     }
 
     fn render_type_alias_code(&mut self, alias: &TypeAlias) {
@@ -1016,10 +1020,11 @@ impl HTMLCreator {
         methods: &[Function],
         current_heading_level: usize,
         output_id: bool,
+        link: bool,
     ) {
         self.output.push_str("<div class=\"padded-methods\">");
         for method in methods {
-            self.render_function(method, current_heading_level, true, output_id);
+            self.render_function(method, current_heading_level, true, link, output_id);
         }
         self.output.push_str("</div>");
     }
@@ -1029,9 +1034,10 @@ impl HTMLCreator {
         function: &Function,
         current_heading_level: usize,
         as_header: bool,
+        link: bool,
         output_id: bool,
     ) {
-        self.render_function_signature(function, as_header, output_id);
+        self.render_function_signature(function, as_header, link, output_id);
 
         let pad = as_header && (function.is_deprecated() || function.comments.is_some());
         if pad {
@@ -1057,7 +1063,13 @@ impl HTMLCreator {
         }
     }
 
-    fn render_function_signature(&mut self, function: &Function, as_header: bool, output_id: bool) {
+    fn render_function_signature(
+        &mut self,
+        function: &Function,
+        as_header: bool,
+        link: bool,
+        output_id: bool,
+    ) {
         if as_header {
             if output_id {
                 self.output
@@ -1070,7 +1082,6 @@ impl HTMLCreator {
             self.output.push_str("<code>");
         }
         let color_name = as_header;
-        let link = false;
         let indent = 0;
         self.render_function_signature_inner(function, color_name, link, indent);
         self.output.push_str("</code>");
