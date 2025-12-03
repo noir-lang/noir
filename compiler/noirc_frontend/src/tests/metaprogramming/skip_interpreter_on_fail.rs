@@ -52,7 +52,7 @@ fn do_not_evaluate_comptime_block_with_preceding_failure() {
                     ^^ Cannot apply unary operator `-` to type `u8`
             let x: i8 = 5 + 20;
             // We would expect this to trigger an interpreter error if it were not
-            // for the type error abbove.
+            // for the type error above.
             assert_eq(x, 15);
         }
     }
@@ -365,9 +365,22 @@ fn attribute_with_error_prevents_function_execution() {
         fn main() {
             comptime {
                 some_function();
-                assert_eq(FLAG, true);
+                assert_eq(FLAG, false);
             }
         }
         ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10686() {
+    let src = "
+    fn main() {
+        comptime {
+            let _ = i32 {};
+                    ^^^ expected type got primitive type
+        }
+    }
+    ";
     check_errors(src);
 }

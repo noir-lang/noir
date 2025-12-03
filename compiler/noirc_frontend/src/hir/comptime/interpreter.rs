@@ -109,7 +109,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         current_function: Option<FuncId>,
     ) -> Self {
-        // panic!("made interpreter");
         Self { elaborator, current_function, bound_generics: Vec::new(), in_loop: false }
     }
 

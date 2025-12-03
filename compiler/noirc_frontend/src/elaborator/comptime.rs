@@ -386,6 +386,10 @@ impl<'context> Elaborator<'context> {
     ) -> Result<(), CompilationError> {
         self.local_module = Some(attribute_context.module);
 
+        // Save the annotated function's ID before moving the item
+        let annotated_func_id =
+            if let Value::FunctionDefinition(func_id) = item { Some(func_id) } else { None };
+
         let mut interpreter = self.setup_interpreter();
         let mut arguments = Self::handle_attribute_arguments(
             &mut interpreter,
@@ -397,9 +401,19 @@ impl<'context> Elaborator<'context> {
 
         arguments.insert(0, (item, location));
 
-        let value = interpreter
-            .call_function(function, arguments, TypeBindings::default(), location)
-            .map_err(CompilationError::from)?;
+        let result =
+            interpreter.call_function(function, arguments, TypeBindings::default(), location);
+
+        // After trying to call the attribute function, check if it has errors.
+        // If so, mark the annotated function as also having errors to prevent it from executing.
+        // We need to check this before propagating the error with `?`.
+        if self.functions_with_errors.contains(&function) {
+            if let Some(func_id) = annotated_func_id {
+                self.functions_with_errors.insert(func_id);
+            }
+        }
+
+        let value = result.map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
