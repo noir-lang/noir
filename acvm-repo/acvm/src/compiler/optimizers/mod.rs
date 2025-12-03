@@ -33,8 +33,10 @@ pub fn optimize<F: AcirField>(
     // In the new circuit, the opcode at index `i` corresponds to the opcode at index `new_opcode_positions[i]` in the original circuit.
     // For instance let's say it removed the opcode at index 3, and replaced the one at index 5 by two new opcodes
     // The new_opcode_positions is now: 0,1,2,4,5,5,6,....n-1
-    let (mut acir, new_opcode_positions) =
+    let (acir, new_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
+    let (mut acir, new_opcode_positions) =
+        optimize_internal(acir, new_opcode_positions, brillig_side_effects);
 
     let transformation_map = AcirTransformationMap::new(&new_opcode_positions);
 
