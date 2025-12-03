@@ -106,7 +106,7 @@ mod tests {
                         max_bits: 8
                     },
                 })
-            )
+            );
         }
     }
 
@@ -153,7 +153,7 @@ mod tests {
                         max_bits: 8
                     },
                 })
-            )
+            );
         }
     }
 }
