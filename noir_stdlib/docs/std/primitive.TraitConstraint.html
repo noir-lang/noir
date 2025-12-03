@@ -86,6 +86,17 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">TraitConstraint</span></h1>
+<div class="comments">
+<p>A compile-time type which represents a trait constraint that can be used to search for a trait implementation.</p>
+<p>This is similar syntactically to just the trait itself, but can also contain generic arguments.
+E.g. <code>Eq</code>, <code>Default</code>, <code>BuildHasher&lt;Poseidon2Hasher&gt;</code>.</p>
+<p>A <code>TraitConstraint</code> can be obtained using <a href="../std/primitive.Quoted.html#as_trait_constraint"><code>Quoted::as_trait_constraint</code></a>:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> constraint = <span class="kw">quote</span> { Eq }.as_trait_constraint();
+        println(constraint); <span class="comment">// outputs "Eq"</span>
+    }
+}</code></pre></div>
 <h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-TraitConstraint"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code></h3>
 

@@ -90,6 +90,15 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">TraitDefinition</span></h1>
+<div class="comments">
+<p>A compile-time type which represents a trait definition such as <code>trait Foo { .. }</code>.</p>
+<p>A <code>TraitDefinition</code> is passed as the first argument to a macro attribute on top of a trait:</p>
+<pre><code>#[attr]
+<span class="kw">trait</span> Foo {}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> attr(trait_definition: TraitDefinition) {
+    println(trait_definition); <span class="comment">// outputs "Foo"</span>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TraitDefinition.html" class="primitive">TraitDefinition</a></code></h3>
 

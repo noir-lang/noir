@@ -86,6 +86,16 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">fmtstr</span></h1>
+<div class="comments">
+<p>A formatted string with interpolated values.</p>
+<h2>Example</h2>
+<pre><code><span class="kw">fn</span> main() {
+  <span class="kw">let</span> x = <span class="number">1</span>;
+  <span class="kw">let</span> y = <span class="number">2</span>;
+  <span class="kw">let</span> sum = <span class="number">3</span>;
+  <span class="kw">let</span> f = <span class="string">f"</span><span class="interpolation">{x}</span><span class="string"> + </span><span class="interpolation">{y}</span><span class="string"> is </span><span class="interpolation">{sum}</span><span class="string">"</span>; <span class="comment">// prints "0x01 + 0x02 is 0x03"</span>
+  println(f);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;</code></h3>
 
