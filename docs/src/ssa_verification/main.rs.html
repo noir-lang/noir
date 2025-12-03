@@ -141,7 +141,18 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">mod </span>acir_instruction_builder;
@@ -160,11 +171,10 @@
     version,
     about = <span class="string">"Generates test artifacts for formally verifying SSA instructions and their conversion to ACIR"</span>,
     long_about = <span class="string">"This tool generates test cases for various operations including:
-- Bitvector operations (up to 127 bits): add, sub, mul, mod, xor, and, div, eq, lt, not
+- Bitvector operations (up to 128 bits): add, sub, mul, mod, xor, and, div, eq, lt, not
 - Shift operations (32 and 64 bits): shl, shr  
 - Binary operations (32-bit): xor, and, or
 - Field operations: add, mul, div
-- Signed integer operations: div (126-bit)
 
 Each test case generates formatted SSA representation and serialized ACIR output."
 </span>)]
@@ -219,12 +229,15 @@ Each test case generates formatted SSA representation and serialized ACIR output
     </span><span class="kw">let </span>field_var = Variable { variable_type: VariableType::Field, variable_size: <span class="number">0 </span>};
     <span class="comment">// max bit size for signed and unsigned
     </span><span class="kw">let </span>u128_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">128 </span>};
-    <span class="kw">let </span>i128_var = Variable { variable_type: VariableType::Signed, variable_size: <span class="number">128 </span>};
-    <span class="kw">let </span>i127_var = Variable { variable_type: VariableType::Signed, variable_size: <span class="number">127 </span>};
     <span class="comment">// 64 bit unsigned
     </span><span class="kw">let </span>u64_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">64 </span>};
     <span class="comment">// 32 bit unsigned
     </span><span class="kw">let </span>u32_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">32 </span>};
+
+    <span class="kw">let </span>u8_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">8 </span>};
+    <span class="kw">let </span>i8_var = Variable { variable_type: VariableType::Signed, variable_size: <span class="number">8 </span>};
+
+    <span class="kw">let </span>i64_var = Variable { variable_type: VariableType::Signed, variable_size: <span class="number">64 </span>};
 
     <span class="comment">// Tests for bitvector operations with max bit size (128 bits)
     </span>all_artifacts.push(InstructionArtifacts::new_add(<span class="kw-2">&amp;</span>u128_var, <span class="kw-2">&amp;</span>u128_var));
@@ -240,32 +253,36 @@ Each test case generates formatted SSA representation and serialized ACIR output
     all_artifacts.push(InstructionArtifacts::new_or(<span class="kw-2">&amp;</span>u128_var, <span class="kw-2">&amp;</span>u128_var));
     all_artifacts.push(InstructionArtifacts::new_not(<span class="kw-2">&amp;</span>u128_var));
     all_artifacts.push(InstructionArtifacts::new_constrain(<span class="kw-2">&amp;</span>u128_var));
-    all_artifacts.push(InstructionArtifacts::new_truncate(<span class="kw-2">&amp;</span>u128_var, <span class="number">10</span>, <span class="number">20</span>));
     all_artifacts.push(InstructionArtifacts::new_range_check(<span class="kw-2">&amp;</span>u128_var, <span class="number">64</span>));
-    <span class="comment">// Tests for signed operations with max bit size (128 bits)
-    </span>all_artifacts.push(InstructionArtifacts::new_add(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_sub(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_mul(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_mod(<span class="kw-2">&amp;</span>i127_var, <span class="kw-2">&amp;</span>i127_var));
-    all_artifacts.push(InstructionArtifacts::new_xor(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_and(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_div(<span class="kw-2">&amp;</span>i127_var, <span class="kw-2">&amp;</span>i127_var));
-    all_artifacts.push(InstructionArtifacts::new_eq(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_lt(<span class="kw-2">&amp;</span>i127_var, <span class="kw-2">&amp;</span>i127_var));
-    all_artifacts.push(InstructionArtifacts::new_xor(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_or(<span class="kw-2">&amp;</span>i128_var, <span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_not(<span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_constrain(<span class="kw-2">&amp;</span>i128_var));
-    all_artifacts.push(InstructionArtifacts::new_truncate(<span class="kw-2">&amp;</span>i128_var, <span class="number">10</span>, <span class="number">20</span>));
-    all_artifacts.push(InstructionArtifacts::new_range_check(<span class="kw-2">&amp;</span>i128_var, <span class="number">64</span>));
+
+    all_artifacts.push(InstructionArtifacts::new_add(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_sub(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_mul(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_mod(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_xor(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_and(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_div(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_eq(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_lt(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_xor(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_or(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_not(<span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_constrain(<span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_range_check(<span class="kw-2">&amp;</span>i64_var, <span class="number">32</span>));
 
     <span class="comment">// Test shift operations with smaller bit sizes
     // shl truncates variable, so test different sizes
-    // Too heavy to test 127 bits, but it just multiplies or divides by 2^rhs
+    // Too heavy to test 128 bits, but it just multiplies or divides by 2^rhs
     // Should work the same if div and mul are verified
     </span>all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u64_var, <span class="kw-2">&amp;</span>u64_var));
     all_artifacts.push(InstructionArtifacts::new_shr(<span class="kw-2">&amp;</span>u64_var, <span class="kw-2">&amp;</span>u64_var));
     all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u32_var, <span class="kw-2">&amp;</span>u32_var));
+    all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u8_var, <span class="kw-2">&amp;</span>u8_var));
+    all_artifacts.push(InstructionArtifacts::new_shr(<span class="kw-2">&amp;</span>u8_var, <span class="kw-2">&amp;</span>u8_var));
+    all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_shr(<span class="kw-2">&amp;</span>i64_var, <span class="kw-2">&amp;</span>i64_var));
+    all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>i8_var, <span class="kw-2">&amp;</span>i8_var));
+    all_artifacts.push(InstructionArtifacts::new_shr(<span class="kw-2">&amp;</span>i8_var, <span class="kw-2">&amp;</span>i8_var));
 
     <span class="comment">// Test binary operations with 32 bits
     </span>all_artifacts.push(InstructionArtifacts::new_xor(<span class="kw-2">&amp;</span>u32_var, <span class="kw-2">&amp;</span>u32_var));
@@ -278,9 +295,14 @@ Each test case generates formatted SSA representation and serialized ACIR output
     all_artifacts.push(InstructionArtifacts::new_div(<span class="kw-2">&amp;</span>field_var, <span class="kw-2">&amp;</span>field_var));
     all_artifacts.push(InstructionArtifacts::new_eq(<span class="kw-2">&amp;</span>field_var, <span class="kw-2">&amp;</span>field_var));
 
-    <span class="comment">// Test signed division (only operation that differs for signed integers)
-    </span>all_artifacts.push(InstructionArtifacts::new_div(<span class="kw-2">&amp;</span>i127_var, <span class="kw-2">&amp;</span>i127_var));
-    all_artifacts.push(InstructionArtifacts::new_lt(<span class="kw-2">&amp;</span>i127_var, <span class="kw-2">&amp;</span>i127_var));
+    <span class="comment">// Field as u32
+    </span>all_artifacts.push(InstructionArtifacts::new_truncate(<span class="kw-2">&amp;</span>field_var, <span class="number">32</span>, <span class="number">254</span>));
+
+    <span class="comment">// u64 as u8
+    </span>all_artifacts.push(InstructionArtifacts::new_truncate(<span class="kw-2">&amp;</span>u64_var, <span class="number">8</span>, <span class="number">64</span>));
+
+    <span class="comment">// i64 as u8
+    </span>all_artifacts.push(InstructionArtifacts::new_truncate(<span class="kw-2">&amp;</span>i64_var, <span class="number">8</span>, <span class="number">64</span>));
 
     save_artifacts(all_artifacts, <span class="kw-2">&amp;</span>args.dir);
 }
