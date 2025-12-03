@@ -16,7 +16,7 @@ pub fn truncate_to<F: AcirField>(input: &F, bits: u32) -> F {
         *input
     } else if num_bits < 128 {
         let mask = 2u128.pow(bits) - 1;
-        return F::from(input.to_u128() & mask);
+        F::from(input.to_u128() & mask)
     } else {
         let input_int = BigInt::from_bytes_be(num_bigint::Sign::Plus, &input.to_be_bytes());
         let modulus = BigInt::from(2u32).pow(bits);

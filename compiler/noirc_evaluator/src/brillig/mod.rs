@@ -38,7 +38,7 @@ use std::{borrow::Cow, collections::BTreeSet};
 pub use self::brillig_ir::procedures::ProcedureId;
 
 /// Options that affect Brillig code generation.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
