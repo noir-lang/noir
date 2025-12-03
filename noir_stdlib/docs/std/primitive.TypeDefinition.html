@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type TypeDefinition documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">TypeDefinition</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -112,17 +118,17 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a></code></h3>
 
-<div class="padded-methods"><code id="add_attribute" class="code-header">pub comptime fn <span class="fn">add_attribute</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, attribute: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;)</code>
+<div class="padded-methods"><code id="add_attribute" class="code-header">pub comptime fn <a href="#add_attribute"><span class="fn">add_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, attribute: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;)</code>
 
-<code id="add_generic" class="code-header">pub comptime fn <span class="fn">add_generic</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, generic_name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<code id="add_generic" class="code-header">pub comptime fn <a href="#add_generic"><span class="fn">add_generic</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, generic_name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
-<code id="as_type" class="code-header">pub comptime fn <span class="fn">as_type</span>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<code id="as_type" class="code-header">pub comptime fn <a href="#as_type"><span class="fn">as_type</span></a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Return a syntactic version of this type definition as a type.
 For example, <code>type Foo&lt;A, B&gt; { ... })</code> would return <code>Foo&lt;A, B&gt;</code> when called with this method.</p>
 </div>
-</div><code id="as_type_with_generics" class="code-header">pub comptime fn <span class="fn">as_type_with_generics</span>(self, generics: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
+</div><code id="as_type_with_generics" class="code-header">pub comptime fn <a href="#as_type_with_generics"><span class="fn">as_type_with_generics</span></a>(self, generics: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Return this type applied to the given generic arguments.
@@ -131,33 +137,33 @@ to return <code>Foo&lt;i32, Field&gt;</code>.</p>
 <p>If an incorrect number of generic arguments are given, this function will return None.
 Otherwise, this function returns Some with the resulting type inside.</p>
 </div>
-</div><code id="has_named_attribute" class="code-header">pub comptime fn <span class="fn">has_named_attribute</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute"><span class="fn">has_named_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="generics" class="code-header">pub comptime fn <span class="fn">generics</span>(self) -> [(<a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;)]</code>
+<code id="generics" class="code-header">pub comptime fn <a href="#generics"><span class="fn">generics</span></a>(self) -> [(<a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;)]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Return (type, option<type>) pairs of each generic in this type definition.
 If a generic is numeric, the second element of the pair will contain the numeric type.</p>
 </div>
-</div><code id="fields" class="code-header">pub comptime fn <span class="fn">fields</span>(self, generic_args: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>
+</div><code id="fields" class="code-header">pub comptime fn <a href="#fields"><span class="fn">fields</span></a>(self, generic_args: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns (name, type, visibility) tuples of each field in this type.
 Any generic types used in each field type is automatically substituted with the
 provided generic arguments.</p>
 </div>
-</div><code id="fields_as_written" class="code-header">pub comptime fn <span class="fn">fields_as_written</span>(self) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>
+</div><code id="fields_as_written" class="code-header">pub comptime fn <a href="#fields_as_written"><span class="fn">fields_as_written</span></a>(self) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
 with any generic arguments unchanged. Unless the field types are not needed,
 users should generally prefer to use <a href="../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> over this
 function if possible.</p></div>
-</div><code id="module" class="code-header">pub comptime fn <span class="fn">module</span>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
+</div><code id="module" class="code-header">pub comptime fn <a href="#module"><span class="fn">module</span></a>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
 
-<code id="name" class="code-header">pub comptime fn <span class="fn">name</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="name" class="code-header">pub comptime fn <a href="#name"><span class="fn">name</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
-<code id="set_fields" class="code-header">pub comptime fn <span class="fn">set_fields</span>(self, new_fields: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)])</code>
+<code id="set_fields" class="code-header">pub comptime fn <a href="#set_fields"><span class="fn">set_fields</span></a>(self, new_fields: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)])</code>
 
 <div class="padded-description"><div class="comments">
 <p>Sets the fields of this type to the given fields list.
@@ -177,5 +183,6 @@ Each name is expected to be a single identifier.</p>
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>
