@@ -86,7 +86,7 @@ mod tests {
             assert_eq!(initial_witness[&Witness(3)], FieldElement::from(2u128));
         }
 
-         #[test]
+        #[test]
         fn errors_if_input_is_too_large() {
             let lhs = FunctionInput::Witness(Witness(1));
             let rhs = FunctionInput::Witness(Witness(2));
