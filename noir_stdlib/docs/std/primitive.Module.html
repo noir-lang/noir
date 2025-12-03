@@ -97,24 +97,6 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">Module</span></h1>
-<div class="comments">
-<p>A compile-time type which represents a module in this source program.</p>
-<p>A <code>Module</code> is passed as the first argument to a macro attribute on top of a module:</p>
-<pre><code>#[attr]
-<span class="kw">mod</span> foo {}
-
-<span class="kw">comptime</span> <span class="kw">fn</span> attr(module: Module) {
-    println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
-}</code></pre>
-<p>It can also be obtained using <a href="../std/primitive.Quoted.html#as_module"><code>Quoted::as_module</code></a>:</p>
-<pre><code><span class="kw">mod</span> foo {}
-
-<span class="kw">fn</span> main() {
-    <span class="kw">comptime</span> {
-        <span class="kw">let</span> module = <span class="kw">quote</span> { foo }.as_module().unwrap();
-        println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
-    }
-}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 

@@ -120,14 +120,6 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">Field</span></h1>
-<div class="comments">
-<p>The native field type of the proving backend.</p>
-<p>The size of a Noir field depends on the elliptic curve's finite field for the proving backend adopted.
-For example, a field would be a 254-bit integer when paired with the default backend that spans the Grumpkin curve.</p>
-<p>Fields support integer arithmetic.</p>
-<p>If proving efficiency is of priority, fields should be used as a default for solving problems.
-Smaller integer types (e.g. <code>u64</code>) incur extra range constraints.</p>
-</div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 

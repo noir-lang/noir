@@ -86,16 +86,6 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">TypedExpr</span></h1>
-<div class="comments">
-<p>A compile-time type which represents a resolved and type-checked expression.</p>
-<p>A <code>TypedExpr</code> can be obtained using <a href="../std/primitive.Expr.html#resolve"><code>Expr::resolve</code></a>:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">comptime</span> {
-        <span class="kw">let</span> expr = <span class="kw">quote</span> { [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].len() }.as_expr().unwrap();
-        <span class="kw">let</span> typ = expr.resolve(Option::none());
-        println(typ.get_type().unwrap()); <span class="comment">// outputs "u32"</span>
-    }
-}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code></h3>
 

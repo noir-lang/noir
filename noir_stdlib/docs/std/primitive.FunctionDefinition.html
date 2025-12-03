@@ -105,16 +105,6 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">FunctionDefinition</span></h1>
-<div class="comments">
-<p>A compile-time type which represents a function definition in this source program.</p>
-<p>A <code>FunctionDefinition</code> is passed as the first argument to a macro attribute on
-top of a function:</p>
-<pre><code>#[attr]
-<span class="kw">fn</span> foo() {}
-
-<span class="kw">comptime</span> <span class="kw">fn</span> attr(function: FunctionDefinition) {
-    println(function.name()); <span class="comment">// prints "quote { foo }"</span>
-}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
 

@@ -16,15 +16,6 @@
     --primitive-color: var(--struct-color);
     --sidebar-color: light-dark(#f5f5f5, #505050);
     --comment-color: light-dark(#8e908c, #8d8d8b);
-    --target-color: light-dark(#fdffd3, #494a3d);
-    --target-highlight-color: light-dark(#9b7b14, #ad7c37);
-    --deprecated-color: light-dark(#fff5d6, #314559);
-    --kw-color: light-dark(#8959a8, #ab8ac1);
-    --bool-var-color: light-dark(#c82829, #ee6868);
-    --number-color: light-dark(#718c00, #83a300);
-    --string-color: light-dark(#718c00, #83a300);
-    --doccomment-color: light-dark(#4d4d4c, #8ca375);
-    --interpolation-color: light-dark(#119850, #bcca7d);
 }
 
 body {
@@ -61,19 +52,6 @@ code {
     white-space: pre-wrap;
 }
 
-:target {
-    animation-name: highlight-target;
-    animation-duration: 0.5s;
-    background-color: var(--target-color);
-}
-
-@keyframes highlight-target {
-    0% { background-color: var(--main-background-color); }
-    10% { background-color: var(--main-background-color); }
-    12% { background-color: var(--target-highlight-color); }
-    100% { background-color: var(--target-color); }
-}
-
 .code-header {
     display: block;
     margin-top: 1em;
@@ -95,7 +73,7 @@ h2 {
     border-bottom: 1px solid var(--header-border-color);
 }
 
-ul.item-list, ul.sidebar-list {
+ul {
     list-style-type: none;
     width: 100%;
     margin: 0;
@@ -228,42 +206,4 @@ ul.item-list, ul.sidebar-list {
 .where-clause {
     font-size: 0.875rem;
     white-space: pre-wrap;
-}
-
-.deprecated {
-    background-color: var(--deprecated-color);
-    padding: 3px;
-    margin-bottom: 5px;
-    border-radius: 3px;
-    width: fit-content;
-    font-family: "Source Serif 4", NanumBarunGothic, serif;
-}
-
-.emoji {
-    text-shadow:  0 0 black,-1px 0 0 black,0 1px 0 black,0 -1px 0 black;
-    margin-right: 0.3rem;
-}
-
-.kw { 
-    color: var(--kw-color);
-}
-
-.bool-var { 
-    color: var(--bool-var-color);
-}
-
-.number { 
-    color: var(--number-color);
-}
-
-.string { 
-    color: var(--string-color);
-}
-
-.doccomment { 
-    color: var(--doccomment-color);
-}
-
-.interpolation { 
-    color: var(--interpolation-color);
 }
