@@ -22,6 +22,9 @@ pub enum MonomorphizationError {
     AssignedToVarContainingReference { typ: String, location: Location },
     NestedSlices { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
+    ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedSliceReturnToConstrained { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -40,7 +43,14 @@ impl MonomorphizationError {
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
             | MonomorphizationError::NestedSlices { location }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
-            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. } => *location,
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
+            | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location, .. } => {
+                *location
+            }
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -119,6 +129,21 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let message = format!("Invalid type {typ} used in the error message");
                 let secondary = "Error message fragments must be ABI compatible".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::ConstrainedReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
             }
         };
 

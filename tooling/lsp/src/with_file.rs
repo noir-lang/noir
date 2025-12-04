@@ -744,6 +744,7 @@ fn lambda_with_file(lambda: Lambda, file: FileId) -> Lambda {
         }),
         return_type: option_unresolved_type_with_file(lambda.return_type, file),
         body: expression_with_file(lambda.body, file),
+        unconstrained: lambda.unconstrained,
     }
 }
 
