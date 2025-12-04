@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type UnresolvedType documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">UnresolvedType</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -96,31 +102,32 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a></code></h3>
 
-<div class="padded-methods"><code id="as_mutable_reference" class="code-header">pub comptime fn <span class="fn">as_mutable_reference</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+<div class="padded-methods"><code id="as_mutable_reference" class="code-header">pub comptime fn <a href="#as_mutable_reference"><span class="fn">as_mutable_reference</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
 </div>
-</div><code id="as_slice" class="code-header">pub comptime fn <span class="fn">as_slice</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a slice <code>&amp;[T]</code>, returns the element type <code>T</code>.</p>
 </div>
-</div><code id="is_bool" class="code-header">pub comptime fn <span class="fn">is_bool</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_bool" class="code-header">pub comptime fn <a href="#is_bool"><span class="fn">is_bool</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type is <code>bool</code>.</p>
 </div>
-</div><code id="is_field" class="code-header">pub comptime fn <span class="fn">is_field</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_field" class="code-header">pub comptime fn <a href="#is_field"><span class="fn">is_field</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if this type refers to the <code>Field</code> type.</p>
 </div>
-</div><code id="is_unit" class="code-header">pub comptime fn <span class="fn">is_unit</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_unit" class="code-header">pub comptime fn <a href="#is_unit"><span class="fn">is_unit</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if this type is the unit <code>()</code> type.</p>
 </div>
 </div></div></main>
+</span>
 </body>
 </html>

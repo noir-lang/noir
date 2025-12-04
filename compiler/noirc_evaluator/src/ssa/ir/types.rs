@@ -81,6 +81,10 @@ impl NumericType {
         }
     }
 
+    pub(crate) fn is_field(&self) -> bool {
+        matches!(self, NumericType::NativeField)
+    }
+
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, NumericType::Unsigned { .. })
     }

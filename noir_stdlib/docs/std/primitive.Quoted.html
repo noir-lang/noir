@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type Quoted documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">Quoted</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -102,15 +108,15 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
 
-<div class="padded-methods"><code id="as_expr" class="code-header">pub comptime fn <span class="fn">as_expr</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
+<div class="padded-methods"><code id="as_expr" class="code-header">pub comptime fn <a href="#as_expr"><span class="fn">as_expr</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
-<code id="as_module" class="code-header">pub comptime fn <span class="fn">as_module</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
+<code id="as_module" class="code-header">pub comptime fn <a href="#as_module"><span class="fn">as_module</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
 
-<code id="as_trait_constraint" class="code-header">pub comptime fn <span class="fn">as_trait_constraint</span>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
+<code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint"><span class="fn">as_trait_constraint</span></a>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
 
-<code id="as_type" class="code-header">pub comptime fn <span class="fn">as_type</span>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<code id="as_type" class="code-header">pub comptime fn <a href="#as_type"><span class="fn">as_type</span></a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
-<code id="tokens" class="code-header">pub comptime fn <span class="fn">tokens</span>(self) -> [Self]</code>
+<code id="tokens" class="code-header">pub comptime fn <a href="#tokens"><span class="fn">tokens</span></a>(self) -> [Self]</code>
 
 </div><h2>Trait implementations</h2>
 <h3 id="impl-Append-for-Quoted"><code class="code-header">impl <a href="../std/append/trait.Append.html" class="trait">Append</a> for <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
@@ -130,5 +136,6 @@
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>

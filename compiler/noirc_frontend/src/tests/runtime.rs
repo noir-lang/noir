@@ -137,6 +137,24 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
 }
 
 #[test]
+fn cannot_return_function_from_unconstrained_to_constrained() {
+    let src = r#"
+    fn main() {
+        // safety:
+        unsafe {
+            let _func = make_func();
+                        ^^^^^^^^^^^ Functions cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_func() -> fn() -> () {
+        || {}
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
     let src = r#"
     fn main() {

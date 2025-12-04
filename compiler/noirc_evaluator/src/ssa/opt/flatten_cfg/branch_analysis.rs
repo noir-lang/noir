@@ -285,8 +285,6 @@ impl<'cfg> Context<'cfg> {
 #[cfg(test)]
 mod test {
 
-    use acvm::acir::circuit::ExpressionWidth;
-
     use crate::{
         brillig::BrilligOptions,
         ssa::{
@@ -643,7 +641,6 @@ mod test {
             ssa_logging: crate::ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
