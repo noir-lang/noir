@@ -469,5 +469,6 @@ mod tests {
         assert_eq!(a, a);
         assert_eq!(b, b);
         assert_eq!(a, b);
+        assert_eq!(b, a);
     }
 }
