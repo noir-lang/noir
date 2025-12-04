@@ -270,18 +270,13 @@ mod tests {
         let program = get_monomorphized_no_emit_test(src).unwrap();
         insta::assert_snapshot!(program, @r"
         unconstrained fn main$f0() -> () {
-            foo$f1((bar$f2, bar$f3));
+            foo$f1((bar$f2, bar$f2));
         }
         unconstrained fn foo$f1(f$l0: (fn(Field) -> (), unconstrained fn(Field) -> ())) -> () {
             f$l0.1(0);
         }
-        #[inline_always]
-        fn bar_proxy$f2(p0$l0: Field) -> () {
-            bar$my_oracle(p0$l0)
-        }
-        #[inline_always]
-        unconstrained fn bar_proxy$f3(p0$l0: Field) -> () {
-            bar$my_oracle(p0$l0)
+        unconstrained fn bar$f2(f$l1: Field) -> () {
+            bar$my_oracle(f$l1)
         }
         ");
     }
