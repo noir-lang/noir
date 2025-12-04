@@ -1815,7 +1815,11 @@
 <a href="#1814" id="1814">1814</a>
 <a href="#1815" id="1815">1815</a>
 <a href="#1816" id="1816">1816</a>
-<a href="#1817" id="1817">1817</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2135,7 +2139,11 @@
         </span><span class="kw">let </span>old_module = <span class="self">self</span>.elaborator.replace_module(module_scope);
         <span class="kw">let </span>old_function = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.current_function, function_scope);
 
+        <span class="self">self</span>.elaborator.interpreter_call_stack.push_back(call_location);
+
         <span class="kw">let </span>result = <span class="self">self</span>.call_closure_inner(lambda, environment, arguments, call_location);
+
+        <span class="self">self</span>.elaborator.interpreter_call_stack.pop_back();
 
         <span class="self">self</span>.current_function = old_function;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(old_module) = old_module {
