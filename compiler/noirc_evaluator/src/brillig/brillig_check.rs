@@ -88,7 +88,10 @@ pub(crate) fn opcode_advisories<F: AcirField>(
         let mut acc = im::HashSet::new();
         for successor_id in function.dfg[block_id].successors() {
             acc = acc.union(reads_in_blocks[&successor_id].clone());
-            acc = acc.union(reads_in_descendants[&successor_id].clone());
+            // If this is a back-edge block, the header will not have been done yet.
+            if let Some(reads) = reads_in_descendants.get(&successor_id) {
+                acc = acc.union(reads.clone());
+            }
         }
         // If the block is a header of a loop, then anything we can reach from the header,
         // we can reach from any block in the loop too.
@@ -97,8 +100,8 @@ pub(crate) fn opcode_advisories<F: AcirField>(
         //      v       |
         // b0--b1--b2--b3
         //      +----------b4
-        // An address can written in b3 and read in b1 (e.g. the loop variable),
-        // or written in b2 and read in b4 (e.g. a reference allocated in b0).
+        // An address can be written in b3 and read in b1 (e.g. the loop variable),
+        // or be written in b2 and read in b4 (e.g. a reference allocated in b0).
         if let Some(blocks_in_loop) = blocks_in_loops.get(&block_id) {
             for member_id in blocks_in_loop {
                 if *member_id == block_id {
