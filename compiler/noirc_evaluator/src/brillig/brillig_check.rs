@@ -27,17 +27,19 @@ use crate::{
 
 pub(crate) enum OpcodeAdvisory {
     /// A memory address is being written by the opcode that no other following opcode reads.
-    NeverRead,
+    NeverRead { addr: MemoryAddress },
     /// A memory address is being written by the opcode that will get overwritten before being read.
-    OverwrittenBeforeRead { write_at: OpcodeLocation, read_at: OpcodeLocation },
+    OverwrittenBeforeRead { addr: MemoryAddress, write_at: OpcodeLocation, read_at: OpcodeLocation },
 }
+
+pub(crate) type OpcodeAdvisories = HashMap<OpcodeLocation, Vec<OpcodeAdvisory>>;
 
 /// Go through opcodes and collect advisories, indicating opcodes which could potentially be removed
 pub(crate) fn opcode_advisories<F: AcirField>(
     function: &Function,
     function_context: &FunctionContext,
     brillig_context: &BrilligContext<F, Stack>,
-) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
+) -> OpcodeAdvisories {
     // Find where each block start and ends in the bytecode.
     let block_opcode_ranges = block_opcode_ranges(brillig_context);
 
@@ -128,7 +130,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
 
 /// Display the opcodes and their corresponding advisories.
 pub(crate) fn show_opcode_advisories<F: Display>(
-    advisories: &HashMap<OpcodeLocation, OpcodeAdvisory>,
+    advisories: &OpcodeAdvisories,
     artifact: &BrilligArtifact<F>,
 ) {
     println!(
@@ -157,12 +159,18 @@ pub(crate) fn show_opcode_advisories<F: Display>(
     println!("fn {}", artifact.name);
     let index_width = artifact.byte_code.len().to_string().len();
     for (index, opcode) in artifact.byte_code.iter().enumerate() {
-        let msg = match advisories.get(&index) {
-            Some(OpcodeAdvisory::NeverRead) => "Never read",
-            Some(OpcodeAdvisory::OverwrittenBeforeRead { write_at, read_at }) => {
-                &format!("Overwritten at {write_at} before read at {read_at}")
-            }
-            None => "",
+        let msg = if let Some(ads) = advisories.get(&index) {
+            &ads.iter()
+                .map(|a| match a {
+                    OpcodeAdvisory::NeverRead { addr } => format!("{addr} is never read"),
+                    OpcodeAdvisory::OverwrittenBeforeRead { addr, write_at, read_at } => {
+                        format!("{addr} is overwritten at {write_at} before read at {read_at}")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("; ")
+        } else {
+            ""
         };
         println!("{index:>index_width$}: {}", advisory(opcode, msg));
     }
@@ -248,7 +256,7 @@ struct AdvisoryCollector<'a> {
     /// Last location the address was written to in this block.
     writes: HashMap<MemoryAddress, OpcodeLocation>,
     /// Advisories collected in this block.
-    advisories: HashMap<OpcodeLocation, OpcodeAdvisory>,
+    advisories: OpcodeAdvisories,
     /// Indicate that we are in a region where call parameters are being passed.
     /// * 2 means we are in a call region
     /// * 1 means we are 1 step before the start of the call region
@@ -274,12 +282,16 @@ impl<'a> AdvisoryCollector<'a> {
         }
     }
 
-    fn into_advisories(self) -> HashMap<OpcodeLocation, OpcodeAdvisory> {
+    fn into_advisories(self) -> OpcodeAdvisories {
         self.advisories
     }
 
     fn addr_in_range(&self, addr: &MemoryAddress) -> bool {
         addr.is_relative() && self.addr_range.contains(&addr.to_usize())
+    }
+
+    fn add_advisory(&mut self, location: OpcodeLocation, advisory: OpcodeAdvisory) {
+        self.advisories.entry(location).or_default().push(advisory);
     }
 }
 
@@ -361,9 +373,10 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         if let Some(read_at) = self.reads.get(addr) {
             if let Some(write_at) = self.writes.get(addr) {
                 if write_at < read_at {
-                    self.advisories.insert(
+                    self.add_advisory(
                         location,
                         OpcodeAdvisory::OverwrittenBeforeRead {
+                            addr: *addr,
                             write_at: *write_at,
                             read_at: *read_at,
                         },
@@ -371,7 +384,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                 }
             }
         } else if !self.reads_in_descendants.contains(addr) {
-            self.advisories.insert(location, OpcodeAdvisory::NeverRead);
+            self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });
         }
         self.writes.insert(*addr, location);
     }
