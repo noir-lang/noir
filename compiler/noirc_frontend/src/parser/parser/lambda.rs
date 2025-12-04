@@ -14,13 +14,7 @@ impl Parser<'_> {
     /// LambdaParameter
     ///     = Pattern OptionalTypeAnnotation
     pub(super) fn parse_lambda(&mut self) -> Option<ExpressionKind> {
-        let unconstrained = if self.at_keyword(Keyword::Unconstrained) && self.next_is(Token::Pipe)
-        {
-            self.bump(); // consume 'unconstrained' if present
-            true
-        } else {
-            false
-        };
+        let unconstrained = self.next_is(Token::Pipe) && self.eat_keyword(Keyword::Unconstrained);
 
         if !self.eat_pipe() {
             return None;
