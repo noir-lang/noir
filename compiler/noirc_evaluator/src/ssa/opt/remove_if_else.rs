@@ -266,14 +266,8 @@ impl Context {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
-                // For arrays we know the size statically, and we don't need to store it.
-                if let Type::Array(_, length) = dfg.type_of_value(value) {
-                    return length;
-                }
-                // Check if the item was made by a MakeArray instruction, which can create slices as well.
-                if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_size();
-                    return *entry.insert(length as u32);
+                if let Some(length) = dfg.try_get_slice_capacity(value) {
+                    return *entry.insert(length);
                 }
                 // For non-constant slices we can't tell the size, which would mean we can't merge it.
                 let dbg_value = &dfg[value];
@@ -960,6 +954,45 @@ mod tests {
             v24, v25, v26 = call slice_remove(v15, v22, u32 0) -> (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -> Field
             constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn can_handle_slice_with_zero_size_elements() {
+        let src = "
+        acir(inline) impure fn main f0 {
+            b0(v0: u32):
+                v3 = make_array [] : [()]
+                v4 = make_array [] : [()]
+                v6 = eq v0, u32 4
+                jmpif v6 then: b1, else: b2
+            b1():
+                jmp b3(u32 1, v3)
+            b2():
+                jmp b3(u32 2, v4)
+            b3(v1: u32, v2: [()]):
+                return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.flatten_cfg().remove_if_else().unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [()]
+            v2 = make_array [] : [()]
+            v4 = eq v0, u32 4
+            enable_side_effects v4
+            v5 = not v4
+            enable_side_effects u1 1
+            v7 = cast v4 as u32
+            v8 = cast v5 as u32
+            v10 = unchecked_mul v8, u32 2
+            v11 = unchecked_add v7, v10
+            v12 = make_array [] : [()]
             return
         }
         ");

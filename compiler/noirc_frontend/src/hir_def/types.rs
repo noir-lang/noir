@@ -282,6 +282,10 @@ impl Kind {
             _ => None,
         }
     }
+
+    pub(crate) fn is_normal_or_any(&self) -> bool {
+        matches!(self, Kind::Normal | Kind::Any)
+    }
 }
 
 impl std::fmt::Display for Kind {

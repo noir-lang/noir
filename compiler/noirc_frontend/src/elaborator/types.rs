@@ -899,10 +899,10 @@ impl Elaborator<'_> {
         let trait_id = self.current_trait?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let name = path.segments[0].ident.as_str();
+            let is_self_type = path.segments[0].ident.is_self_type_name();
             let method = &path.segments[1].ident;
 
-            if name == SELF_TYPE_NAME {
+            if is_self_type {
                 let the_trait = self.interner.get_trait(trait_id);
                 // Allow referring to trait constants via Self:: as well
                 let definition =
@@ -1303,8 +1303,8 @@ impl Elaborator<'_> {
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
-        match function {
-            Type::TypeVariable(binding) if binding.kind() == Kind::Normal => {
+        match function.follow_bindings_shallow().as_ref() {
+            Type::TypeVariable(binding) if binding.kind().is_normal_or_any() => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
                     return self.bind_function_type(typ.clone(), args, location);
                 }
@@ -1324,11 +1324,11 @@ impl Elaborator<'_> {
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
             Type::Function(parameters, ret, _env, _unconstrained) => {
-                self.bind_function_type_impl(&parameters, &ret, &args, location)
+                self.bind_function_type_impl(parameters, ret, &args, location)
             }
             Type::Error => Type::Error,
             found => {
-                self.push_err(TypeCheckError::ExpectedFunction { found, location });
+                self.push_err(TypeCheckError::ExpectedFunction { found: found.clone(), location });
                 Type::Error
             }
         }
