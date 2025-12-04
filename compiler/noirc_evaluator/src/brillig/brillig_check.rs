@@ -314,7 +314,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         // to the beginning, depending on the number of return values. They destinations can be shuffled.
         if matches!(opcode, Opcode::Return) {
             self.in_return_region = true;
-        } else if !matches!(opcode, Opcode::Mov { .. }) {
+        } else if !matches!(opcode, Opcode::Mov { .. } | Opcode::Load { .. }) {
             self.in_return_region = false;
         }
 
