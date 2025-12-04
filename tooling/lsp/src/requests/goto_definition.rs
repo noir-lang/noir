@@ -321,7 +321,7 @@ mod goto_definition_tests {
         };
         assert_eq!(links.len(), 1);
         let link = &links[0];
-        assert_eq!(link.target_uri.to_string().ends_with("src/main.nr"), true);
+        assert!(link.target_uri.to_string().ends_with("src/main.nr"));
 
         // This range is `[Foo]` in the doc comment
         assert_eq!(
