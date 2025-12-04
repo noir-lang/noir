@@ -14,7 +14,7 @@ use crate::{
     brillig::{
         brillig_gen::brillig_fn::FunctionContext,
         brillig_ir::{
-            BrilligContext,
+            BrilligContext, ReservedRegisters,
             artifact::{BrilligArtifact, LabelType, OpcodeLocation},
             registers::{RegisterAllocator, Stack},
         },
@@ -116,10 +116,9 @@ pub(crate) fn opcode_advisories<F: AcirField>(
         // Going backwards, so reads at the end are recorded before earlier writes.
         for loc in opcode_range.rev() {
             let opcode = &brillig_context.artifact().byte_code[loc];
-            if ignore_opcode(opcode) {
-                continue;
+            if advisory_collector.should_visit_opcode(opcode) {
+                advisory_collector.visit_opcode(opcode, loc);
             }
-            advisory_collector.visit_opcode(opcode, loc);
         }
 
         advisories.extend(advisory_collector.into_advisories());
@@ -142,22 +141,30 @@ pub(crate) fn show_opcode_advisories<F: Display>(
         return;
     }
 
+    let advisory = |opcode: &Opcode<F>, msg: &str| {
+        let mut a = format!("{opcode}");
+        if msg.is_empty() {
+            return a;
+        }
+        for _ in a.len()..40 {
+            a.push(' ');
+        }
+        a.push_str(" // ");
+        a.push_str(msg);
+        a
+    };
+
     println!("fn {}", artifact.name);
     let index_width = artifact.byte_code.len().to_string().len();
-    let opcode_width = 40;
     for (index, opcode) in artifact.byte_code.iter().enumerate() {
-        let advisory = match advisories.get(&index) {
-            Some(OpcodeAdvisory::NeverRead) => " // Never read",
+        let msg = match advisories.get(&index) {
+            Some(OpcodeAdvisory::NeverRead) => "Never read",
             Some(OpcodeAdvisory::OverwrittenBeforeRead { write_at, read_at }) => {
-                &format!(" // Overwritten at {write_at} before read at {read_at}")
+                &format!("Overwritten at {write_at} before read at {read_at}")
             }
             None => "",
         };
-        let mut opcode = format!("{opcode}");
-        for _ in opcode.len()..opcode_width {
-            opcode.push(' ');
-        }
-        println!("{index:>index_width$}: {opcode}{advisory}");
+        println!("{index:>index_width$}: {}", advisory(opcode, msg));
     }
 }
 
@@ -223,6 +230,10 @@ impl OpcodeAddressVisitor for ReadCollector<'_> {
     fn write(&mut self, _addr: &MemoryAddress, _location: OpcodeLocation) {
         // Ignore writes.
     }
+
+    fn should_visit_opcode<F>(&mut self, _opcode: &Opcode<F>) -> bool {
+        true
+    }
 }
 
 /// Collect advisories about the opcodes in a single block.
@@ -238,6 +249,11 @@ struct AdvisoryCollector<'a> {
     writes: HashMap<MemoryAddress, OpcodeLocation>,
     /// Advisories collected in this block.
     advisories: HashMap<OpcodeLocation, OpcodeAdvisory>,
+    /// Indicate that we are in a region where call parameters are being passed.
+    /// * 2 means we are in a call region
+    /// * 1 means we are 1 step before the start of the call region
+    /// * 0 means we are not in a call region
+    in_call_region: u8,
 }
 
 impl<'a> AdvisoryCollector<'a> {
@@ -251,6 +267,7 @@ impl<'a> AdvisoryCollector<'a> {
             reads: HashMap::new(),
             writes: HashMap::new(),
             advisories: HashMap::new(),
+            in_call_region: 0,
         }
     }
 
@@ -298,6 +315,45 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         }
         self.writes.insert(*addr, location);
     }
+
+    fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
+        match opcode {
+            // Handle the conventions of `codegen_call`: we are passing call arguments by coping them
+            // to new stack registers, then we set the stack pointer @0, which changes the meaning of
+            // relative addresses. The parameters are going to be read by another function, not visible
+            // in the scope of a single function we are analyzing here.
+            Opcode::Mov { destination, source } => {
+                if *destination == ReservedRegisters::stack_pointer()
+                    && *source == MemoryAddress::relative(0)
+                {
+                    // This is the restore of the stack pointer, the end of a call.
+                    self.in_call_region = 2;
+                    false
+                } else if *source == ReservedRegisters::stack_pointer() {
+                    // This is where we store the stack pointer in the first address of the next stack frame.
+                    // The next opcode is a const that contains the current stack size.
+                    self.in_call_region = 1;
+                    false
+                } else {
+                    self.in_call_region == 0
+                }
+            }
+            Opcode::Const { .. } if self.in_call_region == 1 => {
+                self.in_call_region = 0;
+                false
+            }
+            // A `constrain` of some arbitrary expression is usually broken up into an instruction with
+            // a boolean result, and then a constrain on the result being equal to 1. Constant allocation
+            // creates a constant for that 1, but the codegen later might not use it, but rather check
+            // the variable directly, since it's already a bool value.
+            Opcode::Const {
+                destination: _,
+                bit_size: BitSize::Integer(IntegerBitSize::U1),
+                value,
+            } => !value.is_one(),
+            _ => true,
+        }
+    }
 }
 
 trait OpcodeAddressVisitor {
@@ -307,9 +363,17 @@ trait OpcodeAddressVisitor {
     /// Called with all addresses written by the opcode.
     fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation);
 
+    /// Decide if an opcode should be visited.
+    ///
+    /// Can mutate self to set flags that allows it to ignore upcoming opcodes as well.
+    fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool;
+
     /// Expected to be called with each opcode, traversing blocks in Post Order,
     /// feeding the opcodes back to front.
-    fn visit_opcode<F>(&mut self, opcode: &Opcode<F>, location: OpcodeLocation) {
+    fn visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>, location: OpcodeLocation) {
+        if !self.should_visit_opcode(opcode) {
+            return;
+        }
         match opcode {
             Opcode::BinaryFieldOp { destination, lhs, rhs, .. }
             | Opcode::BinaryIntOp { destination, lhs, rhs, .. } => {
@@ -474,19 +538,5 @@ trait OpcodeAddressVisitor {
                 self.read(output_pointer, location); // indirect
             }
         }
-    }
-}
-
-/// Whether to ignore the opcode when checking for advisories.
-fn ignore_opcode<F: AcirField>(opcode: &Opcode<F>) -> bool {
-    match opcode {
-        Opcode::Const { destination: _, bit_size: BitSize::Integer(IntegerBitSize::U1), value } => {
-            // A `constrain` of some arbitrary expression is usually broken up into an instruction with
-            // a boolean result, and then a constrain on the result being equal to 1. Constant allocation
-            // creates a constant for that 1, but the codegen later might not use it, but rather check
-            // the variable directly, since it's already a bool value.
-            value.is_one()
-        }
-        _ => false,
     }
 }
