@@ -361,7 +361,7 @@ mod embedded_curve_add {
             return v6
         }
         ");
-    }   
+    }
 }
 
 #[cfg(test)]
