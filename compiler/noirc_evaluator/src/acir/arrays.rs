@@ -1197,9 +1197,11 @@ pub(super) fn calculate_element_type_sizes_array(array_typ: &Type, length: usize
         return vec![];
     }
 
+    let non_flattened_elements = length / element_types.len();
+
     // We need the element type sizes array to have one extra entry for the case
     // of `slice_insert` inserting at the end of the array.
-    let capacity = element_types.len() * (length + 1);
+    let capacity = (non_flattened_elements + 1) * element_types.len();
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;
