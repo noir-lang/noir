@@ -1912,7 +1912,44 @@
 <a href="#1911" id="1911">1911</a>
 <a href="#1912" id="1912">1912</a>
 <a href="#1913" id="1913">1913</a>
-<a href="#1914" id="1914">1914</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
@@ -2003,6 +2040,7 @@
 
     <span class="kw">fn </span>process_workspace(<span class="kw-2">&amp;mut </span><span class="self">self</span>, workspace: <span class="kw-2">&amp;</span>Workspace) {
         <span class="self">self</span>.create_styles();
+        <span class="self">self</span>.create_js();
         <span class="self">self</span>.create_all_items(workspace);
         <span class="self">self</span>.create_index(workspace);
 
@@ -2021,9 +2059,15 @@
         <span class="self">self</span>.push_file(PathBuf::from(<span class="string">"styles.css"</span>));
     }
 
+    <span class="kw">fn </span>create_js(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>contents = <span class="macro">include_str!</span>(<span class="string">"nargo_doc.js"</span>);
+        <span class="self">self</span>.output.push_str(contents);
+        <span class="self">self</span>.push_file(PathBuf::from(<span class="string">"nargo_doc.js"</span>));
+    }
+
     <span class="kw">fn </span>create_all_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, workspace: <span class="kw-2">&amp;</span>Workspace) {
         <span class="kw">let </span>all_items = all_items::compute_all_items(workspace);
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"All items in {}"</span>, workspace.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"All items in {}"</span>, workspace.name), <span class="kw-2">&amp;</span>workspace.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_all_items_sidebar(<span class="kw-2">&amp;</span>all_items);
         <span class="self">self</span>.sidebar_end();
@@ -2093,7 +2137,11 @@
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="kw">let </span>redirect =
             <span class="kw">if </span>crates.len() == <span class="number">1 </span>{ <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"{}/index.html"</span>, crates[<span class="number">0</span>].name)) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
-        <span class="self">self</span>.html_start_with_redirect(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{} documentation"</span>, workspace.name), redirect);
+        <span class="self">self</span>.html_start_with_redirect(
+            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{} documentation"</span>, workspace.name),
+            <span class="kw-2">&amp;</span>workspace.name,
+            redirect,
+        );
 
         <span class="comment">// This sidebar is empty because there's not much we can list here.
         // It's here so that every page has a sidebar.
@@ -2112,7 +2160,7 @@
         <span class="self">self</span>.current_path.push(krate.name.clone());
         <span class="self">self</span>.current_crate_version = krate.version.clone();
 
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Crate {}"</span>, krate.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Crate {}"</span>, krate.name), <span class="kw-2">&amp;</span>krate.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_crate_sidebar(workspace, krate);
         <span class="self">self</span>.sidebar_end();
@@ -2368,7 +2416,7 @@
 
         <span class="kw">let </span>kind = <span class="kw">if </span>module.is_contract { <span class="string">"Contract" </span>} <span class="kw">else </span>{ <span class="string">"Module" </span>};
 
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{kind} {}"</span>, module.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{kind} {}"</span>, module.name), <span class="kw-2">&amp;</span>module.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_sidebar(parent_module, module);
         <span class="self">self</span>.sidebar_end();
@@ -2436,7 +2484,7 @@
     }
 
     <span class="kw">fn </span>create_struct(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_module: <span class="kw-2">&amp;</span>Module, struct_: <span class="kw-2">&amp;</span>Struct) {
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Struct {}"</span>, struct_.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Struct {}"</span>, struct_.name), <span class="kw-2">&amp;</span>struct_.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_struct_sidebar(struct_);
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
@@ -2498,7 +2546,7 @@
     }
 
     <span class="kw">fn </span>create_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_module: <span class="kw-2">&amp;</span>Module, trait_: <span class="kw-2">&amp;</span>Trait) {
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Trait {}"</span>, trait_.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Trait {}"</span>, trait_.name), <span class="kw-2">&amp;</span>trait_.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_trait_sidebar(trait_);
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
@@ -2588,7 +2636,7 @@
     }
 
     <span class="kw">fn </span>create_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_module: <span class="kw-2">&amp;</span>Module, alias: <span class="kw-2">&amp;</span>TypeAlias) {
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Type alias {}"</span>, alias.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Type alias {}"</span>, alias.name), <span class="kw-2">&amp;</span>alias.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
@@ -2602,22 +2650,23 @@
     }
 
     <span class="kw">fn </span>create_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_module: <span class="kw-2">&amp;</span>Module, function: <span class="kw-2">&amp;</span>Function) {
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Function {}"</span>, function.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Function {}"</span>, function.name), <span class="kw-2">&amp;</span>function.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
         <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Function &lt;span class=\"fn\"&gt;{}&lt;/span&gt;"</span>, function.name));
         <span class="kw">let </span>as_header = <span class="bool-val">false</span>;
+        <span class="kw">let </span>link = <span class="bool-val">false</span>;
         <span class="kw">let </span>output_id = <span class="bool-val">false</span>;
-        <span class="self">self</span>.render_function(function, <span class="number">1</span>, as_header, output_id);
+        <span class="self">self</span>.render_function(function, <span class="number">1</span>, as_header, link, output_id);
         <span class="self">self</span>.main_end();
         <span class="self">self</span>.html_end();
         <span class="self">self</span>.push_file(PathBuf::from(function.uri()));
     }
 
     <span class="kw">fn </span>create_global(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_module: <span class="kw-2">&amp;</span>Module, global: <span class="kw-2">&amp;</span>Global) {
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Global {}"</span>, global.name));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Global {}"</span>, global.name), <span class="kw-2">&amp;</span>global.name);
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
@@ -2631,7 +2680,7 @@
     }
 
     <span class="kw">fn </span>create_primitive_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_module: <span class="kw-2">&amp;</span>Module, primitive: <span class="kw-2">&amp;</span>PrimitiveType) {
-        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Primitive type {}"</span>, primitive.kind));
+        <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Primitive type {}"</span>, primitive.kind), <span class="kw-2">&amp;</span>primitive.kind.to_string());
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_primitive_sidebar(primitive);
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
@@ -2745,7 +2794,8 @@
         <span class="kw">let </span>output_id = <span class="bool-val">true</span>;
 
         <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(impl_.r#type.clone());
-        <span class="self">self</span>.render_methods(<span class="kw-2">&amp;</span>impl_.methods, <span class="number">3</span>, output_id);
+        <span class="kw">let </span>link = <span class="bool-val">true</span>;
+        <span class="self">self</span>.render_methods(<span class="kw-2">&amp;</span>impl_.methods, <span class="number">3</span>, output_id, link);
         <span class="self">self</span>.self_type = <span class="prelude-val">None</span>;
     }
 
@@ -2778,7 +2828,8 @@
         <span class="kw">if </span>show_methods {
             <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(trait_impl.r#type.clone());
             <span class="kw">let </span>output_id = <span class="bool-val">false</span>;
-            <span class="self">self</span>.render_methods(<span class="kw-2">&amp;</span>trait_impl.methods, <span class="number">3</span>, output_id);
+            <span class="kw">let </span>link = <span class="bool-val">false</span>;
+            <span class="self">self</span>.render_methods(<span class="kw-2">&amp;</span>trait_impl.methods, <span class="number">3</span>, output_id, link);
             <span class="self">self</span>.self_type = <span class="prelude-val">None</span>;
         }
     }
@@ -2884,7 +2935,8 @@
 
         <span class="self">self</span>.h2(title);
         <span class="kw">let </span>output_id = <span class="bool-val">true</span>;
-        <span class="self">self</span>.render_methods(methods, <span class="number">2</span>, output_id);
+        <span class="kw">let </span>link = <span class="bool-val">true</span>;
+        <span class="self">self</span>.render_methods(methods, <span class="number">2</span>, output_id, link);
     }
 
     <span class="kw">fn </span>render_type_alias_code(<span class="kw-2">&amp;mut </span><span class="self">self</span>, alias: <span class="kw-2">&amp;</span>TypeAlias) {
@@ -2919,10 +2971,11 @@
         methods: <span class="kw-2">&amp;</span>[Function],
         current_heading_level: usize,
         output_id: bool,
+        link: bool,
     ) {
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"padded-methods\"&gt;"</span>);
         <span class="kw">for </span>method <span class="kw">in </span>methods {
-            <span class="self">self</span>.render_function(method, current_heading_level, <span class="bool-val">true</span>, output_id);
+            <span class="self">self</span>.render_function(method, current_heading_level, <span class="bool-val">true</span>, link, output_id);
         }
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/div&gt;"</span>);
     }
@@ -2932,9 +2985,10 @@
         function: <span class="kw-2">&amp;</span>Function,
         current_heading_level: usize,
         as_header: bool,
+        link: bool,
         output_id: bool,
     ) {
-        <span class="self">self</span>.render_function_signature(function, as_header, output_id);
+        <span class="self">self</span>.render_function_signature(function, as_header, link, output_id);
 
         <span class="kw">let </span>pad = as_header &amp;&amp; (function.is_deprecated() || function.comments.is_some());
         <span class="kw">if </span>pad {
@@ -2960,7 +3014,13 @@
         }
     }
 
-    <span class="kw">fn </span>render_function_signature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, as_header: bool, output_id: bool) {
+    <span class="kw">fn </span>render_function_signature(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        function: <span class="kw-2">&amp;</span>Function,
+        as_header: bool,
+        link: bool,
+        output_id: bool,
+    ) {
         <span class="kw">if </span>as_header {
             <span class="kw">if </span>output_id {
                 <span class="self">self</span>.output
@@ -2973,7 +3033,6 @@
             <span class="self">self</span>.output.push_str(<span class="string">"&lt;code&gt;"</span>);
         }
         <span class="kw">let </span>color_name = as_header;
-        <span class="kw">let </span>link = <span class="bool-val">false</span>;
         <span class="kw">let </span>indent = <span class="number">0</span>;
         <span class="self">self</span>.render_function_signature_inner(function, color_name, link, indent);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/code&gt;"</span>);
@@ -3393,11 +3452,16 @@
             .unwrap_or_else(|| trait_.trait_impls.clone())
     }
 
-    <span class="kw">fn </span>html_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, title: <span class="kw-2">&amp;</span>str) {
-        <span class="self">self</span>.html_start_with_redirect(title, <span class="prelude-val">None</span>);
+    <span class="kw">fn </span>html_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, title: <span class="kw-2">&amp;</span>str, short_title: <span class="kw-2">&amp;</span>str) {
+        <span class="self">self</span>.html_start_with_redirect(title, short_title, <span class="prelude-val">None</span>);
     }
 
-    <span class="kw">fn </span>html_start_with_redirect(<span class="kw-2">&amp;mut </span><span class="self">self</span>, title: <span class="kw-2">&amp;</span>str, redirect: <span class="prelude-ty">Option</span>&lt;String&gt;) {
+    <span class="kw">fn </span>html_start_with_redirect(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        title: <span class="kw-2">&amp;</span>str,
+        short_title: <span class="kw-2">&amp;</span>str,
+        redirect: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    ) {
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;!DOCTYPE html&gt;\n"</span>);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;html&gt;\n"</span>);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;head&gt;\n"</span>);
@@ -3413,12 +3477,22 @@
             <span class="string">"&lt;link rel=\"stylesheet\" href=\"{}styles.css\"&gt;\n"</span>,
             <span class="string">"../"</span>.repeat(nesting)
         ));
+        <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+            <span class="string">"&lt;script defer src=\"{}nargo_doc.js\"&gt;&lt;/script&gt;\n"</span>,
+            <span class="string">"../"</span>.repeat(nesting)
+        ));
         <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;title&gt;{title} documentation&lt;/title&gt;\n"</span>));
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/head&gt;\n"</span>);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;body&gt;\n"</span>);
+        <span class="self">self</span>.output.push_str(<span class="string">"&lt;div id=\"sidebar-toggle\"&gt;\n"</span>);
+        <span class="self">self</span>.output.push_str(<span class="string">"&lt;button id=\"sidebar-toggle-button\"&gt;&lt;/button&gt;\n"</span>);
+        <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;div id=\"sidebar-toggle-title\"&gt;{short_title}&lt;/div&gt;\n"</span>));
+        <span class="self">self</span>.output.push_str(<span class="string">"&lt;/div&gt;\n"</span>);
+        <span class="self">self</span>.output.push_str(<span class="string">"&lt;span id=\"main-contents\"&gt;\n"</span>);
     }
 
     <span class="kw">fn </span>html_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.output.push_str(<span class="string">"&lt;/span&gt;\n"</span>);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/body&gt;\n"</span>);
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/html&gt;\n"</span>);
     }
