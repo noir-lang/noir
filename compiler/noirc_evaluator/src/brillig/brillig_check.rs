@@ -378,7 +378,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         self.reads.insert(*addr, location);
     }
 
-    /// Remember the opcode location where a memory address was last read.
+    /// Remember the opcode location where a memory address was last written.
     ///
     /// Insert an advisory if:
     /// * the address is not read after this opcode
@@ -415,6 +415,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                 self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });
             }
         }
+
         self.writes.insert(*addr, location);
     }
 }
