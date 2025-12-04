@@ -1066,7 +1066,10 @@
 <a href="#1065" id="1065">1065</a>
 <a href="#1066" id="1066">1066</a>
 <a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -1327,6 +1330,9 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>show_hir_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_lambda: HirLambda) {
+        <span class="kw">if </span>hir_lambda.unconstrained {
+            <span class="self">self</span>.push_str(<span class="string">"unconstrained "</span>);
+        }
         <span class="self">self</span>.push(<span class="string">'|'</span>);
         <span class="self">self</span>.show_separated_by_comma(<span class="kw-2">&amp;</span>hir_lambda.parameters, |this, (parameter, typ)| {
             this.show_hir_pattern(parameter.clone());

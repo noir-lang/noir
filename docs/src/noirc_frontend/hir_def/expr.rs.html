@@ -542,7 +542,8 @@
 <a href="#541" id="541">541</a>
 <a href="#542" id="542">542</a>
 <a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -938,6 +939,7 @@
     <span class="kw">pub </span>return_type: Type,
     <span class="kw">pub </span>body: ExprId,
     <span class="kw">pub </span>captures: Vec&lt;HirCapturedVar&gt;,
+    <span class="kw">pub </span>unconstrained: bool,
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]

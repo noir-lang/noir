@@ -53,22 +53,31 @@
 <a href="#52" id="52">52</a>
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{ExpressionKind, Lambda, Pattern, UnresolvedType},
     parser::labels::ParsingRuleLabel,
-    token::Token,
+    token::{Keyword, Token},
 };
 
 <span class="kw">use super</span>::{Parser, parse_many::separated_by_comma};
 
 <span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="doccomment">/// Lambda = '|' LambdaParameters? '|' ( '-&gt;' Type )? Expression
+    <span class="doccomment">/// Lambda = ( 'unconstrained' )? '|' LambdaParameters? '|' ( '-&gt;' Type )? Expression
     ///
     /// LambdaParameters = LambdaParameter ( ',' LambdaParameter )? ','?
     ///
     /// LambdaParameter
     ///     = Pattern OptionalTypeAnnotation
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
+        <span class="kw">let </span>unconstrained = <span class="self">self</span>.next_is(Token::Pipe) &amp;&amp; <span class="self">self</span>.eat_keyword(Keyword::Unconstrained);
+
         <span class="kw">if </span>!<span class="self">self</span>.eat_pipe() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -78,7 +87,12 @@
             <span class="kw">if </span><span class="self">self</span>.eat(Token::Arrow) { <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
         <span class="kw">let </span>body = <span class="self">self</span>.parse_expression_or_error();
 
-        <span class="prelude-val">Some</span>(ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body })))
+        <span class="prelude-val">Some</span>(ExpressionKind::Lambda(Box::new(Lambda {
+            parameters,
+            return_type,
+            body,
+            unconstrained,
+        })))
     }
 
     <span class="kw">fn </span>parse_lambda_parameters(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;(Pattern, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt; {

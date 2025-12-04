@@ -1038,7 +1038,8 @@
 <a href="#1037" id="1037">1037</a>
 <a href="#1038" id="1038">1038</a>
 <a href="#1039" id="1039">1039</a>
-<a href="#1040" id="1040">1040</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1784,6 +1785,7 @@
         }),
         return_type: option_unresolved_type_with_file(lambda.return_type, file),
         body: expression_with_file(lambda.body, file),
+        unconstrained: lambda.unconstrained,
     }
 }
 

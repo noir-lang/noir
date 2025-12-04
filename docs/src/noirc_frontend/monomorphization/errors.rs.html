@@ -126,7 +126,32 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -150,6 +175,9 @@
     AssignedToVarContainingReference { typ: String, location: Location },
     NestedSlices { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
+    ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedSliceReturnToConstrained { typ: String, location: Location },
 }
 
 <span class="kw">impl </span>MonomorphizationError {
@@ -168,7 +196,14 @@
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
             | MonomorphizationError::NestedSlices { location }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
-            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
+            | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location, .. } =&gt; {
+                <span class="kw-2">*</span>location
+            }
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
         }
     }
@@ -247,6 +282,21 @@
                 <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Invalid type {typ} used in the error message"</span>);
                 <span class="kw">let </span>secondary = <span class="string">"Error message fragments must be ABI compatible"</span>.into();
                 <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
+            }
+            MonomorphizationError::ConstrainedReferenceToUnconstrained { typ, .. } =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">"Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
+                </span>)
+            }
+            MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">"Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                </span>)
+            }
+            MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">"Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                </span>)
             }
         };
 

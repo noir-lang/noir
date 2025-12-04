@@ -2639,7 +2639,18 @@
 <a href="#2638" id="2638">2638</a>
 <a href="#2639" id="2639">2639</a>
 <a href="#2640" id="2640">2640</a>
-<a href="#2641" id="2641">2641</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2641" id="2641">2641</a>
+<a href="#2642" id="2642">2642</a>
+<a href="#2643" id="2643">2643</a>
+<a href="#2644" id="2644">2644</a>
+<a href="#2645" id="2645">2645</a>
+<a href="#2646" id="2646">2646</a>
+<a href="#2647" id="2647">2647</a>
+<a href="#2648" id="2648">2648</a>
+<a href="#2649" id="2649">2649</a>
+<a href="#2650" id="2650">2650</a>
+<a href="#2651" id="2651">2651</a>
+<a href="#2652" id="2652">2652</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -2861,6 +2872,10 @@
         <span class="kw">let </span>lambda_has_return_type = lambda.return_type.is_some();
 
         <span class="kw">let </span>params_and_return_type_chunk = <span class="self">self</span>.chunk(|formatter| {
+            <span class="kw">if </span>lambda.unconstrained {
+                formatter.write_keyword(Keyword::Unconstrained);
+                formatter.write_space();
+            }
             formatter.write_token(Token::Pipe);
             <span class="kw">for </span>(index, (pattern, typ)) <span class="kw">in </span>lambda.parameters.into_iter().enumerate() {
                 <span class="kw">if </span>index &gt; <span class="number">0 </span>{
@@ -4909,6 +4924,13 @@ global y = 1;
     </span><span class="kw">fn </span>format_lambda_no_parameters() {
         <span class="kw">let </span>src = <span class="string">"global x = | |  1 ;"</span>;
         <span class="kw">let </span>expected = <span class="string">"global x = || 1;\n"</span>;
+        assert_format(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_unconstrained_lambda_no_parameters() {
+        <span class="kw">let </span>src = <span class="string">"global x =  unconstrained  | |  1 ;"</span>;
+        <span class="kw">let </span>expected = <span class="string">"global x = unconstrained || 1;\n"</span>;
         assert_format(src, expected);
     }
 

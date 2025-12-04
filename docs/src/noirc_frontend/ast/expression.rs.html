@@ -937,7 +937,9 @@
 <a href="#936" id="936">936</a>
 <a href="#937" id="937">937</a>
 <a href="#938" id="938">938</a>
-<a href="#939" id="939">939</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
@@ -1410,6 +1412,7 @@
     <span class="kw">pub </span>parameters: Vec&lt;(Pattern, <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;)&gt;,
     <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
     <span class="kw">pub </span>body: Expression,
+    <span class="kw">pub </span>unconstrained: bool,
 }
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
@@ -1751,15 +1754,16 @@
 
 <span class="kw">impl </span>Display <span class="kw">for </span>Lambda {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">let </span>unconstrained = <span class="kw">if </span><span class="self">self</span>.unconstrained { <span class="string">"unconstrained " </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
         <span class="kw">let </span>parameters = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.parameters, |(name, r#type)| {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = r#type { <span class="macro">format!</span>(<span class="string">"{name}: {typ}"</span>) } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{name}"</span>) }
         });
 
         <span class="kw">let </span>parameters = parameters.join(<span class="string">", "</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(return_type) = <span class="kw-2">&amp;</span><span class="self">self</span>.return_type {
-            <span class="macro">write!</span>(f, <span class="string">"|{}| -&gt; {} {{ {} }}"</span>, parameters, return_type, <span class="self">self</span>.body)
+            <span class="macro">write!</span>(f, <span class="string">"{unconstrained}|{}| -&gt; {} {{ {} }}"</span>, parameters, return_type, <span class="self">self</span>.body)
         } <span class="kw">else </span>{
-            <span class="macro">write!</span>(f, <span class="string">"|{}| {{ {} }}"</span>, parameters, <span class="self">self</span>.body)
+            <span class="macro">write!</span>(f, <span class="string">"{unconstrained}|{}| {{ {} }}"</span>, parameters, <span class="self">self</span>.body)
         }
     }
 }
