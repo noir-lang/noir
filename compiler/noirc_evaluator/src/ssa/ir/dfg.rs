@@ -654,6 +654,31 @@ impl DataFlowGraph {
             _ => None,
         }
     }
+    pub(crate) fn try_get_slice_capacity(&self, value: ValueId) -> Option<u32> {
+        // For arrays we know the size statically
+        if let Some(length) = self.try_get_array_length(value) {
+            return Some(length);
+        }
+
+        // Check if the value was made by a MakeArray instruction, which can create slices as well.
+        let (array, typ) = self.get_array_constant(value)?;
+        let elements_size = typ.element_size();
+
+        let length = if elements_size == 0 {
+            array.len()
+        } else {
+            // Compute the slice length by dividing the flattened
+            // array length by the size of each array element
+            assert_eq!(
+                array.len() % elements_size,
+                0,
+                "expected array length to be multiple of its elements size"
+            );
+            array.len() / elements_size
+        };
+
+        Some(length as u32)
+    }
 
     /// If this value points to an array of constant bytes, returns a string
     /// consisting of those bytes if they form a valid UTF-8 string.

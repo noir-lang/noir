@@ -256,3 +256,47 @@ fn non_entry_point_main() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn call_type_variable_of_kind_any() {
+    // Regression for https://github.com/noir-lang/noir/issues/10719
+    let src = "
+        trait Foo {
+            type Bar;
+
+            fn bar(self) -> Self::Bar;
+        }
+
+        impl Foo for () {
+            type Bar = fn() -> fn() -> ();
+
+            fn bar(self) -> Self::Bar {
+                || {
+                    || {
+                        ()
+                    }
+                }
+            }
+        }
+
+        struct Baz<T> {
+            inner: T,
+        }
+
+        impl<T> Foo for Baz<T>
+        where
+            T: Foo,
+        {
+            type Bar = <T as Foo>::Bar;
+
+            fn bar(self) -> Self::Bar {
+                self.inner.bar()
+            }
+        }
+
+        fn main() {
+            let _: () = (Baz { inner: () }.bar()())();
+        }
+    ";
+    assert_no_errors(src);
+}
