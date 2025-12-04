@@ -241,10 +241,10 @@
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
         BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } =&gt; {
-            and(initial_witness, lhs, rhs, <span class="kw-2">*</span>num_bits, output, backend.pedantic_solving())
+            and(initial_witness, lhs, rhs, <span class="kw-2">*</span>num_bits, output)
         }
         BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } =&gt; {
-            xor(initial_witness, lhs, rhs, <span class="kw-2">*</span>num_bits, output, backend.pedantic_solving())
+            xor(initial_witness, lhs, rhs, <span class="kw-2">*</span>num_bits, output)
         }
         BlackBoxFuncCall::RANGE { input, num_bits } =&gt; {
             solve_range_opcode(initial_witness, input, <span class="kw-2">*</span>num_bits)

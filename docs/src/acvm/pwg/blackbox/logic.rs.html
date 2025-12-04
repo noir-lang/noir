@@ -122,7 +122,42 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::OpcodeResolutionError;
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::OpcodeResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::pwg::{check_bit_size, input_to_value, insert_value};
 <span class="kw">use </span>acir::circuit::opcodes::FunctionInput;
 <span class="kw">use </span>acir::{
@@ -139,17 +174,10 @@
     rhs: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
     num_bits: u32,
     output: <span class="kw-2">&amp;</span>Witness,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    solve_logic_opcode(
-        initial_witness,
-        lhs,
-        rhs,
-        num_bits,
-        <span class="kw-2">*</span>output,
-        pedantic_solving,
-        |left, right| bit_and(left, right, num_bits),
-    )
+    solve_logic_opcode(initial_witness, lhs, rhs, num_bits, <span class="kw-2">*</span>output, |left, right| {
+        bit_and(left, right, num_bits)
+    })
 }
 
 <span class="doccomment">/// Solves a [`BlackBoxFunc::XOR`][acir::circuit::black_box_functions::BlackBoxFunc::XOR] opcode and inserts
@@ -160,17 +188,10 @@
     rhs: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
     num_bits: u32,
     output: <span class="kw-2">&amp;</span>Witness,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    solve_logic_opcode(
-        initial_witness,
-        lhs,
-        rhs,
-        num_bits,
-        <span class="kw-2">*</span>output,
-        pedantic_solving,
-        |left, right| bit_xor(left, right, num_bits),
-    )
+    solve_logic_opcode(initial_witness, lhs, rhs, num_bits, <span class="kw-2">*</span>output, |left, right| {
+        bit_xor(left, right, num_bits)
+    })
 }
 
 <span class="doccomment">/// Derives the rest of the witness based on the initial low level variables
@@ -180,19 +201,14 @@
     b: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
     num_bits: u32,
     result: Witness,
-    pedantic_solving: bool,
     logic_op: <span class="kw">impl </span>Fn(F, F) -&gt; F,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span>w_l_value = input_to_value(initial_witness, <span class="kw-2">*</span>a)<span class="question-mark">?</span>;
     <span class="kw">let </span>w_r_value = input_to_value(initial_witness, <span class="kw-2">*</span>b)<span class="question-mark">?</span>;
     <span class="kw">let </span>assignment = logic_op(w_l_value, w_r_value);
-    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
-    // default once we figure out how to combine these with existing
-    // noirc_frontend/noirc_evaluator overflow error messages
-    </span><span class="kw">if </span>pedantic_solving {
-        check_bit_size(w_l_value, num_bits)<span class="question-mark">?</span>;
-        check_bit_size(w_r_value, num_bits)<span class="question-mark">?</span>;
-    }
+    check_bit_size(w_l_value, num_bits)<span class="question-mark">?</span>;
+    check_bit_size(w_r_value, num_bits)<span class="question-mark">?</span>;
+
     insert_value(<span class="kw-2">&amp;</span>result, assignment, initial_witness)
 }
 
@@ -200,50 +216,104 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::pwg::blackbox::{and, xor};
     <span class="kw">use </span>acir::{
-        FieldElement,
+        FieldElement, InvalidInputBitSize,
         circuit::opcodes::FunctionInput,
         native_types::{Witness, WitnessMap},
     };
     <span class="kw">use </span>std::collections::BTreeMap;
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_and() {
-        <span class="kw">let </span>lhs = FunctionInput::Witness(Witness(<span class="number">1</span>));
-        <span class="kw">let </span>rhs = FunctionInput::Witness(Witness(<span class="number">2</span>));
+    <span class="kw">mod </span>and {
+        <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
-            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">5u128</span>)),
-            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">8u128</span>)),
-        ]));
-        and(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>), <span class="bool-val">false</span>).unwrap();
-        <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">0u128</span>));
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>smoke_test() {
+            <span class="kw">let </span>lhs = FunctionInput::Witness(Witness(<span class="number">1</span>));
+            <span class="kw">let </span>rhs = FunctionInput::Witness(Witness(<span class="number">2</span>));
 
-        <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
-            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">26u128</span>)),
-            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">34u128</span>)),
-        ]));
-        and(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>), <span class="bool-val">false</span>).unwrap();
-        <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">2u128</span>));
+            <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+                (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">5u128</span>)),
+                (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">8u128</span>)),
+            ]));
+            and(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)).unwrap();
+            <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">0u128</span>));
+
+            <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+                (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">26u128</span>)),
+                (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">34u128</span>)),
+            ]));
+            and(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)).unwrap();
+            <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">2u128</span>));
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>errors_if_input_is_too_large() {
+            <span class="kw">let </span>lhs = FunctionInput::Witness(Witness(<span class="number">1</span>));
+            <span class="kw">let </span>rhs = FunctionInput::Witness(Witness(<span class="number">2</span>));
+
+            <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+                (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">5u128</span>)),
+                (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">256u128</span>)),
+            ]));
+            <span class="kw">let </span>result = and(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>));
+            <span class="macro">assert_eq!</span>(
+                result,
+                <span class="prelude-val">Err</span>(<span class="kw">crate</span>::pwg::OpcodeResolutionError::InvalidInputBitSize {
+                    opcode_location: <span class="kw">crate</span>::pwg::ErrorLocation::Unresolved,
+                    invalid_input_bit_size: InvalidInputBitSize {
+                        value: <span class="string">"256"</span>.to_string(),
+                        value_num_bits: <span class="number">9</span>,
+                        max_bits: <span class="number">8
+                    </span>},
+                })
+            );
+        }
     }
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_xor() {
-        <span class="kw">let </span>lhs = FunctionInput::Witness(Witness(<span class="number">1</span>));
-        <span class="kw">let </span>rhs = FunctionInput::Witness(Witness(<span class="number">2</span>));
+    <span class="kw">mod </span>xor {
+        <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
-            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">5u128</span>)),
-            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">8u128</span>)),
-        ]));
-        xor(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>), <span class="bool-val">false</span>).unwrap();
-        <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">13u128</span>));
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_xor() {
+            <span class="kw">let </span>lhs = FunctionInput::Witness(Witness(<span class="number">1</span>));
+            <span class="kw">let </span>rhs = FunctionInput::Witness(Witness(<span class="number">2</span>));
 
-        <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
-            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">26u128</span>)),
-            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">34u128</span>)),
-        ]));
-        xor(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>), <span class="bool-val">false</span>).unwrap();
-        <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">56u128</span>));
+            <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+                (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">5u128</span>)),
+                (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">8u128</span>)),
+            ]));
+            xor(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)).unwrap();
+            <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">13u128</span>));
+
+            <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+                (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">26u128</span>)),
+                (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">34u128</span>)),
+            ]));
+            xor(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)).unwrap();
+            <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">3</span>)], FieldElement::from(<span class="number">56u128</span>));
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>errors_if_input_is_too_large() {
+            <span class="kw">let </span>lhs = FunctionInput::Witness(Witness(<span class="number">1</span>));
+            <span class="kw">let </span>rhs = FunctionInput::Witness(Witness(<span class="number">2</span>));
+
+            <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+                (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">5u128</span>)),
+                (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">256u128</span>)),
+            ]));
+            <span class="kw">let </span>result = xor(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, <span class="number">8</span>, <span class="kw-2">&amp;</span>Witness(<span class="number">3</span>));
+            <span class="macro">assert_eq!</span>(
+                result,
+                <span class="prelude-val">Err</span>(<span class="kw">crate</span>::pwg::OpcodeResolutionError::InvalidInputBitSize {
+                    opcode_location: <span class="kw">crate</span>::pwg::ErrorLocation::Unresolved,
+                    invalid_input_bit_size: InvalidInputBitSize {
+                        value: <span class="string">"256"</span>.to_string(),
+                        value_num_bits: <span class="number">9</span>,
+                        max_bits: <span class="number">8
+                    </span>},
+                })
+            );
+        }
     }
 }
 </code></pre></div></section></main></body></html>

@@ -312,25 +312,7 @@
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ec::AffineRepr;
+<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ec::AffineRepr;
 <span class="kw">use </span>ark_ff::MontConfig;
 <span class="kw">use </span>num_bigint::BigUint;
 
@@ -358,7 +340,6 @@
     points: <span class="kw-2">&amp;</span>[FieldElement],
     scalars_lo: <span class="kw-2">&amp;</span>[FieldElement],
     scalars_hi: <span class="kw-2">&amp;</span>[FieldElement],
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
     <span class="kw">if </span>points.len() != <span class="number">3 </span>* scalars_lo.len() || scalars_lo.len() != scalars_hi.len() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
@@ -370,8 +351,11 @@
     <span class="kw">let </span><span class="kw-2">mut </span>output_point = ark_grumpkin::Affine::zero();
 
     <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..points.len()).step_by(<span class="number">3</span>) {
-        <span class="kw">if </span>pedantic_solving &amp;&amp; points[i + <span class="number">2</span>] &gt; FieldElement::one() {
-            <span class="macro">panic!</span>(<span class="string">"--pedantic-solving: is_infinity expected to be a bool, but found to be &gt; 1"</span>)
+        <span class="kw">if </span>points[i + <span class="number">2</span>] &gt; FieldElement::one() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::MultiScalarMul,
+                <span class="string">"EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)"</span>.to_string(),
+            ));
         }
         <span class="kw">let </span>point =
             create_point(points[i], points[i + <span class="number">1</span>], points[i + <span class="number">2</span>] == FieldElement::from(<span class="number">1_u128</span>))
@@ -416,10 +400,12 @@
 <span class="kw">pub fn </span>embedded_curve_add(
     input1: [FieldElement; <span class="number">3</span>],
     input2: [FieldElement; <span class="number">3</span>],
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
-    <span class="kw">if </span>pedantic_solving &amp;&amp; (input1[<span class="number">2</span>] &gt; FieldElement::one() || input2[<span class="number">2</span>] &gt; FieldElement::one()) {
-        <span class="macro">panic!</span>(<span class="string">"--pedantic-solving: is_infinity expected to be a bool, but found to be &gt; 1"</span>)
+    <span class="kw">if </span>input1[<span class="number">2</span>] &gt; FieldElement::one() || input2[<span class="number">2</span>] &gt; FieldElement::one() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::MultiScalarMul,
+            <span class="string">"EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)"</span>.to_string(),
+        ));
     }
 
     <span class="kw">let </span>point1 = create_point(input1[<span class="number">0</span>], input1[<span class="number">1</span>], input1[<span class="number">2</span>] == FieldElement::one())
@@ -427,14 +413,12 @@
     <span class="kw">let </span>point2 = create_point(input2[<span class="number">0</span>], input2[<span class="number">1</span>], input2[<span class="number">2</span>] == FieldElement::one())
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))<span class="question-mark">?</span>;
 
-    <span class="kw">if </span>pedantic_solving {
-        <span class="kw">for </span>point <span class="kw">in </span>[point1, point2] {
-            <span class="kw">if </span>point == ark_grumpkin::Affine::zero() {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
-                    BlackBoxFunc::EmbeddedCurveAdd,
-                    <span class="macro">format!</span>(<span class="string">"Infinite input: embedded_curve_add({point1}, {point2})"</span>),
-                ));
-            }
+    <span class="kw">for </span>point <span class="kw">in </span>[point1, point2] {
+        <span class="kw">if </span>point == ark_grumpkin::Affine::zero() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                <span class="macro">format!</span>(<span class="string">"Infinite input: embedded_curve_add({point1}, {point2})"</span>),
+            ));
         }
     }
 
@@ -490,13 +474,7 @@
         <span class="comment">// We check that multiplying 1 by generator results in the generator
         </span><span class="kw">let </span>generator = get_generator();
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>res = multi_scalar_mul(
-            <span class="kw-2">&amp;</span>generator,
-            <span class="kw-2">&amp;</span>[FieldElement::one()],
-            <span class="kw-2">&amp;</span>[FieldElement::zero()],
-            pedantic_solving,
-        )<span class="question-mark">?</span>;
+        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>generator, <span class="kw-2">&amp;</span>[FieldElement::one()], <span class="kw-2">&amp;</span>[FieldElement::zero()])<span class="question-mark">?</span>;
 
         <span class="macro">assert_eq!</span>(generator[<span class="number">0</span>], res.<span class="number">0</span>);
         <span class="macro">assert_eq!</span>(generator[<span class="number">1</span>], res.<span class="number">1</span>);
@@ -509,8 +487,7 @@
         <span class="kw">let </span>scalars_lo = [FieldElement::one()];
         <span class="kw">let </span>scalars_hi = [FieldElement::from(<span class="number">2u128</span>)];
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi, pedantic_solving)<span class="question-mark">?</span>;
+        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi)<span class="question-mark">?</span>;
         <span class="kw">let </span>x = <span class="string">"0702ab9c7038eeecc179b4f209991bcb68c7cb05bf4c532d804ccac36199c9a9"</span>;
         <span class="kw">let </span>y = <span class="string">"23f10e9e43a3ae8d75d24154e796aae12ae7af546716e8f81a2564f1b5814130"</span>;
 
@@ -531,13 +508,10 @@
             <span class="string">"Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128"</span>.into(),
         ));
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>res =
-            multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>[FieldElement::one()], <span class="kw-2">&amp;</span>[invalid_limb], pedantic_solving);
+        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>[FieldElement::one()], <span class="kw-2">&amp;</span>[invalid_limb]);
         <span class="macro">assert_eq!</span>(res, expected_error);
 
-        <span class="kw">let </span>res =
-            multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>[invalid_limb], <span class="kw-2">&amp;</span>[FieldElement::one()], pedantic_solving);
+        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>[invalid_limb], <span class="kw-2">&amp;</span>[FieldElement::one()]);
         <span class="macro">assert_eq!</span>(res, expected_error);
     }
 
@@ -547,8 +521,7 @@
         <span class="kw">let </span>low = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>x[<span class="number">16</span>..<span class="number">32</span>]);
         <span class="kw">let </span>high = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>x[<span class="number">0</span>..<span class="number">16</span>]);
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>get_generator(), <span class="kw-2">&amp;</span>[low], <span class="kw-2">&amp;</span>[high], pedantic_solving);
+        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>get_generator(), <span class="kw-2">&amp;</span>[low], <span class="kw-2">&amp;</span>[high]);
 
         <span class="macro">assert_eq!</span>(
             res,
@@ -566,12 +539,10 @@
         <span class="kw">let </span>valid_scalar_low = FieldElement::zero();
         <span class="kw">let </span>valid_scalar_high = FieldElement::zero();
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
         <span class="kw">let </span>res = multi_scalar_mul(
             <span class="kw-2">&amp;</span>[invalid_point_x, invalid_point_y, FieldElement::zero()],
             <span class="kw-2">&amp;</span>[valid_scalar_low],
             <span class="kw-2">&amp;</span>[valid_scalar_high],
-            pedantic_solving,
         );
 
         <span class="macro">assert_eq!</span>(
@@ -589,8 +560,7 @@
         <span class="kw">let </span>scalars_lo = [FieldElement::from(<span class="number">2u128</span>)];
         <span class="kw">let </span>scalars_hi = [];
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi, pedantic_solving);
+        <span class="kw">let </span>res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi);
 
         <span class="macro">assert_eq!</span>(
             res,
@@ -606,11 +576,9 @@
         <span class="kw">let </span>x = FieldElement::from(<span class="number">1u128</span>);
         <span class="kw">let </span>y = FieldElement::from(<span class="number">2u128</span>);
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
         <span class="kw">let </span>res = embedded_curve_add(
             [x, y, FieldElement::from(<span class="number">0u128</span>)],
             [x, y, FieldElement::from(<span class="number">0u128</span>)],
-            pedantic_solving,
         );
 
         <span class="macro">assert_eq!</span>(
@@ -627,11 +595,9 @@
         <span class="kw">let </span>x = FieldElement::from(<span class="number">1u128</span>);
         <span class="kw">let </span>y = FieldElement::from(<span class="number">1u128</span>);
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
         <span class="kw">let </span>res = embedded_curve_add(
             [x, y, FieldElement::from(<span class="number">1u128</span>)],
             [x, y, FieldElement::from(<span class="number">1u128</span>)],
-            pedantic_solving,
         );
 
         <span class="macro">assert_eq!</span>(
@@ -649,12 +615,10 @@
         <span class="kw">let </span>scalars_lo = [FieldElement::from(<span class="number">2u128</span>)];
         <span class="kw">let </span>scalars_hi = [FieldElement::zero()];
 
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>msm_res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi, pedantic_solving)<span class="question-mark">?</span>;
+        <span class="kw">let </span>msm_res = multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi)<span class="question-mark">?</span>;
         <span class="kw">let </span>add_res = embedded_curve_add(
             [points[<span class="number">0</span>], points[<span class="number">1</span>], FieldElement::from(<span class="number">0u128</span>)],
             [points[<span class="number">0</span>], points[<span class="number">1</span>], FieldElement::from(<span class="number">0u128</span>)],
-            pedantic_solving,
         )<span class="question-mark">?</span>;
 
         <span class="macro">assert_eq!</span>(msm_res.<span class="number">0</span>, add_res.<span class="number">0</span>);

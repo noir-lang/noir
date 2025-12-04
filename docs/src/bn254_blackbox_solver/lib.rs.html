@@ -67,8 +67,7 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+<a href="#69" id="69">69</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
@@ -104,7 +103,7 @@
         predicate: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
         <span class="kw">if </span>predicate {
-            multi_scalar_mul(points, scalars_lo, scalars_hi, <span class="self">self</span>.pedantic_solving())
+            multi_scalar_mul(points, scalars_lo, scalars_hi)
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
         }
@@ -124,7 +123,6 @@
             embedded_curve_add(
                 [<span class="kw-2">*</span>input1_x, <span class="kw-2">*</span>input1_y, <span class="kw-2">*</span>input1_infinite],
                 [<span class="kw-2">*</span>input2_x, <span class="kw-2">*</span>input2_y, <span class="kw-2">*</span>input2_infinite],
-                <span class="self">self</span>.pedantic_solving(),
             )
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
