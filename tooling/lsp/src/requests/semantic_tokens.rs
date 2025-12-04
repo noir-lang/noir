@@ -304,7 +304,7 @@ impl<'args> SemanticTokenCollector<'args> {
                             | Token::Keyword(Keyword::Type)
                     )
                 }) {
-                    // Heurisitc: colorize "foo" in "struct foo", "enum foo", etc., as a struct
+                    // Heuristic: colorize "foo" in "struct foo", "enum foo", etc., as a struct
                     SemanticTokenType::STRUCT
                 } else {
                     SemanticTokenType::VARIABLE
