@@ -295,14 +295,67 @@
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span><span class="kw">crate</span>::utils;
 <span class="kw">use </span><span class="kw">crate</span>::visitor_reference_finder::VisitorReferenceFinder;
 <span class="kw">use crate</span>::{LspState, types::GotoDefinitionResult};
 <span class="kw">use </span>async_lsp::ResponseError;
 
-<span class="kw">use </span>async_lsp::lsp_types;
+<span class="kw">use </span>async_lsp::lsp_types::{<span class="self">self</span>, LocationLink};
 <span class="kw">use </span>lsp_types::request::GotoTypeDefinitionParams;
 <span class="kw">use </span>lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
 
@@ -332,7 +385,7 @@
     <span class="kw">let </span>position = params.text_document_position_params.position;
     process_request(state, params.text_document_position_params, |args| {
         <span class="kw">let </span>file_id = args.location.file;
-        <span class="kw">let </span>reference_id =
+        <span class="kw">let </span>result =
             utils::position_to_byte_index(args.files, file_id, <span class="kw-2">&amp;</span>position).and_then(|byte_index| {
                 <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
                 <span class="kw">let </span>source = file.source();
@@ -341,21 +394,36 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>finder = VisitorReferenceFinder::new(file_id, source, byte_index, <span class="kw-2">&amp;</span>args);
                 finder.find(<span class="kw-2">&amp;</span>parsed_module)
             });
-        <span class="kw">let </span>location = <span class="kw">if let </span><span class="prelude-val">Some</span>(reference_id) = reference_id {
-            <span class="prelude-val">Some</span>(args.interner.reference_location(reference_id))
+        <span class="kw">let </span>location = <span class="kw">if let </span><span class="prelude-val">Some</span>((reference_id, link_lsp_location)) = result {
+            <span class="kw">let </span>location = args.interner.reference_location(reference_id);
+            <span class="prelude-val">Some</span>((location, link_lsp_location))
         } <span class="kw">else </span>{
-            args.interner
+            <span class="kw">let </span>location = args
+                .interner
                 .get_definition_location_from(args.location, return_type_location_instead)
                 .or_else(|| {
                     args.interner
                         .reference_at_location(args.location)
                         .map(|reference| args.interner.reference_location(reference))
-                })
+                });
+            location.map(|location| (location, <span class="prelude-val">None</span>))
         };
-        location.and_then(|found_location| {
-            <span class="kw">let </span>file_id = found_location.file;
-            <span class="kw">let </span>definition_position = to_lsp_location(args.files, file_id, found_location.span)<span class="question-mark">?</span>;
-            <span class="kw">let </span>response = GotoDefinitionResponse::from(definition_position).to_owned();
+        location.and_then(|(location, link_lsp_location)| {
+            <span class="kw">let </span>location = to_lsp_location(args.files, location.file, location.span)<span class="question-mark">?</span>;
+            <span class="kw">let </span>response = <span class="kw">match </span>link_lsp_location {
+                <span class="prelude-val">Some</span>(lsp_location) =&gt; {
+                    <span class="comment">// In case of doc comment references we want the underline to cover the entire
+                    // range of the reference, not just the word that's being hovered.
+                    </span><span class="kw">let </span>location_link = LocationLink {
+                        origin_selection_range: <span class="prelude-val">Some</span>(lsp_location.range),
+                        target_uri: location.uri,
+                        target_range: location.range,
+                        target_selection_range: location.range,
+                    };
+                    GotoDefinitionResponse::Link(<span class="macro">vec!</span>[location_link])
+                }
+                <span class="prelude-val">None </span>=&gt; GotoDefinitionResponse::from(location).to_owned(),
+            };
             <span class="prelude-val">Some</span>(response)
         })
     })
@@ -580,16 +648,54 @@
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>goto_reference_in_doc_comment() {
-        expect_goto(
-            <span class="string">"go_to_definition"</span>,
-            Position { line: <span class="number">38</span>, character: <span class="number">10 </span>},
-            <span class="string">"src/main.nr"</span>,
+        <span class="kw">let </span>(<span class="kw-2">mut </span>state, noir_text_document) = test_utils::init_lsp_server(<span class="string">"go_to_definition"</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>position = Position { line: <span class="number">38</span>, character: <span class="number">10 </span>};
+
+        <span class="kw">let </span>params = GotoDefinitionParams {
+            text_document_position_params: lsp_types::TextDocumentPositionParams {
+                text_document: lsp_types::TextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                },
+                position,
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        <span class="kw">let </span>response = on_goto_definition_request(<span class="kw-2">&amp;mut </span>state, params)
+            .<span class="kw">await
+            </span>.expect(<span class="string">"Could execute on_goto_definition_request"</span>)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"Didn't get a goto definition response"</span>));
+        <span class="kw">let </span>GotoDefinitionResponse::Link(links) = response <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected a link response"</span>);
+        };
+        <span class="macro">assert_eq!</span>(links.len(), <span class="number">1</span>);
+        <span class="kw">let </span>link = <span class="kw-2">&amp;</span>links[<span class="number">0</span>];
+        <span class="macro">assert!</span>(link.target_uri.to_string().ends_with(<span class="string">"src/main.nr"</span>));
+
+        <span class="comment">// This range is `[Foo]` in the doc comment
+        </span><span class="macro">assert_eq!</span>(
+            link.origin_selection_range,
+            <span class="prelude-val">Some</span>(Range {
+                start: Position { line: <span class="number">38</span>, character: <span class="number">8 </span>},
+                end: Position { line: <span class="number">38</span>, character: <span class="number">13 </span>},
+            },)
+        );
+
+        <span class="macro">assert_eq!</span>(
+            link.target_range,
             Range {
                 start: Position { line: <span class="number">21</span>, character: <span class="number">7 </span>},
                 end: Position { line: <span class="number">21</span>, character: <span class="number">10 </span>},
-            },
-        )
-        .<span class="kw">await</span>;
+            }
+        );
+        <span class="macro">assert_eq!</span>(
+            link.target_selection_range,
+            Range {
+                start: Position { line: <span class="number">21</span>, character: <span class="number">7 </span>},
+                end: Position { line: <span class="number">21</span>, character: <span class="number">10 </span>},
+            }
+        );
     }
 }
 </code></pre></div></section></main></body></html>

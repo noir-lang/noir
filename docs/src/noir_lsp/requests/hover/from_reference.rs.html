@@ -1066,7 +1066,10 @@
 <a href="#1065" id="1065">1065</a>
 <a href="#1066" id="1066">1066</a>
 <a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1111,10 +1114,13 @@
             <span class="kw">let </span><span class="kw-2">mut </span>finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
             finder.find(<span class="kw-2">&amp;</span>parsed_module)
         })
-        .or_else(|| args.interner.reference_at_location(args.location))
-        .and_then(|reference| {
+        .or_else(|| {
+            args.interner.reference_at_location(args.location).map(|reference| (reference, <span class="prelude-val">None</span>))
+        })
+        .and_then(|(reference, link_lsp_location)| {
             <span class="kw">let </span>location = args.interner.reference_location(reference);
-            <span class="kw">let </span>lsp_location = to_lsp_location(args.files, location.file, location.span);
+            <span class="kw">let </span>lsp_location = link_lsp_location
+                .or_else(|| to_lsp_location(args.files, location.file, location.span));
             format_reference(reference, args).map(|formatted| Hover {
                 range: lsp_location.map(|location| location.range),
                 contents: HoverContents::Markup(MarkupContent {
