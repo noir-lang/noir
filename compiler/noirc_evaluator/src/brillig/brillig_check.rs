@@ -469,9 +469,18 @@ trait OpcodeAddressVisitor {
                     self.read_value_or_array(input, location);
                 }
                 for destination in destinations {
-                    // Consider the destinations as something the VM will read;
-                    // we prepared these values for it, even if we don't use them later.
-                    self.read_value_or_array(destination, location);
+                    match destination {
+                        ValueOrArray::HeapArray(_) | ValueOrArray::HeapVector(_) => {
+                            // Consider the destinations as something the VM will read;
+                            // these are pointers to addresses on the heap to write directly into,
+                            // we don't need to read their values afterwards.
+                            self.read_value_or_array(destination, location);
+                        }
+                        ValueOrArray::MemoryAddress(_) => {
+                            // Simple addresses should be used read later to make use of them.
+                        }
+                    }
+
                     // We can also consider them being written to.
                     self.write_value_or_array(destination, location);
                 }
