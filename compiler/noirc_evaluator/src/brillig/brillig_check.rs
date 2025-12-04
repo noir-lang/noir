@@ -34,7 +34,12 @@ pub(crate) enum OpcodeAdvisory {
 
 pub(crate) type OpcodeAdvisories = HashMap<OpcodeLocation, Vec<OpcodeAdvisory>>;
 
-/// Go through opcodes and collect advisories, indicating opcodes which could potentially be removed
+/// Go through opcodes and collect advisories, indicating opcodes which are potentially unused.
+///
+/// At the moment this relies on the CFG still available from the SSA via the [FunctionContext].
+/// Unfortunately this doesn't work for the artifacts created by `compile_procedures`,
+/// which use looping in the bytecode level. To handle them in isolation, we would need to
+/// reconstruct the CFG from unresolved jump labels, and then establish a post order from that.
 pub(crate) fn opcode_advisories<F: AcirField>(
     function: &Function,
     function_context: &FunctionContext,
