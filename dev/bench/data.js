@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764858649905,
+  "lastUpdate": 1764859339244,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14822,95 +14822,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b47e62a186971a47540ff9e961da12332a5f5ec2",
-          "message": "fix: Error when slice_insert is OOB during comptime (#10645)",
-          "timestamp": "2025-11-26T19:11:06Z",
-          "tree_id": "7178d1483c1007e9f015ecdf5c68a69209410eed",
-          "url": "https://github.com/noir-lang/noir/commit/b47e62a186971a47540ff9e961da12332a5f5ec2"
-        },
-        "date": 1764186905991,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 259.98,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 241.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 335.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 334.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 335.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 524.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 465.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 334.04,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 73.92,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.07,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19200,6 +19111,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6d9dcae76a4cd9e1d756b14e27604970e01098e0"
         },
         "date": 1764855825502,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 259.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 241.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 335.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 334.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 335.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 524.03,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 465.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 334.04,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73.91,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.07,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "caaf7c3d601533e546119994a2798a6f5454083d",
+          "message": "fix: SignedField Eq and Hash implementations (#10671)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-12-04T13:57:26Z",
+          "tree_id": "9db6f7e74d7220e5bf7e4ee7bf3aef401c767717",
+          "url": "https://github.com/noir-lang/noir/commit/caaf7c3d601533e546119994a2798a6f5454083d"
+        },
+        "date": 1764859309235,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
