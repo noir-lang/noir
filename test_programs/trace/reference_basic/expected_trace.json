@@ -1,0 +1,16 @@
+[
+  { "Type": { "kind": 30, "lang_type": "None", "specific_info": { "kind": "None" } } },
+  { "Path": "src/main.nr" },
+  { "Function": { "path_id": 0, "line": 1, "name": "main" } },
+  { "Call": { "function_id": 0, "args": [] } },
+  { "Step": { "path_id": 0, "line": 2 } },
+  { "Step": { "path_id": 0, "line": 3 } },
+  { "Type": { "kind": 7, "lang_type": "u32", "specific_info": { "kind": "None" } } },
+  { "VariableName": "q" },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
+  { "Step": { "path_id": 0, "line": 4 } },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
+  { "Type": { "kind": 14, "lang_type": "&", "specific_info": { "kind": "None" } } },
+  { "VariableName": "w" },
+  { "Value": { "variable_id": 1, "value": { "kind": "None", "type_id": 2 } } }
+]
