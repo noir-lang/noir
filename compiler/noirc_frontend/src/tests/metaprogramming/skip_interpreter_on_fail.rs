@@ -493,12 +493,47 @@ fn attribute_with_error_prevents_function_execution() {
 }
 
 #[test]
-fn regression_10686() {
+fn regression_10686_0() {
     let src = "
     fn main() {
         comptime {
             let _ = i32 {};
                     ^^^ expected type got primitive type
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10686_1() {
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 5;
+    }
+    fn main() {
+        comptime {
+            let x = 5 + <Foo as MyTrait>::M;
+                                          ^ Trait `MyTrait` has no method named `M`
+            assert_eq(x, 10);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10686_2() {
+    let src = "
+    fn main() {
+        comptime {
+            let expr = quote { 1 + 1 };
+            let _ = expr.foo();
+                    ^^^^^^^^^^ No method named 'foo' found for type 'Quoted'
         }
     }
     ";
