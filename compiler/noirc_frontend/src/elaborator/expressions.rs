@@ -1072,6 +1072,7 @@ impl Elaborator<'_> {
                     field: field_name.clone(),
                     struct_definition: struct_type.borrow().name.clone(),
                 });
+                continue;
             }
 
             if let Some((index, visibility)) = expected_index_and_visibility {
