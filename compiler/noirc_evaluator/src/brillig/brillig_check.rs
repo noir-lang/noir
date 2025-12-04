@@ -5,8 +5,8 @@ use std::{collections::HashMap, fmt::Display, ops::Range};
 use acvm::{
     AcirField,
     acir::brillig::{
-        BitSize, BlackBoxOp, HeapArray, HeapVector, IntegerBitSize, MemoryAddress, Opcode,
-        ValueOrArray,
+        BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapArray, HeapVector, IntegerBitSize,
+        MemoryAddress, Opcode, ValueOrArray,
     },
 };
 
@@ -264,6 +264,9 @@ struct AdvisoryCollector<'a> {
     in_call_region: u8,
     /// Indicate that we are in the region where we are passing out return parameters.
     in_return_region: bool,
+    /// Indicate whether the current opcode can fail, which means it needs to be kept
+    /// even if its value is unused.
+    is_fallible: bool,
 }
 
 impl<'a> AdvisoryCollector<'a> {
@@ -279,6 +282,7 @@ impl<'a> AdvisoryCollector<'a> {
             advisories: HashMap::new(),
             in_call_region: 0,
             in_return_region: false,
+            is_fallible: false,
         }
     }
 
@@ -305,6 +309,16 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         } else if !matches!(opcode, Opcode::Mov { .. }) {
             self.in_return_region = false;
         }
+
+        // Add here anything where an unused result can be ignored, as the operation can fail the circuit.
+        self.is_fallible = match opcode {
+            Opcode::BinaryFieldOp {
+                op: BinaryFieldOp::Div | BinaryFieldOp::IntegerDiv, ..
+            }
+            | Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. } => true,
+            // I'm sure there are many others.
+            _ => false,
+        };
 
         match opcode {
             // Handle the conventions of `codegen_call`: we are passing call arguments by coping them
@@ -370,21 +384,28 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
             // The reads can be inspected, as they should consume data we have prepared.
             return;
         }
-        if let Some(read_at) = self.reads.get(addr) {
-            if let Some(write_at) = self.writes.get(addr) {
-                if write_at < read_at {
-                    self.add_advisory(
-                        location,
-                        OpcodeAdvisory::OverwrittenBeforeRead {
-                            addr: *addr,
-                            write_at: *write_at,
-                            read_at: *read_at,
-                        },
-                    );
+
+        // Some opcodes can have side effects, in which case we need to run them even
+        // if we don't use their results.
+        let ignore_unused = self.is_fallible;
+
+        if !ignore_unused {
+            if let Some(read_at) = self.reads.get(addr) {
+                if let Some(write_at) = self.writes.get(addr) {
+                    if write_at < read_at {
+                        self.add_advisory(
+                            location,
+                            OpcodeAdvisory::OverwrittenBeforeRead {
+                                addr: *addr,
+                                write_at: *write_at,
+                                read_at: *read_at,
+                            },
+                        );
+                    }
                 }
+            } else if !self.reads_in_descendants.contains(addr) {
+                self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });
             }
-        } else if !self.reads_in_descendants.contains(addr) {
-            self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });
         }
         self.writes.insert(*addr, location);
     }
