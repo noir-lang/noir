@@ -1083,7 +1083,7 @@
         brillig_context.return_instruction();
 
         <span class="comment">// The artifact contains the Brillig bytecode to initialize the global variables and constants.
-        </span><span class="kw">let </span>artifact = brillig_context.artifact();
+        </span><span class="kw">let </span>artifact = brillig_context.into_artifact();
 
         <span class="comment">// The global registers are going to become pre-allocated registers when we compile functions,
         // so we can stop tracking their allocation life cycles and keep just the memory addresses.

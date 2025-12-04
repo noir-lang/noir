@@ -540,15 +540,21 @@
 <a href="#539" id="539">539</a>
 <a href="#540" id="540">540</a>
 <a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 //!
-//! The brillig ir provides instructions and codegens.
-//! The instructions are low level operations that are printed via debug_show.
+//! The brillig IR provides instructions and codegens.
+//! The instructions are low level operations that are printed via `debug_show`.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
 </span><span class="kw">pub mod </span>artifact;
@@ -685,6 +691,20 @@
             </span>);
         }
         <span class="self">self</span>.globals_memory_size = new_size;
+    }
+
+    <span class="doccomment">/// Returns the artifact, discarding the rest of the context.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_artifact(<span class="self">self</span>) -&gt; BrilligArtifact&lt;F&gt; {
+        <span class="self">self</span>.obj
+    }
+
+    <span class="doccomment">/// Returns the artifact.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>artifact(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BrilligArtifact&lt;F&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.obj
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.obj.name
     }
 }
 
@@ -852,15 +872,6 @@
         <span class="self">self</span>.obj.push_opcode(opcode);
     }
 
-    <span class="doccomment">/// Returns the artifact
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>artifact(<span class="self">self</span>) -&gt; BrilligArtifact&lt;F&gt; {
-        <span class="self">self</span>.obj
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.obj.name
-    }
-
     <span class="doccomment">/// Sets a current call stack that the next pushed opcodes will be associated with.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) {
         <span class="self">self</span>.obj.set_call_stack(call_stack);
@@ -949,7 +960,7 @@
             enable_array_copy_counter: context.count_arrays_copied,
             ..Default::default()
         };
-        <span class="kw">let </span>artifact = context.artifact();
+        <span class="kw">let </span>artifact = context.into_artifact();
         <span class="kw">let </span>(<span class="kw-2">mut </span>entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
@@ -1005,6 +1016,7 @@
             enable_debug_trace: <span class="bool-val">true</span>,
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
+            show_opcode_advisories: <span class="bool-val">false</span>,
             layout: Default::default(),
         };
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
@@ -1058,7 +1070,7 @@
         context.push_opcode(BrilligOpcode::Trap { revert_data: empty_data });
         context.stop_instruction(empty_data);
 
-        <span class="kw">let </span>bytecode: Vec&lt;BrilligOpcode&lt;FieldElement&gt;&gt; = context.artifact().finish().byte_code;
+        <span class="kw">let </span>bytecode: Vec&lt;BrilligOpcode&lt;FieldElement&gt;&gt; = context.into_artifact().finish().byte_code;
 
         <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>bytecode, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
 

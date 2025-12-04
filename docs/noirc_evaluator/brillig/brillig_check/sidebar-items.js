@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["OpcodeAdvisory"],"fn":["block_opcode_ranges","opcode_advisories","show_opcode_advisories"],"struct":["AdvisoryCollector","ReadCollector"],"trait":["OpcodeAddressVisitor"],"type":["OpcodeAdvisories"]};

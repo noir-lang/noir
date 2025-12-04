@@ -418,7 +418,7 @@
     /// resolved.
     </span>unresolved_jumps: Vec&lt;(JumpInstructionPosition, UnresolvedJumpLocation)&gt;,
     <span class="doccomment">/// A map of labels to their position in byte code.
-    </span>labels: HashMap&lt;Label, OpcodeLocation&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) labels: HashMap&lt;Label, OpcodeLocation&gt;,
     <span class="doccomment">/// Set of labels which are external to the bytecode.
     ///
     /// This will most commonly contain the labels of functions

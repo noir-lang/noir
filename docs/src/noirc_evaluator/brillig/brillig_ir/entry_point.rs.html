@@ -519,7 +519,7 @@
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>return_parameters);
-        (context.artifact(), stack_start)
+        (context.into_artifact(), stack_start)
     }
 
     <span class="kw">fn </span>calldata_start_offset(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {

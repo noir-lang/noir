@@ -335,14 +335,24 @@
 <a href="#334" id="334">334</a>
 <a href="#335" id="335">335</a>
 <a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
 //! for generating Brillig bytecode from [Ssa].
 //!
 //! # Usage
 //!
 //! Brillig generation is performed by calling the [Ssa::to_brillig] method.
 //! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
+</span><span class="kw">mod </span>brillig_check;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
 <span class="kw">pub mod </span>brillig_ir;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -379,6 +389,7 @@
     <span class="kw">pub </span>enable_debug_trace: bool,
     <span class="kw">pub </span>enable_debug_assertions: bool,
     <span class="kw">pub </span>enable_array_copy_counter: bool,
+    <span class="kw">pub </span>show_opcode_advisories: bool,
     <span class="kw">pub </span>layout: LayoutConfig,
 }
 
@@ -452,7 +463,7 @@
 
         brillig_context.call_check_max_stack_depth_procedure();
 
-        <span class="kw">for </span>block <span class="kw">in </span>function_context.blocks.clone() {
+        <span class="kw">for </span>block <span class="kw">in </span>function_context.reverse_post_order().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() {
             BrilligBlock::compile_block(
                 <span class="kw-2">&amp;mut </span>function_context,
                 <span class="kw-2">&amp;mut </span>brillig_context,
@@ -464,7 +475,14 @@
             );
         }
 
-        brillig_context.artifact()
+        <span class="kw">if </span>options.show_opcode_advisories {
+            <span class="kw">let </span>opcode_advisories =
+                brillig_check::opcode_advisories(func, <span class="kw-2">&amp;</span>function_context, <span class="kw-2">&amp;</span>brillig_context);
+
+            brillig_check::show_opcode_advisories(<span class="kw-2">&amp;</span>opcode_advisories, brillig_context.artifact());
+        }
+
+        brillig_context.into_artifact()
     }
 
     <span class="kw">pub fn </span>call_stacks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CallStackHelper {

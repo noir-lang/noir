@@ -907,7 +907,14 @@
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -1012,10 +1019,15 @@
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>minimal_ssa: bool,
 
-    <span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+    <span class="doccomment">/// Display debug prints during Brillig generation.
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>show_brillig: bool,
 
-    <span class="doccomment">/// Display the ACIR for compiled circuit
+    <span class="doccomment">/// Display Brillig opcodes with advisories, if any.
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+    </span><span class="kw">pub </span>show_brillig_opcode_advisories: bool,
+
+    <span class="doccomment">/// Display the ACIR for compiled circuit, including the Brillig bytecode.
     </span><span class="attr">#[arg(long)]
     </span><span class="kw">pub </span>print_acir: bool,
 
@@ -1148,6 +1160,7 @@
             emit_ssa: <span class="bool-val">false</span>,
             minimal_ssa: <span class="bool-val">false</span>,
             show_brillig: <span class="bool-val">false</span>,
+            show_brillig_opcode_advisories: <span class="bool-val">false</span>,
             print_acir: <span class="bool-val">false</span>,
             benchmark_codegen: <span class="bool-val">false</span>,
             deny_warnings: <span class="bool-val">false</span>,
@@ -1189,6 +1202,7 @@
                 enable_debug_trace: <span class="self">self</span>.show_brillig,
                 enable_debug_assertions: <span class="self">self</span>.enable_brillig_debug_assertions,
                 enable_array_copy_counter: <span class="self">self</span>.count_array_copies,
+                show_opcode_advisories: <span class="self">self</span>.show_brillig_opcode_advisories,
                 layout: Default::default(),
             },
             print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
