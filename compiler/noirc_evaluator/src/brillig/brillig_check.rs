@@ -448,6 +448,10 @@ trait OpcodeAddressVisitor {
                     self.read_value_or_array(input, location);
                 }
                 for destination in destinations {
+                    // Consider the destinations as something the VM will read;
+                    // we prepared these values for it, even if we don't use them later.
+                    self.read_value_or_array(destination, location);
+                    // We can also consider them being written to.
                     self.write_value_or_array(destination, location);
                 }
             }
