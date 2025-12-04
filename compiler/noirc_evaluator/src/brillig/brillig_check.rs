@@ -254,6 +254,8 @@ struct AdvisoryCollector<'a> {
     /// * 1 means we are 1 step before the start of the call region
     /// * 0 means we are not in a call region
     in_call_region: u8,
+    /// Indicate that we are in the region where we are passing out return parameters.
+    in_return_region: bool,
 }
 
 impl<'a> AdvisoryCollector<'a> {
@@ -268,6 +270,7 @@ impl<'a> AdvisoryCollector<'a> {
             writes: HashMap::new(),
             advisories: HashMap::new(),
             in_call_region: 0,
+            in_return_region: false,
         }
     }
 
@@ -281,6 +284,58 @@ impl<'a> AdvisoryCollector<'a> {
 }
 
 impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
+    /// Maintain some contextual information about regions.
+    fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
+        // The return instruction can be preceded by a number of moves from various parts of the stack
+        // to the beginning, depending on the number of return values. They destinations can be shuffled.
+        if matches!(opcode, Opcode::Return) {
+            self.in_return_region = true;
+        } else if !matches!(opcode, Opcode::Mov { .. }) {
+            self.in_return_region = false;
+        }
+
+        match opcode {
+            // Handle the conventions of `codegen_call`: we are passing call arguments by coping them
+            // to new stack registers, then we set the stack pointer @0, which changes the meaning of
+            // relative addresses. The parameters are going to be read by another function, not visible
+            // in the scope of a single function we are analyzing here.
+            Opcode::Mov { destination, source } => {
+                if *destination == ReservedRegisters::stack_pointer()
+                    && *source == MemoryAddress::relative(0)
+                {
+                    // This is the restore of the stack pointer, the end of a call.
+                    self.in_call_region = 2;
+                    false
+                } else if self.in_call_region == 2 && *source == ReservedRegisters::stack_pointer()
+                {
+                    // This is where we store the stack pointer in the first address of the next stack frame.
+                    // The next opcode is a const that contains the current stack size.
+                    self.in_call_region = 1;
+                    false
+                } else {
+                    // We can visit the Mov instructions that copy parameters and return values;
+                    // we may need to ignore the destination, but we can still register the reads.
+                    true
+                }
+            }
+            Opcode::Const { .. } if self.in_call_region == 1 => {
+                // This is the instruction where we set the stack size at the beginning of the call.
+                self.in_call_region = 0;
+                true
+            }
+            // A `constrain` of some arbitrary expression is usually broken up into an instruction with
+            // a boolean result, and then a constrain on the result being equal to 1. Constant allocation
+            // creates a constant for that 1, but the codegen later might not use it, but rather check
+            // the variable directly, since it's already a bool value.
+            Opcode::Const {
+                destination: _,
+                bit_size: BitSize::Integer(IntegerBitSize::U1),
+                value,
+            } => !value.is_one(),
+            _ => true,
+        }
+    }
+
     /// Remember the opcode location where a memory address was last read.
     fn read(&mut self, addr: &MemoryAddress, location: OpcodeLocation) {
         if !self.addr_in_range(addr) {
@@ -296,6 +351,11 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
     /// * the address is read after this, but before that there is another write
     fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation) {
         if !self.addr_in_range(addr) {
+            return;
+        }
+        if self.in_call_region != 0 || self.in_return_region {
+            // Ignore the write, it's a parameter meant for another function.
+            // The reads can be inspected, as they should consume data we have prepared.
             return;
         }
         if let Some(read_at) = self.reads.get(addr) {
@@ -315,58 +375,19 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         }
         self.writes.insert(*addr, location);
     }
-
-    fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
-        match opcode {
-            // Handle the conventions of `codegen_call`: we are passing call arguments by coping them
-            // to new stack registers, then we set the stack pointer @0, which changes the meaning of
-            // relative addresses. The parameters are going to be read by another function, not visible
-            // in the scope of a single function we are analyzing here.
-            Opcode::Mov { destination, source } => {
-                if *destination == ReservedRegisters::stack_pointer()
-                    && *source == MemoryAddress::relative(0)
-                {
-                    // This is the restore of the stack pointer, the end of a call.
-                    self.in_call_region = 2;
-                    false
-                } else if *source == ReservedRegisters::stack_pointer() {
-                    // This is where we store the stack pointer in the first address of the next stack frame.
-                    // The next opcode is a const that contains the current stack size.
-                    self.in_call_region = 1;
-                    false
-                } else {
-                    self.in_call_region == 0
-                }
-            }
-            Opcode::Const { .. } if self.in_call_region == 1 => {
-                self.in_call_region = 0;
-                false
-            }
-            // A `constrain` of some arbitrary expression is usually broken up into an instruction with
-            // a boolean result, and then a constrain on the result being equal to 1. Constant allocation
-            // creates a constant for that 1, but the codegen later might not use it, but rather check
-            // the variable directly, since it's already a bool value.
-            Opcode::Const {
-                destination: _,
-                bit_size: BitSize::Integer(IntegerBitSize::U1),
-                value,
-            } => !value.is_one(),
-            _ => true,
-        }
-    }
 }
 
 trait OpcodeAddressVisitor {
+    /// Decide if an opcode should be visited.
+    ///
+    /// Can mutate self to set flags that allows it to ignore upcoming opcodes as well.
+    fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool;
+
     /// Called with all the addresses read by the opcode.
     fn read(&mut self, addr: &MemoryAddress, location: OpcodeLocation);
 
     /// Called with all addresses written by the opcode.
     fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation);
-
-    /// Decide if an opcode should be visited.
-    ///
-    /// Can mutate self to set flags that allows it to ignore upcoming opcodes as well.
-    fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool;
 
     /// Expected to be called with each opcode, traversing blocks in Post Order,
     /// feeding the opcodes back to front.
