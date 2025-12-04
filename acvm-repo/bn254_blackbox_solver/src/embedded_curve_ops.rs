@@ -40,7 +40,7 @@ pub fn multi_scalar_mul(
         if points[i + 2] > FieldElement::one() {
             return Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::MultiScalarMul,
-                format!("EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)"),
+                "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
             ));
         }
         let point =
@@ -90,7 +90,7 @@ pub fn embedded_curve_add(
     if input1[2] > FieldElement::one() || input2[2] > FieldElement::one() {
         return Err(BlackBoxResolutionError::Failed(
             BlackBoxFunc::MultiScalarMul,
-            format!("EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)"),
+            "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
         ));
     }
 
