@@ -504,3 +504,22 @@ fn regression_10686() {
     ";
     check_errors(src);
 }
+
+// Regression for issue #10807 (https://github.com/noir-lang/noir/issues/10807)
+#[test]
+fn comptime_for_loop_with_end_value_out_of_range() {
+    let src = "
+    fn main() {
+        comptime {
+            let start: u32 = 1;
+            // u128::MAX + 1
+            let end: Field = 340282366920938463463374607431768211456;
+            for i in start..end {
+                            ^^^ Expected type u32, found type Field
+                let _ = i;
+            }
+        }
+    }
+    ";
+    check_errors(src);
+}
