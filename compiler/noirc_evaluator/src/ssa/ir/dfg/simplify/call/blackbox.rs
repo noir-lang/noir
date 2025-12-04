@@ -339,13 +339,36 @@ pub(super) fn simplify_signature(
     }
 }
 
-#[cfg(feature = "bn254")]
+#[cfg(test)]
+mod embedded_curve_add {
+    use crate::assert_ssa_snapshot;
+    use crate::ssa::Ssa;
+
+    #[test]
+    fn one_constant_argument_is_not_simplified() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: Field, v1: Field, v2: u1):
+                v3 = call embedded_curve_add (v0, v1, v2, Field 0, Field 0, u1 1, u1 1) -> [(Field, Field, u1); 1]
+                return v3
+            }"#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            v6 = call embedded_curve_add(v0, v1, v2, Field 0, Field 0, u1 1, u1 1) -> [(Field, Field, u1); 1]
+            return v6
+        }
+        ");
+    }   
+}
+
 #[cfg(test)]
 mod multi_scalar_mul {
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
 
-    #[cfg(feature = "bn254")]
     #[test]
     fn full_constant_folding() {
         let src = r#"
@@ -369,7 +392,6 @@ mod multi_scalar_mul {
         ");
     }
 
-    #[cfg(feature = "bn254")]
     #[test]
     fn simplify_zero() {
         let src = r#"
@@ -398,7 +420,6 @@ mod multi_scalar_mul {
         ");
     }
 
-    #[cfg(feature = "bn254")]
     #[test]
     fn partial_constant_folding() {
         let src = r#"
