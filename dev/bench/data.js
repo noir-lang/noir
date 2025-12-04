@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764771246761,
+  "lastUpdate": 1764810289146,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23196,48 +23196,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ae19dacd9b7aa9c6dde0d5ce2ea471ef22b4d4c2",
-          "message": "chore(deps-dev): bump @typescript-eslint/eslint-plugin from 8.26.1 to 8.48.0 in the linter group (#10634)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2025-11-26T13:43:29Z",
-          "tree_id": "623cd7b011c250f5e13a0e83c8aca60d4f20b318",
-          "url": "https://github.com/noir-lang/noir/commit/ae19dacd9b7aa9c6dde0d5ce2ea471ef22b4d4c2"
-        },
-        "date": 1764166018608,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255853,
-            "range": "± 714",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231091,
-            "range": "± 4902",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794194,
-            "range": "± 1740",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25289,6 +25247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791394,
             "range": "± 3301",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7615632df856497750d6c0f856643a93df7dc40f",
+          "message": "fix: keep track of comptime closure callstack (#10735)",
+          "timestamp": "2025-12-04T00:42:17Z",
+          "tree_id": "96015982954a251e327c0d6d3429b940ed7d767a",
+          "url": "https://github.com/noir-lang/noir/commit/7615632df856497750d6c0f856643a93df7dc40f"
+        },
+        "date": 1764810256692,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253609,
+            "range": "± 1111",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222629,
+            "range": "± 3096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2256078,
+            "range": "± 4690",
             "unit": "ns/iter"
           }
         ]
