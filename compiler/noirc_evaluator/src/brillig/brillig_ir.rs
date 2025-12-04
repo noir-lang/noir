@@ -5,8 +5,8 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 //!
-//! The brillig ir provides instructions and codegens.
-//! The instructions are low level operations that are printed via debug_show.
+//! The brillig IR provides instructions and codegens.
+//! The instructions are low level operations that are printed via `debug_show`.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
 pub mod artifact;
@@ -143,6 +143,20 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
             );
         }
         self.globals_memory_size = new_size;
+    }
+
+    /// Returns the artifact, discarding the rest of the context.
+    pub(crate) fn into_artifact(self) -> BrilligArtifact<F> {
+        self.obj
+    }
+
+    /// Returns the artifact.
+    pub(crate) fn artifact(&self) -> &BrilligArtifact<F> {
+        &self.obj
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.obj.name
     }
 }
 
@@ -310,15 +324,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.push_opcode(opcode);
     }
 
-    /// Returns the artifact
-    pub(crate) fn artifact(self) -> BrilligArtifact<F> {
-        self.obj
-    }
-
-    pub(crate) fn name(&self) -> &str {
-        &self.obj.name
-    }
-
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
@@ -407,7 +412,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: context.count_arrays_copied,
             ..Default::default()
         };
-        let artifact = context.artifact();
+        let artifact = context.into_artifact();
         let (mut entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
@@ -463,6 +468,7 @@ pub(crate) mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            show_opcode_advisories: false,
             layout: Default::default(),
         };
         let mut context = BrilligContext::new("test", &options);
@@ -516,7 +522,7 @@ pub(crate) mod tests {
         context.push_opcode(BrilligOpcode::Trap { revert_data: empty_data });
         context.stop_instruction(empty_data);
 
-        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.into_artifact().finish().byte_code;
 
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
 
