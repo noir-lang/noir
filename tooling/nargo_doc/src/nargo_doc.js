@@ -1,8 +1,8 @@
 var sidebarShown = false;
 
-var button = document.getElementById('sidebar-toggle-button');
-var main = document.getElementsByTagName('main')[0];
-var sidebar = document.getElementsByTagName('nav')[0];
+const button = document.getElementById('sidebar-toggle-button');
+const main = document.getElementsByTagName('main')[0];
+const sidebar = document.getElementsByTagName('nav')[0];
 
 // When clicking on the hamburger icon, toggle between showing
 // the sidebar or hiding the sidebar
@@ -17,7 +17,7 @@ button.onclick = function () {
 // When clicking on a sidebar link that is an anchor to the main
 // content, hide the sidebar and show the main content.
 const allSidebarLinks = document.querySelectorAll('.sidebar a');
-for (link of allSidebarLinks) {
+for (const link of allSidebarLinks) {
   if (link.href.includes('#')) {
     link.onclick = hideSidebar;
   }
