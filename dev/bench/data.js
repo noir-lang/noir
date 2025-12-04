@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764854483293,
+  "lastUpdate": 1764854530959,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6c92a1a9b57a5c1737d45b0474b0e2d299e057a2",
-          "message": "chore: fix documentation around `current_witness_index` (#10591)",
-          "timestamp": "2025-11-26T15:59:15Z",
-          "tree_id": "e9c1ce6c698229c1abf72d0d372c79829b60eede",
-          "url": "https://github.com/noir-lang/noir/commit/6c92a1a9b57a5c1737d45b0474b0e2d299e057a2"
-        },
-        "date": 1764174249313,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256224,
-            "range": "± 814",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230746,
-            "range": "± 1088",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793539,
-            "range": "± 39079",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2261350,
             "range": "± 2541",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "929790438ed336cf246072b4c3e13df1a5199bdd",
+          "message": "feat: always perform pedantic checks on embedded curve operations (#10776)",
+          "timestamp": "2025-12-04T12:59:12Z",
+          "tree_id": "dc76457b7dbdd7ac57e8bd5acbcf4cefbb65d385",
+          "url": "https://github.com/noir-lang/noir/commit/929790438ed336cf246072b4c3e13df1a5199bdd"
+        },
+        "date": 1764854499036,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259517,
+            "range": "± 423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226268,
+            "range": "± 5456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789714,
+            "range": "± 1631",
             "unit": "ns/iter"
           }
         ]
