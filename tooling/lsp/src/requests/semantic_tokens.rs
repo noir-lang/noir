@@ -17,7 +17,10 @@ use async_lsp::{
 use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, TypeAlias, Visitor},
+    ast::{
+        LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, TraitItem, TypeAlias,
+        Visitor,
+    },
     elaborator::PrimitiveType,
     hir::def_map::ModuleDefId,
     lexer::Lexer,
@@ -100,7 +103,6 @@ impl<'args> SemanticTokenCollector<'args> {
         let Some(doc_comments) = self.args.interner.doc_comments(id) else {
             return;
         };
-
         let Some((current_module_id, current_type)) = current_module_and_type(id, self.args) else {
             return;
         };
@@ -469,6 +471,18 @@ impl Visitor for SemanticTokenCollector<'_> {
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
         };
+
+        for item in noir_trait.items.iter() {
+            if let TraitItem::Function { name, .. } = &item.item {
+                let func_name_location = name.location();
+                if let Some(reference) =
+                    self.args.interner.reference_at_location(func_name_location)
+                {
+                    self.process_reference_id(reference);
+                };
+            }
+        }
+
         true
     }
 
@@ -557,6 +571,11 @@ mod tests {
         struct Foo {}
 
         struct Bar {}
+
+        trait Baz {
+            /// See [Foo]
+            fn baz();
+        }
         ";
 
         let tokens = get_semantic_tokens(src).await;
@@ -727,6 +746,13 @@ mod tests {
             SemanticToken {
                 delta_line: 3,
                 delta_start: 21,
+                length: 5,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 6,
+                delta_start: 20,
                 length: 5,
                 token_type: 1,
                 token_modifiers_bitset: 0,
