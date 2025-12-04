@@ -1642,7 +1642,19 @@
 <a href="#1641" id="1641">1641</a>
 <a href="#1642" id="1642">1642</a>
 <a href="#1643" id="1643">1643</a>
-<a href="#1644" id="1644">1644</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
 
 <span class="kw">use super</span>::{
     errors::LexerErrorKind,
@@ -2321,7 +2333,12 @@
 
             length += <span class="number">1</span>; <span class="comment">// for the closing curly brace
 
-            </span><span class="kw">let </span>span = Span::from(interpolation_start..<span class="self">self</span>.position);
+            </span><span class="kw">let </span>span = <span class="kw">if </span>interpolation_start &lt;= <span class="self">self</span>.position {
+                Span::from(interpolation_start..<span class="self">self</span>.position)
+            } <span class="kw">else </span>{
+                <span class="comment">// This can happen if the interpolation ends abruptly on EOF
+                </span>Span::single_char(interpolation_start)
+            };
             <span class="kw">let </span>location = Location::new(span, <span class="self">self</span>.file_id);
             fragments.push(FmtStrFragment::Interpolation(string, location));
         }
@@ -3284,6 +3301,13 @@
             lexer.next_token(),
             <span class="prelude-val">Err</span>(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
         ));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_crash_on_format_string_with_broken_interpolation() {
+        <span class="kw">let </span>str = <span class="string">"f\"{"</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(str);
+        <span class="kw">let _ </span>= lexer.next_token();
     }
 }
 </code></pre></div></section></main></body></html>
