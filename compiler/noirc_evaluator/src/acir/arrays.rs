@@ -57,18 +57,20 @@
 //! In the SSA above we see that we have an index of `11`. However, with a flat memory
 //! the true starting index of `x[3].bar.inner` is `25`.
 //!
-//! We can determine what the starting offset of the outer array object `x[3]` is by first dividing the index by the element size.
-//! In this case we have `11 / 3 = 3`. To get the flattened outer offset we will multiply `3` by the flattened size of a single element.
-//! We can see that `Foo` contains `7` elements, thus we multiply by `7`. So now we have a flattened index of `21`.
+//! To determine which field within the array we are attempting to access, we use an element type sizes array that stores
+//! the flat starting index for each SSA field. Since tuples are flattened in SSA, each tuple field gets its own entry.
+//! For an array like `[(Field, [Field; 3], [Field; 3]); 4]`, the element_type_sizes array would be:
 //!
-//! We could use the modulo of `11 % 3 = 2` to determine which object within x we are attempting to access.
-//! However, since we have a flattened structure we cannot simply add `2` to `21`. Instead we generate an array that holds the
-//! respective inner offset for accessing each element.
+//! [0, 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25]
 //!
-//! In the example above we will generate this internal type array: [0, 1, 4].
-//! The start of `bar` in `Foo` is the fourth flattened index. We then use the modulo we previously computed to access
-//! the type array and fetch `4`. Finally we can do `21 + 4 = 25` to get the true starting index of `x[3].bar.inner`.
-//! We then use the resulting type to increment the index appropriately and fetch ever element of `bar.inner`.
+//! Where:
+//! - Indices 0-2: element 0's three fields (Field at 0, [Field; 3] at 1, [Field; 3] at 4)
+//! - Indices 3-5: element 1's three fields (Field at 7, [Field; 3] at 8, [Field; 3] at 11)
+//! - Indices 6-8: element 2's three fields (Field at 14, [Field; 3] at 15, [Field; 3] at 18)
+//! - Indices 9-11: element 3's three fields (Field at 21, [Field; 3] at 22, [Field; 3] at 25)
+//!
+//! We use the SSA index directly to look up `element_type_sizes[index]` to get the flat starting offset.
+//! We then use the resulting type to increment the index appropriately and fetch every element.
 //!
 //! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
 //! The module will also attempt to not create this array when possible (e.g., when we have a simple homogenous array).
@@ -165,6 +167,8 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
+            debug_assert!(!witnesses.is_empty(), "return data cannot be empty");
+
             let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
@@ -263,9 +267,7 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        let msg = self.acir_context.generate_assertion_message_payload(msg);
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        self.acir_context.assert_eq_var(self.current_side_effects_enabled_var, zero, Some(msg))?;
+        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
         Ok(true)
     }
 
@@ -877,7 +879,8 @@ impl Context<'_> {
         let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
         match array_acir_value {
             AcirValue::Array(values) => {
-                let flat_elem_type_sizes = calculate_element_type_sizes_array(values);
+                let flat_elem_type_sizes =
+                    calculate_element_type_sizes_array(array_typ, values.len());
 
                 // If there's already a block with these same sizes, reuse it. It's fine do to so
                 // because the element type sizes array is never mutated.
@@ -1185,12 +1188,26 @@ impl Context<'_> {
     }
 }
 
-pub(super) fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
-    let mut flat_elem_type_sizes = Vec::with_capacity(array.len());
+pub(super) fn calculate_element_type_sizes_array(array_typ: &Type, length: usize) -> Vec<usize> {
+    let element_types = match array_typ {
+        Type::Array(types, _) | Type::Slice(types) => types,
+        _ => panic!("ICE: expected array or slice type"),
+    };
+    if element_types.is_empty() {
+        return vec![];
+    }
+
+    let non_flattened_elements = length / element_types.len();
+
+    // We need the element type sizes array to have one extra entry for the case
+    // of `slice_insert` inserting at the end of the array.
+    let capacity = (non_flattened_elements + 1) * element_types.len();
+
+    let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;
-    for value in array {
+    for index in 0..capacity {
         flat_elem_type_sizes.push(total_size);
-        total_size += flattened_value_size(value);
+        total_size += element_types[index % element_types.len()].flattened_size() as usize;
     }
     flat_elem_type_sizes
 }

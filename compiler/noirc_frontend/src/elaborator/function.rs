@@ -16,7 +16,10 @@ use crate::{
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::lints,
+    elaborator::{
+        lints,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         def_collector::{
             dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
@@ -80,7 +83,7 @@ impl Elaborator<'_> {
 
         // Define metas for all functions
         for (local_module, id, func) in &mut function_set.functions {
-            self.local_module = *local_module;
+            self.local_module = Some(*local_module);
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None, extra_constraints);
             });
@@ -95,14 +98,14 @@ impl Elaborator<'_> {
         local_module: crate::hir::def_map::LocalModuleId,
         function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
     ) {
-        self.local_module = local_module;
+        self.local_module = Some(local_module);
 
         for (generics, _, function_set) in function_sets {
             // Prepare the impl
             // Adds the impl generics to the generics state and resolve the impl's self type
             self.add_generics(generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
             function_set.self_type = Some(self_type.clone());
             self.self_type = Some(self_type);
@@ -155,6 +158,8 @@ impl Elaborator<'_> {
     ) {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
+        let old_comptime_value =
+            std::mem::replace(&mut self.in_comptime_context, func.def.is_comptime);
 
         let location = func.name_ident().location();
         let id = self.interner.function_definition_id(func_id);
@@ -180,10 +185,11 @@ impl Elaborator<'_> {
             self.resolve_function_parameters(func, &mut generics, &mut trait_constraints);
 
         // Resolve return type
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow slices for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
@@ -249,7 +255,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.local_module,
+            source_module: self.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.self_type.clone(),
             source_file: location.file,
@@ -258,6 +264,7 @@ impl Elaborator<'_> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+        self.in_comptime_context = old_comptime_value;
     }
 
     /// Adds function generics and associated generics (from where clause) to scope.
@@ -309,8 +316,8 @@ impl Elaborator<'_> {
 
     /// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool) -> bool {
-        func.is_entry_point(in_contract) || func.attributes().is_foldable()
+    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
+        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -323,22 +330,26 @@ impl Elaborator<'_> {
         generics: &mut Vec<TypeVariable>,
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> ResolvedParametersInfo {
-        let is_entry_point = func.is_entry_point(self.is_function_in_contract());
+        let is_crate_root = self.is_at_crate_root();
+        let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         let is_test_or_fuzz = func.is_test_or_fuzz();
 
         let has_inline_attribute = func.has_inline_attribute();
-        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract());
+        let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract(), is_crate_root);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
-        let wildcard_allowed = false;
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
-
+            self.run_lint(|_| {
+                lints::databus_on_non_entry_point(func, visibility, is_entry_point).map(Into::into)
+            });
             let type_location = typ.location;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {
@@ -365,6 +376,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                &mut parameter_names_in_list,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -432,6 +444,7 @@ impl Elaborator<'_> {
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_returns_multiple_slices(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
@@ -462,7 +475,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = func_meta.source_module;
+        self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
 
@@ -488,11 +501,16 @@ impl Elaborator<'_> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            if name == "_" {
-                continue;
-            }
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
-            self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
+            // We allow shadowing here because there's no outer scope to shadow
+            // (duplicate parameter names were already checked in `resolve_function_parameters`)
+            let allow_shadowing = true;
+            self.add_existing_variable_to_scope(
+                name,
+                parameter.clone(),
+                warn_if_unused,
+                allow_shadowing,
+            );
         }
 
         self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
@@ -502,9 +520,9 @@ impl Elaborator<'_> {
             | FunctionKind::LowLevel
             | FunctionKind::TraitFunctionWithoutBody => {
                 if !body.statements.is_empty() {
-                    panic!(
-                        "Builtin, low-level, and trait function declarations cannot have a body"
-                    );
+                    self.push_err(ResolverError::BuiltinWithBody {
+                        location: func_meta.name.location,
+                    });
                 }
                 (HirFunction::empty(), Type::Error)
             }
@@ -519,8 +537,7 @@ impl Elaborator<'_> {
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
-                let expr_id = self.intern_expr(block, body_location);
-                self.interner.push_expr_type(expr_id, body_type.clone());
+                let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         };

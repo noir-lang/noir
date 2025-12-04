@@ -4,7 +4,7 @@
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
 //!
-//! This pass might also add constrain checks after existing instructions,
+//! This pass might also replace existing instructions with constrain checks,
 //! for example binary operations that are guaranteed to overflow.
 //!
 //! ## Handling of `constrain`
@@ -149,7 +149,7 @@ use crate::ssa::{
 impl Ssa {
     pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.remove_unreachable_instructions();
+            function.remove_unreachable_instructions(function.id() == self.main_id);
         }
         self
     }
@@ -167,8 +167,12 @@ enum Reachability {
 }
 
 impl Function {
-    fn remove_unreachable_instructions(&mut self) {
+    fn remove_unreachable_instructions(&mut self, is_main: bool) {
         let func_id = self.id();
+
+        // Keep the return instruction in main if the databus is used
+        let replace_return = !(is_main && self.dfg.data_bus.return_data.is_some());
+
         // The current block we are currently processing
         let mut current_block_id = None;
 
@@ -378,15 +382,17 @@ impl Function {
 
             // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
             // Subsequent instructions in this block will be removed.
-            if current_block_reachability == Reachability::Unreachable {
+            if current_block_reachability == Reachability::Unreachable && replace_return {
                 let terminator = context.dfg[block_id].take_terminator();
                 let call_stack = terminator.call_stack();
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
-            if current_block_reachability == Reachability::UnreachableUnderPredicate
-                && !is_predicate_constant_one
-            {
+            if current_block_reachability == Reachability::UnreachableUnderPredicate {
+                assert!(
+                    !is_predicate_constant_one,
+                    "predicate cannot be constant one in UnreachableUnderPredicate"
+                );
                 unreachable_predicates.insert(context.enable_side_effects);
             }
         });
@@ -1409,7 +1415,7 @@ mod test {
           b0(v0: u32):
             constrain u1 0 == u1 1
             v4 = make_array [Field 0] : [Field; 1]
-            unreachable
+            return v4
         }
         ");
     }

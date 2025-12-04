@@ -13,7 +13,7 @@ use acvm::acir::{
     circuit::{
         AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+        opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::{Expression, Witness},
 };
@@ -107,6 +107,20 @@ impl<F: AcirField> GeneratedAcir<F> {
         if !self.call_stack_id.is_root() {
             self.location_map.insert(self.last_acir_opcode_location(), self.call_stack_id);
         }
+    }
+
+    /// Initializes memory block with given values.
+    pub(crate) fn initialize_memory(
+        &mut self,
+        block_id: BlockId,
+        init: Vec<Witness>,
+        block_type: BlockType,
+    ) {
+        // TODO: enable this check for all block_types
+        if block_type == BlockType::ReturnData {
+            debug_assert!(!init.is_empty(), "Cannot initialize memory with empty init");
+        }
+        self.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {

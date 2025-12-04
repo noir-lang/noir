@@ -90,3 +90,28 @@ fn mutable_reference_to_array_element_as_func_arg() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn non_homogenous_array() {
+    let src = r#"
+    fn main() {
+        let _ = [1, "hello"];
+                 ^ Non homogeneous array, different element types found at indices (0,1)
+                 ~ Found type Field
+                    ~~~~~~~ but then found type str<5>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn array_with_nested_slice() {
+    let src = r#"
+    fn main () {
+        let _: [[[Field]; 1]; 1] = [[&[0]]];
+               ^^^^^^^^^^^^^^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+               ~~~~~~~~~~~~~~~~~ Try to use a constant sized array or BoundedVec instead
+    }
+    "#;
+    check_errors(src);
+}

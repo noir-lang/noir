@@ -84,11 +84,11 @@ impl NoirFunction {
         let attributes = self.attributes();
         attributes.is_no_predicates() || attributes.is_foldable()
     }
-    pub(crate) fn is_entry_point(&self, in_contract: bool) -> bool {
+    pub(crate) fn is_entry_point(&self, in_contract: bool, is_crate_root: bool) -> bool {
         if in_contract {
             self.attributes().is_contract_entry_point()
         } else {
-            self.name() == MAIN_FUNCTION
+            is_crate_root && self.name() == MAIN_FUNCTION
         }
     }
     pub(crate) fn is_test_or_fuzz(&self) -> bool {

@@ -1740,3 +1740,31 @@ fn signed_integer_casting_2() {
     let value = expect_value(src);
     assert_eq!(value, Value::i64(89));
 }
+
+#[test]
+fn infinite_loop_with_step_limit() {
+    let src = r#"
+    acir(inline) predicate_pure fn main f0 {
+    b0():
+      call f1(u1 0)
+      return
+    }
+    brillig(inline) predicate_pure fn func_2 f1 {
+      b0(v0: u1):
+        jmp b1()
+      b1():
+        jmpif v0 then: b2, else: b3
+      b2():
+        return
+      b3():
+        jmp b1()
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let options = super::InterpreterOptions { step_limit: Some(100), ..Default::default() };
+    let mut output = std::io::empty();
+    let result = ssa.interpret_with_options(Vec::new(), options, &mut output);
+    let Err(InterpreterError::OutOfBudget { .. }) = result else {
+        panic!("unexpected result: {result:?}")
+    };
+}

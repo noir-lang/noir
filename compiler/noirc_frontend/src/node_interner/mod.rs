@@ -9,6 +9,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::QuotedType;
+use crate::ast::DocComment;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
     UnresolvedTypeExpression,
@@ -20,6 +21,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
+use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
@@ -44,6 +46,8 @@ mod ids;
 mod methods;
 mod reexports;
 mod trait_impl;
+
+pub mod pusher;
 
 pub use dependency::DependencyId;
 use globals::GlobalInfo;
@@ -279,12 +283,17 @@ pub struct NodeInterner {
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
-    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
 
     /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
+
+    /// Contains the docs comments of primitive types.
+    /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
+    /// attribute `#['nargo_primitive_doc]` on private modules.
+    pub primitive_docs: HashMap<String, Vec<DocComment>>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -397,7 +406,9 @@ pub enum DefinitionKind {
     Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
-    /// in which case they will not have an associated ExprId
+    /// in which case they will not have an associated ExprId.
+    /// For example a mutable variable can change, so it does
+    /// not have a stable defining expression.
     Local(Option<ExprId>),
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
@@ -476,6 +487,7 @@ impl Default for NodeInterner {
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
+            primitive_docs: HashMap::default(),
         }
     }
 }
@@ -483,22 +495,22 @@ impl Default for NodeInterner {
 // XXX: Add check that insertions are not overwrites for maps
 // XXX: Maybe change push to intern, and remove comments
 impl NodeInterner {
-    /// Interns a HIR statement.
-    pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
-        StmtId(self.nodes.insert(Node::Statement(stmt)))
-    }
-    /// Interns a HIR expression.
-    pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
-        ExprId(self.nodes.insert(Node::Expression(expr)))
+    /// Intern a HIR statement with everything needed for it (location).
+    pub fn push_stmt_full(&mut self, stmt: HirStatement, location: Location) -> StmtId {
+        let id = StmtId(self.nodes.insert(Node::Statement(stmt)));
+        self.push_stmt_location(id, location);
+        id
     }
 
-    /// Intern an expression with everything needed for it (location & Type)
+    /// Interns a HIR expression, with the location and type information pushed as follow ups.
+    pub fn push_expr(&mut self, expr: HirExpression) -> PushedExpr {
+        PushedExpr::new(ExprId(self.nodes.insert(Node::Expression(expr))))
+    }
+
+    /// Intern an expression with everything needed for it (location & type)
     /// instead of requiring they be pushed later.
     pub fn push_expr_full(&mut self, expr: HirExpression, location: Location, typ: Type) -> ExprId {
-        let id = self.push_expr(expr);
-        self.push_expr_location(id, location);
-        self.push_expr_type(id, typ);
-        id
+        self.push_expr(expr).push_location(self, location).push_type(self, typ)
     }
 
     /// Stores the span for an interned expression.
@@ -658,7 +670,7 @@ impl NodeInterner {
         }
     }
 
-    /// Store [Location] of [Type] reference
+    /// In LSP mode, take note that the [Type] was referenced at a [Location].
     pub fn push_type_ref_location(&mut self, typ: &Type, location: Location) {
         if !self.is_in_lsp_mode() {
             return;
@@ -820,7 +832,7 @@ impl NodeInterner {
         self.type_aliases[id.0].clone()
     }
 
-    /// Returns the type of an item stored in the Interner or Error if it was not found.
+    /// Returns the type of an item stored in the [NodeInterner], or [Type::Error] if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
         self.try_id_type(index).cloned().unwrap_or(Type::Error)
     }
@@ -829,11 +841,14 @@ impl NodeInterner {
         self.id_to_type.get(&index.into())
     }
 
-    /// Returns the type of the definition or `Type::Error` if it was not found.
+    /// Returns the type of the definition, or [Type::Error] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
         self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of the definition, unless it's a function returning an `impl Trait`,
+    /// in which case it looks up the type of its body and returns a new function type with
+    /// the type fo the body substituted to its return type.
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
         let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env, unconstrained) = &typ {
@@ -893,6 +908,7 @@ impl NodeInterner {
         Type::type_variable_with_kind(self, kind)
     }
 
+    /// Remember the [TypeBindings] used during the instantiation of an expression.
     pub fn store_instantiation_bindings(
         &mut self,
         expr_id: ExprId,
@@ -917,6 +933,9 @@ impl NodeInterner {
         self.field_indices.insert(expr_id, index);
     }
 
+    /// Look up the [DefinitionId] of a [FuncId].
+    ///
+    /// Panics if it's not found.
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
     }
@@ -1007,7 +1026,7 @@ impl NodeInterner {
             .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
-    /// Looks up a methods that apply to the given type but are defined in traits.
+    /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
@@ -1149,7 +1168,7 @@ impl NodeInterner {
         let mut usize_arena = Arena::default();
         let index = usize_arena.insert(0);
         let stdlib = CrateId::Stdlib(0);
-        let func_id = FuncId::dummy_id();
+        let func_id = self.push_empty_fn();
         // Use a definition ID that won't clash with anything else, and isn't the dummy one
         let definition_id = DefinitionId(usize::MAX - 1);
         self.function_definition_ids.insert(func_id, definition_id);
@@ -1215,39 +1234,48 @@ impl NodeInterner {
         &self.quoted_types[id.0]
     }
 
+    /// Intern a [ExpressionKind].
     pub fn push_expression_kind(&mut self, expr: ExpressionKind) -> InternedExpressionKind {
         InternedExpressionKind(self.interned_expression_kinds.insert(expr))
     }
 
+    /// Get an interned [ExpressionKind] by its [InternedExpressionKind] ID.
     pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
         &self.interned_expression_kinds[id.0]
     }
 
+    /// Intern a [StatementKind].
     pub fn push_statement_kind(&mut self, statement: StatementKind) -> InternedStatementKind {
         InternedStatementKind(self.interned_statement_kinds.insert(statement))
     }
 
+    /// Get an interned [StatementKind] by its [InternedStatementKind] ID.
     pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
         &self.interned_statement_kinds[id.0]
     }
 
+    /// Intern an [LValue] by turning it into an [Expression][crate::ast::Expression] and interning its [ExpressionKind].
     pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
+    /// Get an interned [LValue] by its [InternedExpressionKind] ID.
     pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
     }
 
+    /// Intern a [Pattern].
     pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
         InternedPattern(self.interned_patterns.insert(pattern))
     }
 
+    /// Get an interned [Pattern] by its [InternedPattern] ID.
     pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
         &self.interned_patterns[id.0]
     }
 
+    /// Intern a [UnresolvedTypeData].
     pub fn push_unresolved_type_data(
         &mut self,
         typ: UnresolvedTypeData,
@@ -1402,13 +1430,13 @@ impl NodeInterner {
         bindings
     }
 
-    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<DocComment>) {
         if !doc_comments.is_empty() {
             self.doc_comments.insert(id, doc_comments);
         }
     }
 
-    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<DocComment>> {
         self.doc_comments.get(&id)
     }
 

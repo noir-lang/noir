@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<script defer src="../../nargo_doc.js"></script>
+<title>Struct EmbeddedCurvePoint documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">EmbeddedCurvePoint</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2><a href="#struct">Struct EmbeddedCurvePoint</a></h2>
+<h3>Fields</h3>
+<ul class="sidebar-list">
+<li><a href="#structfield.is_infinite">is_infinite</a></li>
+<li><a href="#structfield.x">x</a></li>
+<li><a href="#structfield.y">y</a></li>
+</ul>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#double">double</a></li>
+<li><a href="#generator">generator</a></li>
+<li><a href="#point_at_infinity">point_at_infinity</a></li>
+</ul>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Add-for-EmbeddedCurvePoint">Add</a></li>
+<li><a href="#impl-Eq-for-EmbeddedCurvePoint">Eq</a></li>
+<li><a href="#impl-Hash-for-EmbeddedCurvePoint">Hash</a></li>
+<li><a href="#impl-Neg-for-EmbeddedCurvePoint">Neg</a></li>
+<li><a href="#impl-Sub-for-EmbeddedCurvePoint">Sub</a></li>
+</ul>
+<h2>In module embedded_curve_ops</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.EmbeddedCurvePoint.html">EmbeddedCurvePoint</a></div></li>
+<li><a href="struct.EmbeddedCurveScalar.html">EmbeddedCurveScalar</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.embedded_curve_add.html">embedded_curve_add</a></div></li>
+<li><a href="fn.embedded_curve_add_not_nul.html">embedded_curve_add_not_nul</a></div></li>
+<li><a href="fn.embedded_curve_add_unsafe.html">embedded_curve_add_unsafe</a></div></li>
+<li><a href="fn.fixed_base_scalar_mul.html">fixed_base_scalar_mul</a></div></li>
+<li><a href="fn.multi_scalar_mul.html">multi_scalar_mul</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">embedded_curve_ops</a></div>
+<h1>Struct <span id="struct" class="struct">EmbeddedCurvePoint</span></h1>
+<pre><code>pub struct EmbeddedCurvePoint {
+    pub x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
+    pub y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
+    pub is_infinite: <a href="../../std/primitive.bool.html" class="primitive">bool</a>,
+}
+</code></pre>
+<div class="comments">
+<p>A point on the embedded elliptic curve
+By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
+x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.</p>
+</div>
+<h2>Fields</h2>
+<div id="structfield.x" class="struct-field"><code class="code-header">x: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
+<div class="padded-description"></div><div id="structfield.y" class="struct-field"><code class="code-header">y: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
+<div class="padded-description"></div><div id="structfield.is_infinite" class="struct-field"><code class="code-header">is_infinite: <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></div>
+<div class="padded-description"></div><h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code id="double" class="code-header">pub fn <a href="#double"><span class="fn">double</span></a>(self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Elliptic curve point doubling operation
+returns the doubled point of a point P, i.e P+P</p>
+</div>
+</div><code id="point_at_infinity" class="code-header">pub fn <a href="#point_at_infinity"><span class="fn">point_at_infinity</span></a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the null element of the curve; 'the point at infinity'</p>
+</div>
+</div><code id="generator" class="code-header">pub fn <a href="#generator"><span class="fn">generator</span></a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the curve's generator point.</p>
+</div>
+</div></div><h2>Trait implementations</h2>
+<h3 id="impl-Add-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">add</span>(self, other: Self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Adds two points P+Q, using the curve addition formula, and also handles point at infinity</p>
+</div>
+</div></div><h3 id="impl-Eq-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, b: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Checks whether two points are equal</p>
+</div>
+</div></div><h3 id="impl-Hash-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">where
+    H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
+
+</div><h3 id="impl-Neg-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Neg.html" class="trait">Neg</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">neg</span>(self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Negates a point P, i.e returns -P, by negating the y coordinate.
+If the point is at infinity, then the result is also at infinity.</p>
+</div>
+</div></div><h3 id="impl-Sub-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Sub.html" class="trait">Sub</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">sub</span>(self, other: Self) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Points subtraction operation, using addition and negation</p>
+</div>
+</div></div></main>
+</span>
+</body>
+</html>

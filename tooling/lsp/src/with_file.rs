@@ -8,13 +8,13 @@ use noirc_frontend::{
         CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
         Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
         FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
-        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
-        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path, PathSegment, Pattern,
-        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
+        NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path,
+        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
+        TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
@@ -96,7 +96,7 @@ fn module_declaration_with_file(module: ModuleDeclaration, file: FileId) -> Modu
 fn let_statement_with_file(let_statement: LetStatement, file: FileId) -> LetStatement {
     LetStatement {
         pattern: pattern_with_file(let_statement.pattern, file),
-        r#type: unresolved_type_with_file(let_statement.r#type, file),
+        r#type: option_unresolved_type_with_file(let_statement.r#type, file),
         expression: expression_with_file(let_statement.expression, file),
         attributes: secondary_attributes_with_file(let_statement.attributes, file),
         comptime: let_statement.comptime,
@@ -218,12 +218,12 @@ fn trait_impl_item_kind_with_file(kind: TraitImplItemKind, file: FileId) -> Trai
         }
         TraitImplItemKind::Constant(ident, typ, expression) => TraitImplItemKind::Constant(
             ident_with_file(ident, file),
-            unresolved_type_with_file(typ, file),
+            option_unresolved_type_with_file(typ, file),
             expression_with_file(expression, file),
         ),
         TraitImplItemKind::Type { name, alias } => TraitImplItemKind::Type {
             name: ident_with_file(name, file),
-            alias: unresolved_type_with_file(alias, file),
+            alias: option_unresolved_type_with_file(alias, file),
         },
     }
 }
@@ -283,7 +283,7 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
         },
         TraitItem::Constant { name, typ } => TraitItem::Constant {
             name: ident_with_file(name, file),
-            typ: unresolved_type_with_file(typ, file),
+            typ: option_unresolved_type_with_file(typ, file),
         },
         TraitItem::Type { name, bounds } => TraitItem::Type {
             name: ident_with_file(name, file),
@@ -454,6 +454,13 @@ fn unresolved_types_with_file(types: Vec<UnresolvedType>, file: FileId) -> Vec<U
     vecmap(types, |typ| unresolved_type_with_file(typ, file))
 }
 
+fn option_unresolved_type_with_file(
+    typ: Option<UnresolvedType>,
+    file: FileId,
+) -> Option<UnresolvedType> {
+    typ.map(|typ| unresolved_type_with_file(typ, file))
+}
+
 fn unresolved_type_with_file(typ: UnresolvedType, file: FileId) -> UnresolvedType {
     UnresolvedType {
         typ: unresolved_type_data_with_file(typ.typ, file),
@@ -509,7 +516,6 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }
 }
@@ -734,10 +740,11 @@ fn fmt_str_fragment_with_file(fragment: FmtStrFragment, file: FileId) -> FmtStrF
 fn lambda_with_file(lambda: Lambda, file: FileId) -> Lambda {
     Lambda {
         parameters: vecmap(lambda.parameters, |(pattern, typ)| {
-            (pattern_with_file(pattern, file), unresolved_type_with_file(typ, file))
+            (pattern_with_file(pattern, file), option_unresolved_type_with_file(typ, file))
         }),
-        return_type: unresolved_type_with_file(lambda.return_type, file),
+        return_type: option_unresolved_type_with_file(lambda.return_type, file),
         body: expression_with_file(lambda.body, file),
+        unconstrained: lambda.unconstrained,
     }
 }
 
@@ -901,10 +908,10 @@ fn statement_kind_with_file(kind: StatementKind, file: FileId) -> StatementKind 
             body: expression_with_file(while_.body, file),
             while_keyword_location: while_.while_keyword_location,
         }),
-        StatementKind::Loop(expression, location) => StatementKind::Loop(
-            expression_with_file(expression, file),
-            location_with_file(location, file),
-        ),
+        StatementKind::Loop(loop_) => StatementKind::Loop(LoopStatement {
+            body: expression_with_file(loop_.body, file),
+            loop_keyword_location: location_with_file(loop_.loop_keyword_location, file),
+        }),
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(statement_with_file(*statement, file)))
         }

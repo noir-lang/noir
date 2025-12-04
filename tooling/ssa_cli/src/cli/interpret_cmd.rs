@@ -43,13 +43,18 @@ pub(super) struct InterpretCommand {
     /// Turn on tracing in the SSA interpreter.
     #[clap(long, default_value_t = false)]
     pub trace: bool,
+
+    /// Optional limit for the interpreter.
+    #[clap(long)]
+    pub step_limit: Option<usize>,
 }
 
 pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
     // Construct an ABI, which we can then use to parse input values.
     let abi = abi_from_ssa(&ssa);
 
-    let options = InterpreterOptions { trace: args.trace, ..Default::default() };
+    let options =
+        InterpreterOptions { trace: args.trace, step_limit: args.step_limit, ..Default::default() };
 
     let (input_map, return_value) = read_inputs_and_return(&abi, &args)?;
     let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);

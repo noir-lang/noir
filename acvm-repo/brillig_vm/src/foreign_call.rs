@@ -21,8 +21,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
     ///    For vectors, the preceding `u32` length field is used to truncate the slice input to its semantic length.
     /// 2. If results are available, it writes them to memory, ensuring that the returned data
-    ///    matches the expected types and sizes. Nested arrays are reconstructed from flat
-    ///    outputs when necessary. Nested vectors are an unsupported return type and will trigger an error.
+    ///    matches the expected types and sizes:
+    ///     * Nested arrays are reconstructed from flat outputs when necessary.
+    ///     * Nested vectors are an unsupported return type and will trigger an error.
+    ///     * Vectors are written to the heap starting at the free memory pointer, and their address gets stored in the destination.
+    ///     * Update free memory pointer based on how much data (if any) was written to it.
     /// 3. Increments the foreign call counter and advances the program counter.
     ///
     /// # Parameters
@@ -373,6 +376,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         );
                     }
                 }
+                // We didn't know the length of vectors when we allocated the destination variable, so we pointed
+                // the vector at the start of the free memory; with this technique we can only handle a single vector.
+                // Write the data where the destination points at. It is up to the follow up bytecode to initialize
+                // the meta-data, or move the data somewhere else.
                 (
                     ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
                     HeapValueType::Vector { value_types },
@@ -387,7 +394,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 "Returned data does not match vector element size".to_string()
                             );
                         }
-                        // Set the size in the size address
+                        // Set the size in the size address.
+                        // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
+                        // instead we expect the post-call codegen will copy it to the heap.
                         self.memory.write(*size_addr, values.len().into());
                         self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
@@ -426,7 +435,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         Ok(())
     }
 
-    /// Write an array or slice to the destination under the pointer.
+    /// Write the `values` of an array or slice to an address stored under the `pointer`.
     fn write_values_to_memory(
         &mut self,
         pointer: MemoryAddress,
@@ -443,6 +452,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
         // Convert the destination pointer to an address.
         let destination = self.memory.read_ref(pointer);
+
         // Write to the destination memory.
         let memory_values: Option<Vec<_>> = values
             .iter()

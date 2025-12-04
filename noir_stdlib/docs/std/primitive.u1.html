@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
+<title>Primitive type u1 documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">u1</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../index.html">noir_stdlib</a></h1>
+<div><a href="../all.html">All items</a></div>
+<h2 id="crate-name"><a href="index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2><a href="#primitive">Primitive type u1</a></h2>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Add-for-u1">Add</a></li>
+<li><a href="#impl-BitAnd-for-u1">BitAnd</a></li>
+<li><a href="#impl-BitOr-for-u1">BitOr</a></li>
+<li><a href="#impl-BitXor-for-u1">BitXor</a></li>
+<li><a href="#impl-Default-for-u1">Default</a></li>
+<li><a href="#impl-Div-for-u1">Div</a></li>
+<li><a href="#impl-Eq-for-u1">Eq</a></li>
+<li><a href="#impl-Hash-for-u1">Hash</a></li>
+<li><a href="#impl-Mul-for-u1">Mul</a></li>
+<li><a href="#impl-Not-for-u1">Not</a></li>
+<li><a href="#impl-Rem-for-u1">Rem</a></li>
+<li><a href="#impl-Shl-for-u1">Shl</a></li>
+<li><a href="#impl-Shr-for-u1">Shr</a></li>
+<li><a href="#impl-Sub-for-u1">Sub</a></li>
+<li><a href="#impl-WrappingAdd-for-u1">WrappingAdd</a></li>
+<li><a href="#impl-WrappingMul-for-u1">WrappingMul</a></li>
+<li><a href="#impl-WrappingSub-for-u1">WrappingSub</a></li>
+</ul>
+<h2>In crate std</h2>
+<h3>Modules</h3><ul class="item-list">
+<li><a href="aes128/index.html">aes128</a></div></li>
+<li><a href="append/index.html">append</a></div></li>
+<li><a href="cmp/index.html">cmp</a></div></li>
+<li><a href="collections/index.html">collections</a></div></li>
+<li><a href="compat/index.html">compat</a></div></li>
+<li><a href="convert/index.html">convert</a></div></li>
+<li><a href="default/index.html">default</a></div></li>
+<li><a href="ecdsa_secp256k1/index.html">ecdsa_secp256k1</a></div></li>
+<li><a href="ecdsa_secp256r1/index.html">ecdsa_secp256r1</a></div></li>
+<li><a href="embedded_curve_ops/index.html">embedded_curve_ops</a></div></li>
+<li><a href="field/index.html">field</a></div></li>
+<li><a href="hash/index.html">hash</a></div></li>
+<li><a href="hint/index.html">hint</a></div></li>
+<li><a href="mem/index.html">mem</a></div></li>
+<li><a href="meta/index.html">meta</a></div></li>
+<li><a href="ops/index.html">ops</a></div></li>
+<li><a href="option/index.html">option</a></div></li>
+<li><a href="panic/index.html">panic</a></div></li>
+<li><a href="prelude/index.html">prelude</a></div></li>
+<li><a href="runtime/index.html">runtime</a></div></li>
+<li><a href="test/index.html">test</a></div></li>
+</ul>
+<h3>Primitive types</h3><ul class="item-list">
+<li><a href="primitive.array.html">array</a></div></li>
+<li><a href="primitive.bool.html">bool</a></div></li>
+<li><a href="primitive.CtString.html">CtString</a></div></li>
+<li><a href="primitive.Expr.html">Expr</a></div></li>
+<li><a href="primitive.Field.html">Field</a></div></li>
+<li><a href="primitive.fmtstr.html">fmtstr</a></div></li>
+<li><a href="primitive.FunctionDefinition.html">FunctionDefinition</a></div></li>
+<li><a href="primitive.i16.html">i16</a></div></li>
+<li><a href="primitive.i32.html">i32</a></div></li>
+<li><a href="primitive.i64.html">i64</a></div></li>
+<li><a href="primitive.i8.html">i8</a></div></li>
+<li><a href="primitive.Module.html">Module</a></div></li>
+<li><a href="primitive.Quoted.html">Quoted</a></div></li>
+<li><a href="primitive.slice.html">slice</a></div></li>
+<li><a href="primitive.str.html">str</a></div></li>
+<li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
+<li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
+<li><a href="primitive.TraitImpl.html">TraitImpl</a></div></li>
+<li><a href="primitive.Type.html">Type</a></div></li>
+<li><a href="primitive.TypeDefinition.html">TypeDefinition</a></div></li>
+<li><a href="primitive.TypedExpr.html">TypedExpr</a></div></li>
+<li><a href="primitive.u1.html">u1</a></div></li>
+<li><a href="primitive.u128.html">u128</a></div></li>
+<li><a href="primitive.u16.html">u16</a></div></li>
+<li><a href="primitive.u32.html">u32</a></div></li>
+<li><a href="primitive.u64.html">u64</a></div></li>
+<li><a href="primitive.u8.html">u8</a></div></li>
+<li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.as_witness.html">as_witness</a></div></li>
+<li><a href="fn.assert_constant.html">assert_constant</a></div></li>
+<li><a href="fn.print.html">print</a></div></li>
+<li><a href="fn.println.html">println</a></div></li>
+<li><a href="fn.static_assert.html">static_assert</a></div></li>
+<li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
+<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
+<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
+<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
+<h1>Primitive type <span id="primitive" class="primitive">u1</span></h1>
+<div class="comments">
+<p>The 1-bit unsigned integer type.</p>
+</div>
+<h2>Trait implementations</h2>
+<h3 id="impl-Add-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">add</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-BitAnd-for-u1"><code class="code-header">impl <a href="../std/ops/trait.BitAnd.html" class="trait">BitAnd</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">bitand</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-BitOr-for-u1"><code class="code-header">impl <a href="../std/ops/trait.BitOr.html" class="trait">BitOr</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">bitor</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-BitXor-for-u1"><code class="code-header">impl <a href="../std/ops/trait.BitXor.html" class="trait">BitXor</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">bitxor</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-Default-for-u1"><code class="code-header">impl <a href="../std/default/trait.Default.html" class="trait">Default</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">default</span>() -> Self</code>
+
+</div><h3 id="impl-Div-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Div.html" class="trait">Div</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">div</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-Eq-for-u1"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+</div><h3 id="impl-Hash-for-u1"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">where
+    H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
+
+</div><h3 id="impl-Mul-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">mul</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-Not-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Not.html" class="trait">Not</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">not</span>(self) -> Self</code>
+
+</div><h3 id="impl-Rem-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Rem.html" class="trait">Rem</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">rem</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-Shl-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Shl.html" class="trait">Shl</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">shl</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-Shr-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Shr.html" class="trait">Shr</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">shr</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-Sub-for-u1"><code class="code-header">impl <a href="../std/ops/trait.Sub.html" class="trait">Sub</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">sub</span>(self, other: Self) -> Self</code>
+
+</div><h3 id="impl-WrappingAdd-for-u1"><code class="code-header">impl <a href="../std/ops/trait.WrappingAdd.html" class="trait">WrappingAdd</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">wrapping_add</span>(self, y: Self) -> Self</code>
+
+</div><h3 id="impl-WrappingMul-for-u1"><code class="code-header">impl <a href="../std/ops/trait.WrappingMul.html" class="trait">WrappingMul</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">wrapping_mul</span>(self, y: Self) -> Self</code>
+
+</div><h3 id="impl-WrappingSub-for-u1"><code class="code-header">impl <a href="../std/ops/trait.WrappingSub.html" class="trait">WrappingSub</a> for <a href="../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">wrapping_sub</span>(self, y: Self) -> Self</code>
+
+</div></main>
+</span>
+</body>
+</html>

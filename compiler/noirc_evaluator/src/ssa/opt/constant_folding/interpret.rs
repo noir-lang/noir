@@ -64,7 +64,7 @@ fn evaluate_const_argument_call(
         return EvaluationResult::NotABrilligCall;
     };
 
-    let Some(func) = interpreter.functions().get(func_id) else {
+    let Some(_) = interpreter.functions().get(func_id) else {
         return EvaluationResult::NotABrilligCall;
     };
 
@@ -76,7 +76,9 @@ fn evaluate_const_argument_call(
     let interpreter_args =
         arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
 
-    let Ok(result_values) = interpreter.call_function(func.id(), interpreter_args) else {
+    interpreter.reset_step_counter();
+
+    let Ok(result_values) = interpreter.call_function(*func_id, interpreter_args) else {
         return EvaluationResult::CannotEvaluate;
     };
 

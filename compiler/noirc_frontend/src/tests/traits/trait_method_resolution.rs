@@ -623,3 +623,75 @@ fn inherent_impl_shadows_trait_impl_for_qualified_calls() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn ambiguous_trait_method_multiple_bounds_with_self() {
+    let src = r#"
+    pub trait One {
+        fn method(_self: Self) {}
+    }
+
+    pub trait Two {
+        fn method(_self: Self) {}
+    }
+
+    pub struct Foo {}
+    impl One for Foo {}
+    impl Two for Foo {}
+
+    fn foo<T: One + Two>(x: T) {
+        x.method();
+        ^^^^^^^^^^ Multiple applicable items in scope
+        ~~~~~~~~~~ All these trait which provide `method` are implemented and in scope: `One`, `Two`
+    }
+
+    fn main() {
+        foo(Foo {});
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
+    let src = r#"
+    trait Parent {
+        fn foo(_self: Self);
+    }
+
+    trait Child: Parent {
+        fn foo(_self: Self);
+    }
+
+    pub fn foo<T: Child>(x: T) {
+        x.foo();
+        ^^^^^^^ Multiple applicable items in scope
+        ~~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
+    let src = r#"
+    trait Parent {
+        fn foo();
+    }
+
+    trait Child: Parent {
+        fn foo();
+    }
+
+    pub fn foo<T: Child>() {
+        T::foo();
+        ^^^^^^ Multiple applicable items in scope
+        ~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

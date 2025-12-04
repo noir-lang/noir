@@ -15,11 +15,12 @@ impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
         points: &[acvm::FieldElement],
         scalars_lo: &[acvm::FieldElement],
         scalars_hi: &[acvm::FieldElement],
+        predicate: bool,
     ) -> Result<
         (acvm::FieldElement, acvm::FieldElement, acvm::FieldElement),
         acvm::BlackBoxResolutionError,
     > {
-        self.0.multi_scalar_mul(points, scalars_lo, scalars_hi)
+        self.0.multi_scalar_mul(points, scalars_lo, scalars_hi, predicate)
     }
 
     fn ec_add(
@@ -30,11 +31,20 @@ impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
         input2_x: &acvm::FieldElement,
         input2_y: &acvm::FieldElement,
         input2_infinite: &acvm::FieldElement,
+        predicate: bool,
     ) -> Result<
         (acvm::FieldElement, acvm::FieldElement, acvm::FieldElement),
         acvm::BlackBoxResolutionError,
     > {
-        self.0.ec_add(input1_x, input1_y, input1_infinite, input2_x, input2_y, input2_infinite)
+        self.0.ec_add(
+            input1_x,
+            input1_y,
+            input1_infinite,
+            input2_x,
+            input2_y,
+            input2_infinite,
+            predicate,
+        )
     }
 
     fn poseidon2_permutation(

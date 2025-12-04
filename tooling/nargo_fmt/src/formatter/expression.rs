@@ -4,7 +4,6 @@ use noirc_frontend::{
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
-        UnresolvedTypeData,
     },
     token::{Keyword, Token, TokenKind},
 };
@@ -218,9 +217,13 @@ impl ChunkFormatter<'_, '_> {
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut group = ChunkGroup::new();
 
-        let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+        let lambda_has_return_type = lambda.return_type.is_some();
 
         let params_and_return_type_chunk = self.chunk(|formatter| {
+            if lambda.unconstrained {
+                formatter.write_keyword(Keyword::Unconstrained);
+                formatter.write_space();
+            }
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
                 if index > 0 {
@@ -228,7 +231,7 @@ impl ChunkFormatter<'_, '_> {
                     formatter.write_space();
                 }
                 let mut pattern_and_type_group = formatter.format_pattern(pattern);
-                if typ.typ != UnresolvedTypeData::Unspecified {
+                if let Some(typ) = typ {
                     pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
                         formatter.write_token(Token::Colon);
                         formatter.write_space();
@@ -243,10 +246,10 @@ impl ChunkFormatter<'_, '_> {
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            if lambda_has_return_type {
+            if let Some(return_type) = lambda.return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
-                formatter.format_type(lambda.return_type);
+                formatter.format_type(return_type);
                 formatter.write_space();
             }
         });
@@ -266,11 +269,9 @@ impl ChunkFormatter<'_, '_> {
         let comments_count_before_body = self.written_comments_count;
         self.format_expression(lambda.body, &mut body_group);
 
-        body_group.kind = GroupKind::LambdaBody {
-            block_statement_count,
-            has_comments: self.written_comments_count > comments_count_before_body,
-            lambda_has_return_type,
-        };
+        let has_comments = self.written_comments_count > comments_count_before_body;
+        body_group.kind =
+            GroupKind::LambdaBody { block_statement_count, has_comments, lambda_has_return_type };
 
         group.group(body_group);
 
@@ -2271,6 +2272,13 @@ global y = 1;
     fn format_lambda_no_parameters() {
         let src = "global x = | |  1 ;";
         let expected = "global x = || 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unconstrained_lambda_no_parameters() {
+        let src = "global x =  unconstrained  | |  1 ;";
+        let expected = "global x = unconstrained || 1;\n";
         assert_format(src, expected);
     }
 

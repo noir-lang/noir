@@ -1,4 +1,4 @@
-define: &AZ_COMMIT c2ffeaabbc5001bdc8aeb0b630cb1bbf39702331
+define: &AZ_COMMIT 0fb81a1f12478613daff38a006be1d86160103f0
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -17,7 +17,7 @@ projects:
     compilation-timeout: 3
     execution-timeout: 0.04
     compilation-memory-limit: 300
-    execution-memory-limit: 250
+    execution-memory-limit: 350
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -66,18 +66,18 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
     num_runs: 1
-    compilation-timeout: 330
+    compilation-timeout: 500
     execution-timeout: 0.75
-    compilation-memory-limit: 10000
+    compilation-memory-limit: 12000
     execution-memory-limit: 2000
   rollup-checkpoint-root:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
     num_runs: 1
-    compilation-timeout: 250
+    compilation-timeout: 450
     execution-timeout: 1
-    compilation-memory-limit: 10000
+    compilation-memory-limit: 12000
     execution-memory-limit: 2000
   rollup-tx-merge:
     repo: AztecProtocol/aztec-packages

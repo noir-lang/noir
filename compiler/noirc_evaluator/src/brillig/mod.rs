@@ -5,6 +5,7 @@
 //!
 //! Brillig generation is performed by calling the [Ssa::to_brillig] method.
 //! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
+mod brillig_check;
 pub(crate) mod brillig_gen;
 pub mod brillig_ir;
 
@@ -37,11 +38,12 @@ use std::{borrow::Cow, collections::BTreeSet};
 pub use self::brillig_ir::procedures::ProcedureId;
 
 /// Options that affect Brillig code generation.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
     pub enable_array_copy_counter: bool,
+    pub show_opcode_advisories: bool,
     pub layout: LayoutConfig,
 }
 
@@ -115,7 +117,7 @@ impl Brillig {
 
         brillig_context.call_check_max_stack_depth_procedure();
 
-        for block in function_context.blocks.clone() {
+        for block in function_context.reverse_post_order().collect::<Vec<_>>() {
             BrilligBlock::compile_block(
                 &mut function_context,
                 &mut brillig_context,
@@ -127,7 +129,14 @@ impl Brillig {
             );
         }
 
-        brillig_context.artifact()
+        if options.show_opcode_advisories {
+            let opcode_advisories =
+                brillig_check::opcode_advisories(func, &function_context, &brillig_context);
+
+            brillig_check::show_opcode_advisories(&opcode_advisories, brillig_context.artifact());
+        }
+
+        brillig_context.into_artifact()
     }
 
     pub fn call_stacks(&self) -> &CallStackHelper {

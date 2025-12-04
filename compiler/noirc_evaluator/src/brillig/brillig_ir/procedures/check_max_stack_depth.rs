@@ -8,11 +8,16 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Call [ProcedureId::CheckMaxStackDepth].
+    ///
+    /// Ensures that the stack size does not grow beyond its boundaries, where it would encroach on the heap.
     pub(crate) fn call_check_max_stack_depth_procedure(&mut self) {
         self.add_procedure_call_instruction(ProcedureId::CheckMaxStackDepth);
     }
 }
 
+/// Compile [ProcedureId::CheckMaxStackDepth].
+///
 /// The stack start should be computed earlier after allocating space for globals and the entry point.
 ///
 /// Remember that the memory layout for entry points is as follows:

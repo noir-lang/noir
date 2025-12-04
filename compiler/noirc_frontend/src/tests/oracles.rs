@@ -24,3 +24,13 @@ fn errors_if_oracle_declaration_has_function_body() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_if_oracle_returns_multiple_vectors() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> ([u32], [Field]) {}
+                         ^^^^^^^^^^^ Oracle functions cannot return multiple slices
+    "#;
+    check_errors(src);
+}

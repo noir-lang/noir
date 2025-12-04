@@ -137,6 +137,24 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
 }
 
 #[test]
+fn cannot_return_function_from_unconstrained_to_constrained() {
+    let src = r#"
+    fn main() {
+        // safety:
+        unsafe {
+            let _func = make_func();
+                        ^^^^^^^^^^^ Functions cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_func() -> fn() -> () {
+        || {}
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
     let src = r#"
     fn main() {
@@ -227,6 +245,29 @@ fn warns_on_nested_unsafe() {
 }
 
 #[test]
+fn no_warns_on_needed_unsafe_with_unneeded_nested() {
+    let src = r#"
+    fn main() {
+        // Safety: test
+        unsafe {
+            foo();
+            // Safety: test
+            unsafe {
+            ^^^^^^ Unnecessary `unsafe` block
+            ~~~~~~ Because it's nested inside another `unsafe` block
+                bar();
+            }
+        }
+    }
+
+    unconstrained fn foo() {}
+
+    fn bar() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_inline_attribute_on_unconstrained() {
     let src = r#"
         #[no_predicates]
@@ -292,7 +333,7 @@ fn disallows_test_attribute_on_impl_method() {
         pub struct Foo { }
 
         impl Foo {
-        
+
 #[test]
             fn foo() { }
                ^^^ The `#[test]` attribute is disallowed on `impl` methods

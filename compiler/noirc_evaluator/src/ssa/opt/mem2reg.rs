@@ -762,9 +762,7 @@ impl<'f> PerFunctionContext<'f> {
     }
 
     fn update_data_bus(&mut self) {
-        let mut databus = self.inserter.function.dfg.data_bus.clone();
-        databus.map_values_mut(|t| self.inserter.resolve(t));
-        self.inserter.function.dfg.data_bus = databus;
+        self.inserter.map_data_bus_in_place();
     }
 
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {

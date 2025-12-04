@@ -125,8 +125,8 @@ impl Parser<'_> {
                 self.expected_token(Token::Keyword(Keyword::Fn));
                 return Some(UnresolvedTypeData::Function(
                     Vec::new(),
-                    Box::new(self.unspecified_type_at_previous_token_end()),
-                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    Box::new(self.error_type_at_previous_token_end()),
+                    Box::new(self.error_type_at_previous_token_end()),
                     unconstrained,
                 ));
             }
@@ -147,8 +147,8 @@ impl Parser<'_> {
 
             return Some(UnresolvedTypeData::Function(
                 Vec::new(),
-                Box::new(self.unspecified_type_at_previous_token_end()),
-                Box::new(self.unspecified_type_at_previous_token_end()),
+                Box::new(self.error_type_at_previous_token_end()),
+                Box::new(self.error_type_at_previous_token_end()),
                 unconstrained,
             ));
         }
@@ -303,16 +303,12 @@ impl Parser<'_> {
     }
 
     /// OptionalTypeAnnotation = ( ':' Type )?
-    pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
-        if self.eat_colon() {
-            self.parse_type_or_error()
-        } else {
-            self.unspecified_type_at_previous_token_end()
-        }
+    pub(super) fn parse_optional_type_annotation(&mut self) -> Option<UnresolvedType> {
+        if self.eat_colon() { Some(self.parse_type_or_error()) } else { None }
     }
 
-    pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_location(self.location_at_previous_token_end())
+    fn error_type_at_previous_token_end(&mut self) -> UnresolvedType {
+        UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
     }
 }
 

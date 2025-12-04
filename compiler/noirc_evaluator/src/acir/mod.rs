@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    circuit::{AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId},
+    circuit::{AssertionPayload, brillig::BrilligFunctionId},
     native_types::Witness,
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -113,13 +113,11 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
-        expression_width: ExpressionWidth,
         brillig: &'a Brillig,
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
@@ -181,7 +179,9 @@ impl<'a> Context<'a> {
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
-        let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+        self.acir_context.acir_ir.input_witnesses =
+            self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+
         let num_return_witnesses =
             self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
 
@@ -257,7 +257,6 @@ impl<'a> Context<'a> {
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(
-            input_witness,
             // Don't embed databus return witnesses into the circuit.
             if self.data_bus.return_data.is_some() { Vec::new() } else { return_witnesses },
             warnings,
@@ -276,7 +275,7 @@ impl<'a> Context<'a> {
         })?;
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
-        let witness_inputs = self.acir_context.extract_witnesses(&inputs);
+        self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
@@ -311,7 +310,7 @@ impl<'a> Context<'a> {
             .map(|(value, _)| self.acir_context.var_to_witness(value))
             .collect::<Result<_, _>>()?;
 
-        let generated_acir = self.acir_context.finish(witness_inputs, return_witnesses, Vec::new());
+        let generated_acir = self.acir_context.finish(return_witnesses, Vec::new());
 
         assert_eq!(
             generated_acir.opcodes().len(),
@@ -398,10 +397,18 @@ impl<'a> Context<'a> {
         numeric_type: &NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
-        let one = self.acir_context.add_constant(FieldElement::one());
-        // The predicate is one so that this constraint is is always applied to Signed/Unsigned
-        // NumericType's
-        self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
+
+        if !numeric_type.is_field() {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            // The predicate is one so that this constraint is is always applied to Signed/Unsigned NumericTypes
+
+            self.acir_context.range_constrain_var(
+                acir_var,
+                numeric_type.bit_size::<FieldElement>(),
+                None,
+                one,
+            )?;
+        }
         Ok(acir_var)
     }
 
@@ -490,7 +497,7 @@ impl<'a> Context<'a> {
                 // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
                     acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    *max_bit_size,
                     assert_message.clone(),
                     one,
                 )?;
@@ -777,12 +784,7 @@ impl<'a> Context<'a> {
             _ => return Ok(result),
         };
 
-        self.acir_context.range_constrain_var(
-            result,
-            &NumericType::Unsigned { bit_size },
-            Some(msg.to_string()),
-            predicate,
-        )
+        self.acir_context.range_constrain_var(result, bit_size, Some(msg.to_string()), predicate)
     }
 
     /// Operands in a binary operation are checked to have the same type.

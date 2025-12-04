@@ -334,3 +334,66 @@ fn zero_length_array_dynamic_predicate() {
     ASSERT w0 = 0
     ");
 }
+
+/// Tests this code:
+/// ```noir
+/// struct Bar {
+///     inner: [Field; 3],
+/// }
+/// struct Foo {
+///     a: Field,
+///     b: [Field; 3],
+///     bar: Bar,
+/// }
+/// fn main(x: [Foo; 4], index: u32) -> pub [Field; 3] {
+///     x[index].bar.inner
+/// }
+/// ```
+#[test]
+fn non_homogenous_array_dynamic_access() {
+    let src = r#"
+    acir(inline) pure fn main f0 {
+      b0(v0: [(Field, [Field; 3], [Field; 3]); 4], v1: u32):
+        v2 = array_get v0, index v1 -> [Field; 3]
+        return v2
+    }
+    "#;
+
+    let program = ssa_to_acir_program(src);
+
+    // b0 is our actual array input while b1 is our element type sizes array.
+    // You can see that in `w44 = b1[w28]` we use the supplied witness index to read the flattened index from b1.
+    // `w44` is then used to read from the b0 array.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28]
+    public parameters: []
+    return values: [w29, w30, w31]
+    INIT b0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
+    ASSERT w32 = 0
+    ASSERT w33 = 1
+    ASSERT w34 = 4
+    ASSERT w35 = 7
+    ASSERT w36 = 8
+    ASSERT w37 = 11
+    ASSERT w38 = 14
+    ASSERT w39 = 15
+    ASSERT w40 = 18
+    ASSERT w41 = 21
+    ASSERT w42 = 22
+    ASSERT w43 = 25
+    ASSERT w44 = 28
+    ASSERT w45 = 29
+    ASSERT w46 = 32
+    INIT b1 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46]
+    READ w47 = b1[w28]
+    READ w48 = b0[w47]
+    ASSERT w49 = w47 + 1
+    READ w50 = b0[w49]
+    ASSERT w51 = w49 + 1
+    READ w52 = b0[w51]
+    ASSERT w29 = w48
+    ASSERT w30 = w50
+    ASSERT w31 = w52
+    ");
+}

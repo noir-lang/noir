@@ -227,7 +227,7 @@ where
     /// Returns a new sorted array. The original array remains untouched. Notice that this function will
     /// only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
     /// logic it uses internally is optimized specifically for these values. If you need a sort function to
-    /// sort any type, you should use the `sort_via` function.
+    /// sort any type, you should use the [`Self::sort_via`] function.
     ///
     /// Example:
     ///
