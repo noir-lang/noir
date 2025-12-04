@@ -183,8 +183,6 @@ fn nested_quote_basic_with_one_type_annotation() {
                 let nested = quote { $inner };
                 let got: u8 = unquote!(nested);
                 // Note: This works because 'original' is inferred as u8.
-                // Using `assert_eq(got, 3)` would fail because the 
-                // literal 3 defaults to Field, causing a type mismatch
                 assert_eq(got, original);
             }
         }
@@ -194,6 +192,37 @@ fn nested_quote_basic_with_one_type_annotation() {
         }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn nested_quote_basic_no_type_annotation() {
+    // Type inference is run before the comptime interpreter which determines
+    // the types returned from quoted values. Thus, we can get some funky type mismatches
+    // if types are not properly annotated.
+    let src = r#"
+        fn main() {
+            comptime {
+                // Do not specify a type here
+                let original = 5;
+                // Splice a value into our initial quote
+                let inner = quote { $original };
+                let nested = quote { $inner };
+                let got: u8 = unquote!(nested);
+                              ^^^^^^^^^^^^^^^^ Expected type u8, found type Field
+                // `original` is inferred to be a Field as it has no type specified.
+                // The literal `3` is inferred to be `u8` based off of the annotated
+                // type on `got`. However, `got` has been found to be a `Field`. 
+                // Thus, we get a type mismatch.
+                assert_eq(got, 3);
+                          ^^^^^^ No implementation for `Field` == `u8`
+            }
+        }
+
+        comptime fn unquote(code: Quoted) -> Quoted {
+            code
+        }
+    "#;
+    check_errors(src);
 }
 
 /// Tests that an interpolated quote can be used in an expression
