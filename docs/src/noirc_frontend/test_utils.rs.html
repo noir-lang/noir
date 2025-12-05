@@ -129,7 +129,16 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -162,7 +171,16 @@
 }
 
 <span class="kw">pub fn </span>get_monomorphized(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
+    get_monomorphized_with_error_filter(src, |<span class="kw">_</span>| <span class="bool-val">false</span>)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_monomorphized_with_error_filter(
+    src: <span class="kw-2">&amp;</span>str,
+    ignore_error: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>CompilationError) -&gt; bool,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
     <span class="kw">let </span>(_parsed_module, <span class="kw-2">mut </span>context, errors) = get_program(src);
+
+    <span class="kw">let </span>errors = errors.into_iter().filter(|e| !ignore_error(e)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
     <span class="macro">assert!</span>(
         errors.iter().all(|err| !err.is_error()),
         <span class="string">"Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"

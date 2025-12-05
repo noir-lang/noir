@@ -274,7 +274,11 @@
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
 <a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -289,7 +293,7 @@
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">pub type </span>RtResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, RuntimeError&gt;;
@@ -516,10 +520,14 @@
                     call_stack.last().cloned().unwrap_or_else(Location::dummy);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = CustomDiagnostic::simple_error(
-                    message,
+                    <span class="macro">format!</span>(<span class="string">"SSA validation error: {message}"</span>),
                     String::new(),
                     location,
                 );
+
+                <span class="kw">if </span>std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
+                    diagnostic.notes.push(<span class="macro">format!</span>(<span class="string">"Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."</span>));
+                }
 
                 <span class="kw">if </span>call_stack.is_empty() {
                     <span class="comment">// Clear it otherwise it points to the top of the file.

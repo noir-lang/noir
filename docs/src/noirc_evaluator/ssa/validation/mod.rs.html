@@ -1957,7 +1957,31 @@
 <a href="#1956" id="1956">1956</a>
 <a href="#1957" id="1957">1957</a>
 <a href="#1958" id="1958">1958</a>
-<a href="#1959" id="1959">1959</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1959" id="1959">1959</a>
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a>
+<a href="#1964" id="1964">1964</a>
+<a href="#1965" id="1965">1965</a>
+<a href="#1966" id="1966">1966</a>
+<a href="#1967" id="1967">1967</a>
+<a href="#1968" id="1968">1968</a>
+<a href="#1969" id="1969">1969</a>
+<a href="#1970" id="1970">1970</a>
+<a href="#1971" id="1971">1971</a>
+<a href="#1972" id="1972">1972</a>
+<a href="#1973" id="1973">1973</a>
+<a href="#1974" id="1974">1974</a>
+<a href="#1975" id="1975">1975</a>
+<a href="#1976" id="1976">1976</a>
+<a href="#1977" id="1977">1977</a>
+<a href="#1978" id="1978">1978</a>
+<a href="#1979" id="1979">1979</a>
+<a href="#1980" id="1980">1980</a>
+<a href="#1981" id="1981">1981</a>
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2888,6 +2912,7 @@
     <span class="doccomment">/// Check the inputs and outputs of function calls going from ACIR to Brillig:
     /// * cannot pass references from constrained to unconstrained code
     /// * cannot return functions
+    /// * cannot call oracles directly
     </span><span class="kw">fn </span>check_calls_in_constrained(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) {
         <span class="kw">if </span>!<span class="self">self</span>.function.runtime().is_acir() {
             <span class="kw">return</span>;
@@ -2895,10 +2920,18 @@
         <span class="kw">let </span>Instruction::Call { func, arguments } = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[instruction] <span class="kw">else </span>{
             <span class="kw">return</span>;
         };
-        <span class="kw">let </span>Value::Function(func_id) = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[<span class="kw-2">*</span>func] <span class="kw">else </span>{
-            <span class="kw">return</span>;
+        <span class="kw">let </span>callee_id = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg[<span class="kw-2">*</span>func] {
+            Value::Function(func_id) =&gt; func_id,
+            Value::ForeignFunction(oracle) =&gt; {
+                <span class="macro">panic!</span>(
+                    <span class="string">"Trying to call foreign function '{oracle}' from ACIR function '{} {}'"</span>,
+                    <span class="self">self</span>.function.name(),
+                    <span class="self">self</span>.function.id()
+                );
+            }
+            <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
         };
-        <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[func_id];
+        <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[callee_id];
         <span class="kw">if </span>called_function.runtime().is_acir() {
             <span class="kw">return</span>;
         }
@@ -3674,6 +3707,21 @@
           b0(v0: u32):
             v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
             v5 = array_get v4, index v0 -&gt; Field
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(
+        expected = <span class="string">"Trying to call foreign function 'oracle_call' from ACIR function 'main f0'"
+    </span>)]
+    </span><span class="kw">fn </span>disallows_calling_an_oracle_from_acir() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            call oracle_call()
             return
         }
         "</span>;

@@ -883,15 +883,7 @@
 <a href="#882" id="882">882</a>
 <a href="#883" id="883">883</a>
 <a href="#884" id="884">884</a>
-<a href="#885" id="885">885</a>
-<a href="#886" id="886">886</a>
-<a href="#887" id="887">887</a>
-<a href="#888" id="888">888</a>
-<a href="#889" id="889">889</a>
-<a href="#890" id="890">890</a>
-<a href="#891" id="891">891</a>
-<a href="#892" id="892">892</a>
-<a href="#893" id="893">893</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#885" id="885">885</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -967,8 +959,6 @@
     </span>OracleMarkedAsConstrained { ident: Ident, location: Location },
     <span class="attr">#[error(<span class="string">"Oracle functions cannot return multiple slices"</span>)]
     </span>OracleReturnsMultipleSlices { location: Location },
-    <span class="attr">#[error(<span class="string">"Oracle functions cannot be called directly from constrained functions"</span>)]
-    </span>UnconstrainedOracleReturnToConstrained { location: Location },
     <span class="attr">#[error(<span class="string">"Dependency cycle found, '{item}' recursively depends on itself: {cycle} "</span>)]
     </span>DependencyCycle { location: Location, item: String, cycle: String },
     <span class="attr">#[error(<span class="string">"break/continue are only allowed in unconstrained functions"</span>)]
@@ -1117,7 +1107,6 @@
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedSlices { location }
             | ResolverError::AbiAttributeOutsideContract { location }
-            | ResolverError::UnconstrainedOracleReturnToConstrained { location }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -1380,11 +1369,6 @@
                     <span class="kw-2">*</span>location,
                 )
             },
-            ResolverError::UnconstrainedOracleReturnToConstrained { location } =&gt; Diagnostic::simple_error(
-                error.to_string(),
-                <span class="string">"This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime"</span>.into(),
-                <span class="kw-2">*</span>location,
-            ),
             ResolverError::DependencyCycle { location, item, cycle } =&gt; {
                 Diagnostic::simple_error(
                     <span class="string">"Dependency cycle found"</span>.into(),

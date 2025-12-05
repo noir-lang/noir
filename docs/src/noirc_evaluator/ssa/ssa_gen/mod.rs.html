@@ -1286,7 +1286,9 @@
 <a href="#1285" id="1285">1285</a>
 <a href="#1286" id="1286">1286</a>
 <a href="#1287" id="1287">1287</a>
-<a href="#1288" id="1288">1288</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1329,6 +1331,8 @@
         value::ValueId,
     },
 };
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>SHOW_INVALID_SSA_ENV_KEY: <span class="kw-2">&amp;</span>str = <span class="string">"NOIR_SHOW_INVALID_SSA"</span>;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>SSA_WORD_SIZE: u32 = <span class="number">32</span>;
 
@@ -1435,7 +1439,7 @@
     <span class="kw">if let </span><span class="prelude-val">Err</span>(payload) = result {
         <span class="comment">// Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        </span><span class="kw">if </span>std::env::var(<span class="string">"RUST_BACKTRACE"</span>).is_ok() {
+        </span><span class="kw">if </span>std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
             <span class="macro">eprintln!</span>(<span class="string">"--- The SSA failed to validate:\n{ssa}\n"</span>);
         }
 

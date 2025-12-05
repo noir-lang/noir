@@ -171,7 +171,21 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -180,6 +194,7 @@
     hir_def::{
         expr::{HirExpression, HirIdent},
         function::{FuncMeta, HirFunction},
+        stmt::{HirLetStatement, HirStatement},
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, Node, ReferenceId, TraitId,
@@ -282,13 +297,26 @@
         <span class="self">self</span>.function_modules[<span class="kw-2">&amp;</span>func]
     }
 
-    <span class="doccomment">/// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
-    </span><span class="kw">pub fn </span>lookup_function_from_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
+    <span class="doccomment">/// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
+    /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
+    /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
+    ///
+    /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_function_from_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
         <span class="kw">if let </span>HirExpression::Ident(HirIdent { id, .. }, <span class="kw">_</span>) = <span class="self">self</span>.expression(expr) {
             <span class="kw">match </span><span class="self">self</span>.try_definition(id).map(|def| <span class="kw-2">&amp;</span>def.kind) {
                 <span class="prelude-val">Some</span>(DefinitionKind::Function(func_id)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
                 <span class="prelude-val">Some</span>(DefinitionKind::Local(<span class="prelude-val">Some</span>(expr_id))) =&gt; {
                     <span class="self">self</span>.lookup_function_from_expr(expr_id)
+                }
+                <span class="prelude-val">Some</span>(DefinitionKind::Global(global_id)) =&gt; {
+                    <span class="kw">let </span>info = <span class="self">self</span>.get_global(<span class="kw-2">*</span>global_id);
+                    <span class="kw">let </span>HirStatement::Let(HirLetStatement { expression, .. }) =
+                        <span class="self">self</span>.statement(<span class="kw-2">&amp;</span>info.let_statement)
+                    <span class="kw">else </span>{
+                        <span class="macro">unreachable!</span>(<span class="string">"global refers to a let statement"</span>);
+                    };
+                    <span class="self">self</span>.lookup_function_from_expr(<span class="kw-2">&amp;</span>expression)
                 }
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             }

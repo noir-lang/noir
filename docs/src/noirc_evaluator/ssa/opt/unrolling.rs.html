@@ -1868,9 +1868,7 @@
 <a href="#1867" id="1867">1867</a>
 <a href="#1868" id="1868">1868</a>
 <a href="#1869" id="1869">1869</a>
-<a href="#1870" id="1870">1870</a>
-<a href="#1871" id="1871">1871</a>
-<a href="#1872" id="1872">1872</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1870" id="1870">1870</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -3718,8 +3716,6 @@
             v3 = eq v0, u128 {0}
             jmpif v3 then: b3, else: b2
           b2():
-            v2 = make_array b""
-            call print(u1 1, v0, v2, u1 0)
             v6 = unchecked_add v0, u128 1
             jmp b1(v6)
           b3():

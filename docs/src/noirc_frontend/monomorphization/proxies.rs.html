@@ -286,7 +286,117 @@
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implement a post-monomorphization pass where builtin/intrinsic/oracle functions used as values
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implement a post-monomorphization pass where builtin/intrinsic/oracle functions used as values
 //! are wrapped in a proxy function which replaces them as a value and forwards calls to them.
 //!
 //! The reason this exists is because by the time we get to the `defunctionalize` SSA pass it would
@@ -299,6 +409,10 @@
 //! without actually being the target of a [`Call`](crate::monomorphization::ast::Expression::Call),
 //! and replace them with a normal function, which will preserve the information we need create
 //! dispatch functions for them in the `defunctionalize` pass.
+//!
+//! The pass also automatically wraps direct calls to oracle functions from constrained functions,
+//! which, after creating wrapper for function values, would only present an inconvenience for users
+//! if they have to keep creating wrappers themselves.
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -328,6 +442,7 @@
 
         <span class="comment">// Replace foreign function identifier definitions with proxy function IDs.
         </span><span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.iter_mut() {
+            context.in_unconstrained = function.unconstrained;
             context.visit_expr(<span class="kw-2">&amp;mut </span>function.body);
         }
 
@@ -340,13 +455,19 @@
 
 <span class="kw">struct </span>ProxyContext {
     next_func_id: u32,
+    in_unconstrained: bool,
     replacements: HashMap&lt;(Definition, <span class="comment">/*unconstrained*/ </span>bool), FuncId&gt;,
     proxies: Vec&lt;(FuncId, (Ident, <span class="comment">/*unconstrained*/ </span>bool))&gt;,
 }
 
 <span class="kw">impl </span>ProxyContext {
     <span class="kw">fn </span>new(next_func_id: u32) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ next_func_id, replacements: HashMap::new(), proxies: Vec::new() }
+        <span class="self">Self </span>{
+            next_func_id,
+            in_unconstrained: <span class="bool-val">false</span>,
+            replacements: HashMap::new(),
+            proxies: Vec::new(),
+        }
     }
 
     <span class="kw">fn </span>next_func_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; FuncId {
@@ -361,33 +482,59 @@
     </span><span class="kw">fn </span>visit_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) {
         visit_expr_mut(expr, <span class="kw-2">&amp;mut </span>|expr| {
             <span class="comment">// Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
-            // even though its `Ident::typ` will be a `Tuple([Function, Function])`, but since we only
-            // handle tuples, we don't have to skip the `Call::func` to leave it in tact.
+            // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
-            // If this is a foreign function value, we want to replace it with proxies.
+            // If this is a direct from ACIR to an Oracle, we want to create a proxy.
+            </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained {
+                <span class="kw">if let </span>Expression::Call(Call { func, arguments, return_type: <span class="kw">_</span>, location: <span class="kw">_ </span>}) =
+                    expr
+                {
+                    <span class="kw">if let </span>Expression::Ident(ident) = func.as_mut() {
+                        <span class="kw">if </span><span class="macro">matches!</span>(ident.definition, Definition::Oracle(<span class="kw">_</span>)) {
+                            <span class="self">self</span>.redirect_to_proxy(ident, <span class="bool-val">true</span>);
+                            <span class="kw">for </span>arg <span class="kw">in </span>arguments {
+                                <span class="self">self</span>.visit_expr(arg);
+                            }
+                            <span class="kw">return </span><span class="bool-val">false</span>;
+                        }
+                    }
+                }
+            }
+
+            <span class="comment">// If this is a foreign function value, we want to replace it with proxies.
             </span><span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>pair) = ForeignFunctionValue::try_from(expr) <span class="kw">else </span>{
                 <span class="kw">return </span><span class="bool-val">true</span>;
             };
 
             <span class="comment">// Create a separate proxy for the constrained and unconstrained version.
             </span>pair.for_each(|ident, unconstrained| {
-                <span class="kw">let </span>key = (ident.definition.clone(), unconstrained);
-
-                <span class="kw">let </span>proxy_id = <span class="kw">match </span><span class="self">self</span>.replacements.get(<span class="kw-2">&amp;</span>key) {
-                    <span class="prelude-val">Some</span>(id) =&gt; <span class="kw-2">*</span>id,
-                    <span class="prelude-val">None </span>=&gt; {
-                        <span class="kw">let </span>func_id = <span class="self">self</span>.next_func_id();
-                        <span class="self">self</span>.replacements.insert(key, func_id);
-                        <span class="self">self</span>.proxies.push((func_id, (ident.clone(), unconstrained)));
-                        func_id
-                    }
-                };
-
-                ident.definition = Definition::Function(proxy_id);
+                <span class="self">self</span>.redirect_to_proxy(ident, unconstrained);
             });
 
             <span class="bool-val">true
         </span>});
+    }
+
+    <span class="doccomment">/// Get or create a replacement proxy for the function definition in the [Ident],
+    /// and replace the definition with the ID of the new global proxy function.
+    </span><span class="kw">fn </span>redirect_to_proxy(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: <span class="kw-2">&amp;mut </span>Ident, <span class="kw-2">mut </span>unconstrained: bool) {
+        <span class="comment">// If we are calling an oracle, there is no reason to create an unconstrained proxy,
+        // since such a call would be rejected by the SSA validation.
+        </span>unconstrained |= <span class="macro">matches!</span>(ident.definition, Definition::Oracle(<span class="kw">_</span>));
+
+        <span class="kw">let </span>key = (ident.definition.clone(), unconstrained);
+
+        <span class="kw">let </span>proxy_id = <span class="kw">match </span><span class="self">self</span>.replacements.get(<span class="kw-2">&amp;</span>key) {
+            <span class="prelude-val">Some</span>(id) =&gt; <span class="kw-2">*</span>id,
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="kw">let </span>func_id = <span class="self">self</span>.next_func_id();
+                <span class="self">self</span>.replacements.insert(key, func_id);
+                <span class="self">self</span>.proxies.push((func_id, (ident.clone(), unconstrained)));
+                func_id
+            }
+        };
+
+        ident.definition = Definition::Function(proxy_id);
     }
 
     <span class="doccomment">/// Create proxy functions for the foreign function values we discovered.
@@ -537,10 +684,42 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::test_utils::get_monomorphized_no_emit_test;
+    <span class="kw">use crate</span>::{
+        hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+        test_utils::{get_monomorphized_no_emit_test, get_monomorphized_with_error_filter},
+    };
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>creates_proxies_for_oracle() {
+    </span><span class="kw">fn </span>creates_proxies_for_acir_to_oracle_calls() {
+        <span class="kw">let </span>src = <span class="string">"
+        fn main() {
+            // safety: still needed as the bar_proxy is unconstrained
+            unsafe {
+                bar(0);
+            }
+        }
+
+        #[oracle(my_oracle)]
+        unconstrained fn bar(f: Field) {
+        }
+        "</span>;
+
+        <span class="kw">let </span>program = get_monomorphized_no_emit_test(src).unwrap();
+        <span class="macro">insta::assert_snapshot!</span>(program, @<span class="string">r"
+        fn main$f0() -&gt; () {
+            {
+                bar$f1(0);
+            }
+        }
+        #[inline_always]
+        unconstrained fn bar_proxy$f1(p0$l0: Field) -&gt; () {
+            bar$my_oracle(p0$l0)
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>creates_proxies_for_oracle_values() {
         <span class="kw">let </span>src = <span class="string">"
         unconstrained fn main() {
             foo(bar);
@@ -558,18 +737,59 @@
         <span class="kw">let </span>program = get_monomorphized_no_emit_test(src).unwrap();
         <span class="macro">insta::assert_snapshot!</span>(program, @<span class="string">r"
         unconstrained fn main$f0() -&gt; () {
-            foo$f1((bar$f2, bar$f3));
+            foo$f1((bar$f2, bar$f2));
         }
         unconstrained fn foo$f1(f$l0: (fn(Field) -&gt; (), unconstrained fn(Field) -&gt; ())) -&gt; () {
             f$l0.1(0);
         }
         #[inline_always]
-        fn bar_proxy$f2(p0$l0: Field) -&gt; () {
+        unconstrained fn bar_proxy$f2(p0$l0: Field) -&gt; () {
             bar$my_oracle(p0$l0)
         }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>creates_proxies_for_builtin_values() {
+        <span class="kw">let </span>src = <span class="string">"
+        unconstrained fn main() {
+            foo(bar);
+        }
+
+        unconstrained fn foo(f: fn() -&gt; bool) {
+          f();
+        }
+
+        #[builtin(is_unconstrained)]
+        pub fn bar() -&gt; bool {
+        }
+        "</span>;
+
+        <span class="kw">let </span>program = get_monomorphized_with_error_filter(src, |err| {
+            <span class="macro">matches!</span>(
+                err,
+                <span class="comment">// Ignore the error about creating a builtin function.
+                </span>CompilationError::ResolverError(
+                    ResolverError::LowLevelFunctionOutsideOfStdlib { .. }
+                )
+            )
+        })
+        .unwrap();
+
+        <span class="macro">insta::assert_snapshot!</span>(program, @<span class="string">r"
+        unconstrained fn main$f0() -&gt; () {
+            foo$f1((bar$f2, bar$f3));
+        }
+        unconstrained fn foo$f1(f$l0: (fn() -&gt; bool, unconstrained fn() -&gt; bool)) -&gt; () {
+            f$l0.1();
+        }
         #[inline_always]
-        unconstrained fn bar_proxy$f3(p0$l0: Field) -&gt; () {
-            bar$my_oracle(p0$l0)
+        fn bar_proxy$f2() -&gt; bool {
+            bar$is_unconstrained()
+        }
+        #[inline_always]
+        unconstrained fn bar_proxy$f3() -&gt; bool {
+            bar$is_unconstrained()
         }
         "</span>);
     }

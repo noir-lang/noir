@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Expect"],"fn":["get_monomorphized","get_monomorphized_no_emit_test","get_program","get_program_with_options","has_parser_error","remove_experimental_warnings"]};
+window.SIDEBAR_ITEMS = {"enum":["Expect"],"fn":["get_monomorphized","get_monomorphized_no_emit_test","get_monomorphized_with_error_filter","get_program","get_program_with_options","has_parser_error","remove_experimental_warnings"]};

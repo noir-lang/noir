@@ -5795,13 +5795,13 @@
         <span class="comment">// The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
         </span><span class="kw">let </span>call_target = <span class="kw">match </span>test_call {
             TestCall::Function(<span class="kw">_</span>) =&gt; <span class="string">"f1"</span>.to_string(),
-            TestCall::ForeignFunction =&gt; <span class="string">"print"</span>.to_string(), <span class="comment">// The ony foreign function the SSA parser allows.
-            </span>TestCall::Intrinsic(intrinsic) =&gt; <span class="macro">format!</span>(<span class="string">"{intrinsic}"</span>),
+            TestCall::ForeignFunction =&gt; <span class="string">"print"</span>.to_string(),
+            TestCall::Intrinsic(intrinsic) =&gt; <span class="macro">format!</span>(<span class="string">"{intrinsic}"</span>),
         };
 
         <span class="kw">let </span>src = <span class="macro">format!</span>(
             <span class="string">r#"
-        acir(inline) fn main f0 {{
+        brillig(inline) fn main f0 {{
           b0(v0: [u64; 25]):
             jmp b1(u32 0)
           b1(v1: u32):
@@ -5815,7 +5815,7 @@
             return
         }}
 
-        acir(inline) {dummy_purity} fn dummy f1 {{
+        brillig(inline) {dummy_purity} fn dummy f1 {{
           b0(v0: [u64; 25]):
             return v0
         }}
