@@ -215,6 +215,14 @@ impl CompilationError {
         // also isn't expected to be called too often.
         CustomDiagnostic::from(self).is_error()
     }
+
+    pub(crate) fn should_be_filtered(&self) -> bool {
+        let CompilationError::InterpreterError(error) = self else {
+            return false;
+        };
+
+        error.should_be_filtered()
+    }
 }
 
 impl std::fmt::Display for CompilationError {

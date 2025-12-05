@@ -4,7 +4,6 @@ use crate::tests::{assert_no_errors, check_errors};
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
@@ -31,24 +30,24 @@ fn do_not_infer_globals_to_u32_from_type_use() {
         global ARRAY_LEN = 3;
                ^^^^^^^^^ Globals must have a specified type
                            ~ Inferred type is `Field`
+                           ^ Global failed to evaluate
         global STR_LEN: _ = 2;
                         ^ The placeholder `_` is not allowed in global definitions
                ^^^^^^^ Globals must have a specified type
                             ~ Inferred type is `Field`
+                            ^ Global failed to evaluate
         global FMT_STR_LEN = 2;
                ^^^^^^^^^^^ Globals must have a specified type
                              ~ Inferred type is `Field`
+                             ^ Global failed to evaluate
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
+                          ^^^^^^^^^ expected type got global
             let _b: str<STR_LEN> = "hi";
-                        ^^^^^^^ The numeric generic is not of type `u32`
-                        ~~~~~~~ expected `u32`, found `Field`
+                        ^^^^^^^ expected type got global
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                           ^^^^^^^^^^^ The numeric generic is not of type `u32`
-                           ~~~~~~~~~~~ expected `u32`, found `Field`
+                           ^^^^^^^^^^^ expected type got global
         }
     "#;
     check_errors(src);
@@ -137,19 +136,6 @@ fn disallows_references_in_globals() {
     let src = r#"
     pub global mutable: &mut Field = &mut 0;
                ^^^^^^^ References are not allowed in globals
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn errors_on_cyclic_globals() {
-    let src = r#"
-    pub comptime global A: u32 = B;
-                                 ^ Failed to resolve this global
-                        ^ Dependency cycle found
-                        ~ 'A' recursively depends on itself: A -> B -> A
-    pub comptime global B: u32 = A;
-                                 ^ Failed to resolve this global
     "#;
     check_errors(src);
 }
