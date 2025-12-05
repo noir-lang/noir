@@ -111,25 +111,30 @@ impl NodeInterner {
     }
 
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
-    /// _iff_ it refers to an immutable (local or global) [HirExpression::Ident],
-    /// and it's statically known to point global function.
+    /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
+    /// or if `follow_redirects` is `true`, then an immutable `Local` or `Global`,
+    /// ultimately pointing at a `Function`.
     ///
-    /// Returns `None` for all other cases (tuples, array, mutable variables).
-    pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
+    /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
+    pub(crate) fn lookup_function_from_expr(
+        &self,
+        expr: &ExprId,
+        follow_redirects: bool,
+    ) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
             match self.try_definition(id).map(|def| &def.kind) {
                 Some(DefinitionKind::Function(func_id)) => Some(*func_id),
-                Some(DefinitionKind::Local(Some(expr_id))) => {
-                    self.lookup_function_from_expr(expr_id)
+                Some(DefinitionKind::Local(Some(expr_id))) if follow_redirects => {
+                    self.lookup_function_from_expr(expr_id, follow_redirects)
                 }
-                Some(DefinitionKind::Global(global_id)) => {
+                Some(DefinitionKind::Global(global_id)) if follow_redirects => {
                     let info = self.get_global(*global_id);
                     let HirStatement::Let(HirLetStatement { expression, .. }) =
                         self.statement(&info.let_statement)
                     else {
                         unreachable!("global refers to a let statement");
                     };
-                    self.lookup_function_from_expr(&expression)
+                    self.lookup_function_from_expr(&expression, follow_redirects)
                 }
                 _ => None,
             }

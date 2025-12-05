@@ -1,4 +1,4 @@
-use crate::tests::check_errors;
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn deny_oracle_attribute_on_non_unconstrained() {
@@ -36,16 +36,14 @@ fn errors_if_oracle_returns_multiple_vectors() {
 }
 
 #[test]
-fn errors_if_oracle_called_directly_from_constrained_via_local_var() {
+fn errors_if_oracle_called_from_constrained_directly() {
     let src = r#"
     fn main() {
-        let oracle: unconstrained fn() = oracle_call;
-
         // safety:
         unsafe {
-            oracle();
-            ^^^^^^^^ Oracle functions cannot be called directly from constrained functions
-            ~~~~~~~~ This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime
+            oracle_call();
+            ^^^^^^^^^^^^^ Oracle functions cannot be called directly from constrained functions
+            ~~~~~~~~~~~~~ This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime
         }
     }
 
@@ -56,7 +54,25 @@ fn errors_if_oracle_called_directly_from_constrained_via_local_var() {
 }
 
 #[test]
-fn errors_if_oracle_called_directly_from_constrained_via_global_var() {
+fn does_not_error_if_oracle_called_from_constrained_via_local_var() {
+    let src = r#"
+    fn main() {
+        let oracle: unconstrained fn() = oracle_call;
+
+        // safety:
+        unsafe {
+            oracle();
+        }
+    }
+
+    #[oracle(oracle_call)]
+    unconstrained fn oracle_call() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_if_oracle_called_from_constrained_via_global_var() {
     let src = r#"
     global ORACLE: unconstrained fn() = oracle_call;
 
@@ -65,13 +81,36 @@ fn errors_if_oracle_called_directly_from_constrained_via_global_var() {
         // safety:
         unsafe {
             ORACLE();
-            ^^^^^^^^ Oracle functions cannot be called directly from constrained functions
-            ~~~~~~~~ This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime
         }
     }
 
     #[oracle(oracle_call)]
     unconstrained fn oracle_call() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_if_oracle_called_from_constrained_via_other() {
+    let src = r#"
+      struct Foo {
+          foo: unconstrained fn(),
+      }
+
+      fn main() {
+          let foo_tuple = (foo, foo);
+          let foo_array = [foo, foo];
+          let foo_struct = Foo { foo };
+          // safety:
+          unsafe {
+              (foo_struct.foo)();
+              (foo_tuple.0)();
+              foo_array[0]();
+          }
+      }
+
+      #[oracle(foo)]
+      unconstrained fn foo() {}
+    "#;
+    assert_no_errors(src);
 }
