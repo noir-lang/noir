@@ -7,7 +7,9 @@ fn main() {
     // because the local variable is mutable and doesn't have a stable definition.
     foo = foo_oracle;
 
-    // safety: Unsafe because are calling an oracle directly from constrained.
+    // safety: Unsafe because are calling an oracle directly from constrained,
+    //         but the proxies pass will create two unconstrained proxies,
+    //         through which we can call the oracle after all.
     unsafe {
         foo();
     }
