@@ -58,10 +58,17 @@ impl Elaborator<'_> {
                     .position(|capture| capture.ident.id == hir_ident.id);
 
                 if position.is_none() {
-                    self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
-                        ident: hir_ident.clone(),
-                        transitive_capture_index,
-                    });
+                    // In a comptime context we capture comptime and non-comptime variables
+                    // (the latter will be an error).
+                    // In a non-comptime context we don't capture comptime variables.
+                    if self.in_comptime_context()
+                        || !self.interner.definition(hir_ident.id).is_comptime_local()
+                    {
+                        self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
+                            ident: hir_ident.clone(),
+                            transitive_capture_index,
+                        });
+                    }
                 }
 
                 if lambda_index + 1 < self.lambda_stack.len() {
