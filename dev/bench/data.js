@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764948871836,
+  "lastUpdate": 1764949345211,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6f2deba980ded9d0c917bfb8c0200c2129e81dd3",
-          "message": "chore: Infer that a lambda given to an unconstrained function can only be unconstrained (#10661)",
-          "timestamp": "2025-11-28T14:43:09Z",
-          "tree_id": "23c24788d3023a5481257306718b2f5d831154a7",
-          "url": "https://github.com/noir-lang/noir/commit/6f2deba980ded9d0c917bfb8c0200c2129e81dd3"
-        },
-        "date": 1764342305023,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258204,
-            "range": "± 2066",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230883,
-            "range": "± 5509",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2796713,
-            "range": "± 7976",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793870,
             "range": "± 9315",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f6706c29ea8dfa3bba8f12eacd7752667f151a44",
+          "message": "chore(comptime): Various nested quoting roundtrip tests (#10604)",
+          "timestamp": "2025-12-05T15:17:17Z",
+          "tree_id": "24f09433c3aca0fffa649e3eb8567fe0003d3273",
+          "url": "https://github.com/noir-lang/noir/commit/f6706c29ea8dfa3bba8f12eacd7752667f151a44"
+        },
+        "date": 1764949314941,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254615,
+            "range": "± 1717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225993,
+            "range": "± 2913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791484,
+            "range": "± 1820",
             "unit": "ns/iter"
           }
         ]
