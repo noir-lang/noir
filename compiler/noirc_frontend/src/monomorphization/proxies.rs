@@ -11,6 +11,10 @@
 //! without actually being the target of a [`Call`](crate::monomorphization::ast::Expression::Call),
 //! and replace them with a normal function, which will preserve the information we need create
 //! dispatch functions for them in the `defunctionalize` pass.
+//!
+//! The pass also automatically wraps direct calls to oracle functions from constrained functions,
+//! which, after creating wrapper for function values, would only present an inconvenience for users
+//! if they have to keep creating wrappers themselves.
 
 use std::collections::HashMap;
 
@@ -40,6 +44,7 @@ impl Program {
 
         // Replace foreign function identifier definitions with proxy function IDs.
         for function in self.functions.iter_mut() {
+            context.in_unconstrained = function.unconstrained;
             context.visit_expr(&mut function.body);
         }
 
@@ -52,13 +57,19 @@ impl Program {
 
 struct ProxyContext {
     next_func_id: u32,
+    in_unconstrained: bool,
     replacements: HashMap<(Definition, /*unconstrained*/ bool), FuncId>,
     proxies: Vec<(FuncId, (Ident, /*unconstrained*/ bool))>,
 }
 
 impl ProxyContext {
     fn new(next_func_id: u32) -> Self {
-        Self { next_func_id, replacements: HashMap::new(), proxies: Vec::new() }
+        Self {
+            next_func_id,
+            in_unconstrained: false,
+            replacements: HashMap::new(),
+            proxies: Vec::new(),
+        }
     }
 
     fn next_func_id(&mut self) -> FuncId {
@@ -74,6 +85,23 @@ impl ProxyContext {
         visit_expr_mut(expr, &mut |expr| {
             // Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
             // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
+
+            // If this is a direct from ACIR to an Oracle, we want to create a proxy.
+            if !self.in_unconstrained {
+                if let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
+                    expr
+                {
+                    if let Expression::Ident(ident) = func.as_mut() {
+                        if matches!(ident.definition, Definition::Oracle(_)) {
+                            self.redirect_to_proxy(ident, true);
+                            for arg in arguments {
+                                self.visit_expr(arg);
+                            }
+                            return false;
+                        }
+                    }
+                }
+            }
 
             // If this is a foreign function value, we want to replace it with proxies.
             let Some(mut pair) = ForeignFunctionValue::try_from(expr) else {
@@ -264,7 +292,36 @@ mod tests {
     };
 
     #[test]
-    fn creates_proxies_for_oracle() {
+    fn creates_proxies_for_acir_to_oracle_calls() {
+        let src = "
+        fn main() {
+            // safety: still needed as the bar_proxy is unconstrained
+            unsafe {
+                bar(0);
+            }
+        }
+
+        #[oracle(my_oracle)]
+        unconstrained fn bar(f: Field) {
+        }
+        ";
+
+        let program = get_monomorphized_no_emit_test(src).unwrap();
+        insta::assert_snapshot!(program, @r"
+        fn main$f0() -> () {
+            {
+                bar$f1(0);
+            }
+        }
+        #[inline_always]
+        unconstrained fn bar_proxy$f1(p0$l0: Field) -> () {
+            bar$my_oracle(p0$l0)
+        }
+        ");
+    }
+
+    #[test]
+    fn creates_proxies_for_oracle_values() {
         let src = "
         unconstrained fn main() {
             foo(bar);
@@ -295,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn creates_proxies_for_builtin() {
+    fn creates_proxies_for_builtin_values() {
         let src = "
         unconstrained fn main() {
             foo(bar);

@@ -2334,23 +2334,6 @@ impl Elaborator<'_> {
                 UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
             }
 
-            // Check whether we are trying to call an oracle directly from ACIR.
-            // Indirect calls (going through some variable) are okay because we
-            // already wrap them into proxy functions. Eventually we will wrap
-            // everything, and then we won't need this lint any more.
-            if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func, false)
-            {
-                self.run_lint(|elaborator| {
-                    lints::oracle_called_from_constrained_function(
-                        elaborator.interner,
-                        &called_func_id,
-                        is_current_func_constrained,
-                        location,
-                    )
-                    .map(Into::into)
-                });
-            }
-
             let errors = lints::unconstrained_function_args(&args);
             self.push_errors(errors);
         }
@@ -2368,7 +2351,7 @@ impl Elaborator<'_> {
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, true) {
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
             let modifiers = self.interner.function_modifiers(&func_id);
             modifiers.is_unconstrained
         } else {
