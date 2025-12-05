@@ -24,6 +24,18 @@ pub(super) fn simplify_ec_add(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    if dfg.is_constant(arguments[6]) && !dfg.is_constant_true(arguments[6]) {
+        let result_instruction = constant_point_result_helper(
+            dfg,
+            FieldElement::zero(),
+            FieldElement::zero(),
+            FieldElement::one(),
+        );
+        let result_array =
+            dfg.insert_instruction_and_results(result_instruction, block, None, call_stack);
+
+        return SimplifyResult::SimplifiedTo(result_array.first());
+    }
     let points = Vector::from(vec![
         arguments[0],
         arguments[1],
@@ -38,6 +50,21 @@ pub(super) fn simplify_ec_add(
     simplify_msm_helper(dfg, solver, &points, &scalars, &arguments[6], block, call_stack)
 }
 
+fn constant_point_result_helper(
+    dfg: &mut DataFlowGraph,
+    x: FieldElement,
+    y: FieldElement,
+    is_infinity: FieldElement,
+) -> Instruction {
+    let result_x = dfg.make_constant(x, NumericType::NativeField);
+    let result_y = dfg.make_constant(y, NumericType::NativeField);
+    let result_is_infinity = dfg.make_constant(is_infinity, NumericType::bool());
+
+    let elements = im::vector![result_x, result_y, result_is_infinity];
+    let typ = Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
+    Instruction::MakeArray { elements, typ }
+}
+
 fn simplify_msm_helper(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
@@ -47,6 +74,19 @@ fn simplify_msm_helper(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    // Simplify msm with false predicate
+    if dfg.is_constant(*predicate) && !dfg.is_constant_true(*predicate) {
+        let result_instruction = constant_point_result_helper(
+            dfg,
+            FieldElement::zero(),
+            FieldElement::zero(),
+            FieldElement::one(),
+        );
+        let result_array =
+            dfg.insert_instruction_and_results(result_instruction, block, None, call_stack);
+
+        return SimplifyResult::SimplifiedTo(result_array.first());
+    }
     // We decompose points and scalars into constant and non-constant parts in order to simplify MSMs where a subset of the terms are constant.
     let mut constant_points = vec![];
     let mut constant_scalars_lo = vec![];
