@@ -54,7 +54,6 @@ fn simplify_msm_helper(
     let mut var_points = vec![];
     let mut var_scalars = vec![];
     let len = scalars.len() / 2;
-    let mut is_constant;
     for i in 0..len {
         match (
             dfg.get_numeric_constant(scalars[2 * i]),
@@ -64,7 +63,6 @@ fn simplify_msm_helper(
             dfg.get_numeric_constant(points[3 * i + 2]),
         ) {
             (Some(lo), Some(hi), _, _, _) if lo.is_zero() && hi.is_zero() => {
-                is_constant = true;
                 constant_scalars_lo.push(lo);
                 constant_scalars_hi.push(hi);
                 constant_points.push(FieldElement::zero());
@@ -72,7 +70,6 @@ fn simplify_msm_helper(
                 constant_points.push(FieldElement::one());
             }
             (_, _, _, _, Some(infinity)) if infinity.is_one() => {
-                is_constant = true;
                 constant_scalars_lo.push(FieldElement::zero());
                 constant_scalars_hi.push(FieldElement::zero());
                 constant_points.push(FieldElement::zero());
@@ -80,7 +77,6 @@ fn simplify_msm_helper(
                 constant_points.push(FieldElement::one());
             }
             (Some(lo), Some(hi), Some(x), Some(y), Some(infinity)) => {
-                is_constant = true;
                 constant_scalars_lo.push(lo);
                 constant_scalars_hi.push(hi);
                 constant_points.push(x);
@@ -88,16 +84,12 @@ fn simplify_msm_helper(
                 constant_points.push(infinity);
             }
             _ => {
-                is_constant = false;
+                var_points.push(points[3 * i]);
+                var_points.push(points[3 * i + 1]);
+                var_points.push(points[3 * i + 2]);
+                var_scalars.push(scalars[2 * i]);
+                var_scalars.push(scalars[2 * i + 1]);
             }
-        }
-
-        if !is_constant {
-            var_points.push(points[3 * i]);
-            var_points.push(points[3 * i + 1]);
-            var_points.push(points[3 * i + 2]);
-            var_scalars.push(scalars[2 * i]);
-            var_scalars.push(scalars[2 * i + 1]);
         }
     }
 
@@ -128,6 +120,7 @@ fn simplify_msm_helper(
     if constant_scalars_lo.len() == 1 && result_is_infinity != FieldElement::one() {
         return SimplifyResult::None;
     }
+
     // Add the constant part back to the non-constant part, if it is not null
     let one = dfg.make_constant(FieldElement::one(), NumericType::NativeField);
     let zero = dfg.make_constant(FieldElement::zero(), NumericType::NativeField);
@@ -349,7 +342,7 @@ mod embedded_curve_add {
         let src = r#"
             acir(inline) fn main f0 {
               b0(v0: Field, v1: Field, v2: u1):
-                v3 = call embedded_curve_add (v0, v1, v2, Field 0, Field 0, u1 1, u1 1) -> [(Field, Field, u1); 1]
+                v3 = call embedded_curve_add (v0, v1, v2, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1, u1 1) -> [(Field, Field, u1); 1]
                 return v3
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -357,8 +350,8 @@ mod embedded_curve_add {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
-            v6 = call embedded_curve_add(v0, v1, v2, Field 0, Field 0, u1 1, u1 1) -> [(Field, Field, u1); 1]
-            return v6
+            v7 = call embedded_curve_add(v0, v1, v2, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1, u1 1) -> [(Field, Field, u1); 1]
+            return v7
         }
         ");
     }
