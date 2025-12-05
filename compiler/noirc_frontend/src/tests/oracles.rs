@@ -34,3 +34,23 @@ fn errors_if_oracle_returns_multiple_vectors() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_if_oracle_called_directly_from_constrained_via_local_var() {
+    let src = r#"
+    fn main() {
+        let oracle: unconstrained fn() = oracle_call;
+
+        // safety:
+        unsafe {
+            oracle();
+            ^^^^^^^^ Oracle functions cannot be called directly from constrained functions
+            ~~~~~~~~ This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime
+        }
+    }
+
+    #[oracle(oracle_call)]
+    unconstrained fn oracle_call() {}
+    "#;
+    check_errors(src);
+}
