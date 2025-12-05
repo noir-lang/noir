@@ -73,8 +73,7 @@ impl ProxyContext {
     fn visit_expr(&mut self, expr: &mut Expression) {
         visit_expr_mut(expr, &mut |expr| {
             // Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
-            // even though its `Ident::typ` will be a `Tuple([Function, Function])`, but since we only
-            // handle tuples, we don't have to skip the `Call::func` to leave it in tact.
+            // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
             // If this is a foreign function value, we want to replace it with proxies.
             let Some(mut pair) = ForeignFunctionValue::try_from(expr) else {
@@ -82,28 +81,34 @@ impl ProxyContext {
             };
 
             // Create a separate proxy for the constrained and unconstrained version.
-            pair.for_each(|ident, mut unconstrained| {
-                // If we are calling an oracle, there is no reason to create an unconstrained proxy,
-                // since such a call would be rejected by the SSA validation.
-                unconstrained |= matches!(ident.definition, Definition::Oracle(_));
-
-                let key = (ident.definition.clone(), unconstrained);
-
-                let proxy_id = match self.replacements.get(&key) {
-                    Some(id) => *id,
-                    None => {
-                        let func_id = self.next_func_id();
-                        self.replacements.insert(key, func_id);
-                        self.proxies.push((func_id, (ident.clone(), unconstrained)));
-                        func_id
-                    }
-                };
-
-                ident.definition = Definition::Function(proxy_id);
+            pair.for_each(|ident, unconstrained| {
+                self.redirect_to_proxy(ident, unconstrained);
             });
 
             true
         });
+    }
+
+    /// Get or create a replacement proxy for the function definition in the [Ident],
+    /// and replace the definition with the ID of the new global proxy function.
+    fn redirect_to_proxy(&mut self, ident: &mut Ident, mut unconstrained: bool) {
+        // If we are calling an oracle, there is no reason to create an unconstrained proxy,
+        // since such a call would be rejected by the SSA validation.
+        unconstrained |= matches!(ident.definition, Definition::Oracle(_));
+
+        let key = (ident.definition.clone(), unconstrained);
+
+        let proxy_id = match self.replacements.get(&key) {
+            Some(id) => *id,
+            None => {
+                let func_id = self.next_func_id();
+                self.replacements.insert(key, func_id);
+                self.proxies.push((func_id, (ident.clone(), unconstrained)));
+                func_id
+            }
+        };
+
+        ident.definition = Definition::Function(proxy_id);
     }
 
     /// Create proxy functions for the foreign function values we discovered.
