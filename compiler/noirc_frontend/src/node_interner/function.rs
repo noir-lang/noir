@@ -110,8 +110,12 @@ impl NodeInterner {
         self.function_modules[&func]
     }
 
-    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
-    pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
+    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
+    /// _iff_ it refers to an immutable (local or global) [HirExpression::Ident],
+    /// and it's statically known to point global function.
+    ///
+    /// Returns `None` for all other cases (tuples, array, mutable variables).
+    pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
             match self.try_definition(id).map(|def| &def.kind) {
                 Some(DefinitionKind::Function(func_id)) => Some(*func_id),
