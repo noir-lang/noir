@@ -14,13 +14,13 @@ struct Foo {
 
 fn main(mut x: [Foo; 3], y: pub u32, hash_result: pub [u8; 32]) {
     {
-        let i_4496: u32 = y - 1_u32;
-        x[i_4496].bar.inner = [106_u8, 107_u8, 10_u8];
+        let i_4517: u32 = y - 1_u32;
+        x[i_4517].bar.inner = [106_u8, 107_u8, 10_u8];
     };
     let mut hash_input: [u8; 3] = x[y - 1_u32].bar.inner;
     {
-        let i_4498: u32 = y - 1_u32;
-        hash_input[i_4498] = 0_u8;
+        let i_4519: u32 = y - 1_u32;
+        hash_input[i_4519] = 0_u8;
     };
     let hash: [u8; 32] = std::hash::blake3(hash_input);
     assert(hash == hash_result);

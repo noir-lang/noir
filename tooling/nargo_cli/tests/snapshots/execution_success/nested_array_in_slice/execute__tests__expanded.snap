@@ -48,25 +48,25 @@ fn main(y: u32) {
     assert(x[y].bar.inner == [109_Field, 110_Field, 111_Field]);
     if y != 2_u32 {
         {
-            let i_4499: u32 = y - 2_u32;
-            x[i_4499].a = 50_Field;
+            let i_4520: u32 = y - 2_u32;
+            x[i_4520].a = 50_Field;
         }
     } else {
         {
-            let i_4500: u32 = y - 2_u32;
-            x[i_4500].a = 100_Field;
+            let i_4521: u32 = y - 2_u32;
+            x[i_4521].a = 100_Field;
         }
     };
     assert(x[y - 2_u32].a == 50_Field);
     if y == 2_u32 {
         {
-            let i_4501: u32 = y - 1_u32;
-            x[i_4501].b = [50_Field, 51_Field, 52_Field];
+            let i_4522: u32 = y - 1_u32;
+            x[i_4522].b = [50_Field, 51_Field, 52_Field];
         }
     } else {
         {
-            let i_4502: u32 = y - 1_u32;
-            x[i_4502].b = [100_Field, 101_Field, 102_Field];
+            let i_4523: u32 = y - 1_u32;
+            x[i_4523].b = [100_Field, 101_Field, 102_Field];
         }
     };
     assert(x[2_u32].b == [100_Field, 101_Field, 102_Field]);
