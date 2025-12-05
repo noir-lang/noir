@@ -54,3 +54,24 @@ fn errors_if_oracle_called_directly_from_constrained_via_local_var() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_if_oracle_called_directly_from_constrained_via_global_var() {
+    let src = r#"
+    global ORACLE: unconstrained fn() = oracle_call;
+
+    fn main() {
+
+        // safety:
+        unsafe {
+            ORACLE();
+            ^^^^^^^^ Oracle functions cannot be called directly from constrained functions
+            ~~~~~~~~ This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime
+        }
+    }
+
+    #[oracle(oracle_call)]
+    unconstrained fn oracle_call() {}
+    "#;
+    check_errors(src);
+}

@@ -7,6 +7,7 @@ use crate::{
     hir_def::{
         expr::{HirExpression, HirIdent},
         function::{FuncMeta, HirFunction},
+        stmt::{HirLetStatement, HirStatement},
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, Node, ReferenceId, TraitId,
@@ -116,6 +117,15 @@ impl NodeInterner {
                 Some(DefinitionKind::Function(func_id)) => Some(*func_id),
                 Some(DefinitionKind::Local(Some(expr_id))) => {
                     self.lookup_function_from_expr(expr_id)
+                }
+                Some(DefinitionKind::Global(global_id)) => {
+                    let info = self.get_global(*global_id);
+                    let HirStatement::Let(HirLetStatement { expression, .. }) =
+                        self.statement(&info.let_statement)
+                    else {
+                        unreachable!("global refers to a let statement");
+                    };
+                    self.lookup_function_from_expr(&expression)
                 }
                 _ => None,
             }
