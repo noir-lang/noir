@@ -65,7 +65,7 @@ fn constant_point_result_helper(
     Instruction::MakeArray { elements, typ }
 }
 
-pub(super) fn simplify_msm_helper(
+fn simplify_msm_helper(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     points: &Vector<ValueId>,
