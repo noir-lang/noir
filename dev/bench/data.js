@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764965599372,
+  "lastUpdate": 1764969640395,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "100a0cac7ea25eaf69567f95deb426ba58ac54b4",
-          "message": "chore: disallow databus outside of main() (#10682)",
-          "timestamp": "2025-11-28T23:11:53Z",
-          "tree_id": "94ae4ba5eb4c3cdfe8ed731dcd550ab553d48803",
-          "url": "https://github.com/noir-lang/noir/commit/100a0cac7ea25eaf69567f95deb426ba58ac54b4"
-        },
-        "date": 1764372787772,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257636,
-            "range": "± 437",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231481,
-            "range": "± 3205",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797892,
-            "range": "± 5384",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792347,
             "range": "± 2125",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a4c13872630141d6e728cfff3b36f004e013e4bb",
+          "message": "fix(frontend): Allow indirect calls to oracles from constrained functions  (#10826)",
+          "timestamp": "2025-12-05T20:56:42Z",
+          "tree_id": "2d3c4c80aa13d39daabe6b81c75c49d5b7f6642a",
+          "url": "https://github.com/noir-lang/noir/commit/a4c13872630141d6e728cfff3b36f004e013e4bb"
+        },
+        "date": 1764969610296,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254915,
+            "range": "± 910",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224477,
+            "range": "± 3967",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791164,
+            "range": "± 1858",
             "unit": "ns/iter"
           }
         ]
