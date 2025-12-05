@@ -233,7 +233,14 @@
 <a href="#232" id="232">232</a>
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::path_resolution::PathResolution;
@@ -293,10 +300,17 @@
                     .position(|capture| capture.ident.id == hir_ident.id);
 
                 <span class="kw">if </span>position.is_none() {
-                    <span class="self">self</span>.lambda_stack[lambda_index].captures.push(HirCapturedVar {
-                        ident: hir_ident.clone(),
-                        transitive_capture_index,
-                    });
+                    <span class="comment">// In a comptime context we capture comptime and non-comptime variables
+                    // (the latter will be an error).
+                    // In a non-comptime context we don't capture comptime variables.
+                    </span><span class="kw">if </span><span class="self">self</span>.in_comptime_context()
+                        || !<span class="self">self</span>.interner.definition(hir_ident.id).is_comptime_local()
+                    {
+                        <span class="self">self</span>.lambda_stack[lambda_index].captures.push(HirCapturedVar {
+                            ident: hir_ident.clone(),
+                            transitive_capture_index,
+                        });
+                    }
                 }
 
                 <span class="kw">if </span>lambda_index + <span class="number">1 </span>&lt; <span class="self">self</span>.lambda_stack.len() {
