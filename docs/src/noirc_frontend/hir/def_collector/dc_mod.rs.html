@@ -2245,7 +2245,7 @@
             <span class="kw">let </span>doc_comments = trait_definition.doc_comments;
             <span class="kw">let </span><span class="kw-2">mut </span>trait_definition = trait_definition.item;
             <span class="kw">let </span>name = trait_definition.name.clone();
-            <span class="kw">let </span>location = trait_definition.location;
+            <span class="kw">let </span>location = trait_definition.name.location();
             <span class="kw">let </span>has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow(<span class="string">"dead_code"</span>));
 
@@ -2259,7 +2259,7 @@
                 context,
                 <span class="kw-2">&amp;</span>name,
                 ItemVisibility::Public,
-                name.location(),
+                location,
                 Vec::new(),
                 Vec::new(),
                 <span class="bool-val">false</span>,

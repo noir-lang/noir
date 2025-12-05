@@ -295,7 +295,19 @@
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>nargo_doc::links::{LinkFinder, LinkTarget};
 <span class="kw">use </span>noirc_errors::Span;
@@ -303,7 +315,7 @@
     ParsedModule,
     ast::{
         AttributeTarget, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait,
-        TypeAlias, Visitor,
+        TraitItem, TypeAlias, Visitor,
     },
     hir::{
         def_map::{LocalModuleId, ModuleId},
@@ -535,6 +547,18 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) = <span class="self">self</span>.args.interner.reference_at_location(name_location) {
             <span class="self">self</span>.find_in_reference_doc_comments(reference);
         };
+
+        <span class="kw">for </span>item <span class="kw">in </span>noir_trait.items.iter() {
+            <span class="kw">if let </span>TraitItem::Function { name, .. } = <span class="kw-2">&amp;</span>item.item {
+                <span class="kw">let </span>func_name_location = name.location();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) =
+                    <span class="self">self</span>.args.interner.reference_at_location(func_name_location)
+                {
+                    <span class="self">self</span>.find_in_reference_doc_comments(reference);
+                };
+            }
+        }
+
         <span class="bool-val">true
     </span>}
 

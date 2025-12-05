@@ -735,7 +735,33 @@
 <a href="#734" id="734">734</a>
 <a href="#735" id="735">735</a>
 <a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a></pre></div><pre class="rust"><code><span class="doccomment">//! Handles LSP semantic tokens requests.
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="doccomment">//! Handles LSP semantic tokens requests.
 //!
 //! Semantic tokens in Noir are provided in two contexts:
 //! - links inside doc comments. For example,a doc comment that has `[println]` in it will
@@ -754,7 +780,10 @@
 <span class="kw">use </span>nargo_doc::links::{LinkFinder, LinkTarget};
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
-    ast::{LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, TypeAlias, Visitor},
+    ast::{
+        LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, TraitItem, TypeAlias,
+        Visitor,
+    },
     elaborator::PrimitiveType,
     hir::def_map::ModuleDefId,
     lexer::Lexer,
@@ -837,7 +866,6 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(doc_comments) = <span class="self">self</span>.args.interner.doc_comments(id) <span class="kw">else </span>{
             <span class="kw">return</span>;
         };
-
         <span class="kw">let </span><span class="prelude-val">Some</span>((current_module_id, current_type)) = current_module_and_type(id, <span class="self">self</span>.args) <span class="kw">else </span>{
             <span class="kw">return</span>;
         };
@@ -1039,7 +1067,7 @@
                             | Token::Keyword(Keyword::Type)
                     )
                 }) {
-                    <span class="comment">// Heurisitc: colorize "foo" in "struct foo", "enum foo", etc., as a struct
+                    <span class="comment">// Heuristic: colorize "foo" in "struct foo", "enum foo", etc., as a struct
                     </span>SemanticTokenType::STRUCT
                 } <span class="kw">else </span>{
                     SemanticTokenType::VARIABLE
@@ -1206,6 +1234,18 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) = <span class="self">self</span>.args.interner.reference_at_location(name_location) {
             <span class="self">self</span>.process_reference_id(reference);
         };
+
+        <span class="kw">for </span>item <span class="kw">in </span>noir_trait.items.iter() {
+            <span class="kw">if let </span>TraitItem::Function { name, .. } = <span class="kw-2">&amp;</span>item.item {
+                <span class="kw">let </span>func_name_location = name.location();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) =
+                    <span class="self">self</span>.args.interner.reference_at_location(func_name_location)
+                {
+                    <span class="self">self</span>.process_reference_id(reference);
+                };
+            }
+        }
+
         <span class="bool-val">true
     </span>}
 
@@ -1294,6 +1334,11 @@
         struct Foo {}
 
         struct Bar {}
+
+        trait Baz {
+            /// See [Foo]
+            fn baz();
+        }
         "</span>;
 
         <span class="kw">let </span>tokens = get_semantic_tokens(src).<span class="kw">await</span>;
@@ -1464,6 +1509,13 @@
             SemanticToken {
                 delta_line: 3,
                 delta_start: 21,
+                length: 5,
+                token_type: 1,
+                token_modifiers_bitset: 0,
+            },
+            SemanticToken {
+                delta_line: 6,
+                delta_start: 20,
                 length: 5,
                 token_type: 1,
                 token_modifiers_bitset: 0,
