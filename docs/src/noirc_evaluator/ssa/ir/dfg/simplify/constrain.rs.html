@@ -432,7 +432,33 @@
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+
+<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -449,10 +475,20 @@
     msg: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
 ) -&gt; Vec&lt;Instruction&gt; {
-    <span class="kw">if </span>lhs == rhs {
+    <span class="kw">let </span><span class="kw-2">mut </span>instructions = Vec::new();
+
+    <span class="comment">// Sometimes when decomposing a constraint we may generate further constraints to decompose.
+    // A recursive version can hit stack overflow, so here we use a stack for an interative approach.
+    // Each entry in the stack represents `constrain lhs == rhs`.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>constrains = VecDeque::new();
+    constrains.push_back((lhs, rhs));
+
+    <span class="kw">while let </span><span class="prelude-val">Some</span>((lhs, rhs)) = constrains.pop_front() {
         <span class="comment">// Remove trivial case `assert_eq(x, x)`
-        </span>Vec::new()
-    } <span class="kw">else </span>{
+        </span><span class="kw">if </span>lhs == rhs {
+            <span class="kw">continue</span>;
+        }
+
         <span class="kw">match </span>(<span class="kw-2">&amp;</span>dfg[lhs], <span class="kw-2">&amp;</span>dfg[rhs]) {
             (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
@@ -474,8 +510,7 @@
                         //
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
-
-                        </span><span class="macro">vec!</span>[Instruction::Constrain(lhs, rhs, msg.clone())]
+                        </span>instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
@@ -499,11 +534,8 @@
                         </span><span class="kw">let </span>one = FieldElement::one();
                         <span class="kw">let </span>one = dfg.make_constant(one, NumericType::bool());
 
-                        [
-                            decompose_constrain(lhs, one, msg, dfg),
-                            decompose_constrain(rhs, one, msg, dfg),
-                        ]
-                        .concat()
+                        constrains.push_back((lhs, one));
+                        constrains.push_back((rhs, one));
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
@@ -527,11 +559,8 @@
                         </span><span class="kw">let </span>zero = FieldElement::zero();
                         <span class="kw">let </span>zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
-                        [
-                            decompose_constrain(lhs, zero, msg, dfg),
-                            decompose_constrain(rhs, zero, msg, dfg),
-                        ]
-                        .concat()
+                        constrains.push_back((lhs, zero));
+                        constrains.push_back((rhs, zero));
                     }
 
                     Instruction::Not(value) =&gt; {
@@ -550,10 +579,13 @@
                         </span><span class="kw">let </span>reversed_constant = FieldElement::from(!constant.is_one());
                         <span class="kw">let </span>reversed_constant =
                             dfg.make_constant(reversed_constant, NumericType::bool());
-                        decompose_constrain(value, reversed_constant, msg, dfg)
+
+                        constrains.push_back((value, reversed_constant));
                     }
 
-                    <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[Instruction::Constrain(lhs, rhs, msg.clone())],
+                    <span class="kw">_ </span>=&gt; {
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+                    }
                 }
             }
 
@@ -583,7 +615,7 @@
 
                         </span><span class="kw">let </span>zero = FieldElement::zero();
                         <span class="kw">let </span>zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
-                        decompose_constrain(lhs, zero, msg, dfg)
+                        constrains.push_back((lhs, zero));
                     }
 
                     <span class="comment">// Casting a value just to constrain it to a constant.
@@ -601,17 +633,23 @@
                                 // value.
                                 </span><span class="kw">let </span>downcasted_constant =
                                     dfg.make_constant(<span class="kw-2">*</span>constant, original_typ);
-                                <span class="macro">vec!</span>[Instruction::Constrain(val, downcasted_constant, msg.clone())]
+                                instructions.push(Instruction::Constrain(
+                                    val,
+                                    downcasted_constant,
+                                    msg.clone(),
+                                ));
                             }
                             <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) | <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
                                 <span class="comment">// Constant does not fit in original type or type does not have `max_value` defined.
                                 // We then leave in the cast.
-                                </span><span class="macro">vec!</span>[Instruction::Constrain(lhs, rhs, msg.clone())]
+                                </span>instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
                             }
                         }
                     }
 
-                    <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[Instruction::Constrain(lhs, rhs, msg.clone())],
+                    <span class="kw">_ </span>=&gt; {
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+                    }
                 }
             }
 
@@ -626,15 +664,25 @@
                     </span>(Instruction::Cast(original_lhs, <span class="kw">_</span>), Instruction::Cast(original_rhs, <span class="kw">_</span>))
                         <span class="kw">if </span>dfg.type_of_value(<span class="kw-2">*</span>original_lhs) == dfg.type_of_value(<span class="kw-2">*</span>original_rhs) =&gt;
                     {
-                        <span class="macro">vec!</span>[Instruction::Constrain(<span class="kw-2">*</span>original_lhs, <span class="kw-2">*</span>original_rhs, msg.clone())]
+                        instructions.push(Instruction::Constrain(
+                            <span class="kw-2">*</span>original_lhs,
+                            <span class="kw-2">*</span>original_rhs,
+                            msg.clone(),
+                        ));
                     }
 
-                    <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[Instruction::Constrain(lhs, rhs, msg.clone())],
+                    <span class="kw">_ </span>=&gt; {
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+                    }
                 }
             }
-            <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[Instruction::Constrain(lhs, rhs, msg.clone())],
+            <span class="kw">_ </span>=&gt; {
+                instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+            }
         }
     }
+
+    instructions
 }
 
 <span class="attr">#[cfg(test)]
