@@ -249,7 +249,10 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::get_monomorphized_no_emit_test;
+    use crate::{
+        hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+        test_utils::{get_monomorphized_no_emit_test, get_monomorphized_with_error_filter},
+    };
 
     #[test]
     fn creates_proxies_for_oracle() {
@@ -282,6 +285,51 @@ mod tests {
         #[inline_always]
         unconstrained fn bar_proxy$f3(p0$l0: Field) -> () {
             bar$my_oracle(p0$l0)
+        }
+        ");
+    }
+
+    #[test]
+    fn creates_proxies_for_builtin() {
+        let src = "
+        unconstrained fn main() {
+            foo(bar);
+        }
+
+        unconstrained fn foo(f: fn() -> bool) {
+          f();
+        }
+
+        #[builtin(is_unconstrained)]
+        pub fn bar() -> bool {
+        }
+        ";
+
+        let program = get_monomorphized_with_error_filter(src, |err| {
+            matches!(
+                err,
+                // Ignore the error about creating a builtin function.
+                CompilationError::ResolverError(
+                    ResolverError::LowLevelFunctionOutsideOfStdlib { .. }
+                )
+            )
+        })
+        .unwrap();
+
+        insta::assert_snapshot!(program, @r"
+        unconstrained fn main$f0() -> () {
+            foo$f1((bar$f2, bar$f3));
+        }
+        unconstrained fn foo$f1(f$l0: (fn() -> bool, unconstrained fn() -> bool)) -> () {
+            f$l0.1();
+        }
+        #[inline_always]
+        fn bar_proxy$f2() -> bool {
+            bar$is_unconstrained()
+        }
+        #[inline_always]
+        unconstrained fn bar_proxy$f3() -> bool {
+            bar$is_unconstrained()
         }
         ");
     }
