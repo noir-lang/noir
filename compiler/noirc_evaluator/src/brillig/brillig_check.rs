@@ -126,9 +126,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
         // Going backwards, so reads at the end are recorded before earlier writes.
         for loc in opcode_range.rev() {
             let opcode = &brillig_context.artifact().byte_code[loc];
-            if advisory_collector.should_visit_opcode(opcode) {
-                advisory_collector.visit_opcode(opcode, loc);
-            }
+            advisory_collector.visit_opcode(opcode, loc);
         }
 
         advisories.extend(advisory_collector.into_advisories());
@@ -432,8 +430,9 @@ trait OpcodeAddressVisitor {
     /// Called with all addresses written by the opcode.
     fn write(&mut self, addr: &MemoryAddress, location: OpcodeLocation);
 
-    /// Expected to be called with each opcode, traversing blocks in Post Order,
-    /// feeding the opcodes back to front.
+    /// Call with each opcode to record reads and writes.
+    ///
+    /// The expected order of visit depends on the purpose of the visitor implementation.
     fn visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>, location: OpcodeLocation) {
         if !self.should_visit_opcode(opcode) {
             return;

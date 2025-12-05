@@ -175,27 +175,6 @@ pub(super) fn oracle_returns_multiple_slices(
     }
 }
 
-/// Oracle functions may not be called by constrained functions directly.
-///
-/// In order for a constrained function to call an oracle it must first call through an unconstrained function.
-pub(super) fn oracle_called_from_constrained_function(
-    interner: &NodeInterner,
-    called_func: &FuncId,
-    calling_from_constrained_runtime: bool,
-    location: Location,
-) -> Option<ResolverError> {
-    if !calling_from_constrained_runtime {
-        return None;
-    }
-
-    let function_attributes = interner.function_attributes(called_func);
-    if function_attributes.function()?.kind.is_oracle() {
-        Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
-    } else {
-        None
-    }
-}
-
 /// `pub` is required on return types for entry point functions
 pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
     if func.is_entry_point
