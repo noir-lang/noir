@@ -42,6 +42,8 @@ use super::{
     },
 };
 
+pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
 /// Generates SSA for the given monomorphized program.
@@ -147,13 +149,8 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        let backtrace_env_var = "NOIR_SSA_BACKTRACE";
-        if std::env::var(backtrace_env_var).is_ok_and(|value| value == "1") {
+        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok_and(|value| value == "1") {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
-        } else {
-            eprintln!(
-                "Encountered an SSA validation error, rerun with {backtrace_env_var}=1 to show the failing SSA\n"
-            );
         }
 
         // Try to get the panic message and turn this into a RuntimeError

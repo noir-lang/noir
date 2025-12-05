@@ -809,6 +809,18 @@ fn test_parses_print() {
 }
 
 #[test]
+fn test_parses_oracle() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call oracle_call()
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
         acir(inline) impure fn main f0 {

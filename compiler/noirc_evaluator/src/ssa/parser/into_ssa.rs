@@ -606,8 +606,9 @@ impl Translator {
             return Ok(var_id);
         }
 
-        // We allow calls to the built-in print function
-        if &function.name == "print" {
+        // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
+        // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+        if &function.name == "print" || function.name.contains("oracle") {
             return Ok(self.builder.import_foreign_function(&function.name));
         }
 
