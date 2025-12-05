@@ -117,7 +117,7 @@ fn simplify_msm_helper(
         return SimplifyResult::SimplifiedTo(result_array.first());
     }
     // If there is only one non-null constant term, we cannot simplify
-    if constant_scalars_lo.len() == 1 && result_is_infinity != FieldElement::one() {
+    if constant_scalars_lo.len() == 1 && result_is_infinity.is_zero() {
         return SimplifyResult::None;
     }
 
@@ -138,17 +138,33 @@ fn simplify_msm_helper(
         var_points.push(result_y);
         var_points.push(result_is_infinity);
     }
-    // Construct the simplified MSM expression
-    let typ =
-        Type::Array(Arc::new(vec![Type::field(), Type::field()]), var_scalars.len() as u32 / 2);
-    let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
-    let scalars = dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
-    let typ = Type::Array(
+
+    let points_typ = Type::Array(
         Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
         var_points.len() as u32 / 3,
     );
-    let points = Instruction::MakeArray { elements: var_points.into(), typ };
+
+    if result_is_infinity.is_one()
+        && var_points.len() == 3
+        && dfg.get_numeric_constant(var_scalars[0]).is_some_and(|c| c.is_one())
+        && dfg.get_numeric_constant(var_scalars[1]).is_some_and(|c| c.is_zero())
+    {
+        return SimplifyResult::SimplifiedToInstruction(Instruction::MakeArray {
+            elements: var_points.into(),
+            typ: points_typ,
+        });
+    }
+
+    // Construct the simplified MSM expression
+
+    let scalars_typ =
+        Type::Array(Arc::new(vec![Type::field(), Type::field()]), var_scalars.len() as u32 / 2);
+    let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ: scalars_typ };
+    let scalars = dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
+
+    let points = Instruction::MakeArray { elements: var_points.into(), typ: points_typ };
     let points = dfg.insert_instruction_and_results(points, block, None, call_stack).first();
+
     let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
     SimplifyResult::SimplifiedToInstruction(Instruction::Call {
         func: msm,
@@ -338,11 +354,12 @@ mod embedded_curve_add {
     use crate::ssa::Ssa;
 
     #[test]
-    fn one_constant_argument_is_not_simplified() {
+    #[cfg(feature = "bn254")]
+    fn simplify_adding_point_at_infinity() {
         let src = r#"
             acir(inline) fn main f0 {
               b0(v0: Field, v1: Field, v2: u1):
-                v3 = call embedded_curve_add (v0, v1, v2, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1, u1 1) -> [(Field, Field, u1); 1]
+                v3 = call embedded_curve_add (v0, v1, v2, Field 0, Field 0, u1 1, u1 1) -> [(Field, Field, u1); 1]
                 return v3
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -350,19 +367,40 @@ mod embedded_curve_add {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
-            v7 = call embedded_curve_add(v0, v1, v2, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1, u1 1) -> [(Field, Field, u1); 1]
-            return v7
+            v3 = make_array [v0, v1, v2] : [(Field, Field, u1); 1]
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn one_constant_argument_is_not_simplified() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: Field, v1: Field, v2: u1):
+                v3 = call embedded_curve_add (v0, v1, v2, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, u1 1) -> [(Field, Field, u1); 1]
+                return v3
+            }"#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            v8 = call embedded_curve_add(v0, v1, v2, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, u1 1) -> [(Field, Field, u1); 1]
+            return v8
         }
         ");
     }
 }
 
 #[cfg(test)]
+#[cfg(feature = "bn254")]
 mod multi_scalar_mul {
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
 
     #[test]
+    #[cfg(feature = "bn254")]
     fn full_constant_folding() {
         let src = r#"
             acir(inline) fn main f0 {
@@ -386,6 +424,7 @@ mod multi_scalar_mul {
     }
 
     #[test]
+    #[cfg(feature = "bn254")]
     fn simplify_zero() {
         let src = r#"
             acir(inline) fn main f0 {
@@ -394,7 +433,6 @@ mod multi_scalar_mul {
                 v3 = make_array [
                 Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
                 v4 = call multi_scalar_mul (v3, v2, u1 1) -> [(Field, Field, u1); 1]
-
                 return v4
             
             }"#;
@@ -414,6 +452,7 @@ mod multi_scalar_mul {
     }
 
     #[test]
+    #[cfg(feature = "bn254")]
     fn partial_constant_folding() {
         let src = r#"
             acir(inline) fn main f0 {
