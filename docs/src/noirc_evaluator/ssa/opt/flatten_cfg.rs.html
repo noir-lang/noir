@@ -2032,11 +2032,7 @@
 <a href="#2031" id="2031">2031</a>
 <a href="#2032" id="2032">2032</a>
 <a href="#2033" id="2033">2033</a>
-<a href="#2034" id="2034">2034</a>
-<a href="#2035" id="2035">2035</a>
-<a href="#2036" id="2036">2036</a>
-<a href="#2037" id="2037">2037</a>
-<a href="#2038" id="2038">2038</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2034" id="2034">2034</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -2888,12 +2884,8 @@
         <span class="kw">match </span>instruction {
             Instruction::Constrain(lhs, rhs, message) =&gt; {
                 <span class="comment">// Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                </span><span class="kw">let </span>casted_condition =
-                    <span class="self">self</span>.cast_condition_to_value_type(condition, lhs, call_stack);
-                <span class="kw">let </span>lhs = <span class="self">self</span>.mul_by_condition(lhs, casted_condition, call_stack);
-                <span class="kw">let </span>rhs = <span class="self">self</span>.mul_by_condition(rhs, casted_condition, call_stack);
+                </span><span class="kw">let </span>lhs = <span class="self">self</span>.mul_by_condition(lhs, condition, call_stack);
+                <span class="kw">let </span>rhs = <span class="self">self</span>.mul_by_condition(rhs, condition, call_stack);
                 Instruction::Constrain(lhs, rhs, message)
             }
             Instruction::ConstrainNotEqual(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
