@@ -148,7 +148,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
         let backtrace_env_var = "NOIR_SSA_BACKTRACE";
-        if std::env::var(backtrace_env_var).map_or(false, |value| value == "1") {
+        if std::env::var(backtrace_env_var).is_ok_and(|value| value == "1") {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         } else {
             eprintln!(
