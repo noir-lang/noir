@@ -112,29 +112,24 @@ impl NodeInterner {
 
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
     /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
-    /// or if `follow_redirects` is `true`, then an immutable `Local` or `Global`,
-    /// ultimately pointing at a `Function`.
+    /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
     ///
     /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
-    pub(crate) fn lookup_function_from_expr(
-        &self,
-        expr: &ExprId,
-        follow_redirects: bool,
-    ) -> Option<FuncId> {
+    pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
             match self.try_definition(id).map(|def| &def.kind) {
                 Some(DefinitionKind::Function(func_id)) => Some(*func_id),
-                Some(DefinitionKind::Local(Some(expr_id))) if follow_redirects => {
-                    self.lookup_function_from_expr(expr_id, follow_redirects)
+                Some(DefinitionKind::Local(Some(expr_id))) => {
+                    self.lookup_function_from_expr(expr_id)
                 }
-                Some(DefinitionKind::Global(global_id)) if follow_redirects => {
+                Some(DefinitionKind::Global(global_id)) => {
                     let info = self.get_global(*global_id);
                     let HirStatement::Let(HirLetStatement { expression, .. }) =
                         self.statement(&info.let_statement)
                     else {
                         unreachable!("global refers to a let statement");
                     };
-                    self.lookup_function_from_expr(&expression, follow_redirects)
+                    self.lookup_function_from_expr(&expression)
                 }
                 _ => None,
             }

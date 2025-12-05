@@ -36,21 +36,20 @@ fn errors_if_oracle_returns_multiple_vectors() {
 }
 
 #[test]
-fn errors_if_oracle_called_from_constrained_directly() {
+fn does_not_error_if_oracle_called_from_constrained_directly() {
+    // Assuming that direct oracle calls will be automatically wrapped in a proxy function.
     let src = r#"
     fn main() {
         // safety:
         unsafe {
             oracle_call();
-            ^^^^^^^^^^^^^ Oracle functions cannot be called directly from constrained functions
-            ~~~~~~~~~~~~~ This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime
         }
     }
 
     #[oracle(oracle_call)]
     unconstrained fn oracle_call() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]

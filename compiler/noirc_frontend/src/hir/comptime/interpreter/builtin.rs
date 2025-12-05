@@ -1408,7 +1408,7 @@ fn typed_expr_as_function_definition(
     let self_argument = check_one_argument(arguments, location)?;
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
-        let func_id = interner.lookup_function_from_expr(&expr_id, true);
+        let func_id = interner.lookup_function_from_expr(&expr_id);
         func_id.map(Value::FunctionDefinition)
     } else {
         None
