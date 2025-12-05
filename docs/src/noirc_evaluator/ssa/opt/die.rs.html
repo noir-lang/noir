@@ -1291,7 +1291,19 @@
 <a href="#1290" id="1290">1290</a>
 <a href="#1291" id="1291">1291</a>
 <a href="#1292" id="1292">1292</a>
-<a href="#1293" id="1293">1293</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1335,7 +1347,7 @@
 //! - If DIE was run after mem2reg and flattening, no unreachable
 //!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
-</span><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+</span><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
@@ -1791,10 +1803,6 @@
 
         <span class="comment">// Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
         </span>Call { func, .. } =&gt; <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
-            <span class="comment">// Explicitly allows removal of unused ec operations, even if they can fail
-            </span>Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
-            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) =&gt; <span class="bool-val">true</span>,
-
             Value::Intrinsic(intrinsic) =&gt; !intrinsic.has_side_effects(),
 
             <span class="comment">// All foreign functions are treated as having side effects.
@@ -2534,6 +2542,22 @@
         "#
         </span>);
         assert_ssa_does_not_change(<span class="kw-2">&amp;</span>src, Ssa::dead_instruction_elimination);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_remove_unused_curve_operations() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field, v2: Field):
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v8 = make_array [v0, Field 0] : [(Field, Field); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -&gt; [(Field, Field, u1); 1]
+            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -&gt; [(Field, Field, u1); 1]
+            return v12
+        }
+        "#</span>;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     <span class="attr">#[test]

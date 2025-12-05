@@ -506,7 +506,47 @@
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
 <a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::blackbox_solver::sha256_compression;
@@ -532,6 +572,18 @@
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; SimplifyResult {
+    <span class="kw">if </span>dfg.is_constant(arguments[<span class="number">6</span>]) &amp;&amp; !dfg.is_constant_true(arguments[<span class="number">6</span>]) {
+        <span class="kw">let </span>result_instruction = constant_point_result_helper(
+            dfg,
+            FieldElement::zero(),
+            FieldElement::zero(),
+            FieldElement::one(),
+        );
+        <span class="kw">let </span>result_array =
+            dfg.insert_instruction_and_results(result_instruction, block, <span class="prelude-val">None</span>, call_stack);
+
+        <span class="kw">return </span>SimplifyResult::SimplifiedTo(result_array.first());
+    }
     <span class="kw">let </span>points = Vector::from(<span class="macro">vec!</span>[
         arguments[<span class="number">0</span>],
         arguments[<span class="number">1</span>],
@@ -546,6 +598,21 @@
     simplify_msm_helper(dfg, solver, <span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars, <span class="kw-2">&amp;</span>arguments[<span class="number">6</span>], block, call_stack)
 }
 
+<span class="kw">fn </span>constant_point_result_helper(
+    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
+    x: FieldElement,
+    y: FieldElement,
+    is_infinity: FieldElement,
+) -&gt; Instruction {
+    <span class="kw">let </span>result_x = dfg.make_constant(x, NumericType::NativeField);
+    <span class="kw">let </span>result_y = dfg.make_constant(y, NumericType::NativeField);
+    <span class="kw">let </span>result_is_infinity = dfg.make_constant(is_infinity, NumericType::bool());
+
+    <span class="kw">let </span>elements = <span class="macro">im::vector!</span>[result_x, result_y, result_is_infinity];
+    <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field(), Type::field(), Type::bool()]), <span class="number">1</span>);
+    Instruction::MakeArray { elements, typ }
+}
+
 <span class="kw">fn </span>simplify_msm_helper(
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     solver: <span class="kw">impl </span>BlackBoxFunctionSolver&lt;FieldElement&gt;,
@@ -555,6 +622,19 @@
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; SimplifyResult {
+    <span class="comment">// Simplify msm with false predicate
+    </span><span class="kw">if </span>dfg.is_constant(<span class="kw-2">*</span>predicate) &amp;&amp; !dfg.is_constant_true(<span class="kw-2">*</span>predicate) {
+        <span class="kw">let </span>result_instruction = constant_point_result_helper(
+            dfg,
+            FieldElement::zero(),
+            FieldElement::zero(),
+            FieldElement::one(),
+        );
+        <span class="kw">let </span>result_array =
+            dfg.insert_instruction_and_results(result_instruction, block, <span class="prelude-val">None</span>, call_stack);
+
+        <span class="kw">return </span>SimplifyResult::SimplifiedTo(result_array.first());
+    }
     <span class="comment">// We decompose points and scalars into constant and non-constant parts in order to simplify MSMs where a subset of the terms are constant.
     </span><span class="kw">let </span><span class="kw-2">mut </span>constant_points = <span class="macro">vec!</span>[];
     <span class="kw">let </span><span class="kw-2">mut </span>constant_scalars_lo = <span class="macro">vec!</span>[];

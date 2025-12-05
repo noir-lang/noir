@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["simplify_ec_add","simplify_hash","simplify_msm","simplify_msm_helper","simplify_poseidon2_permutation","simplify_sha256_compression","simplify_signature"],"type":["ECDSASignatureVerifier"]};
+window.SIDEBAR_ITEMS = {"fn":["constant_point_result_helper","simplify_ec_add","simplify_hash","simplify_msm","simplify_msm_helper","simplify_poseidon2_permutation","simplify_sha256_compression","simplify_signature"],"type":["ECDSASignatureVerifier"]};
