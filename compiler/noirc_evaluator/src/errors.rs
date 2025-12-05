@@ -246,7 +246,7 @@ impl RuntimeError {
                 );
 
                 if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
-                    diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                    diagnostic.notes.push(format!("Set the environment variable {SHOW_INVALID_SSA_ENV_KEY}=1 to see the SSA."));
                 }
 
                 if call_stack.is_empty() {

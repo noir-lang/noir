@@ -159,9 +159,7 @@ pub fn monomorphize_debug(
     let function_sig = monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
-
-    let program = monomorphizer.into_program(function_sig);
-    Ok(program)
+    Ok(monomorphizer.into_program(function_sig))
 }
 
 impl<'interner> Monomorphizer<'interner> {

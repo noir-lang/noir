@@ -21,8 +21,12 @@ fn foo() -> Field {
     0_Field
 }
 
+unconstrained fn bar() -> Field {
+    bar_oracle()
+}
+
 #[oracle(barnacle)]
-unconstrained fn bar() -> Field {}
+unconstrained fn bar_oracle() -> Field {}
 
 fn take_foo(foo: fn() -> Field) -> Field {
     foo()
