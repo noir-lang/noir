@@ -1880,11 +1880,14 @@ mod test {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = cast v0 as Field
-            v4 = mul v2, Field 2
-            v5 = make_array [v4] : [Field; 1]
             enable_side_effects u1 1
-            return v5
+            v3 = cast v0 as Field
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v5 = mul v3, Field 2
+            v6 = make_array [v5] : [Field; 1]
+            enable_side_effects u1 1
+            return v6
         }
         ");
     }
