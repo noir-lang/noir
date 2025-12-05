@@ -2032,7 +2032,10 @@
 <a href="#2031" id="2031">2031</a>
 <a href="#2032" id="2032">2032</a>
 <a href="#2033" id="2033">2033</a>
-<a href="#2034" id="2034">2034</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -3914,11 +3917,14 @@
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = cast v0 as Field
-            v4 = mul v2, Field 2
-            v5 = make_array [v4] : [Field; 1]
             enable_side_effects u1 1
-            return v5
+            v3 = cast v0 as Field
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v5 = mul v3, Field 2
+            v6 = make_array [v5] : [Field; 1]
+            enable_side_effects u1 1
+            return v6
         }
         "</span>);
     }
