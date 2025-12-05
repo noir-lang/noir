@@ -151,7 +151,9 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         if std::env::var(backtrace_env_var).map_or(false, |value| value == "1") {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         } else {
-            eprintln!("Encountered an SSA validation error, rerun with {backtrace_env_var}=1 to show the failing SSA\n");
+            eprintln!(
+                "Encountered an SSA validation error, rerun with {backtrace_env_var}=1 to show the failing SSA\n"
+            );
         }
 
         // Try to get the panic message and turn this into a RuntimeError
