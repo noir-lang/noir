@@ -1,5 +1,6 @@
 [package]
-name = "intrinsic_die"
+name = "slice_push_back_remove_if_else_bug"
 type = "bin"
 authors = [""]
+
 [dependencies]
