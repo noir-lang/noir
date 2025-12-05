@@ -2,16 +2,15 @@ use std::collections::BTreeMap;
 
 use acir::{
     AcirField,
-    circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
+    circuit::{Circuit, ExpressionWidth, Opcode, brillig::BrilligFunctionId},
 };
 
+mod common_subexpression;
 mod general;
-mod merge_expressions;
 mod redundant_range;
 mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
-pub(crate) use merge_expressions::MergeExpressionsOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
@@ -34,8 +33,10 @@ pub fn optimize<F: AcirField>(
     // In the new circuit, the opcode at index `i` corresponds to the opcode at index `new_opcode_positions[i]` in the original circuit.
     // For instance let's say it removed the opcode at index 3, and replaced the one at index 5 by two new opcodes
     // The new_opcode_positions is now: 0,1,2,4,5,5,6,....n-1
-    let (mut acir, new_opcode_positions) =
+    let (acir, new_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
+    let (mut acir, new_opcode_positions) =
+        optimize_internal(acir, new_opcode_positions, brillig_side_effects);
 
     let transformation_map = AcirTransformationMap::new(&new_opcode_positions);
 
@@ -87,6 +88,16 @@ pub(super) fn optimize_internal<F: AcirField>(
     let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
+
+    let max_transformer_passes_or_default = None;
+    let (acir, acir_opcode_positions, _opcodes_hash_stabilized) =
+        common_subexpression::transform_internal(
+            acir,
+            ExpressionWidth::Bounded { width: 4 },
+            acir_opcode_positions,
+            brillig_side_effects,
+            max_transformer_passes_or_default,
+        );
 
     info!("Number of opcodes after: {}", acir.opcodes.len());
 

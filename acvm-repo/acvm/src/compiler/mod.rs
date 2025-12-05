@@ -1,39 +1,24 @@
-//! The `compiler` module contains several passes to transform an ACIR program.
-//! Roughly, the passes are separated into the `optimizers` which try to reduce the number of opcodes
-//! and the `transformers` which adapt the opcodes to the proving backend.
+//! The `compiler` module contains several passes to optimize an ACIR program on the opcode level.
 //!
 //! # Optimizers
 //! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
 //! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
 //! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
 //!
-//! # Transformers
-//! - CSAT: create intermediate variables so that AssertZero opcodes have the correct Circuit's `ExpressionWidth`.
-//!
 //! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an `Artifacts` type.
 //!
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
-use acir::{
-    AcirField,
-    circuit::{
-        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
-        brillig::BrilligFunctionId,
-    },
-};
+use acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
 
 // The various passes that we can use over ACIR
 pub use optimizers::optimize;
 mod optimizers;
 mod simulator;
-mod transformers;
 
-use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
-use transformers::transform_internal;
-pub use transformers::{MIN_EXPRESSION_WIDTH, transform};
 
 /// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
@@ -123,42 +108,6 @@ fn transform_assert_messages<F: Clone>(
             new_locations.map(move |new_location| (new_location, message.clone()))
         })
         .collect()
-}
-
-/// Applies backend specific optimizations to a [`Circuit`].
-///
-/// optimize_internal:
-/// - General optimizer: canonicalize AssertZero opcodes.
-/// - Unused Memory: remove unused MemoryInit opcodes.
-/// - Redundant Ranges: remove RANGE opcodes that are redundant.
-///
-/// transform_internal: run multiple times (up to 4) until the output stabilizes.
-/// - CSAT: limit AssertZero opcodes to the Circuit's width.
-/// - Eliminate intermediate variables: Combine AssertZero opcodes used only once.
-/// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
-pub fn compile<F: AcirField>(
-    acir: Circuit<F>,
-    expression_width: ExpressionWidth,
-    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-) -> (Circuit<F>, AcirTransformationMap) {
-    let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
-
-    let (acir, acir_opcode_positions) =
-        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
-
-    let max_transformer_passes_or_default = None;
-    let (mut acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
-        acir,
-        expression_width,
-        acir_opcode_positions,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    );
-
-    let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
-
-    (acir, transformation_map)
 }
 
 #[macro_export]
