@@ -65,7 +65,7 @@ fn constant_point_result_helper(
     Instruction::MakeArray { elements, typ }
 }
 
-pub(super) fn simplify_msm(
+pub(super) fn simplify_msm_helper(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     points: &Vector<ValueId>,
@@ -75,7 +75,7 @@ pub(super) fn simplify_msm(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     // Simplify msm with false predicate
-    if dfg.is_constant(predicate) && !dfg.is_constant_true(predicate) {
+    if dfg.is_constant(*predicate) && !dfg.is_constant_true(*predicate) {
         let result_instruction = constant_point_result_helper(
             dfg,
             FieldElement::zero(),
@@ -157,9 +157,10 @@ pub(super) fn simplify_msm(
         return SimplifyResult::SimplifiedTo(result_array.first());
     }
     // If there is only one non-null constant term, we cannot simplify
-    if constant_scalars_lo.len() == 1 && result_is_infinity != FieldElement::one() {
+    if constant_scalars_lo.len() == 1 && result_is_infinity.is_zero() {
         return SimplifyResult::None;
     }
+
     // Add the constant part back to the non-constant part, if it is not null
     let one = dfg.make_constant(FieldElement::one(), NumericType::NativeField);
     let zero = dfg.make_constant(FieldElement::zero(), NumericType::NativeField);
