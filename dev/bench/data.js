@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764958656359,
+  "lastUpdate": 1764964287068,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4ed0303f50d0a73bac518f38c71f555381a3c170",
-          "message": "chore: remove unused `Ord` implementation on `Expression` (#10685)",
-          "timestamp": "2025-11-28T19:47:05Z",
-          "tree_id": "c81279d6535ee84664a500aada2a1a31070252ad",
-          "url": "https://github.com/noir-lang/noir/commit/4ed0303f50d0a73bac518f38c71f555381a3c170"
-        },
-        "date": 1764360532989,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257030,
-            "range": "± 2549",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230407,
-            "range": "± 1496",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790170,
-            "range": "± 11927",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791285,
             "range": "± 3714",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d4150ea6f903065e7d5a9d6975a749a4e904ed47",
+          "message": "fix(LSP): semantic tokens in trait methods (#10815)",
+          "timestamp": "2025-12-05T19:27:32Z",
+          "tree_id": "ab433bf1b9277a1c73e58fb0e27f695164fa1720",
+          "url": "https://github.com/noir-lang/noir/commit/d4150ea6f903065e7d5a9d6975a749a4e904ed47"
+        },
+        "date": 1764964257032,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253868,
+            "range": "± 1138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224895,
+            "range": "± 2414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792347,
+            "range": "± 2125",
             "unit": "ns/iter"
           }
         ]
