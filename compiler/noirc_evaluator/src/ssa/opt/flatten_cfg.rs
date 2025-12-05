@@ -850,12 +850,8 @@ impl<'f> Context<'f> {
         match instruction {
             Instruction::Constrain(lhs, rhs, message) => {
                 // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, lhs, call_stack);
-                let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
-                let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
+                let lhs = self.mul_by_condition(lhs, condition, call_stack);
+                let rhs = self.mul_by_condition(rhs, condition, call_stack);
                 Instruction::Constrain(lhs, rhs, message)
             }
             Instruction::ConstrainNotEqual(_, _, _) => {
