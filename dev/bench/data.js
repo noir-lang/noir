@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764937559476,
+  "lastUpdate": 1764939395337,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6a42a5489037666ce762e2a3f1e83b2e0c54489c",
-          "message": "chore!: Do not allow returning functions from unconstrained to constrained (#10666)",
-          "timestamp": "2025-11-28T12:09:50Z",
-          "tree_id": "c1adb209fd22b93fc5471d7e2ec23d1adc041f3d",
-          "url": "https://github.com/noir-lang/noir/commit/6a42a5489037666ce762e2a3f1e83b2e0c54489c"
-        },
-        "date": 1764333743732,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256331,
-            "range": "± 889",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229888,
-            "range": "± 2155",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795036,
-            "range": "± 1442",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792814,
             "range": "± 12479",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "693c23c68a511b1c5f04f39952ed9f2114f7a3ae",
+          "message": "chore: remove redundant cast in flatten_cfg (#10823)",
+          "timestamp": "2025-12-05T12:33:46Z",
+          "tree_id": "a98a12ceb8e3e2f71cbe452fba92e097856c3e2c",
+          "url": "https://github.com/noir-lang/noir/commit/693c23c68a511b1c5f04f39952ed9f2114f7a3ae"
+        },
+        "date": 1764939362680,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253383,
+            "range": "± 783",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232381,
+            "range": "± 5751",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2262930,
+            "range": "± 1745",
             "unit": "ns/iter"
           }
         ]
