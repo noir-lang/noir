@@ -18,7 +18,6 @@ use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
 mod errors;
-mod flock;
 mod git;
 mod semver;
 

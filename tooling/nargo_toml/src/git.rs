@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::flock::FileLock;
+use file_utils::flock::FileLock;
 
 /// Creates a unique folder name for a GitHub repo
 /// by using its URL and tag
