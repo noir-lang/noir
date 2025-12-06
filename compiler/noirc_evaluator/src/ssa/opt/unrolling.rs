@@ -59,7 +59,7 @@ use crate::{
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
-            value::ValueId,
+            value::{Value, ValueId},
         },
         ssa_gen::Ssa,
     },
@@ -314,6 +314,9 @@ impl Loop {
         // Insert the header so we don't go past it when traversing backwards from the back-edge.
         blocks.insert(header);
 
+        // Assume the loop end is always the `else` branch of the header, if there is one.
+        let loop_end = cfg.successors(header).nth(1);
+
         let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
             if !blocks.contains(&block) {
                 blocks.insert(block);
@@ -328,6 +331,25 @@ impl Loop {
         while let Some(block) = stack.pop() {
             for predecessor in cfg.predecessors(block) {
                 insert(predecessor, &mut stack);
+            }
+
+            // There can be cases when `break` is used such as:
+            // for _ in 0 .. 5 {
+            //     if foo { break; }
+            // }
+            // where the break will jump after the loop end due to an extra block
+            // being inserted in the `process_cfg_for_mem2reg_simple` pass. In this
+            // case, we still need the block containing the break to be part of the
+            // loop even though it is not a predecessor of the loop end. So we check
+            // successors too for this special case of a block that jumps one after the
+            // loop end.
+            for potential_break_block in cfg.successors(block) {
+                for potential_past_loop_end_block in cfg.successors(potential_break_block) {
+                    let mut predecessors = cfg.predecessors(potential_past_loop_end_block);
+                    if predecessors.any(|predecessor| Some(predecessor) == loop_end) {
+                        insert(potential_break_block, &mut stack);
+                    }
+                }
             }
         }
 
@@ -363,7 +385,11 @@ impl Loop {
             unreachable!("the back edge is expected to end in a `Jmp`");
         };
         assert_eq!(*destination, self.header, "back edge goes to the header");
-        assert_eq!(arguments.len(), 1);
+
+        // Loop entry blocks almost always start out with 1 argument - the induction variable -
+        // but mem2reg_simple can add more arguments to them. In that case, the induction variable remains
+        // as the first argument.
+        assert!(!arguments.is_empty());
         dfg.get_numeric_constant(arguments[0]).is_some()
     }
 
@@ -416,8 +442,9 @@ impl Loop {
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
     ) -> Option<IntegerConstant> {
-        let jump_value = get_induction_variable(dfg, pre_header).ok()?;
-        dfg.get_integer_constant(jump_value)
+        let jump_value = get_induction_variables(dfg, pre_header).ok()?;
+        // The main loop induction variable `i` is expected to be the first argument.
+        dfg.get_integer_constant(jump_value[0])
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -571,14 +598,18 @@ impl Loop {
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
-        let mut jump_value = get_induction_variable(&function.dfg, unroll_into)?;
+        let mut jump_values = get_induction_variables(&function.dfg, unroll_into)?;
 
-        while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, jump_value)?
-        {
-            (unroll_into, jump_value) = context.unroll_loop_iteration(loop_header_id);
-        }
+        let end_block = loop {
+            match self.unroll_header(function, unroll_into, jump_values)? {
+                LoopIterationResult::KeepLooping(context) => {
+                    (unroll_into, jump_values) = context.unroll_loop_iteration();
+                }
+                LoopIterationResult::StopSuccessfully(end_block) => break end_block,
+            }
+        };
 
+        self.move_extra_block_arguments_to_loop_end(function, end_block);
         Ok(())
     }
 
@@ -613,24 +644,30 @@ impl Loop {
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
-        induction_value: ValueId,
-    ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
+        induction_values: Vec<ValueId>,
+    ) -> Result<LoopIterationResult<'a>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
-        let mut context = LoopIteration::new(function, self, fresh_block, self.header);
-        let loop_header_id = context.source_block;
-        let source_block = &context.dfg()[loop_header_id];
-        assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
+        let mut context =
+            LoopIteration::new(function, self, fresh_block, self.header, induction_values.clone());
+        let source_block = &context.dfg()[context.source_block];
+        assert!(
+            !source_block.parameters().is_empty(),
+            "Expected at least 1 argument in loop header"
+        );
 
-        // Insert the current value of the loop induction variable into our context.
-        let first_param = source_block.parameters()[0];
-        context.inserter.try_map_value(first_param, induction_value);
+        // Insert the current value of each loop induction variable into our context.
+        let parameters = source_block.parameters().to_vec();
+        for (parameter, induction_value) in parameters.into_iter().zip(induction_values) {
+            context.inserter.try_map_value(parameter, induction_value);
+        }
+
         // Copy over all instructions and a fresh terminator.
         context.inline_instructions_from_block();
-        context.visited_blocks.insert(loop_header_id);
+        context.visited_blocks.insert(context.source_block);
 
         // Mutate the terminator if possible so that it points at the iteration block.
         match context.dfg()[fresh_block].unwrap_terminator() {
@@ -662,11 +699,11 @@ impl Loop {
                     // have no more loops to unroll, because that block was not part of the loop itself,
                     // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
                     // in `source_block` and can unroll that into the destination.
-                    Ok(self
-                        .blocks
-                        .contains(&context.source_block)
-                        .then_some(context)
-                        .map(|iteration_context| (iteration_context, loop_header_id)))
+                    if self.blocks.contains(&context.source_block) {
+                        Ok(LoopIterationResult::KeepLooping(context))
+                    } else {
+                        Ok(LoopIterationResult::StopSuccessfully(context.source_block))
+                    }
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -852,6 +889,27 @@ impl Loop {
             has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
         })
     }
+
+    fn move_extra_block_arguments_to_loop_end(
+        &self,
+        function: &mut Function,
+        loop_end: BasicBlockId,
+    ) {
+        let header_parameters = function.dfg[self.header].parameters().to_vec();
+
+        // Remove the first parameter, the loop index itself is never passed as an argument to the end of the loop
+        for value in header_parameters.into_iter().skip(1) {
+            // Cheat and add the parameter directly to the end block.
+            // Reusing the same value means we no longer have to map the value on each use to a new one.
+            let new_position = function.dfg[loop_end].parameters().len();
+            function.dfg[loop_end].add_parameter(value);
+
+            if let Value::Param { block, position, .. } = &mut function.dfg[value] {
+                *block = loop_end;
+                *position = new_position;
+            }
+        }
+    }
 }
 
 /// All the instructions in the following example are boilerplate:
@@ -922,7 +980,7 @@ impl BoilerplateStats {
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access instructions.
     fn is_small(&self) -> bool {
-        self.unrolled_instructions() < self.baseline_instructions()
+        self.unrolled_instructions() <= self.baseline_instructions() * 2
     }
 }
 
@@ -941,23 +999,29 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<ValueId, CallStack> {
+fn get_induction_variables(
+    dfg: &DataFlowGraph,
+    block: BasicBlockId,
+) -> Result<Vec<ValueId>, CallStack> {
     match dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
             // variable.
-            if arguments.len() != 1 {
+            // mem2reg_simple can add more parameters to the loop header, but the induction variable
+            // should always be the first one.
+            if arguments.is_empty() {
                 // It is expected that a loop's induction variable is the only block parameter of the loop header.
                 // If there's no variable this might be a `loop`.
                 let call_stack = dfg.get_call_stack(*location);
                 return Err(call_stack);
             }
 
-            let value = arguments[0];
-            if dfg.get_numeric_constant(value).is_some() {
-                Ok(value)
+            // Ensure the first argument (expected to be the induction variable) is a numeric constant.
+            let induction_value = arguments[0];
+            if dfg.get_numeric_constant(induction_value).is_some() {
+                Ok(arguments.clone())
             } else {
                 let call_stack = dfg.get_call_stack(*location);
                 Err(call_stack)
@@ -988,11 +1052,26 @@ struct LoopIteration<'f> {
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
 
-    /// The induction value (and the block it was found in) is the new value for
+    /// The induction values (and the block they were found in) is the new value for
+    /// each block parameter of the loop header. The first of which is notably
     /// the variable traditionally called `i` on each iteration of the loop.
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
-    induction_value: Option<(BasicBlockId, ValueId)>,
+    induction_values: Option<(BasicBlockId, Vec<ValueId>)>,
+
+    /// `induction_values` from the previous loop iteration. Typically not needed,
+    /// but used when forwarding the induction values to the end of the loop. The
+    /// main induction value `i` will never need to be forwarded like this, so this
+    /// would contain only any extra block parameters used.
+    previous_induction_values: Vec<ValueId>,
+}
+
+enum LoopIterationResult<'f> {
+    /// Continue looping with the given loop state
+    KeepLooping(LoopIteration<'f>),
+
+    /// Stop looping, successfully finishing at the given end block.
+    StopSuccessfully(BasicBlockId),
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1001,6 +1080,7 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
+        previous_induction_values: Vec<ValueId>,
     ) -> Self {
         Self {
             inserter: FunctionInserter::new(function),
@@ -1010,9 +1090,9 @@ impl<'f> LoopIteration<'f> {
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
             visited_blocks: HashSet::default(),
+            previous_induction_values,
+            induction_values: None,
             encountered_loop_header: false,
-
-            induction_value: None,
         }
     }
 
@@ -1022,24 +1102,29 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self, loop_header_id: BasicBlockId) -> (BasicBlockId, ValueId) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, Vec<ValueId>) {
         // Kick off the unrolling from the initial source block.
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
             self.insert_block = block;
             self.source_block = self.get_original_block(block);
-            self.encountered_loop_header |= loop_header_id == self.source_block;
+            self.encountered_loop_header |= self.loop_.header == self.source_block;
+
+            if !self.blocks.contains_key(&self.source_block) {
+                continue;
+            }
 
             if !self.visited_blocks.contains(&self.source_block) {
                 let mut blocks = self.unroll_loop_block();
                 next_blocks.append(&mut blocks);
             }
         }
+
         // After having unrolled all blocks in the loop body, we must know how to get back to the header;
         // this is also the block into which we have to unroll into next.
         let (end_block, induction_value) = self
-            .induction_value
+            .induction_values
             .expect("Expected to find the induction variable by end of loop iteration");
 
         assert!(
@@ -1061,7 +1146,7 @@ impl<'f> LoopIteration<'f> {
 
         let terminator = self.inserter.function.dfg[self.insert_block].unwrap_terminator();
 
-        let next_blocks = match terminator {
+        match terminator {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
@@ -1071,9 +1156,9 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
-                    assert_eq!(arguments.len(), 1, "back-edge should only have 1 argument");
-                    assert!(self.induction_value.is_none(), "there should be only one back-edge");
-                    self.induction_value = Some((self.insert_block, arguments[0]));
+                    assert!(!arguments.is_empty(), "back-edge should have at least 1 argument");
+                    assert!(self.induction_values.is_none(), "there should be only one back-edge");
+                    self.induction_values = Some((self.insert_block, arguments.clone()));
                 }
                 vec![*destination]
             }
@@ -1085,18 +1170,7 @@ impl<'f> LoopIteration<'f> {
                 // The SSA pass that adds unreachable terminators must come after unrolling.
                 unreachable!("unexpected unreachable terminator in loop body");
             }
-        };
-
-        // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
-        // which we recorded while inlining the instructions of the blocks already processed.
-        // Since we only call `unroll_loop_block` from `unroll_loop_iteration`, which we only call
-        // if the single destination in `unroll_header` is *not* outside the loop, this should hold.
-        next_blocks.iter().for_each(|block| {
-            let b = self.get_original_block(*block);
-            assert!(self.loop_.blocks.contains(&b), "destination not in original loop");
-        });
-
-        next_blocks
+        }
     }
 
     /// Find the next branch(es) to take from a jmpif terminator and return them.
@@ -1121,7 +1195,10 @@ impl<'f> LoopIteration<'f> {
 
                 self.source_block = self.get_original_block(destination);
 
-                let arguments = Vec::new();
+                let mut arguments = self.previous_induction_values.clone();
+                // Remove old induction variable argument.
+                arguments.remove(0);
+
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
@@ -1209,10 +1286,13 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use test_case::test_case;
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
@@ -1834,6 +1914,53 @@ mod tests {
         assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
     }
 
+    /// The `process_cfg_for_mem2reg_simple` pass may insert additional blocks which
+    /// can make identifying which blocks are part of a loop more tricky. In this case,
+    /// it is possible `b4` below isn't identified as part of the loop because it isn't
+    /// a predecessor of the loop end since it jumps one block past the loop end due to
+    /// `process_cfg_for_mem2reg_simple`. We want to assert that b4 is indeed part of the loop.
+    /// If it is not, it's parameter `v3` will not get remapped despite being removed from the
+    /// program.
+    #[test]
+    fn break_past_end_of_loop_is_part_of_loop() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: Field):
+                v18 = eq v0, Field 5
+                jmp b1(u32 0, u32 0)
+              b1(v3: u32, v10: u32):
+                v4 = eq v3, u32 0
+                jmpif v4 then: b2, else: b6
+              b2():
+                jmpif v18 then: b4, else: b5
+              b3(v15: u32):
+                constrain v15 == u32 0
+                return
+              b4():
+                jmp b3(v3)
+              b5():
+                v9 = unchecked_add v3, u32 1
+                jmp b1(v9, v10)
+              b6():
+                jmp b3(v10)
+            }
+        ";
+
+        let mut expected_loop_blocks = BTreeSet::new();
+        expected_loop_blocks.insert(BasicBlockId::test_new(1));
+        expected_loop_blocks.insert(BasicBlockId::test_new(2));
+        expected_loop_blocks.insert(BasicBlockId::test_new(4));
+        expected_loop_blocks.insert(BasicBlockId::test_new(5));
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = loops.yet_to_unroll.pop().unwrap();
+        assert_eq!(loop_.blocks, expected_loop_blocks);
+    }
+
     #[test]
     #[should_panic(expected = "ICE: overflow while incrementing constant")]
     fn unroll_loop_upper_bound_saturated() {
@@ -1866,5 +1993,112 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
         assert_ne!(lower, upper);
+    }
+
+    // Ensure we unroll when unrolled_instructions == baseline_instructions,
+    // not just when it is strictly `<`. If we do it correctly, main should have
+    // 5 blocks when unrolled, not 7.
+    #[test]
+    fn might_as_well_unroll() {
+        let src = "
+            g0 = Field 1
+            g1 = make_array [Field 1, Field 1] : [Field; 2]
+            g2 = Field 0
+            g3 = make_array [Field 0, Field 0] : [Field; 2]
+            g4 = make_array [g1, g3] : [[Field; 2]; 2]
+            g5 = Field 340282366920938463463374607431768211456
+            g6 = Field 53438638232309528389504892708671455233
+            g7 = Field 64323764613183177041862057485226039389
+            
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v8: Field, v9: Field):
+                jmp b1(u32 0, Field 0)
+              b1(v10: u32, v11: Field):
+                v18 = lt v10, u32 2
+                jmpif v18 then: b2, else: b3
+              b2():
+                v33 = array_get g4, index v10 -> [Field; 2]
+                jmp b4(u32 0, v11)
+              b3():
+                v20 = call field_less_than(v11, v8) -> u1
+                constrain v20 == u1 0
+                v22 = eq v8, v9
+                constrain v22 == u1 0
+                jmp b5(u32 0, Field 0)
+              b4(v12: u32, v13: Field):
+                v34 = lt v12, u32 2
+                jmpif v34 then: b6, else: b7
+              b5(v14: u32, v15: Field):
+                v23 = lt v14, u32 2
+                jmpif v23 then: b8, else: b9
+              b6():
+                v36 = array_get v33, index v12 -> Field
+                v37 = add v13, v36
+                v38 = unchecked_add v12, u32 1
+                jmp b4(v38, v37)
+              b7():
+                v35 = unchecked_add v10, u32 1
+                jmp b1(v35, v13)
+              b8():
+                v26 = array_get g4, index v14 -> [Field; 2]
+                v27 = array_get v26, index u32 0 -> Field
+                v28 = add v15, v27
+                v30 = array_get v26, index u32 1 -> Field
+                v31 = add v28, v30
+                v32 = unchecked_add v14, u32 1
+                jmp b5(v32, v31)
+              b9():
+                v24 = eq v8, v9
+                constrain v24 == u1 0
+                v25 = call field_less_than(v15, v8) -> u1
+                constrain v25 == u1 0
+                return
+            }
+        ";
+
+        let expected = "
+            g0 = Field 1
+            g1 = make_array [Field 1, Field 1] : [Field; 2]
+            g2 = Field 0
+            g3 = make_array [Field 0, Field 0] : [Field; 2]
+            g4 = make_array [g1, g3] : [[Field; 2]; 2]
+            g5 = Field 340282366920938463463374607431768211456
+            g6 = Field 53438638232309528389504892708671455233
+            g7 = Field 64323764613183177041862057485226039389
+
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v8: Field, v9: Field):
+                jmp b1(u32 0, Field 0)
+              b1(v10: u32, v11: Field):
+                v16 = lt v10, u32 2
+                jmpif v16 then: b2, else: b3
+              b2():
+                v24 = array_get g4, index v10 -> [Field; 2]
+                v25 = array_get v24, index u32 0 -> Field
+                v26 = add v11, v25
+                v28 = array_get v24, index u32 1 -> Field
+                v29 = add v26, v28
+                jmp b4(v29)
+              b3():
+                v18 = call field_less_than(v11, v8) -> u1
+                constrain v18 == u1 0
+                v20 = eq v8, v9
+                constrain v20 == u1 0
+                jmp b5(Field 2)
+              b4(v12: Field):
+                v30 = unchecked_add v10, u32 1
+                jmp b1(v30, v12)
+              b5(v13: Field):
+                v22 = eq v8, v9
+                constrain v22 == u1 0
+                v23 = call field_less_than(v13, v8) -> u1
+                constrain v23 == u1 0
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
