@@ -79,18 +79,14 @@ pub(super) fn no_predicates_on_entry_point(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if func.is_entry_point {
-        let attribute = modifiers.attributes.function()?;
-        if attribute.kind.is_no_predicates() {
-            let ident = func_meta_name_ident(func, modifiers);
-            return Some(ResolverError::NoPredicatesAttributeOnEntryPoint {
-                ident,
-                location: attribute.location,
-            });
+    let attribute = modifiers.attributes.function()?;
+    (func.is_entry_point && attribute.kind.is_no_predicates()).then(|| {
+        let ident = func_meta_name_ident(func, modifiers);
+        ResolverError::NoPredicatesAttributeOnEntryPoint {
+            ident,
+            location: attribute.location,
         }
-    }
-
-    None
+    })
 }
 
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
