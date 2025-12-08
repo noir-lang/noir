@@ -112,7 +112,6 @@ where
             compiled_program,
             test_function,
             output,
-            config,
             build_foreign_call_executor,
         ),
         Err(err) => test_status_program_compile_fail(err, test_function),
@@ -124,7 +123,6 @@ fn run_test_impl<'a, W, B, F, E>(
     compiled_program: CompiledProgram,
     test_function: &TestFunction,
     output: W,
-    config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
@@ -134,7 +132,7 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     // Do the same optimizations as `compile_cmd`.
-    let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+    let target_width = DEFAULT_EXPRESSION_WIDTH;
     let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
     let ignore_foreign_call_failures =

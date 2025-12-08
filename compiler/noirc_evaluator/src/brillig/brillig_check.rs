@@ -501,7 +501,7 @@ trait OpcodeAddressVisitor {
             Opcode::BlackBox(black_box_op) => self.visit_black_box_op(black_box_op, location),
             Opcode::Trap { revert_data } => self.read_heap_vector(revert_data, location),
             Opcode::Stop { return_data } => self.read_heap_vector(return_data, location),
-            Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return { .. } => {}
+            Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return => {}
         }
     }
 
