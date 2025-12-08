@@ -692,7 +692,8 @@
 <a href="#691" id="691">691</a>
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the pruning of unused block parameters from functions.
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the pruning of unused block parameters from functions.
 //!
 //! Blocks can accept parameters that are passed via terminator instructions (e.g., `jmp`).
 //! During the compilation pipeline, it's common for some of these parameters to become unused.
@@ -909,7 +910,7 @@
             <span class="self">self</span>.dfg[block].set_parameters(new_params);
 
             <span class="comment">// Update the predecessor argument list to match the new parameter list
-            </span><span class="self">self</span>.update_predecessor_terminators(cfg.predecessors(block), block, <span class="kw-2">&amp;</span>keep_list);
+            </span><span class="self">self</span>.update_predecessor_terminators(<span class="kw-2">&amp;</span>cfg, block, <span class="kw-2">&amp;</span>keep_list);
 
             <span class="kw">if </span>block == <span class="self">self</span>.entry_block() {
                 entry_block_keep_list = <span class="prelude-val">Some</span>(keep_list);
@@ -921,10 +922,11 @@
     <span class="doccomment">/// Update terminator arguments of predecessor blocks after pruning.
     </span><span class="kw">fn </span>update_predecessor_terminators(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        predecessors: <span class="kw">impl </span>IntoIterator&lt;Item = BasicBlockId&gt;,
+        cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
         target_block: BasicBlockId,
         keep_list: <span class="kw-2">&amp;</span>[bool],
     ) {
+        <span class="kw">let </span>predecessors = cfg.predecessors(target_block);
         <span class="kw">for </span>pred <span class="kw">in </span>predecessors {
             <span class="kw">let </span>terminator = <span class="self">self</span>.dfg[pred].unwrap_terminator_mut();
 
@@ -933,14 +935,14 @@
                     <span class="comment">// No terminator arguments in a JmpIf
                 </span>}
                 TerminatorInstruction::Jmp { destination, arguments, .. } =&gt; {
-                    <span class="kw">if </span><span class="kw-2">*</span>destination == target_block {
-                        <span class="kw">let </span>new_args = arguments
-                            .iter()
-                            .zip(keep_list.iter())
-                            .filter_map(|(arg, <span class="kw-2">&amp;</span>keep)| <span class="kw">if </span>keep { <span class="prelude-val">Some</span>(<span class="kw-2">*</span>arg) } <span class="kw">else </span>{ <span class="prelude-val">None </span>})
-                            .collect();
-                        <span class="kw-2">*</span>arguments = new_args;
-                    }
+                    <span class="comment">// Predecessor must jump to its successor
+                    </span><span class="macro">assert_eq!</span>(<span class="kw-2">*</span>destination, target_block);
+                    <span class="kw">let </span>new_args = arguments
+                        .iter()
+                        .zip(keep_list.iter())
+                        .filter_map(|(arg, <span class="kw-2">&amp;</span>keep)| <span class="kw">if </span>keep { <span class="prelude-val">Some</span>(<span class="kw-2">*</span>arg) } <span class="kw">else </span>{ <span class="prelude-val">None </span>})
+                        .collect();
+                    <span class="kw-2">*</span>arguments = new_args;
                 }
                 TerminatorInstruction::Return { .. } =&gt; {
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: A return block should not be a predecessor"</span>);
