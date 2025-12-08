@@ -905,12 +905,7 @@
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#907" id="907">907</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -971,10 +966,6 @@
 
 <span class="attr">#[derive(Args, Clone, Debug)]
 </span><span class="kw">pub struct </span>CompileOptions {
-    <span class="doccomment">/// Specify the backend expression width that should be targeted
-    </span><span class="attr">#[arg(long, value_parser = parse_expression_width)]
-    </span><span class="kw">pub </span>expression_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
-
     <span class="doccomment">/// Force a full recompilation.
     </span><span class="attr">#[arg(long = <span class="string">"force"</span>)]
     </span><span class="kw">pub </span>force_compile: bool,
@@ -1145,7 +1136,6 @@
 <span class="kw">impl </span>Default <span class="kw">for </span>CompileOptions {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            expression_width: <span class="prelude-val">None</span>,
             force_compile: <span class="bool-val">false</span>,
             show_ssa: <span class="bool-val">false</span>,
             show_ssa_pass: Vec::new(),
@@ -1639,7 +1629,7 @@
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -1793,7 +1783,7 @@
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 

@@ -1119,7 +1119,7 @@
             Opcode::BlackBox(black_box_op) =&gt; <span class="self">self</span>.visit_black_box_op(black_box_op, location),
             Opcode::Trap { revert_data } =&gt; <span class="self">self</span>.read_heap_vector(revert_data, location),
             Opcode::Stop { return_data } =&gt; <span class="self">self</span>.read_heap_vector(return_data, location),
-            Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return { .. } =&gt; {}
+            Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return =&gt; {}
         }
     }
 

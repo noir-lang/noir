@@ -427,7 +427,7 @@
     };
 
     <span class="kw">let </span>compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, <span class="prelude-val">None</span>, args.compile_options);
+        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
@@ -452,7 +452,7 @@
     run_params: RunParams,
     package_params: PackageParams,
 ) -&gt; TestResult {
-    <span class="kw">let </span>compiled_program = compile_test_fn_for_debugging(test, context, package, compile_options);
+    <span class="kw">let </span>compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
 
     <span class="kw">let </span>test_status = <span class="kw">match </span>compiled_program {
         <span class="prelude-val">Ok</span>(compiled_program) =&gt; {

@@ -442,9 +442,7 @@
 <a href="#441" id="441">441</a>
 <a href="#442" id="442">442</a>
 <a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#444" id="444">444</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -558,7 +556,6 @@
             compiled_program,
             test_function,
             output,
-            config,
             build_foreign_call_executor,
         ),
         <span class="prelude-val">Err</span>(err) =&gt; test_status_program_compile_fail(err, test_function),
@@ -570,7 +567,6 @@
     compiled_program: CompiledProgram,
     test_function: <span class="kw-2">&amp;</span>TestFunction,
     output: W,
-    config: <span class="kw-2">&amp;</span>CompileOptions,
     build_foreign_call_executor: F,
 ) -&gt; TestStatus
 <span class="kw">where
@@ -580,7 +576,7 @@
     E: ForeignCallExecutor&lt;FieldElement&gt;,
 {
     <span class="comment">// Do the same optimizations as `compile_cmd`.
-    </span><span class="kw">let </span>target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+    </span><span class="kw">let </span>target_width = DEFAULT_EXPRESSION_WIDTH;
     <span class="kw">let </span>compiled_program = <span class="kw">crate</span>::ops::transform_program(compiled_program, target_width);
 
     <span class="kw">let </span>ignore_foreign_call_failures =

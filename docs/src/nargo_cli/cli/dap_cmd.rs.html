@@ -363,18 +363,7 @@
 <a href="#362" id="362">362</a>
 <a href="#363" id="363">363</a>
 <a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
-<span class="kw">use </span>clap::Args;
+<a href="#365" id="365">365</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
 <span class="kw">use </span>dap::errors::ServerError;
 <span class="kw">use </span>dap::events::OutputEventBody;
 <span class="kw">use </span>dap::requests::Command;
@@ -394,9 +383,7 @@
 <span class="kw">use </span>noir_artifact_cli::fs::inputs::read_inputs_from_file;
 <span class="kw">use </span>noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 <span class="kw">use </span>noirc_abi::Abi;
-<span class="kw">use </span>noirc_driver::{
-    CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, NOIR_ARTIFACT_VERSION_STRING,
-};
+<span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 <span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
 <span class="kw">use </span>std::io::{BufReader, BufWriter, Read, Write};
@@ -493,7 +480,7 @@
     <span class="kw">let </span>test = get_test_function_for_debug(crate_id, <span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span>test_name)
         .map_err(|<span class="kw">_</span>| LoadError::Generic(<span class="string">"Failed to compile project"</span>.into()))<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>program = compile_test_fn_for_debugging(<span class="kw-2">&amp;</span>test, <span class="kw-2">&amp;mut </span>context, package, compile_options)
+    <span class="kw">let </span>program = compile_test_fn_for_debugging(<span class="kw-2">&amp;</span>test, <span class="kw-2">&amp;mut </span>context, compile_options)
         .map_err(|<span class="kw">_</span>| LoadError::Generic(<span class="string">"Failed to compile project"</span>.into()))<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>((program, test))
 }
@@ -547,7 +534,6 @@
 
 <span class="kw">fn </span>loop_uninitialized_dap&lt;R: Read, W: Write&gt;(
     <span class="kw-2">mut </span>server: Server&lt;R, W&gt;,
-    expression_width: ExpressionWidth,
     pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), DapError&gt; {
     <span class="kw">while let </span><span class="prelude-val">Some</span>(req) = server.poll_request()<span class="question-mark">? </span>{
@@ -600,7 +586,6 @@
                 <span class="kw">let </span>compile_options = compile_options_for_debugging(
                     generate_acir,
                     skip_instrumentation,
-                    <span class="prelude-val">Some</span>(expression_width),
                     CompileOptions::default(),
                 );
 
@@ -692,10 +677,7 @@
     }))
 }
 
-<span class="kw">fn </span>run_preflight_check(
-    expression_width: ExpressionWidth,
-    args: DapCommand,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(), DapError&gt; {
+<span class="kw">fn </span>run_preflight_check(args: DapCommand) -&gt; <span class="prelude-ty">Result</span>&lt;(), DapError&gt; {
     <span class="kw">let </span>project_folder = <span class="kw">if let </span><span class="prelude-val">Some</span>(project_folder) = args.preflight_project_folder {
         project_folder
     } <span class="kw">else </span>{
@@ -709,7 +691,6 @@
     <span class="kw">let </span>compile_options: CompileOptions = compile_options_for_debugging(
         args.preflight_generate_acir,
         args.preflight_skip_instrumentation,
-        <span class="prelude-val">Some</span>(expression_width),
         CompileOptions::default(),
     );
 
@@ -738,14 +719,13 @@
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     </span><span class="kw">if </span>args.preflight_check {
-        <span class="kw">return </span>run_preflight_check(DEFAULT_EXPRESSION_WIDTH, args).map_err(CliError::DapError);
+        <span class="kw">return </span>run_preflight_check(args).map_err(CliError::DapError);
     }
 
     <span class="kw">let </span>output = BufWriter::new(std::io::stdout());
     <span class="kw">let </span>input = BufReader::new(std::io::stdin());
     <span class="kw">let </span>server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, DEFAULT_EXPRESSION_WIDTH, args.pedantic_solving)
-        .map_err(CliError::DapError)
+    loop_uninitialized_dap(server, args.pedantic_solving).map_err(CliError::DapError)
 }
 </code></pre></div></section></main></body></html>

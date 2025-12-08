@@ -189,30 +189,8 @@
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#191" id="191">191</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
-<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>noirc_driver::{
     CompileOptions, CompiledProgram, CrateId, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
@@ -282,14 +260,11 @@
 <span class="kw">pub fn </span>compile_test_fn_for_debugging(
     test_def: <span class="kw-2">&amp;</span>TestDefinition,
     context: <span class="kw-2">&amp;mut </span>Context,
-    package: <span class="kw-2">&amp;</span>Package,
     compile_options: CompileOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, noirc_driver::CompileError&gt; {
     <span class="kw">let </span>compiled_program =
         compile_no_check(context, <span class="kw-2">&amp;</span>compile_options, test_def.function.id, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>expression_width =
-        get_target_width(package.expression_width, compile_options.expression_width);
-    <span class="kw">let </span>compiled_program = transform_program(compiled_program, expression_width);
+    <span class="kw">let </span>compiled_program = transform_program(compiled_program, DEFAULT_EXPRESSION_WIDTH);
     <span class="prelude-val">Ok</span>(compiled_program)
 }
 
@@ -299,9 +274,6 @@
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, CompileError&gt; {
     <span class="kw">let </span>(workspace_file_manager, <span class="kw-2">mut </span>parsed_files) = load_workspace_files(workspace);
-
-    <span class="kw">let </span>expression_width =
-        get_target_width(package.expression_width, compile_options.expression_width);
 
     <span class="kw">let </span>compilation_result = <span class="kw">if </span>compile_options.instrument_debug {
         <span class="kw">let </span>debug_state =
@@ -333,13 +305,12 @@
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
-    .map(|compiled_program| transform_program(compiled_program, expression_width))
+    .map(|compiled_program| transform_program(compiled_program, DEFAULT_EXPRESSION_WIDTH))
 }
 
 <span class="kw">pub fn </span>compile_options_for_debugging(
     acir_mode: bool,
     skip_instrumentation: bool,
-    expression_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
     compile_options: CompileOptions,
 ) -&gt; CompileOptions {
     CompileOptions {
@@ -353,7 +324,6 @@
         deny_warnings: <span class="bool-val">false</span>,
         instrument_debug: !skip_instrumentation,
         force_brillig: !acir_mode,
-        expression_width,
         ..compile_options
     }
 }
@@ -409,17 +379,5 @@
     }
 
     debug_instrumenter
-}
-
-<span class="comment">// This is the same as in compile_cmd, perhaps we should move it to ops::compile?
-</span><span class="kw">fn </span>get_target_width(
-    package_default_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
-    compile_options_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
-) -&gt; ExpressionWidth {
-    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(manifest_default_width), <span class="prelude-val">None</span>) = (package_default_width, compile_options_width) {
-        manifest_default_width
-    } <span class="kw">else </span>{
-        compile_options_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-    }
 }
 </code></pre></div></section></main></body></html>

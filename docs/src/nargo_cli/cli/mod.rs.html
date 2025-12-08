@@ -320,17 +320,7 @@
 <a href="#319" id="319">319</a>
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
+<a href="#322" id="322">322</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
 <span class="kw">use </span>const_format::formatcp;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::{
@@ -637,16 +627,6 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">super</span>::NargoCli;
     <span class="kw">use </span>clap::Parser;
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_parse_invalid_expression_width() {
-        <span class="kw">let </span>cmd = <span class="string">"nargo --program-dir . compile --expression-width 1"</span>;
-        <span class="kw">let </span>res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        <span class="kw">let </span>err = res.expect_err(<span class="string">"should fail because of invalid width"</span>);
-        <span class="macro">assert!</span>(err.to_string().contains(<span class="string">"expression-width"</span>));
-        <span class="macro">assert!</span>(err.to_string().contains(<span class="string">"3"</span>));
-    }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_target_dir() {

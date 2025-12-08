@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_bin_package_for_debugging","compile_options_for_debugging","compile_test_fn_for_debugging","get_target_width","get_test_function_for_debug","instrument_package_files","load_workspace_files","prepare_package_for_debug"],"struct":["TestDefinition"]};
+window.SIDEBAR_ITEMS = {"fn":["compile_bin_package_for_debugging","compile_options_for_debugging","compile_test_fn_for_debugging","get_test_function_for_debug","instrument_package_files","load_workspace_files","prepare_package_for_debug"],"struct":["TestDefinition"]};

@@ -435,9 +435,7 @@
 <a href="#434" id="434">434</a>
 <a href="#435" id="435">435</a>
 <a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
+<a href="#437" id="437">437</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>gloo_utils::format::JsValueSerdeExt;
 <span class="kw">use </span>js_sys::{JsString, Object};
@@ -609,8 +607,7 @@ export type CompileResult = ContractCompileResult | ProgramCompileResult;
     <span class="kw">let </span>(crate_id, <span class="kw-2">mut </span>context) = prepare_context(entry_point, dependency_graph, file_source_map)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>expression_width = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
-    <span class="kw">let </span>compile_options =
-        CompileOptions { expression_width: <span class="prelude-val">Some</span>(expression_width), ..CompileOptions::default() };
+    <span class="kw">let </span>compile_options = CompileOptions::default();
 
     <span class="kw">let </span>compiled_program =
         noirc_driver::compile_main(<span class="kw-2">&amp;mut </span>context, crate_id, <span class="kw-2">&amp;</span>compile_options, <span class="prelude-val">None</span>)
@@ -646,8 +643,7 @@ export type CompileResult = ContractCompileResult | ProgramCompileResult;
     <span class="kw">let </span>(crate_id, <span class="kw-2">mut </span>context) = prepare_context(entry_point, dependency_graph, file_source_map)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>expression_width = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
-    <span class="kw">let </span>compile_options =
-        CompileOptions { expression_width: <span class="prelude-val">Some</span>(expression_width), ..CompileOptions::default() };
+    <span class="kw">let </span>compile_options = CompileOptions::default();
 
     <span class="kw">let </span>compiled_contract =
         noirc_driver::compile_contract(<span class="kw-2">&amp;mut </span>context, crate_id, <span class="kw-2">&amp;</span>compile_options)
