@@ -160,17 +160,18 @@ where
     R: prost::Message,
     ProtoSchema<F>: ProtoCodec<T, R>,
 {
-    match Format::from_env() {
+    let format = match Format::from_env() {
         Ok(Some(format)) => {
             // This will need a new `bb` even if it's the bincode format, because of the format byte.
-            serialize_with_format(value, format)
+            format
         }
         Ok(None) => {
             // This is how the currently released `bb` expects the data.
-            bincode_serialize(value)
+            Format::Bincode
         }
-        Err(e) => Err(std::io::Error::other(e)),
-    }
+        Err(e) => return Err(std::io::Error::other(e)),
+    };
+    serialize_with_format(value, format)
 }
 
 #[cfg(test)]
