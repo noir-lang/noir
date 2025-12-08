@@ -417,14 +417,14 @@ fn slice_remove() {
     BLACKBOX::RANGE input: w14, bits: 1
     BLACKBOX::RANGE input: w15, bits: 64
     ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551616
-    ASSERT w16 = w13*w14 - w8*w14 + w8
+    ASSERT w16 = -w8*w14 + w13*w14 + w8
     WRITE b2[w7] = w16
     READ w17 = b1[w3]
     BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w18, w19]
     BLACKBOX::RANGE input: w18, bits: 1
     BLACKBOX::RANGE input: w19, bits: 64
     ASSERT w19 = -w1 - 18446744073709551616*w18 + 18446744073709551617
-    ASSERT w20 = w17*w18 - w10*w18 + w10
+    ASSERT w20 = -w10*w18 + w17*w18 + w10
     WRITE b2[w9] = w20
     ASSERT w1 = 2
     ASSERT w12 = w2
