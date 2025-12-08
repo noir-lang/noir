@@ -1288,7 +1288,8 @@
 <a href="#1287" id="1287">1287</a>
 <a href="#1288" id="1288">1288</a>
 <a href="#1289" id="1289">1289</a>
-<a href="#1290" id="1290">1290</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1785,9 +1786,9 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
         <span class="comment">// base_index = index * type_size
         </span><span class="kw">let </span>index = <span class="self">self</span>.make_array_index(index);
-        <span class="kw">let </span>type_size = <span class="self">Self</span>::convert_type(element_type).size_of_type();
+        <span class="kw">let </span>type_size_usize = <span class="self">Self</span>::convert_type(element_type).size_of_type();
         <span class="kw">let </span>type_size =
-            <span class="self">self</span>.builder.numeric_constant(type_size <span class="kw">as </span>u128, NumericType::length_type());
+            <span class="self">self</span>.builder.numeric_constant(type_size_usize <span class="kw">as </span>u128, NumericType::length_type());
 
         <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
         <span class="kw">let </span>runtime = <span class="self">self</span>.builder.current_function.runtime();
@@ -1795,9 +1796,10 @@
         <span class="comment">// Checks for index Out-of-bounds
         </span><span class="kw">match </span>array_type {
             Type::Array(<span class="kw">_</span>, len) =&gt; {
-                <span class="comment">// Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-                // We then only need to inject it for brillig functions.
-                </span><span class="kw">if </span>runtime.is_brillig() {
+                <span class="comment">// Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
+                // except when the inner elements have no size, because the array access can be optimized out in that case.
+                // We then only need to inject it for brillig functions or for 'unit' elements.
+                </span><span class="kw">if </span>runtime.is_brillig() || type_size_usize == <span class="number">0 </span>{
                     <span class="kw">let </span>len =
                         <span class="self">self</span>.builder.numeric_constant(u128::from(<span class="kw-2">*</span>len), NumericType::length_type());
                     <span class="self">self</span>.codegen_access_check(index, len);
