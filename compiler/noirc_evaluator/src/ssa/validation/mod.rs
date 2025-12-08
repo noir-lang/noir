@@ -929,6 +929,7 @@ impl<'f> Validator<'f> {
     /// Check the inputs and outputs of function calls going from ACIR to Brillig:
     /// * cannot pass references from constrained to unconstrained code
     /// * cannot return functions
+    /// * cannot call oracles directly
     fn check_calls_in_constrained(&self, instruction: InstructionId) {
         if !self.function.runtime().is_acir() {
             return;
@@ -936,10 +937,18 @@ impl<'f> Validator<'f> {
         let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
             return;
         };
-        let Value::Function(func_id) = &self.function.dfg[*func] else {
-            return;
+        let callee_id = match &self.function.dfg[*func] {
+            Value::Function(func_id) => func_id,
+            Value::ForeignFunction(oracle) => {
+                panic!(
+                    "Trying to call foreign function '{oracle}' from ACIR function '{} {}'",
+                    self.function.name(),
+                    self.function.id()
+                );
+            }
+            _ => return,
         };
-        let called_function = &self.ssa.functions[func_id];
+        let called_function = &self.ssa.functions[callee_id];
         if called_function.runtime().is_acir() {
             return;
         }
@@ -1715,6 +1724,21 @@ mod tests {
           b0(v0: u32):
             v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
             v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to call foreign function 'oracle_call' from ACIR function 'main f0'"
+    )]
+    fn disallows_calling_an_oracle_from_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call oracle_call()
             return
         }
         ";

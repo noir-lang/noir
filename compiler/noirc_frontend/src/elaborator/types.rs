@@ -2321,6 +2321,7 @@ impl Elaborator<'_> {
         let is_unconstrained_call =
             func_type_is_unconstrained || self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
+
         if crossing_runtime_boundary {
             match self.unsafe_block_status {
                 UnsafeBlockStatus::NotInUnsafeBlock => {
@@ -2331,18 +2332,6 @@ impl Elaborator<'_> {
                         UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls;
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
-            }
-
-            if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {
-                self.run_lint(|elaborator| {
-                    lints::oracle_called_from_constrained_function(
-                        elaborator.interner,
-                        &called_func_id,
-                        is_current_func_constrained,
-                        location,
-                    )
-                    .map(Into::into)
-                });
             }
 
             let errors = lints::unconstrained_function_args(&args);
@@ -2360,6 +2349,7 @@ impl Elaborator<'_> {
         return_type
     }
 
+    /// Check if the callee is an unconstrained function, or a variable referring to one.
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
         if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
             let modifiers = self.interner.function_modifiers(&func_id);

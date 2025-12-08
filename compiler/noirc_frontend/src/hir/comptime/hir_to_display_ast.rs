@@ -185,7 +185,13 @@ impl HirExpression {
                 });
                 let return_type = Some(lambda.return_type.to_display_ast());
                 let body = lambda.body.to_display_ast(interner);
-                ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
+                let unconstrained = lambda.unconstrained;
+                ExpressionKind::Lambda(Box::new(Lambda {
+                    parameters,
+                    return_type,
+                    body,
+                    unconstrained,
+                }))
             }
             HirExpression::Error => ExpressionKind::Error,
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {

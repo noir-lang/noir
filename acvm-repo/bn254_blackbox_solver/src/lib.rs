@@ -34,7 +34,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         predicate: bool,
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
         if predicate {
-            multi_scalar_mul(points, scalars_lo, scalars_hi, self.pedantic_solving())
+            multi_scalar_mul(points, scalars_lo, scalars_hi)
         } else {
             Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
         }
@@ -54,7 +54,6 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
             embedded_curve_add(
                 [*input1_x, *input1_y, *input1_infinite],
                 [*input2_x, *input2_y, *input2_infinite],
-                self.pedantic_solving(),
             )
         } else {
             Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
