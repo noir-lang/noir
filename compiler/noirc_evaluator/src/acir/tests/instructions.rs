@@ -347,3 +347,17 @@ fn make_array() {
     ASSERT w4 = 10
     ");
 }
+
+#[test]
+#[should_panic(expected = "potential underflow in subtraction when max_bit_size is 253")]
+fn truncate_underflow() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field):
+        v2 = sub v0, v1
+        v3 = truncate v2 to 6 bits, max_bit_size: 253
+        return v3
+    }
+    ";
+    let _ = ssa_to_acir_program(src);
+}
