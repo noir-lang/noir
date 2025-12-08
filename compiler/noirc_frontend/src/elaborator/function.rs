@@ -33,7 +33,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
     shared::Visibility,
-    validity::length_is_zero,
+    validity::{InvalidType, length_is_zero},
 };
 
 use super::Elaborator;
@@ -410,9 +410,20 @@ impl Elaborator<'_> {
     ) {
         match typ {
             Type::Unit => return,
-            Type::Array(length, _) | Type::String(length) => {
+            Type::Array(_, element_type) => {
+                if let Some(InvalidType::EmptyArray(_)) = typ.program_input_validity() {
+                    self.check_if_type_is_valid_for_program_input(
+                        element_type,
+                        is_entry_point,
+                        has_inline_attribute,
+                        location,
+                    );
+                    return;
+                }
+            }
+            Type::String(length) => {
                 if length_is_zero(length) {
-                    //returning zero length arrays is allowed
+                    //returning zero length string is allowed
                     return;
                 }
             }

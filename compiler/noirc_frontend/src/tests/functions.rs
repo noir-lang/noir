@@ -300,3 +300,15 @@ fn call_type_variable_of_kind_any() {
     ";
     assert_no_errors(src);
 }
+
+#[test]
+fn error_on_returning_empty_unit() {
+    let src = r#"
+    fn main() -> pub [(); 0] {
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Unit is not a valid entry point type
+        [(); 0]
+    }
+    "#;
+    check_errors(src);
+}
