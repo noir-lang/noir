@@ -294,6 +294,17 @@ fn deny_fold_attribute_on_unconstrained() {
 }
 
 #[test]
+fn deny_no_predicates_attribute_on_entry_point() {
+    let src = r#"
+        #[no_predicates]
+        ^^^^^^^^^^^^^^^^ #[no_predicates] attribute is not allowed on entry point function main
+        ~~~~~~~~~~~~~~~~ #[no_predicates] attribute not allowed on entry points
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_abi_attribute_outside_of_contract() {
     let src = r#"
 
