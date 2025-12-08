@@ -20,7 +20,11 @@ pub enum MonomorphizationError {
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
+    NestedSlices { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
+    ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedSliceReturnToConstrained { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -37,8 +41,16 @@ impl MonomorphizationError {
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
+            | MonomorphizationError::NestedSlices { location }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
-            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. } => *location,
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
+            | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location, .. } => {
+                *location
+            }
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -110,10 +122,28 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 };
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
+            MonomorphizationError::NestedSlices { .. } => {
+                "Nested slices, i.e. slices within an array or slice, are not supported".to_string()
+            }
             MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
                 let message = format!("Invalid type {typ} used in the error message");
                 let secondary = "Error message fragments must be ABI compatible".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::ConstrainedReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
             }
         };
 

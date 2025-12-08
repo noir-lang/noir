@@ -307,18 +307,6 @@ mod tests {
     use clap::Parser;
 
     #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
-    }
-
-    #[test]
     fn test_parse_target_dir() {
         let cmd = "nargo --program-dir . --target-dir ../foo/bar execute";
         let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");

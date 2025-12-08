@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    circuit::{AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId},
+    circuit::{AssertionPayload, brillig::BrilligFunctionId},
     native_types::Witness,
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -113,13 +113,11 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
-        expression_width: ExpressionWidth,
         brillig: &'a Brillig,
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
@@ -850,6 +848,13 @@ impl<'a> Context<'a> {
                     // for FieldElements. Furthermore, adding a power of two
                     // would be incorrect for a FieldElement (cf. #8519).
                     if max_bit_size < FieldElement::max_num_bits() {
+                        // When max_bit_size is max_num_bits() - 1, adding
+                        // 2**max_bit_size to an element of max_bit_size bits
+                        // gives an element of max_num_bits() bits which may overflow
+                        assert!(
+                            max_bit_size != FieldElement::max_num_bits() - 1,
+                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
+                        );
                         let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
                         let integer_modulus = self.acir_context.add_constant(integer_modulus);
                         var = self.acir_context.add_var(var, integer_modulus)?;

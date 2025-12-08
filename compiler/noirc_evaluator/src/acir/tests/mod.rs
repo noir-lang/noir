@@ -2,7 +2,7 @@ use acvm::{
     AcirField, FieldElement,
     acir::{
         brillig::{BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
-        circuit::{ExpressionWidth, Program},
+        circuit::Program,
         native_types::{Witness, WitnessMap},
     },
     assert_circuit_snapshot,
@@ -59,7 +59,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let (acir_functions, brillig_functions, _) = ssa
         .generate_entry_point_index()
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
 
     let artifacts =
@@ -126,8 +126,7 @@ fn no_zero_bits_range_check() {
     BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
     ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
     ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
-    ASSERT w7 = w3*w6
-    ASSERT w7 = 0
+    ASSERT 0 = w3*w6
     ASSERT w1 = w3
 
     unconstrained func 0: directive_integer_quotient
@@ -232,7 +231,6 @@ fn properly_constrains_quotient_when_truncating_fields() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
-        ExpressionWidth::default(),
     )
     .expect("Should compile manually written SSA into ACIR");
 
@@ -268,11 +266,86 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
     let (acir_functions, _brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
 
     assert_eq!(acir_functions.len(), 1);
     assert!(acir_functions[0].opcodes().is_empty());
+}
+
+#[test]
+fn properly_constrains_quotient_when_truncating_fields_to_u128() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = truncate v0 to 128 bits, max_bit_size: 254
+            return v1
+        }";
+    let ssa = Ssa::from_str(src).unwrap();
+
+    let input = FieldElement::zero();
+    let malicious_q = FieldElement::try_from_str("64323764613183177041862057485226039389").unwrap();
+    let malicious_r = FieldElement::try_from_str("53438638232309528389504892708671455233").unwrap();
+
+    // This brillig function replaces the standard implementation of `directive_quotient` with
+    // an implementation which returns `(malicious_q, malicious_r)`.
+    let malicious_quotient = GeneratedBrillig {
+        byte_code: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(10),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(11),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Field,
+                value: malicious_q,
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Field,
+                value: malicious_r,
+            },
+            BrilligOpcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::direct(11),
+                    size: MemoryAddress::direct(10),
+                },
+            },
+        ],
+        name: "malicious_directive_quotient".to_string(),
+        ..Default::default()
+    };
+
+    let malicious_brillig_stdlib =
+        BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+    let (acir_functions, brillig_functions, _) = codegen_acir(
+        ssa,
+        &Brillig::default(),
+        malicious_brillig_stdlib,
+        &BrilligOptions::default(),
+    )
+    .expect("Should compile manually written SSA into ACIR");
+
+    assert_eq!(acir_functions.len(), 1);
+    // [`malicious_directive_quotient`, `directive_invert`]
+    assert_eq!(brillig_functions.len(), 2);
+
+    let main = &acir_functions[0];
+
+    let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
+    let pedantic_solving = true;
+    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
+
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
 }
 
 #[test]
@@ -289,7 +362,7 @@ fn derive_pedersen_generators_requires_constant_input() {
 
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    ssa.into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+    ssa.into_acir(&brillig, &BrilligOptions::default())
         .expect_err("Should fail with assert constant");
 }
 
@@ -331,7 +404,7 @@ fn execute_ssa(
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
     let (acir_functions, brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];

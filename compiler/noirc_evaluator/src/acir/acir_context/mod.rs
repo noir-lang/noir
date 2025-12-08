@@ -11,7 +11,7 @@
 use acvm::acir::{
     AcirField, BlackBoxFunc,
     circuit::{
-        AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
     },
     native_types::{Expression, Witness},
@@ -21,7 +21,7 @@ use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
 use rustc_hash::FxHashMap as HashMap;
-use std::{borrow::Cow, cmp::Ordering};
+use std::borrow::Cow;
 
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use crate::{
@@ -61,8 +61,6 @@ pub(crate) struct AcirContext<F: AcirField> {
     /// addition.
     pub(super) acir_ir: GeneratedAcir<F>,
 
-    expression_width: ExpressionWidth,
-
     pub(super) warnings: Vec<SsaReport>,
 }
 
@@ -73,13 +71,8 @@ impl<F: AcirField> AcirContext<F> {
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
-            expression_width: Default::default(),
             warnings: Default::default(),
         }
-    }
-
-    pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
-        self.expression_width = expression_width;
     }
 
     pub(crate) fn current_witness_index(&self) -> Witness {
@@ -705,56 +698,6 @@ impl<F: AcirField> AcirContext<F> {
         let rhs_expr = self.var_to_expression(rhs)?;
 
         let sum_expr = &lhs_expr + &rhs_expr;
-        if fits_in_one_identity(&sum_expr, self.expression_width) {
-            let sum_var = self.add_data(AcirVarData::from(sum_expr));
-
-            return Ok(sum_var);
-        }
-
-        let sum_expr = match lhs_expr.width().cmp(&rhs_expr.width()) {
-            Ordering::Greater => {
-                let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
-                let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-
-                let new_sum_expr = &lhs_witness_expr + &rhs_expr;
-                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
-                    new_sum_expr
-                } else {
-                    let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                    let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-
-                    &lhs_expr + &rhs_witness_expr
-                }
-            }
-            Ordering::Less => {
-                let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-
-                let new_sum_expr = &lhs_expr + &rhs_witness_expr;
-                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
-                    new_sum_expr
-                } else {
-                    let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
-                    let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-
-                    &lhs_witness_expr + &rhs_expr
-                }
-            }
-            Ordering::Equal => {
-                let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
-                let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-
-                let new_sum_expr = &lhs_witness_expr + &rhs_expr;
-                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
-                    new_sum_expr
-                } else {
-                    let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                    let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-
-                    &lhs_witness_expr + &rhs_witness_expr
-                }
-            }
-        };
 
         let sum_var = self.add_data(AcirVarData::from(sum_expr));
 
@@ -858,11 +801,8 @@ impl<F: AcirField> AcirContext<F> {
             }
         }
 
-        // maximum bit size for q and for [r and rhs]
-        let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
-            // when rhs is constant, we can better estimate the maximum bit sizes
-            let max_rhs_bits = rhs_const.num_bits();
-
+        // maximum bit size for q and r
+        let (max_q_bits, max_r_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
             // It is possible that we have an AcirVar which is a result of a multiplication of constants
             // which resulted in an overflow, but that check will only happen at runtime, and here we
             // can't assume that the RHS will never have more bits than the operand.
@@ -873,16 +813,24 @@ impl<F: AcirField> AcirContext<F> {
             // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
             // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
             // assertion which will fail at runtime.
-            if max_rhs_bits > bit_size {
+            let rhs_bits = rhs_const.num_bits();
+            if rhs_bits > bit_size {
                 let msg = format!(
-                    "attempted to divide by constant larger than operand type: {max_rhs_bits} > {bit_size}"
+                    "attempted to divide by constant larger than operand type: {rhs_bits} > {bit_size}"
                 );
                 self.assert_always_fail(msg)?;
                 return Ok((zero, zero));
             }
-            (bit_size - max_rhs_bits + 1, max_rhs_bits)
+
+            // When rhs is constant, we can better estimate the maximum bit sizes as
+            // we know the remainder is strictly less than rhs.
+            //
+            // We subtract 1 from rhs_const to account for the case where rhs_const is a power of 2.
+            let max_remainder_bits = (*rhs_const - F::one()).num_bits();
+
+            (bit_size - rhs_bits + 1, max_remainder_bits, rhs_bits)
         } else {
-            (bit_size, bit_size)
+            (bit_size, bit_size, bit_size)
         };
 
         let [q_value, r_value]: [AcirValue; 2] = self
@@ -895,7 +843,7 @@ impl<F: AcirField> AcirContext<F> {
                 ],
                 vec![
                     AcirType::NumericType(NumericType::unsigned(max_q_bits)),
-                    AcirType::NumericType(NumericType::unsigned(max_rhs_bits)),
+                    AcirType::NumericType(NumericType::unsigned(max_r_bits)),
                 ],
             )?
             .try_into()
@@ -909,7 +857,7 @@ impl<F: AcirField> AcirContext<F> {
         // `quotient_var` is the output of a brillig call
         self.range_constrain_var(quotient_var, max_q_bits, None, one)?;
 
-        // Constrain `r < 2^{max_rhs_bits}`.
+        // Constrain `r < 2^{max_r_bits}`.
         //
         // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
         // In the case where `rhs` isn't a power of 2 then this range constraint is required
@@ -917,7 +865,7 @@ impl<F: AcirField> AcirContext<F> {
         // This opcode will be optimized out if it is redundant so we always add it for safety.
         // Furthermore, we do not need to use a predicate in the range constraint because
         // the remainder is the output of a brillig call
-        self.range_constrain_var(remainder_var, max_rhs_bits, None, one)?;
+        self.range_constrain_var(remainder_var, max_r_bits, None, one)?;
 
         // Constrain `r < rhs`.
         //
@@ -932,7 +880,7 @@ impl<F: AcirField> AcirContext<F> {
         //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
         //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
         //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
-        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
+        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_r_bits, one)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * (a - b * q - r) == 0
@@ -974,7 +922,7 @@ impl<F: AcirField> AcirContext<F> {
                     remainder_var,
                     max_r_var,
                     one,
-                    rhs_const.num_bits(),
+                    max_r_bits,
                     predicate,
                 )?;
             } else if bit_size == 128 {
@@ -1060,7 +1008,6 @@ impl<F: AcirField> AcirContext<F> {
             // We now want to find the smallest `r` such that rhs_offset + r = 2^N - 1 for some N
             // => r = 2^N - rhs_offset - 1
             let bit_size = bit_size_u128(rhs_offset);
-            assert!(bit_size <= bits, "rhs constant has more bits than allowed");
             let two_pow_bit_size_minus_one =
                 if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
             let r = two_pow_bit_size_minus_one - rhs_offset;
@@ -1567,23 +1514,6 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
     }
 }
 
-/// Checks if this expression can fit into one arithmetic identity
-fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWidth) -> bool {
-    let width = match &width {
-        ExpressionWidth::Unbounded => {
-            return true;
-        }
-        ExpressionWidth::Bounded { width } => *width,
-    };
-
-    // A Polynomial with more than one mul term cannot fit into one opcode
-    if expr.mul_terms.len() > 1 {
-        return false;
-    };
-
-    expr.width() <= width
-}
-
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
@@ -1591,6 +1521,7 @@ mod test {
     use acvm::{
         AcirField, FieldElement,
         acir::native_types::WitnessMap,
+        assert_circuit_snapshot,
         blackbox_solver::StubbedBlackBoxSolver,
         pwg::{ACVM, ACVMStatus},
     };
@@ -1673,5 +1604,53 @@ mod test {
                 prop_assert!(matches!(acvm.solve(), ACVMStatus::Failure(..)));
             }
         }
+    }
+
+    #[test]
+    fn bound_constraint_with_offset_test() {
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+
+        let limit = power_of_two::<FieldElement>(128);
+
+        let lhs = context.add_variable();
+        let rhs = context.add_constant(limit);
+        let one = context.add_constant(1_u128);
+
+        let lhs_witness = context.var_to_witness(lhs).unwrap();
+        context.acir_ir.input_witnesses = vec![lhs_witness];
+
+        context.bound_constraint_with_offset(lhs, rhs, one, 128, one).unwrap();
+
+        let circuit = context.finish(Vec::new(), Vec::new());
+        let circuit = convert_generated_acir_into_circuit(
+            circuit,
+            &[(1, Visibility::Private)],
+            BTreeMap::default(),
+            BTreeMap::default(),
+            BTreeMap::default(),
+        )
+        .circuit;
+
+        assert_circuit_snapshot!(circuit, @r"
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        ASSERT w1 = -w0 + 340282366920938463463374607431768211455
+        BLACKBOX::RANGE input: w1, bits: 128
+        ");
+
+        let solver = StubbedBlackBoxSolver::default();
+
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(lhs_witness, limit);
+        let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
+
+        assert!(matches!(acvm.solve(), ACVMStatus::Failure(..)));
+
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(lhs_witness, limit - FieldElement::one());
+        let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
+
+        assert!(matches!(acvm.solve(), ACVMStatus::Solved));
     }
 }

@@ -879,7 +879,8 @@ impl Context<'_> {
         let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
         match array_acir_value {
             AcirValue::Array(values) => {
-                let flat_elem_type_sizes = calculate_element_type_sizes_array(values);
+                let flat_elem_type_sizes =
+                    calculate_element_type_sizes_array(array_typ, values.len());
 
                 // If there's already a block with these same sizes, reuse it. It's fine do to so
                 // because the element type sizes array is never mutated.
@@ -1187,12 +1188,26 @@ impl Context<'_> {
     }
 }
 
-pub(super) fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
-    let mut flat_elem_type_sizes = Vec::with_capacity(array.len());
+pub(super) fn calculate_element_type_sizes_array(array_typ: &Type, length: usize) -> Vec<usize> {
+    let element_types = match array_typ {
+        Type::Array(types, _) | Type::Slice(types) => types,
+        _ => panic!("ICE: expected array or slice type"),
+    };
+    if element_types.is_empty() {
+        return vec![];
+    }
+
+    let non_flattened_elements = length / element_types.len();
+
+    // We need the element type sizes array to have one extra entry for the case
+    // of `slice_insert` inserting at the end of the array.
+    let capacity = (non_flattened_elements + 1) * element_types.len();
+
+    let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;
-    for value in array {
+    for index in 0..capacity {
         flat_elem_type_sizes.push(total_size);
-        total_size += flattened_value_size(value);
+        total_size += element_types[index % element_types.len()].flattened_size() as usize;
     }
     flat_elem_type_sizes
 }

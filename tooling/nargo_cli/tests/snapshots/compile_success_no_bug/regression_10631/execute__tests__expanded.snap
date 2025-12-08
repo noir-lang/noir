@@ -17,8 +17,8 @@ fn main() {
 unconstrained fn unconstrained_to_unconstrained() {
     bar(foo);
     baz(foo);
-    bar(|x: &mut u32| foo(x));
-    baz(|x: &mut u32| foo(x));
+    bar(unconstrained |x: &mut u32| foo(x));
+    baz(unconstrained |x: &mut u32| foo(x));
     let f: fn(&mut u32) = |x: &mut u32| foo(x);
     bar(f);
     baz(f);
@@ -29,7 +29,7 @@ fn constrained_to_unconstrained() {
     unsafe {
         bar(foo);
         baz(foo);
-        bar(|x: &mut u32| foo(x));
-        baz(|x: &mut u32| foo(x));
+        bar(unconstrained |x: &mut u32| foo(x));
+        baz(unconstrained |x: &mut u32| foo(x));
     }
 }
