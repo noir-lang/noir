@@ -868,8 +868,12 @@ impl Binary {
             BinaryOp::Add { unchecked: false }
             | BinaryOp::Sub { unchecked: false }
             | BinaryOp::Mul { unchecked: false } => {
-                // Some binary math can overflow or underflow, but this is only the case
-                // for unsigned types (here we assume the type of binary.lhs is the same)
+                // Some binary math can overflow or underflow for non-field types.
+                // However, we assume that signed types should have already been expanded using unsigned operations.
+                assert!(
+                    !dfg.type_of_value(self.rhs).is_signed(),
+                    "signed instructions should have been already expanded"
+                );
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
             BinaryOp::Shl | BinaryOp::Shr => {
