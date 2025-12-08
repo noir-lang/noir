@@ -919,7 +919,14 @@
 <a href="#918" id="918">918</a>
 <a href="#919" id="919">919</a>
 <a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1769,6 +1776,13 @@
                     // for FieldElements. Furthermore, adding a power of two
                     // would be incorrect for a FieldElement (cf. #8519).
                     </span><span class="kw">if </span>max_bit_size &lt; FieldElement::max_num_bits() {
+                        <span class="comment">// When max_bit_size is max_num_bits() - 1, adding
+                        // 2**max_bit_size to an element of max_bit_size bits
+                        // gives an element of max_num_bits() bits which may overflow
+                        </span><span class="macro">assert!</span>(
+                            max_bit_size != FieldElement::max_num_bits() - <span class="number">1</span>,
+                            <span class="string">"potential underflow in subtraction when max_bit_size is {max_bit_size}"
+                        </span>);
                         <span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(max_bit_size);
                         <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
                         var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
