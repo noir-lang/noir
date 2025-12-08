@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MIN_EXPRESSION_WIDTH"],"fn":["compile","optimize","transform","transform_assert_messages"],"mod":["optimizers","simulator","transformers"],"struct":["AcirTransformationMap","CircuitSimulator"]};
+window.SIDEBAR_ITEMS = {"fn":["compile","optimize","transform_assert_messages"],"mod":["optimizers","simulator"],"struct":["AcirTransformationMap","CircuitSimulator"]};

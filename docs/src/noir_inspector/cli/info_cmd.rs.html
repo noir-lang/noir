@@ -86,7 +86,7 @@
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| <span class="string">"artifact"</span>.to_string());
 
-            <span class="macro">vec!</span>[count_opcodes_and_gates_in_program(program, package_name, <span class="prelude-val">None</span>)]
+            <span class="macro">vec!</span>[count_opcodes_and_gates_in_program(program, package_name)]
         }
         Artifact::Contract(contract) =&gt; contract
             .functions
@@ -98,7 +98,7 @@
                     contract.noir_version.clone(),
                     contract.file_map.clone(),
                 );
-                count_opcodes_and_gates_in_program(program.into(), package_name, <span class="prelude-val">None</span>)
+                count_opcodes_and_gates_in_program(program.into(), package_name)
             })
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
     };

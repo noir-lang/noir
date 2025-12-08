@@ -148,28 +148,7 @@
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
 <a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `compiler` module contains several passes to transform an ACIR program.
+<a href="#150" id="150">150</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `compiler` module contains several passes to transform an ACIR program.
 //! Roughly, the passes are separated into the `optimizers` which try to reduce the number of opcodes
 //! and the `transformers` which adapt the opcodes to the proving backend.
 //!
@@ -199,12 +178,8 @@
 </span><span class="kw">pub use </span>optimizers::optimize;
 <span class="kw">mod </span>optimizers;
 <span class="kw">mod </span>simulator;
-<span class="kw">mod </span>transformers;
 
-<span class="kw">use </span>optimizers::optimize_internal;
 <span class="kw">pub use </span>simulator::CircuitSimulator;
-<span class="kw">use </span>transformers::transform_internal;
-<span class="kw">pub use </span>transformers::{MIN_EXPRESSION_WIDTH, transform};
 
 <span class="doccomment">/// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
@@ -309,27 +284,10 @@
 /// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
 </span><span class="kw">pub fn </span>compile&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,
-    expression_width: ExpressionWidth,
+    _expression_width: ExpressionWidth,
     brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
-    <span class="kw">let </span>acir_opcode_positions = (<span class="number">0</span>..acir.opcodes.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-    <span class="kw">let </span>(acir, acir_opcode_positions) =
-        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
-
-    <span class="kw">let </span>max_transformer_passes_or_default = <span class="prelude-val">None</span>;
-    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
-        acir,
-        expression_width,
-        acir_opcode_positions,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    );
-
-    <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>acir_opcode_positions);
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, <span class="kw-2">&amp;</span>transformation_map);
-
-    (acir, transformation_map)
+    optimize(acir, brillig_side_effects)
 }
 
 <span class="attr">#[macro_export]

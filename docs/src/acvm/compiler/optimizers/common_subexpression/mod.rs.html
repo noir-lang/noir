@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/acvm/src/compiler/transformers/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="acvm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">acvm/compiler/transformers/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/acvm/src/compiler/optimizers/common_subexpression/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="acvm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../../src-files.js"></script><script defer src="../../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">acvm/compiler/optimizers/common_subexpression/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -620,39 +620,7 @@
 <a href="#619" id="619">619</a>
 <a href="#620" id="620">620</a>
 <a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a>
-<a href="#626" id="626">626</a>
-<a href="#627" id="627">627</a>
-<a href="#628" id="628">628</a>
-<a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a>
-<a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformations to a [`Circuit`].
+<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformations to a [`Circuit`].
 ///
 /// ## CSAT: transforms AssertZero opcodes into AssertZero opcodes having the required width.
 ///
@@ -695,51 +663,18 @@
 <span class="kw">use </span>indexmap::IndexMap;
 
 <span class="kw">mod </span>csat;
+<span class="kw">mod </span>merge_expressions;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>csat::CSatTransformer;
-<span class="kw">pub use </span>csat::MIN_EXPRESSION_WIDTH;
+<span class="kw">use </span>csat::CSatTransformer;
+<span class="kw">use </span>merge_expressions::MergeExpressionsOptimizer;
+
 <span class="kw">use </span>std::hash::BuildHasher;
 <span class="kw">use </span>tracing::info;
 
-<span class="kw">use super</span>::{
-    AcirTransformationMap,
-    optimizers::{MergeExpressionsOptimizer, RangeOptimizer},
-    transform_assert_messages,
-};
+<span class="kw">use </span><span class="kw">super</span>::RangeOptimizer;
 
 <span class="doccomment">/// We use multiple passes to stabilize the output in many cases
 </span><span class="kw">const </span>DEFAULT_MAX_TRANSFORMER_PASSES: usize = <span class="number">3</span>;
-
-<span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
-///
-/// Pre-Conditions:
-/// - General Optimizer must run before this pass,
-///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
-/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
-</span><span class="kw">pub fn </span>transform&lt;F: AcirField&gt;(
-    acir: Circuit&lt;F&gt;,
-    expression_width: ExpressionWidth,
-    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
-    max_transformer_passes_or_default: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
-    <span class="comment">// Track original acir opcode positions throughout the transformation passes of the compilation
-    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    </span><span class="kw">let </span>acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-
-    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
-        acir,
-        expression_width,
-        acir_opcode_positions,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    );
-
-    <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>acir_opcode_positions);
-
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, <span class="kw-2">&amp;</span>transformation_map);
-
-    (acir, transformation_map)
-}
 
 <span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
 ///
@@ -1209,7 +1144,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::compiler::{CircuitSimulator, transform_internal};
+    <span class="kw">use </span><span class="kw">super</span>::transform_internal;
+    <span class="kw">use </span><span class="kw">crate</span>::compiler::CircuitSimulator;
     <span class="kw">use </span>acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
     <span class="kw">use </span>std::collections::BTreeMap;
 

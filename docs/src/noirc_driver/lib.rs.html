@@ -910,18 +910,13 @@
 <a href="#909" id="909">909</a>
 <a href="#910" id="910">910</a>
 <a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#912" id="912">912</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
 
 <span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
-<span class="kw">use </span>acvm::compiler::MIN_EXPRESSION_WIDTH;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1229,11 +1224,8 @@
 
     <span class="kw">match </span>width {
         <span class="number">0 </span>=&gt; <span class="prelude-val">Ok</span>(ExpressionWidth::Unbounded),
-        w <span class="kw">if </span>w &gt;= MIN_EXPRESSION_WIDTH =&gt; <span class="prelude-val">Ok</span>(ExpressionWidth::Bounded { width }),
-        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
-            ErrorKind::InvalidInput,
-            <span class="macro">format!</span>(<span class="string">"has to be 0 or at least {MIN_EXPRESSION_WIDTH}"</span>),
-        )),
+        w <span class="kw">if </span>w &gt;= <span class="number">3 </span>=&gt; <span class="prelude-val">Ok</span>(ExpressionWidth::Bounded { width }),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidInput, <span class="string">"has to be 0 or at least 3"</span>.to_string())),
     }
 }
 
@@ -1459,7 +1451,7 @@
     }
 
     <span class="kw">if </span>options.print_acir {
-        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main (non-transformed):"</span>);
+        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main:"</span>);
         <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"{}"</span>, compiled_program.program);
     }
 

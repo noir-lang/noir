@@ -92,20 +92,28 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
-    circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
+    circuit::{Circuit, ExpressionWidth, Opcode, brillig::BrilligFunctionId},
 };
 
+<span class="kw">mod </span>common_subexpression;
 <span class="kw">mod </span>general;
-<span class="kw">mod </span>merge_expressions;
 <span class="kw">mod </span>redundant_range;
 <span class="kw">mod </span>unused_memory;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>general::GeneralOptimizer;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>merge_expressions::MergeExpressionsOptimizer;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>redundant_range::RangeOptimizer;
 <span class="kw">use </span>tracing::info;
 
@@ -181,6 +189,16 @@
     </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     <span class="kw">let </span>(acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
+
+    <span class="kw">let </span>max_transformer_passes_or_default = <span class="prelude-val">None</span>;
+    <span class="kw">let </span>(acir, acir_opcode_positions, _opcodes_hash_stabilized) =
+        common_subexpression::transform_internal(
+            acir,
+            ExpressionWidth::Bounded { width: <span class="number">4 </span>},
+            acir_opcode_positions,
+            brillig_side_effects,
+            max_transformer_passes_or_default,
+        );
 
     <span class="macro">info!</span>(<span class="string">"Number of opcodes after: {}"</span>, acir.opcodes.len());
 

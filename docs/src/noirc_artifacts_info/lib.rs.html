@@ -103,20 +103,7 @@
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
-<span class="kw">use </span>iter_extended::vecmap;
+<a href="#105" id="105">105</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::program::ProgramArtifact;
 <span class="kw">use </span>prettytable::{Row, row, table};
 <span class="kw">use </span>rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -130,8 +117,6 @@
 <span class="attr">#[derive(Debug, Serialize)]
 </span><span class="kw">pub struct </span>ProgramInfo {
     <span class="kw">pub </span>package_name: String,
-    <span class="attr">#[serde(skip)]
-    </span><span class="kw">pub </span>expression_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
     <span class="kw">pub </span>functions: Vec&lt;FunctionInfo&gt;,
     <span class="attr">#[serde(skip)]
     </span><span class="kw">pub </span>unconstrained_functions_opcodes: usize,
@@ -140,16 +125,10 @@
 
 <span class="kw">impl </span>From&lt;ProgramInfo&gt; <span class="kw">for </span>Vec&lt;Row&gt; {
     <span class="kw">fn </span>from(program_info: ProgramInfo) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>expression_width = <span class="kw">if let </span><span class="prelude-val">Some</span>(expression_width) = program_info.expression_width {
-            <span class="macro">format!</span>(<span class="string">"{expression_width:?}"</span>)
-        } <span class="kw">else </span>{
-            <span class="string">"N/A"</span>.to_string()
-        };
         <span class="kw">let </span><span class="kw-2">mut </span>main = vecmap(program_info.functions, |function| {
             <span class="macro">row!</span>[
                 Fm-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, program_info.package_name),
                 Fc-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, function.name),
-                <span class="macro">format!</span>(<span class="string">"{}"</span>, expression_width),
                 Fc-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, function.opcodes),
                 Fc-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, program_info.unconstrained_functions_opcodes),
             ]
@@ -158,7 +137,6 @@
             <span class="macro">row!</span>[
                 Fm-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, program_info.package_name),
                 Fc-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, function.name),
-                <span class="macro">format!</span>(<span class="string">"N/A"</span>, ),
                 Fc-&gt;<span class="macro">format!</span>(<span class="string">"N/A"</span>),
                 Fc-&gt;<span class="macro">format!</span>(<span class="string">"{}"</span>, function.opcodes),
             ]
@@ -176,7 +154,6 @@
 <span class="kw">pub fn </span>count_opcodes_and_gates_in_program(
     compiled_program: ProgramArtifact,
     package_name: String,
-    expression_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
 ) -&gt; ProgramInfo {
     <span class="kw">let </span>functions = compiled_program
         .bytecode
@@ -206,7 +183,6 @@
 
     ProgramInfo {
         package_name,
-        expression_width,
         functions,
         unconstrained_functions_opcodes,
         unconstrained_functions: unconstrained_info,

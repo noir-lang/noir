@@ -373,22 +373,7 @@
 <a href="#372" id="372">372</a>
 <a href="#373" id="373">373</a>
 <a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
+<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>dap::errors::ServerError;
 <span class="kw">use </span>dap::events::OutputEventBody;
@@ -409,7 +394,9 @@
 <span class="kw">use </span>noir_artifact_cli::fs::inputs::read_inputs_from_file;
 <span class="kw">use </span>noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 <span class="kw">use </span>noirc_abi::Abi;
-<span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+<span class="kw">use </span>noirc_driver::{
+    CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, NOIR_ARTIFACT_VERSION_STRING,
+};
 <span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
 <span class="kw">use </span>std::io::{BufReader, BufWriter, Read, Write};
@@ -423,10 +410,6 @@
 
 <span class="attr">#[derive(Debug, Clone, Args)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DapCommand {
-    <span class="doccomment">/// Override the expression width requested by the backend.
-    </span><span class="attr">#[arg(long, value_parser = parse_expression_width, default_value = <span class="string">"4"</span>)]
-    </span>expression_width: ExpressionWidth,
-
     <span class="attr">#[clap(long)]
     </span>preflight_check: bool,
 
@@ -453,19 +436,6 @@
     /// This is disabled by default.
     </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
     </span>pedantic_solving: bool,
-}
-
-<span class="kw">fn </span>parse_expression_width(input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;ExpressionWidth, std::io::Error&gt; {
-    <span class="kw">use </span>std::io::{Error, ErrorKind};
-
-    <span class="kw">let </span>width = input
-        .parse::&lt;usize&gt;()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))<span class="question-mark">?</span>;
-
-    <span class="kw">match </span>width {
-        <span class="number">0 </span>=&gt; <span class="prelude-val">Ok</span>(ExpressionWidth::Unbounded),
-        <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(ExpressionWidth::Bounded { width }),
-    }
 }
 
 <span class="kw">fn </span>find_workspace(project_folder: <span class="kw-2">&amp;</span>str, package: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Workspace&gt; {
@@ -768,14 +738,14 @@
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     </span><span class="kw">if </span>args.preflight_check {
-        <span class="kw">return </span>run_preflight_check(args.expression_width, args).map_err(CliError::DapError);
+        <span class="kw">return </span>run_preflight_check(DEFAULT_EXPRESSION_WIDTH, args).map_err(CliError::DapError);
     }
 
     <span class="kw">let </span>output = BufWriter::new(std::io::stdout());
     <span class="kw">let </span>input = BufReader::new(std::io::stdin());
     <span class="kw">let </span>server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving)
+    loop_uninitialized_dap(server, DEFAULT_EXPRESSION_WIDTH, args.pedantic_solving)
         .map_err(CliError::DapError)
 }
 </code></pre></div></section></main></body></html>

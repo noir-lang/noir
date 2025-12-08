@@ -145,21 +145,7 @@
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
-<span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
+<a href="#147" id="147">147</a></pre></div><pre class="rust"><code><span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>nargo::{
     constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
@@ -176,10 +162,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
-<span class="kw">use super</span>::{
-    LockType, PackageOptions, WorkspaceCommand,
-    compile_cmd::{compile_workspace_full, get_target_width},
-};
+<span class="kw">use super</span>::{LockType, PackageOptions, WorkspaceCommand, compile_cmd::compile_workspace_full};
 
 <span class="doccomment">/// Provides detailed information on each of a program's function (represented by a single circuit)
 ///
@@ -250,7 +233,6 @@
         profile_brillig_execution(
             binary_packages,
             <span class="kw-2">&amp;</span>args.prover_name,
-            args.compile_options.expression_width,
             args.compile_options.pedantic_solving,
         )<span class="question-mark">?
     </span>} <span class="kw">else </span>{
@@ -258,12 +240,8 @@
             .into_iter()
             .par_bridge()
             .map(|(package, program)| {
-                <span class="kw">let </span>target_width = get_target_width(
-                    package.expression_width,
-                    args.compile_options.expression_width,
-                );
                 <span class="kw">let </span>package_name = package.name.to_string();
-                count_opcodes_and_gates_in_program(program, package_name, <span class="prelude-val">Some</span>(target_width))
+                count_opcodes_and_gates_in_program(program, package_name)
             })
             .collect()
     };
@@ -277,7 +255,6 @@
 <span class="kw">fn </span>profile_brillig_execution(
     binary_packages: Vec&lt;(Package, ProgramArtifact)&gt;,
     prover_name: <span class="kw-2">&amp;</span>str,
-    expression_width: <span class="prelude-ty">Option</span>&lt;ExpressionWidth&gt;,
     pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ProgramInfo&gt;, CliError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>program_info = Vec::new();
@@ -303,11 +280,8 @@
             ))
         })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>expression_width = get_target_width(package.expression_width, expression_width);
-
         program_info.push(ProgramInfo {
             package_name: package.name.to_string(),
-            expression_width: <span class="prelude-val">Some</span>(expression_width),
             functions: <span class="macro">vec!</span>[FunctionInfo { name: <span class="string">"main"</span>.to_string(), opcodes: <span class="number">0 </span>}],
             unconstrained_functions_opcodes: profiling_samples.len(),
             unconstrained_functions: <span class="macro">vec!</span>[FunctionInfo {

@@ -330,9 +330,7 @@
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
+<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
 <span class="kw">use </span>const_format::formatcp;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::{
@@ -647,9 +645,7 @@
 
         <span class="kw">let </span>err = res.expect_err(<span class="string">"should fail because of invalid width"</span>);
         <span class="macro">assert!</span>(err.to_string().contains(<span class="string">"expression-width"</span>));
-        <span class="macro">assert!</span>(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
+        <span class="macro">assert!</span>(err.to_string().contains(<span class="string">"3"</span>));
     }
 
     <span class="attr">#[test]
