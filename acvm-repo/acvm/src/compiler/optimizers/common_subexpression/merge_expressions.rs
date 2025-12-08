@@ -291,7 +291,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 mod tests {
     use crate::{
         assert_circuit_snapshot,
-        compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer},
+        compiler::{
+            CircuitSimulator,
+            optimizers::common_subexpression::merge_expressions::MergeExpressionsOptimizer,
+        },
     };
     use acir::{
         AcirField, FieldElement,
