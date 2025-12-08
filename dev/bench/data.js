@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765187377933,
+  "lastUpdate": 1765197355848,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ab3836c51c999c32fb799f4d66d9ca0d0d98626d",
-          "message": "chore(deps-dev): bump typedoc from 0.28.14 to 0.28.15 in the typedoc group (#10701)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2025-12-01T09:58:33Z",
-          "tree_id": "a95bb6099a55f8deed493c881feec2246c50a8dd",
-          "url": "https://github.com/noir-lang/noir/commit/ab3836c51c999c32fb799f4d66d9ca0d0d98626d"
-        },
-        "date": 1764584478787,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257701,
-            "range": "± 1468",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232296,
-            "range": "± 3603",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798180,
-            "range": "± 46008",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793069,
             "range": "± 1649",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "121b6013b568ef104c338498f8a82f31528975b1",
+          "message": "chore(deps-dev): bump @types/pako from 2.0.3 to 2.0.4 (#10838)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2025-12-08T12:14:16Z",
+          "tree_id": "29481a928c5c7e298cf81ebfed909ce213728329",
+          "url": "https://github.com/noir-lang/noir/commit/121b6013b568ef104c338498f8a82f31528975b1"
+        },
+        "date": 1765197325868,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253372,
+            "range": "± 1426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222615,
+            "range": "± 4530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789417,
+            "range": "± 3309",
             "unit": "ns/iter"
           }
         ]
