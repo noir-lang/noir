@@ -319,12 +319,13 @@ mod tests {
         assert_format_type(src, expected);
     }
 
-    #[test]
-    fn format_trait_as_type() {
-        let src = " impl Foo < Bar > ";
-        let expected = "impl Foo<Bar>";
-        assert_format_type(src, expected);
-    }
+    // TODO: WIP (testing disabled Type::TraitAsType)
+    // #[test]
+    // fn format_trait_as_type() {
+    //     let src = " impl Foo < Bar > ";
+    //     let expected = "impl Foo<Bar>";
+    //     assert_format_type(src, expected);
+    // }
 
     #[test]
     fn format_string_type() {

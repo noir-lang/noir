@@ -200,6 +200,8 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
+                // TODO: WIP
+                panic!("elaborator: resolve_type_with_kind_inner: testing disabled Type::TraitAsType");
                 let path = self.validate_path(path);
                 self.resolve_trait_as_type(path, args, mode)
             }
@@ -1911,6 +1913,8 @@ impl Elaborator<'_> {
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
+                // TODO: WIP
+                panic!("elaborator: lookup_method: testing disabled Type::TraitAsType");
                 self.push_err(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),
@@ -2437,6 +2441,8 @@ impl Elaborator<'_> {
 
         let func_location = self.interner.expr_location(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
+            // TODO: WIP
+            panic!("elaborator: type_check_function_body: testing disabled Type::TraitAsType");
             if self
                 .interner
                 .lookup_trait_implementation(
