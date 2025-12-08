@@ -580,7 +580,8 @@
 <a href="#579" id="579">579</a>
 <a href="#580" id="580">580</a>
 <a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -1011,6 +1012,7 @@
 
     <span class="kw">fn </span>run_function_lints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) {
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::inlining_attributes(func, modifiers).map(Into::into));
+        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::missing_pub(func, modifiers).map(Into::into));
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
             <span class="kw">let </span>pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
