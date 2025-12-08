@@ -153,7 +153,7 @@ jobs:
           workflow: publish-nargo.yml
           repo: noir-lang/noir
           ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-es-packages:

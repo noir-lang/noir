@@ -1,5 +1,6 @@
 [package]
-name = "intrinsic_die"
+name = "regression_10216"
 type = "bin"
 authors = [""]
+
 [dependencies]

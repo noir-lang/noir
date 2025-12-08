@@ -102,10 +102,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub minimal_ssa: bool,
 
+    /// Display debug prints during Brillig generation.
     #[arg(long, hide = true)]
     pub show_brillig: bool,
 
-    /// Display the ACIR for compiled circuit
+    /// Display Brillig opcodes with advisories, if any.
+    #[arg(long, hide = true)]
+    pub show_brillig_opcode_advisories: bool,
+
+    /// Display the ACIR for compiled circuit, including the Brillig bytecode.
     #[arg(long)]
     pub print_acir: bool,
 
@@ -238,6 +243,7 @@ impl Default for CompileOptions {
             emit_ssa: false,
             minimal_ssa: false,
             show_brillig: false,
+            show_brillig_opcode_advisories: false,
             print_acir: false,
             benchmark_codegen: false,
             deny_warnings: false,
@@ -279,6 +285,7 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
+                show_opcode_advisories: self.show_brillig_opcode_advisories,
                 layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,

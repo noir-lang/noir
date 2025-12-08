@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type CtString documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">CtString</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -106,13 +112,13 @@ afterward.</p></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.CtString.html" class="primitive">CtString</a></code></h3>
 
-<div class="padded-methods"><code id="new" class="code-header">pub comptime fn <span class="fn">new</span>() -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub comptime fn <a href="#new"><span class="fn">new</span></a>() -> Self</code>
 
-<code id="append_str" class="code-header">pub comptime fn <span class="fn">append_str</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
+<code id="append_str" class="code-header">pub comptime fn <a href="#append_str"><span class="fn">append_str</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
 
-<code id="append_fmtstr" class="code-header">pub comptime fn <span class="fn">append_fmtstr</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
+<code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr"><span class="fn">append_fmtstr</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
 
-<code id="as_quoted_str" class="code-header">pub comptime fn <span class="fn">as_quoted_str</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str"><span class="fn">as_quoted_str</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>CtString cannot directly return a str since the size would not be known.
@@ -137,5 +143,6 @@ be accessed using macro insertion <code>foo.as_quoted_str!()</code>.</p>
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>
