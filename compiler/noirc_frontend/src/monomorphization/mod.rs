@@ -1210,17 +1210,21 @@ impl<'interner> Monomorphizer<'interner> {
                 let func_id = *func_id;
 
                 // Functions are represented as a pair of their constrained and unconstrained versions
-                self.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
-                    this.function_reference(
-                        mutable,
-                        name,
-                        ident.location,
-                        func_id,
-                        expr_id,
-                        &typ,
-                        generics,
-                    )
-                })
+                self.monomorphize_constrained_and_unconstrained(
+                    use_current_runtime,
+                    self.force_unconstrained,
+                    |this| {
+                        this.function_reference(
+                            mutable,
+                            name,
+                            ident.location,
+                            func_id,
+                            expr_id,
+                            &typ,
+                            generics,
+                        )
+                    },
+                )
             }
             DefinitionKind::Global(global_id) => {
                 self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)
@@ -1449,6 +1453,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
@@ -1465,6 +1472,9 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Slice(element)
@@ -1649,8 +1659,18 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
-            HirType::Slice(element) => Self::check_type(element.as_ref(), location),
+            HirType::Array(_length, element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
+                Self::check_type(element.as_ref(), location)
+            }
+            HirType::Slice(element) => {
+                if element.contains_slice() {
+                    return Err(MonomorphizationError::NestedSlices { location });
+                }
+                Self::check_type(element.as_ref(), location)
+            }
             HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::check_type(binding, location);
@@ -1798,9 +1818,11 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         // Functions are represented as (constrained, unconstrained) pairs
-        self.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
-            this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id)
-        })
+        self.monomorphize_constrained_and_unconstrained(
+            use_current_runtime,
+            self.force_unconstrained,
+            |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
+        )
     }
 
     fn resolve_trait_method_expr(
@@ -1843,6 +1865,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn monomorphize_constrained_and_unconstrained<F>(
         &mut self,
         use_current_runtime: bool,
+        force_unconstrained: bool,
         f: F,
     ) -> Result<ast::Expression, MonomorphizationError>
     where
@@ -1857,7 +1880,12 @@ impl<'interner> Monomorphizer<'interner> {
             // monomorphization consistent regardless of whether the flag is set, since the type
             // of functions would also need to be updated, which affects how closures are detected,
             // etc.
-            let is_unconstrained = self.force_unconstrained;
+            // If we are in an unconstrained function, then we know that any function we call will
+            // be monomorphized as unconstrained as well, and we'll never call a constrained one;
+            // therefore we can never make use of a constrained variant of a lambda, and by not
+            // generating it we can avoid some illegal corner cases, should the constrained lambda
+            // that never gets used try to call unconstrained code in its body.
+            let is_unconstrained = force_unconstrained || self.in_unconstrained_function;
 
             let old_value =
                 std::mem::replace(&mut self.in_unconstrained_function, is_unconstrained);
@@ -1878,25 +1906,36 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
+        let crossing_runtime_boundaries =
+            !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+
+        if crossing_runtime_boundaries {
+            self.check_arguments_crossing_runtime_boundaries(&call)?;
+        }
+
         let func_type = self.interner.id_type(call.func);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
-        if let Type::Function(params, _, _, _) = &func_type {
+        if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
             assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
             for (typ, id) in params.iter().zip(&call.arguments) {
-                // If the function expects an unconstrained lambda, we can generate the arg to tuple of (constrained, unconstrained),
-                // but that could introduce invalid semantics, such as passing mutable references from the constrained version.
-                // Instead we can force the generation to be two unconstrained lambdas.
-                if matches!(typ, Type::Function(_, _, _, true)) {
-                    let old_force_unconstrained =
-                        std::mem::replace(&mut self.force_unconstrained, true);
-
-                    arguments.push(self.expr(*id)?);
-
-                    self.force_unconstrained = old_force_unconstrained;
-                } else {
-                    arguments.push(self.expr(*id)?);
-                }
+                // If we know that the function expects an unconstrained lambda, or can only make use
+                // of the unconstrained variant, being itself unconstrained, we can generate a pair of
+                // two unconstrained functions, and avoid potential illegal passing of mutable references
+                // from constrained to unconstrained code in a lambda that we know will never be called.
+                let expr = match typ {
+                    Type::Function(_, _, _, lambda_unconstrained)
+                        if *lambda_unconstrained || *callee_unconstrained =>
+                    {
+                        let old_force_unconstrained =
+                            std::mem::replace(&mut self.force_unconstrained, true);
+                        let expr = self.expr(*id)?;
+                        self.force_unconstrained = old_force_unconstrained;
+                        expr
+                    }
+                    _ => self.expr(*id)?,
+                };
+                arguments.push(expr);
             }
         } else {
             for id in &call.arguments {
@@ -1910,6 +1949,11 @@ impl<'interner> Monomorphizer<'interner> {
 
         let return_type = self.interner.id_type(id);
         let location = self.interner.expr_location(&id);
+
+        if crossing_runtime_boundaries {
+            self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
+        }
+
         let return_type = Self::convert_type(&return_type, location)?;
 
         let location = call.location;
@@ -1980,6 +2024,49 @@ impl<'interner> Monomorphizer<'interner> {
         } else {
             Ok(call)
         }
+    }
+
+    fn check_arguments_crossing_runtime_boundaries(
+        &mut self,
+        call: &HirCallExpression,
+    ) -> Result<(), MonomorphizationError> {
+        for argument in &call.arguments {
+            let typ = self.interner.id_type(argument);
+            if typ.contains_reference() {
+                let typ = typ.to_string();
+                let location = self.interner.id_location(argument);
+                return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                    typ,
+                    location,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_return_type_crossing_runtime_boundaries(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if return_type.contains_slice() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::UnconstrainedSliceReturnToConstrained {
+                typ,
+                location,
+            });
+        }
+
+        if return_type.contains_reference() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                typ,
+                location,
+            });
+        }
+
+        Ok(())
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
@@ -2214,14 +2301,18 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         // Function values are represented as a tuple of (constrained version, unconstrained version)
-        self.monomorphize_constrained_and_unconstrained(false, |this: &mut Self| {
-            if lambda.captures.is_empty() {
-                this.lambda_no_capture(lambda, expr)
-            } else {
-                let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
-                Ok(ast::Expression::Block(vec![setup, closure_variable]))
-            }
-        })
+        self.monomorphize_constrained_and_unconstrained(
+            false,
+            self.force_unconstrained || lambda.unconstrained,
+            |this: &mut Self| {
+                if lambda.captures.is_empty() {
+                    this.lambda_no_capture(lambda, expr)
+                } else {
+                    let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
+                    Ok(ast::Expression::Block(vec![setup, closure_variable]))
+                }
+            },
+        )
     }
 
     fn lambda_no_capture(
@@ -2719,6 +2810,16 @@ impl<'interner> Monomorphizer<'interner> {
             }
             tuple => Ok(ast::Expression::ExtractTupleField(Box::new(tuple), index)),
         }
+    }
+
+    fn function_is_unconstrained(&self, function: ExprId) -> bool {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
+            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+                return self.interner.function_modifiers(&func_id).is_unconstrained;
+            }
+        }
+
+        false
     }
 }
 

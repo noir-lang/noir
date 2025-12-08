@@ -926,9 +926,10 @@ impl<'f> Validator<'f> {
         }
     }
 
-    /// Check that we are not trying to pass references from constrained to unconstrained code.
-    ///
-    /// See the discussion in [#10262](https://github.com/noir-lang/noir/pull/10264) about the difficulty of catching this in the frontend.
+    /// Check the inputs and outputs of function calls going from ACIR to Brillig:
+    /// * cannot pass references from constrained to unconstrained code
+    /// * cannot return functions
+    /// * cannot call oracles directly
     fn check_calls_in_constrained(&self, instruction: InstructionId) {
         if !self.function.runtime().is_acir() {
             return;
@@ -936,10 +937,18 @@ impl<'f> Validator<'f> {
         let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
             return;
         };
-        let Value::Function(func_id) = &self.function.dfg[*func] else {
-            return;
+        let callee_id = match &self.function.dfg[*func] {
+            Value::Function(func_id) => func_id,
+            Value::ForeignFunction(oracle) => {
+                panic!(
+                    "Trying to call foreign function '{oracle}' from ACIR function '{} {}'",
+                    self.function.name(),
+                    self.function.id()
+                );
+            }
+            _ => return,
         };
-        let called_function = &self.ssa.functions[func_id];
+        let called_function = &self.ssa.functions[callee_id];
         if called_function.runtime().is_acir() {
             return;
         }
@@ -949,6 +958,18 @@ impl<'f> Validator<'f> {
                 // If we don't panic here, we would have a different, more obscure panic later on.
                 panic!(
                     "Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}",
+                    self.function.name(),
+                    self.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
+            }
+        }
+        for result_id in self.function.dfg.instruction_results(instruction) {
+            let typ = self.function.dfg.type_of_value(*result_id);
+            if typ.contains_function() {
+                panic!(
+                    "Trying to return a function value to ACIR function '{} {}' from unconstrained '{} {}' in {result_id}: {typ}",
                     self.function.name(),
                     self.function.id(),
                     called_function.name(),
@@ -1711,6 +1732,21 @@ mod tests {
 
     #[test]
     #[should_panic(
+        expected = "Trying to call foreign function 'oracle_call' from ACIR function 'main f0'"
+    )]
+    fn disallows_calling_an_oracle_from_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call oracle_call()
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
         expected = "Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &mut u32"
     )]
     fn disallows_passing_refs_from_acir_to_brillig() {
@@ -1725,6 +1761,34 @@ mod tests {
         brillig(inline) fn foo f1 {
           b0(v0: &mut u32):
             return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to return a function value to ACIR function 'main f0' from unconstrained 'foo f1' in v2: function"
+    )]
+    fn disallows_returning_functions_from_brillig_to_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1, v2 = call f1() -> (function, function)
+            v3 = call v1(v0) -> u32
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return f2, f3
+        }
+        acir(inline) fn identity f2 {
+          b0(v0: u32):
+            return v0
+        }
+        brillig(inline) fn identity f3 {
+          b0(v0: u32):
+            return v0
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

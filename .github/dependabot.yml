@@ -27,6 +27,14 @@ updates:
           - "@eslint/**"
           - "@typescript-eslint/**"
           - "prettier"
+      docusaurus:
+        patterns:
+          - "@docusaurus/**"
+          - "docusaurus*"
+      webpack:
+        patterns:
+          - "webpack"
+          - "*-webpack-plugin"
       typedoc:
         patterns:
           - "typedoc*"

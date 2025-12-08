@@ -471,6 +471,7 @@ pub struct Lambda {
     pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
     pub return_type: Option<UnresolvedType>,
     pub body: Expression,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -812,15 +813,16 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let unconstrained = if self.unconstrained { "unconstrained " } else { "" };
         let parameters = vecmap(&self.parameters, |(name, r#type)| {
             if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
         });
 
         let parameters = parameters.join(", ");
         if let Some(return_type) = &self.return_type {
-            write!(f, "|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+            write!(f, "{unconstrained}|{}| -> {} {{ {} }}", parameters, return_type, self.body)
         } else {
-            write!(f, "|{}| {{ {} }}", parameters, self.body)
+            write!(f, "{unconstrained}|{}| {{ {} }}", parameters, self.body)
         }
     }
 }

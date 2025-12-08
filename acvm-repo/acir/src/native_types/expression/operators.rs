@@ -108,7 +108,7 @@ impl<F: AcirField> Sub<&Expression<F>> for Witness {
     type Output = Expression<F>;
     #[inline]
     fn sub(self, rhs: &Expression<F>) -> Self::Output {
-        rhs - self
+        &Expression::from(self) - rhs
     }
 }
 

@@ -13,7 +13,7 @@ use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::types::NumericType;
+use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
 use serde::{Deserialize, Serialize};
 
 pub type RtResult<T> = Result<T, RuntimeError>;
@@ -240,10 +240,14 @@ impl RuntimeError {
                     call_stack.last().cloned().unwrap_or_else(Location::dummy);
 
                 let mut diagnostic = CustomDiagnostic::simple_error(
-                    message,
+                    format!("SSA validation error: {message}"),
                     String::new(),
                     location,
                 );
+
+                if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
+                    diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                }
 
                 if call_stack.is_empty() {
                     // Clear it otherwise it points to the top of the file.
