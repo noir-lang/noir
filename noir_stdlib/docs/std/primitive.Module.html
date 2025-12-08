@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type Module documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">Module</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -101,40 +107,38 @@
 <p>A compile-time type which represents a module in this source program.</p>
 <p>A <code>Module</code> is passed as the first argument to a macro attribute on top of a module:</p>
 <pre><code>#[attr]
-mod foo {}
+<span class="kw">mod</span> foo {}
 
-comptime fn attr(module: Module) {
-    println(module.name()); // outputs &quot;quote { foo }&quot;
-}
-</code></pre>
+<span class="kw">comptime</span> <span class="kw">fn</span> attr(module: Module) {
+    println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
+}</code></pre>
 <p>It can also be obtained using <a href="../std/primitive.Quoted.html#as_module"><code>Quoted::as_module</code></a>:</p>
-<pre><code>mod foo {}
+<pre><code><span class="kw">mod</span> foo {}
 
-fn main() {
-    comptime {
-        let module = quote { foo }.as_module().unwrap();
-        println(module.name()); // outputs &quot;quote { foo }&quot;
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> module = <span class="kw">quote</span> { foo }.as_module().unwrap();
+        println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
     }
-}
-</code></pre></div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 
-<div class="padded-methods"><code id="add_item" class="code-header">pub comptime fn <span class="fn">add_item</span>(self, item: <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)</code>
+<div class="padded-methods"><code id="add_item" class="code-header">pub comptime fn <a href="#add_item"><span class="fn">add_item</span></a>(self, item: <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)</code>
 
-<code id="has_named_attribute" class="code-header">pub comptime fn <span class="fn">has_named_attribute</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute"><span class="fn">has_named_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_contract" class="code-header">pub comptime fn <span class="fn">is_contract</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="is_contract" class="code-header">pub comptime fn <a href="#is_contract"><span class="fn">is_contract</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="functions" class="code-header">pub comptime fn <span class="fn">functions</span>(self) -> [<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>]</code>
+<code id="functions" class="code-header">pub comptime fn <a href="#functions"><span class="fn">functions</span></a>(self) -> [<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>]</code>
 
-<code id="structs" class="code-header">pub comptime fn <span class="fn">structs</span>(self) -> [<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>]</code>
+<code id="structs" class="code-header">pub comptime fn <a href="#structs"><span class="fn">structs</span></a>(self) -> [<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>]</code>
 
-<code id="child_modules" class="code-header">pub comptime fn <span class="fn">child_modules</span>(self) -> [Self]</code>
+<code id="child_modules" class="code-header">pub comptime fn <a href="#child_modules"><span class="fn">child_modules</span></a>(self) -> [Self]</code>
 
-<code id="name" class="code-header">pub comptime fn <span class="fn">name</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="name" class="code-header">pub comptime fn <a href="#name"><span class="fn">name</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
-<code id="parent" class="code-header">pub comptime fn <span class="fn">parent</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+<code id="parent" class="code-header">pub comptime fn <a href="#parent"><span class="fn">parent</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 </div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-Module"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
@@ -148,5 +152,6 @@ fn main() {
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>

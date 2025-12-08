@@ -5,9 +5,10 @@ use std::collections::BTreeMap;
 use noirc_errors::Location;
 use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
 
-pub trait HasNameAndComments {
+pub trait ItemProperties {
     fn name(&self) -> String;
     fn comments(&self) -> Option<&Comments>;
+    fn is_deprecated(&self) -> bool;
 }
 
 /// Uniquely identifies an item.
@@ -112,13 +113,17 @@ pub struct Crate {
     pub root_file: String,
 }
 
-impl HasNameAndComments for Crate {
+impl ItemProperties for Crate {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.root_module.comments()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        self.root_module.is_deprecated()
     }
 }
 
@@ -165,13 +170,17 @@ impl Module {
     }
 }
 
-impl HasNameAndComments for Module {
+impl ItemProperties for Module {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
@@ -189,13 +198,17 @@ pub struct Struct {
     pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for Struct {
+impl ItemProperties for Struct {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
@@ -206,13 +219,17 @@ pub struct StructField {
     pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for StructField {
+impl ItemProperties for StructField {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
@@ -244,13 +261,17 @@ pub struct Global {
     pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for Global {
+impl ItemProperties for Global {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
@@ -265,15 +286,20 @@ pub struct Function {
     pub return_type: Type,
     pub where_clause: Vec<TraitConstraint>,
     pub comments: Option<Comments>,
+    pub deprecated: Option<Option<String>>,
 }
 
-impl HasNameAndComments for Function {
+impl ItemProperties for Function {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        self.deprecated.is_some()
     }
 }
 
@@ -311,13 +337,17 @@ pub struct AssociatedConstant {
     pub r#type: Type,
 }
 
-impl HasNameAndComments for Trait {
+impl ItemProperties for Trait {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
@@ -330,13 +360,17 @@ pub struct TypeAlias {
     pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for TypeAlias {
+impl ItemProperties for TypeAlias {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
@@ -422,13 +456,17 @@ pub struct PrimitiveType {
     pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for PrimitiveType {
+impl ItemProperties for PrimitiveType {
     fn name(&self) -> String {
         self.kind.to_string()
     }
 
     fn comments(&self) -> Option<&Comments> {
         self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 

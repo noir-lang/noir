@@ -58,6 +58,17 @@ pub(super) fn markdown_summary(markdown: &str) -> String {
     string.to_string()
 }
 
+pub(super) fn to_html(markdown: &str) -> String {
+    let parse = markdown::ParseOptions::default();
+    let compile = markdown::CompileOptions {
+        // This just means that HTML isn't escaped. Rustdoc works the same way.
+        allow_dangerous_html: true,
+        ..markdown::CompileOptions::default()
+    };
+    let options = markdown::Options { parse, compile };
+    markdown::to_html_with_options(markdown, &options).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

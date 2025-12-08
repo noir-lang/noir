@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 8c756b32612f9c79e8e1f760f1febb195c49c219
+define: &AZ_COMMIT 11d814019e009a34bfaeeb77291469e0acdf3fa7
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -95,7 +95,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
-    timeout: 330
+    timeout: 340
     critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages

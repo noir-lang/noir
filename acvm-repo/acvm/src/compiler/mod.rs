@@ -28,12 +28,8 @@ use acir::{
 pub use optimizers::optimize;
 mod optimizers;
 mod simulator;
-mod transformers;
 
-use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
-use transformers::transform_internal;
-pub use transformers::{MIN_EXPRESSION_WIDTH, transform};
 
 /// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
@@ -138,27 +134,10 @@ fn transform_assert_messages<F: Clone>(
 /// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
-    expression_width: ExpressionWidth,
+    _expression_width: ExpressionWidth,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
-    let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
-
-    let (acir, acir_opcode_positions) =
-        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
-
-    let max_transformer_passes_or_default = None;
-    let (mut acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
-        acir,
-        expression_width,
-        acir_opcode_positions,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    );
-
-    let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
-
-    (acir, transformation_map)
+    optimize(acir, brillig_side_effects)
 }
 
 #[macro_export]

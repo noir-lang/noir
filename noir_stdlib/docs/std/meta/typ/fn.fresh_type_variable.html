@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../../styles.css">
+<script defer src="../../../nargo_doc.js"></script>
 <title>Function fresh_type_variable documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">fresh_type_variable</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
@@ -34,38 +40,38 @@ such as <a href="../../../std/primitive.Type.html#implements"><code>Type::implem
 <p>Note that calling <a href="../../../std/primitive.Type.html#implements"><code>Type::implements</code></a> or <a href="../../../std/primitive.Type.html#get_trait_impl"><code>Type::get_trait_impl</code></a> on a type variable will always
 fail.</p>
 <p>Example:</p>
-<pre><code class="language-noir">trait Serialize&lt;let N: u32&gt; {}
+<pre><code><span class="kw">trait</span> Serialize&lt;<span class="kw">let</span> N: u32&gt; {}
 
-impl Serialize&lt;1&gt; for Field {}
+<span class="kw">impl</span> Serialize&lt;<span class="number">1</span>&gt; <span class="kw">for</span> Field {}
 
-impl&lt;T, let N: u32, let M: u32&gt; Serialize&lt;N * M&gt; for [T; N]
-    where T: Serialize&lt;M&gt; {}
+<span class="kw">impl</span>&lt;T, <span class="kw">let</span> N: u32, <span class="kw">let</span> M: u32&gt; Serialize&lt;N * M&gt; <span class="kw">for</span> [T; N]
+    <span class="kw">where</span> T: Serialize&lt;M&gt; {}
 
-impl&lt;T, U, let N: u32, let M: u32&gt; Serialize&lt;N + M&gt; for (T, U)
-    where T: Serialize&lt;N&gt;, U: Serialize&lt;M&gt; {}
+<span class="kw">impl</span>&lt;T, U, <span class="kw">let</span> N: u32, <span class="kw">let</span> M: u32&gt; Serialize&lt;N + M&gt; <span class="kw">for</span> (T, U)
+    <span class="kw">where</span> T: Serialize&lt;N&gt;, U: Serialize&lt;M&gt; {}
 
-fn fresh_variable_example() {
-    let typevar1 = std::meta::typ::fresh_type_variable();
-    let constraint = quote { Serialize&lt;$typevar1&gt; }.as_trait_constraint();
-    let field_type = quote { Field }.as_type();
+<span class="kw">fn</span> fresh_variable_example() {
+    <span class="kw">let</span> typevar1 = std::meta::typ::fresh_type_variable();
+    <span class="kw">let</span> constraint = <span class="kw">quote</span> { Serialize&lt;$typevar1&gt; }.as_trait_constraint();
+    <span class="kw">let</span> field_type = <span class="kw">quote</span> { Field }.as_type();
 
-    // Search for a trait impl (binding typevar1 to 1 when the impl is found):
-    assert(field_type.implements(constraint));
+    <span class="comment">// Search for a trait impl (binding typevar1 to 1 when the impl is found):</span>
+    <span class="kw">assert</span>(field_type.implements(constraint));
 
-    // typevar1 should be bound to the &quot;1&quot; generic now:
-    assert_eq(typevar1.as_constant().unwrap(), 1);
+    <span class="comment">// typevar1 should be bound to the "1" generic now:</span>
+    <span class="kw">assert_eq</span>(typevar1.as_constant().unwrap(), <span class="number">1</span>);
 
-    // If we want to do the same with a different type, we need to
-    // create a new type variable now that `typevar1` is bound
-    let typevar2 = std::meta::typ::fresh_type_variable();
-    let constraint = quote { Serialize&lt;$typevar2&gt; }.as_trait_constraint();
-    let array_type = quote { [(Field, Field); 5] }.as_type();
-    assert(array_type.implements(constraint));
+    <span class="comment">// If we want to do the same with a different type, we need to</span>
+    <span class="comment">// create a new type variable now that `typevar1` is bound</span>
+    <span class="kw">let</span> typevar2 = std::meta::typ::fresh_type_variable();
+    <span class="kw">let</span> constraint = <span class="kw">quote</span> { Serialize&lt;$typevar2&gt; }.as_trait_constraint();
+    <span class="kw">let</span> array_type = <span class="kw">quote</span> { [(Field, Field); <span class="number">5</span>] }.as_type();
+    <span class="kw">assert</span>(array_type.implements(constraint));
 
-    // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
-    assert_eq(typevar2.as_constant().unwrap(), 10);
-}
-</code></pre></div>
+    <span class="comment">// Now typevar2 should be bound to the serialized pair size 2 times the array length 5</span>
+    <span class="kw">assert_eq</span>(typevar2.as_constant().unwrap(), <span class="number">10</span>);
+}</code></pre></div>
 </main>
+</span>
 </body>
 </html>

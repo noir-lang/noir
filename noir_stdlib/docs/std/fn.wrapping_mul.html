@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Function wrapping_mul documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">wrapping_mul</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -85,6 +91,11 @@
     T: <a href="../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../std/primitive.Field.html" class="primitive">Field</a>&gt;,
     <a href="../std/primitive.Field.html" class="primitive">Field</a>: <a href="../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;T&gt;</div></code></pre>
 
+<div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)
+</div>
 </main>
+</span>
 </body>
 </html>

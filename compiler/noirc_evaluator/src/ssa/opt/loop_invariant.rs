@@ -2068,11 +2068,11 @@ mod test {
     #[test_case("u32", 0, 10, 10, true, "eq", 5, true, "eq is safe")]
     #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
     #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
-    #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 1, true, "loop empty, shr ok")]
     #[test_case("u32", 5, 10, 10, true, "shr", 32, true, "shr overflow, and loop executes")]
     #[test_case("u32", 5, 10, 0, true, "shr", 32, false, "shr overflow, but loop empty")]
     #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
-    #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 1, true, "loop empty, shl ok")]
     #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
     #[test_case("u32", 5, 10, 0, true, "shl", 32, false, "shl overflow, but loop empty")]
     #[test_case("i32", -10, 10, 10, false, "div", 100, true, "div by zero (mid), and loop executes")]
@@ -2156,13 +2156,13 @@ mod test {
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
         let call_target = match test_call {
             TestCall::Function(_) => "f1".to_string(),
-            TestCall::ForeignFunction => "print".to_string(), // The ony foreign function the SSA parser allows.
+            TestCall::ForeignFunction => "print".to_string(),
             TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
         };
 
         let src = format!(
             r#"
-        acir(inline) fn main f0 {{
+        brillig(inline) fn main f0 {{
           b0(v0: [u64; 25]):
             jmp b1(u32 0)
           b1(v1: u32):
@@ -2176,7 +2176,7 @@ mod test {
             return
         }}
 
-        acir(inline) {dummy_purity} fn dummy f1 {{
+        brillig(inline) {dummy_purity} fn dummy f1 {{
           b0(v0: [u64; 25]):
             return v0
         }}

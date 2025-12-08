@@ -906,16 +906,75 @@ impl<'f> Validator<'f> {
         (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
     }
 
-    /// Validates that acir functions are not called from unconstrained code.
+    /// Validates that ACIR functions are not called from unconstrained code.
     fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
         if self.function.runtime().is_brillig() {
             if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
                 if let Value::Function(func_id) = &self.function.dfg[*func] {
                     let called_function = &self.ssa.functions[func_id];
                     if called_function.runtime().is_acir() {
-                        panic!("Call to acir function {} from unconstrained code", func_id);
+                        panic!(
+                            "Call to ACIR function '{} {}' from unconstrained '{} {}'",
+                            called_function.name(),
+                            called_function.id(),
+                            self.function.name(),
+                            self.function.id(),
+                        );
                     }
                 }
+            }
+        }
+    }
+
+    /// Check the inputs and outputs of function calls going from ACIR to Brillig:
+    /// * cannot pass references from constrained to unconstrained code
+    /// * cannot return functions
+    /// * cannot call oracles directly
+    fn check_calls_in_constrained(&self, instruction: InstructionId) {
+        if !self.function.runtime().is_acir() {
+            return;
+        }
+        let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
+            return;
+        };
+        let callee_id = match &self.function.dfg[*func] {
+            Value::Function(func_id) => func_id,
+            Value::ForeignFunction(oracle) => {
+                panic!(
+                    "Trying to call foreign function '{oracle}' from ACIR function '{} {}'",
+                    self.function.name(),
+                    self.function.id()
+                );
+            }
+            _ => return,
+        };
+        let called_function = &self.ssa.functions[callee_id];
+        if called_function.runtime().is_acir() {
+            return;
+        }
+        for arg_id in arguments {
+            let typ = self.function.dfg.type_of_value(*arg_id);
+            if typ.contains_reference() {
+                // If we don't panic here, we would have a different, more obscure panic later on.
+                panic!(
+                    "Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}",
+                    self.function.name(),
+                    self.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
+            }
+        }
+        for result_id in self.function.dfg.instruction_results(instruction) {
+            let typ = self.function.dfg.type_of_value(*result_id);
+            if typ.contains_function() {
+                panic!(
+                    "Trying to return a function value to ACIR function '{} {}' from unconstrained '{} {}' in {result_id}: {typ}",
+                    self.function.name(),
+                    self.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
             }
         }
     }
@@ -958,8 +1017,16 @@ impl<'f> Validator<'f> {
             TerminatorInstruction::Jmp { destination, .. } => {
                 assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
             }
-
-            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => (),
+            TerminatorInstruction::Return { return_values, .. } => {
+                if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
+                    assert_eq!(
+                        *return_values,
+                        vec![return_data_id],
+                        "Databus return_data does not match return terminator"
+                    );
+                }
+            }
+            TerminatorInstruction::Unreachable { .. } => (),
         }
     }
 
@@ -972,6 +1039,7 @@ impl<'f> Validator<'f> {
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
+                self.check_calls_in_constrained(*instruction);
             }
             self.validate_block_terminator(block);
         }
@@ -1644,7 +1712,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Call to acir function f1 from unconstrained code")]
+    #[should_panic(expected = "Call to ACIR function 'foo f1' from unconstrained 'main f0'")]
     fn disallows_calling_acir_from_brillig() {
         let src = "
         brillig(inline) fn main f0 {
@@ -1657,6 +1725,70 @@ mod tests {
             v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
             v5 = array_get v4, index v0 -> Field
             return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to call foreign function 'oracle_call' from ACIR function 'main f0'"
+    )]
+    fn disallows_calling_an_oracle_from_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call oracle_call()
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &mut u32"
+    )]
+    fn disallows_passing_refs_from_acir_to_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to return a function value to ACIR function 'main f0' from unconstrained 'foo f1' in v2: function"
+    )]
+    fn disallows_returning_functions_from_brillig_to_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1, v2 = call f1() -> (function, function)
+            v3 = call v1(v0) -> u32
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return f2, f3
+        }
+        acir(inline) fn identity f2 {
+          b0(v0: u32):
+            return v0
+        }
+        brillig(inline) fn identity f3 {
+          b0(v0: u32):
+            return v0
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
@@ -1749,6 +1881,50 @@ mod tests {
             v2 = array_get v0, index v1 -> u32
             return v2
         }";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn return_data_matches_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Databus return_data does not match return terminator")]
+    fn return_data_does_not_match_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v0, v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_return_data_does_with_unreachable_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v4 = make_array [Field 0, Field 0] : [Field; 2]
+            unreachable
+        }
+        ";
         let _ = Ssa::from_str(src).unwrap();
     }
 

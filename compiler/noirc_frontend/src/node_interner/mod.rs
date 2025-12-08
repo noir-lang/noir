@@ -1026,7 +1026,7 @@ impl NodeInterner {
             .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
-    /// Looks up a methods that apply to the given type but are defined in traits.
+    /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,

@@ -18,17 +18,34 @@
     --comment-color: light-dark(#8e908c, #8d8d8b);
     --target-color: light-dark(#fdffd3, #494a3d);
     --target-highlight-color: light-dark(#9b7b14, #ad7c37);
+    --deprecated-color: light-dark(#fff5d6, #314559);
+    --kw-color: light-dark(#8959a8, #ab8ac1);
+    --bool-var-color: light-dark(#c82829, #ee6868);
+    --number-color: light-dark(#718c00, #83a300);
+    --string-color: light-dark(#718c00, #83a300);
+    --doccomment-color: light-dark(#4d4d4c, #8ca375);
+    --interpolation-color: light-dark(#119850, #bcca7d);
+
+    --sidebar-toggle-height: 82px;
 }
 
 body {
     font-family: "Fira Sans", Arial, NanumBarunGothic, sans-serif;
     font-weight: 500;
+    font-size: 1rem;
     margin: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
     color: var(--main-color);
     background-color: var(--main-background-color);
+}
+
+#main-contents {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    flex-grow: 1;
 }
 
 main {
@@ -84,7 +101,7 @@ h1, h2, h3, h4 {
 }
 
 h2 {
-    font-size: 1.375rem;
+    font-size: 1.375em;
     border-bottom: 1px solid var(--header-border-color);
 }
 
@@ -108,7 +125,7 @@ ul.item-list, ul.sidebar-list {
 .item-list>li>.item-name {
     width: 33%;
     display: table-cell;
-    padding-right: 1.25rem;
+    padding-right: 1.25em;
 }
 
 .item-list>li>.item-description {
@@ -171,14 +188,12 @@ ul.item-list, ul.sidebar-list {
 .sidebar {
     scrollbar-width: thin;
     background-color: var(--sidebar-color);
-    font-size: 0.875rem;
     overflow-y: scroll;
     overscroll-behavior: contain;
     position: sticky;
     height: 100vh;
     top: 0;
     left: 0;
-    width: 306px;
     padding: 16px 15px 10px 24px;
 }
 
@@ -219,6 +234,117 @@ ul.item-list, ul.sidebar-list {
 }
 
 .where-clause {
-    font-size: 0.875rem;
+    font-size: 0.875em;
     white-space: pre-wrap;
+}
+
+.deprecated {
+    background-color: var(--deprecated-color);
+    padding: 3px;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    width: fit-content;
+    font-family: "Source Serif 4", NanumBarunGothic, serif;
+}
+
+.emoji {
+    text-shadow:  0 0 black,-1px 0 0 black,0 1px 0 black,0 -1px 0 black;
+    margin-right: 0.3em;
+}
+
+.kw { 
+    color: var(--kw-color);
+}
+
+.bool-var { 
+    color: var(--bool-var-color);
+}
+
+.number { 
+    color: var(--number-color);
+}
+
+.string { 
+    color: var(--string-color);
+}
+
+.doccomment { 
+    color: var(--doccomment-color);
+}
+
+.interpolation { 
+    color: var(--interpolation-color);
+}
+
+#sidebar-toggle {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+    width: 100%;
+    background-color: var(--sidebar-color);
+    height: var(--sidebar-toggle-height);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#sidebar-toggle button {
+    background-color: var(--sidebar-color);
+    border: none;
+    width: 80px;
+    height: 80px;
+    padding: 1px 6px;
+}
+
+#sidebar-toggle-title {
+    flex-grow: 1;
+    text-align: center;
+    align-self: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    overflow-x: hidden;
+}
+
+/* mobile */
+@media (max-width: 1199px) {
+  body {
+    font-size: 2rem;
+  }
+
+  .sidebar {
+    display: none;
+    width: 100%;
+  }
+
+  :target {
+    scroll-margin-top: var(--sidebar-toggle-height);
+  }
+}
+
+/* desktop */
+@media (min-width: 1200px) {
+  body {
+    font-size: 1rem;
+  }
+
+  .sidebar {
+      font-size: 0.875em;
+      width: 306px;
+  }
+
+  #sidebar-toggle {
+    display: none;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+    #sidebar-toggle button::before {
+        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="black"> <path d="M3,5h16M3,11h16M3,17h16" stroke-width="2.75"/></svg>');
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    #sidebar-toggle button::before {
+        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="white"> <path d="M3,5h16M3,11h16M3,17h16" stroke-width="2.75"/></svg>');
+    }
 }

@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type fmtstr documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">fmtstr</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -89,28 +95,27 @@
 <div class="comments">
 <p>A formatted string with interpolated values.</p>
 <h2>Example</h2>
-<pre><code>fn main() {
-  let x = 1;
-  let y = 2;
-  let sum = 3;
-  let f = f&quot;{x} + {y} is {sum}&quot;; // prints &quot;0x01 + 0x02 is 0x03&quot;
+<pre><code><span class="kw">fn</span> main() {
+  <span class="kw">let</span> x = <span class="number">1</span>;
+  <span class="kw">let</span> y = <span class="number">2</span>;
+  <span class="kw">let</span> sum = <span class="number">3</span>;
+  <span class="kw">let</span> f = <span class="string">f"</span><span class="interpolation">{x}</span><span class="string"> + </span><span class="interpolation">{y}</span><span class="string"> is </span><span class="interpolation">{sum}</span><span class="string">"</span>; <span class="comment">// prints "0x01 + 0x02 is 0x03"</span>
   println(f);
-}
-</code></pre>
-</div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;</code></h3>
 
-<div class="padded-methods"><code id="quoted_contents" class="code-header">pub comptime fn <span class="fn">quoted_contents</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<div class="padded-methods"><code id="quoted_contents" class="code-header">pub comptime fn <a href="#quoted_contents"><span class="fn">quoted_contents</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the format string contents (that is, without the leading and trailing double quotes) as a <code>Quoted</code> value.</p>
 </div>
-</div><code id="as_quoted_str" class="code-header">pub comptime fn <span class="fn">as_quoted_str</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+</div><code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str"><span class="fn">as_quoted_str</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the format string contents (with the leading and trailing double quotes) as a <code>Quoted</code> string literal (not a format string literal).</p>
 </div>
 </div></div></main>
+</span>
 </body>
 </html>

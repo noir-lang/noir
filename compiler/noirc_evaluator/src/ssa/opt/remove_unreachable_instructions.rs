@@ -4,7 +4,7 @@
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
 //!
-//! This pass might also add constrain checks after existing instructions,
+//! This pass might also replace existing instructions with constrain checks,
 //! for example binary operations that are guaranteed to overflow.
 //!
 //! ## Handling of `constrain`
@@ -388,9 +388,11 @@ impl Function {
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
-            if current_block_reachability == Reachability::UnreachableUnderPredicate
-                && !is_predicate_constant_one
-            {
+            if current_block_reachability == Reachability::UnreachableUnderPredicate {
+                assert!(
+                    !is_predicate_constant_one,
+                    "predicate cannot be constant one in UnreachableUnderPredicate"
+                );
                 unreachable_predicates.insert(context.enable_side_effects);
             }
         });

@@ -5,7 +5,6 @@ use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
-use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -64,12 +63,6 @@ pub struct CompileOptions {
     #[arg(long, value_parser = parse_expression_width)]
     pub expression_width: Option<ExpressionWidth>,
 
-    /// Generate ACIR with the target backend expression width.
-    /// The default is to generate ACIR without a bound and split expressions after code generation.
-    /// Activating this flag can sometimes provide optimizations for certain programs.
-    #[arg(long, default_value = "false")]
-    pub bounded_codegen: bool,
-
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -109,10 +102,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub minimal_ssa: bool,
 
+    /// Display debug prints during Brillig generation.
     #[arg(long, hide = true)]
     pub show_brillig: bool,
 
-    /// Display the ACIR for compiled circuit
+    /// Display Brillig opcodes with advisories, if any.
+    #[arg(long, hide = true)]
+    pub show_brillig_opcode_advisories: bool,
+
+    /// Display the ACIR for compiled circuit, including the Brillig bytecode.
     #[arg(long)]
     pub print_acir: bool,
 
@@ -236,7 +234,6 @@ impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             expression_width: None,
-            bounded_codegen: false,
             force_compile: false,
             show_ssa: false,
             show_ssa_pass: Vec::new(),
@@ -246,6 +243,7 @@ impl Default for CompileOptions {
             emit_ssa: false,
             minimal_ssa: false,
             show_brillig: false,
+            show_brillig_opcode_advisories: false,
             print_acir: false,
             benchmark_codegen: false,
             deny_warnings: false,
@@ -287,14 +285,10 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
-                ..Default::default()
+                show_opcode_advisories: self.show_brillig_opcode_advisories,
+                layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
-            expression_width: if self.bounded_codegen {
-                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-            } else {
-                ExpressionWidth::default()
-            },
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
             enable_brillig_constraints_check_lookback: self
@@ -318,11 +312,8 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 
     match width {
         0 => Ok(ExpressionWidth::Unbounded),
-        w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
-            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
-        )),
+        w if w >= 3 => Ok(ExpressionWidth::Bounded { width }),
+        _ => Err(Error::new(ErrorKind::InvalidInput, "has to be 0 or at least 3".to_string())),
     }
 }
 
@@ -548,7 +539,7 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        noirc_errors::println_to_stdout!("Compiled ACIR for main (non-transformed):");
+        noirc_errors::println_to_stdout!("Compiled ACIR for main:");
         noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 

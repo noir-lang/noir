@@ -627,8 +627,14 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         Noop => CanBeDeduplicated::Always,
 
         // These instructions can always be deduplicated
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => CanBeDeduplicated::Always,
-
+        Cast(_, _) | Not(_) | Truncate { .. } => CanBeDeduplicated::Always,
+        IfElse { then_value, .. } => {
+            if dfg.type_of_value(*then_value).is_array() && dfg.runtime().is_brillig() {
+                CanBeDeduplicated::Never
+            } else {
+                CanBeDeduplicated::Always
+            }
+        }
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
         // deduplicating. Since we don't know if the containing pass checks for this, we

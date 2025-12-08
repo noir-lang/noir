@@ -52,7 +52,7 @@ pub struct BrilligArtifact<F> {
     /// resolved.
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
     /// A map of labels to their position in byte code.
-    labels: HashMap<Label, OpcodeLocation>,
+    pub(crate) labels: HashMap<Label, OpcodeLocation>,
     /// Set of labels which are external to the bytecode.
     ///
     /// This will most commonly contain the labels of functions
