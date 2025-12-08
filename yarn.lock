@@ -6842,16 +6842,43 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-ethers@npm:^3.0.8":
-  version: 3.1.2
-  resolution: "@nomicfoundation/hardhat-ethers@npm:3.1.2"
+"@nomicfoundation/hardhat-errors@npm:^3.0.2":
+  version: 3.0.6
+  resolution: "@nomicfoundation/hardhat-errors@npm:3.0.6"
   dependencies:
-    debug: "npm:^4.1.1"
-    lodash.isequal: "npm:^4.5.0"
+    "@nomicfoundation/hardhat-utils": "npm:^3.0.1"
+  checksum: 10/06ba2efcc6b44da905c325e631cf0518e9a71ebad5c4b248b4e47a64d5098f5f75696dafedcb86ead734f6028c2ed66a1dd28db81c76698913b48ee60287c92a
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/hardhat-ethers@npm:^4.0.3":
+  version: 4.0.3
+  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.3"
+  dependencies:
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.2"
+    "@nomicfoundation/hardhat-utils": "npm:^3.0.5"
+    debug: "npm:^4.3.2"
+    ethereum-cryptography: "npm:^2.2.1"
+    ethers: "npm:^6.14.0"
   peerDependencies:
-    ethers: ^6.14.0
-    hardhat: ^2.26.0
-  checksum: 10/5b1120b27e3ac61d6aad5eab25ea0491d8ab80a1b5e2f1ee83d3377a8af881d64b1c216f3ead554ab4de172106fc3d9d280c08624272bd6bfb81ea789e9220b5
+    hardhat: ^3.0.7
+  checksum: 10/96bb5613d3c35cef9a05a2fbc31e77d0f512c9ba784f9454f4d4d5e86f23bd55ea2ec43de16f68dbe791998e38d799f30f67fdc790d52cc7cc50d3a9362dfcf6
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/hardhat-utils@npm:^3.0.1, @nomicfoundation/hardhat-utils@npm:^3.0.5":
+  version: 3.0.5
+  resolution: "@nomicfoundation/hardhat-utils@npm:3.0.5"
+  dependencies:
+    "@streamparser/json-node": "npm:^0.0.22"
+    debug: "npm:^4.3.2"
+    env-paths: "npm:^2.2.0"
+    ethereum-cryptography: "npm:^2.2.1"
+    fast-equals: "npm:^5.0.1"
+    json-stream-stringify: "npm:^3.1.6"
+    rfdc: "npm:^1.3.1"
+    undici: "npm:^6.16.1"
+  checksum: 10/f9abafa2daad6f258cb10b33fd3f53d903686dfb239feef109b447f242ee19221c043955d9377be2fe0af741c99b0fd700a7e6bf1b26f24431debe60d42b1e95
   languageName: node
   linkType: hard
 
@@ -8895,6 +8922,22 @@ __metadata:
   peerDependencies:
     react: ^16.6.3 || ^17.0.0 || ^18.0.0 || ^19.0.0
   checksum: 10/2b984484ad3fe5d07dc8b32c57854249281da749336aa22b3420aa97ca33921635d0ae9cc01e16f2c8e708ca56c128c28c03be91834db8643eb0b0696a00015b
+  languageName: node
+  linkType: hard
+
+"@streamparser/json-node@npm:^0.0.22":
+  version: 0.0.22
+  resolution: "@streamparser/json-node@npm:0.0.22"
+  dependencies:
+    "@streamparser/json": "npm:^0.0.22"
+  checksum: 10/3ec9bbedb4d7a8e832070a66c6871e92d1d0b2c956470cb08594c9a7fc240b6155658bbb0f02356031248382afdd42880269d3d04bd22c70b255e8b0d580aba5
+  languageName: node
+  linkType: hard
+
+"@streamparser/json@npm:^0.0.22":
+  version: 0.0.22
+  resolution: "@streamparser/json@npm:0.0.22"
+  checksum: 10/46ae2dbb2ff9e932479b9073b8af18e5f2348739581f2fd238ad452047e0d19adc8730a9f0ba77b42ceb30322a192a3e271bf5682269df57024c717e07f6b625
   languageName: node
   linkType: hard
 
@@ -15263,6 +15306,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ethers@npm:^6.14.0":
+  version: 6.16.0
+  resolution: "ethers@npm:6.16.0"
+  dependencies:
+    "@adraffy/ens-normalize": "npm:1.10.1"
+    "@noble/curves": "npm:1.2.0"
+    "@noble/hashes": "npm:1.3.2"
+    "@types/node": "npm:22.7.5"
+    aes-js: "npm:4.0.0-beta.5"
+    tslib: "npm:2.7.0"
+    ws: "npm:8.17.1"
+  checksum: 10/7e980f0a77963fbe14321a3b9746c3ca3cad44932e28bb3506406a66c4b4d9dc1e60ed68d9d784224e9f2582a53d6a0a2e55a7c9559659681f4ad1f70e00e325
+  languageName: node
+  linkType: hard
+
 "ethers@npm:^6.14.3":
   version: 6.14.3
   resolution: "ethers@npm:6.14.3"
@@ -17500,7 +17558,7 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": "npm:^2.0.8"
-    "@nomicfoundation/hardhat-ethers": "npm:^3.0.8"
+    "@nomicfoundation/hardhat-ethers": "npm:^4.0.3"
     "@web/dev-server-esbuild": "npm:^1.0.4"
     "@web/dev-server-import-maps": "npm:^0.2.1"
     "@web/test-runner": "npm:^0.20.2"
@@ -18396,7 +18454,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"json-stream-stringify@npm:^3.1.4":
+"json-stream-stringify@npm:^3.1.4, json-stream-stringify@npm:^3.1.6":
   version: 3.1.6
   resolution: "json-stream-stringify@npm:3.1.6"
   checksum: 10/d52919465b4a31d7a0b5720ca0e6268f757fc1515486d5c77cfb75f7a9e4b58e13a73a2f811d6d322b9a101750d3961b48a68ee9d9b299ac3846ef2921a62a81
@@ -18849,13 +18907,6 @@ __metadata:
   version: 4.4.2
   resolution: "lodash.get@npm:4.4.2"
   checksum: 10/2a4925f6e89bc2c010a77a802d1ba357e17ed1ea03c2ddf6a146429f2856a216663e694a6aa3549a318cbbba3fd8b7decb392db457e6ac0b83dc745ed0a17380
-  languageName: node
-  linkType: hard
-
-"lodash.isequal@npm:^4.5.0":
-  version: 4.5.0
-  resolution: "lodash.isequal@npm:4.5.0"
-  checksum: 10/82fc58a83a1555f8df34ca9a2cd300995ff94018ac12cc47c349655f0ae1d4d92ba346db4c19bbfc90510764e0c00ddcc985a358bdcd4b3b965abf8f2a48a214
   languageName: node
   linkType: hard
 
@@ -23966,6 +24017,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"rfdc@npm:^1.3.1":
+  version: 1.4.1
+  resolution: "rfdc@npm:1.4.1"
+  checksum: 10/2f3d11d3d8929b4bfeefc9acb03aae90f971401de0add5ae6c5e38fec14f0405e6a4aad8fdb76344bfdd20c5193110e3750cbbd28ba86d73729d222b6cf4a729
+  languageName: node
+  linkType: hard
+
 "rimraf@npm:^5.0.5":
   version: 5.0.5
   resolution: "rimraf@npm:5.0.5"
@@ -26163,6 +26221,13 @@ __metadata:
   dependencies:
     "@fastify/busboy": "npm:^2.0.0"
   checksum: 10/0ceca8924a32acdcc0cfb8dd2d368c217840970aa3f5e314fc169608474be6341c5b8e50cad7bd257dbe3b4e432bc5d0a0d000f83644b54fa11a48735ec52b93
+  languageName: node
+  linkType: hard
+
+"undici@npm:^6.16.1":
+  version: 6.22.0
+  resolution: "undici@npm:6.22.0"
+  checksum: 10/2398de2b460e05f80f994d8a64fcb603aac8f253f8e7ff737067531c1101e1d74644fe5205894b0f7356ea69602d10d6d98c554fcd8b383ec3cc07a3268ec293
   languageName: node
   linkType: hard
 

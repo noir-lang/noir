@@ -18,7 +18,7 @@
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noir_wasm": "workspace:*",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
-    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@nomicfoundation/hardhat-ethers": "^4.0.3",
     "@web/dev-server-esbuild": "^1.0.4",
     "@web/dev-server-import-maps": "^0.2.1",
     "@web/test-runner": "^0.20.2",
