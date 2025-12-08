@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import {
   exported_function_foo,
   exported_function_baz,
+  exported_function_void,
   MyStruct,
   u64,
   u32,
@@ -115,4 +116,11 @@ it('allows passing a custom foreign call handler', async () => {
 it('codegens a callable argless function', async () => {
   const val: u64 = await exported_function_baz();
   expect(val).to.be.eq('0x01');
+});
+
+it('codegens a void function correctly', async () => {
+  // This should compile without TypeScript errors
+  await exported_function_void('1');
+  // No return value to check - function returns void
+  expect(true).to.be.true; // Just to have an assertion
 });
