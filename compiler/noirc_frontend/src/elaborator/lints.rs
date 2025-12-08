@@ -81,9 +81,8 @@ pub(super) fn no_predicates_on_entry_point(
 ) -> Option<ResolverError> {
     let attribute = modifiers.attributes.function()?;
     (func.is_entry_point && attribute.kind.is_no_predicates()).then(|| {
-        let ident = func_meta_name_ident(func, modifiers);
         ResolverError::NoPredicatesAttributeOnEntryPoint {
-            ident,
+            ident: func_meta_name_ident(func, modifiers),
             location: attribute.location,
         }
     })
