@@ -73,6 +73,26 @@ pub(super) fn inlining_attributes(
     }
 }
 
+/// The `#[no_predicates]` attribute is not allowed on entry point functions
+/// since it's meant to control inlining into the entry point.
+pub(super) fn no_predicates_on_entry_point(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    if func.is_entry_point {
+        let attribute = modifiers.attributes.function()?;
+        if attribute.kind.is_no_predicates() {
+            let ident = func_meta_name_ident(func, modifiers);
+            return Some(ResolverError::NoPredicatesAttributeOnEntryPoint {
+                ident,
+                location: attribute.location,
+            });
+        }
+    }
+
+    None
+}
+
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
     modifiers: &FunctionModifiers,
