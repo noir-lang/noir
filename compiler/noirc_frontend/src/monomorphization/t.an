@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Monomorphizer.process_next_job (&mut self): Bool can Throw MonomorphizationError =
+    Some (next_fn_id, new_id, bindings, trait_method, is_unconstrained, location) =
+        self.queue.pop_front()
+    else
+        return Ok false
+
+    self.locals.clear()
+    self.in_unconstrained_function := is_unconstrained
+
+    perform_instantiation_bindings (ref bindings)
+    interner = ref self.interner
+    impl_bindings = perform_impl_bindings interner trait_method next_fn_id location
+        with map_err MonomorphizationError.InterpreterError
+
+    self.function next_fn_id new_id location
+    undo_instantiation_bindings impl_bindings
+    undo_instantiation_bindings bindings
+
+    Ok(true)
+}

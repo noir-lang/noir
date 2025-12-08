@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: unnecessary pub keyword on return type for function main_oracle
+error: unnecessary pub keyword on return type for function main_inner
   ┌─ src/main.nr:4:4
   │
 4 │ fn main(x: Field) -> pub Field {}

@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 320
+expression: stderr
+---
+error: Definition of low-level function outside of standard library
+  ┌─ src/main.nr:5:1
+  │
+5 │ #[foreign(pedersen_hash)]
+  │ ------------------------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+  │
+
+Aborting due to 1 previous error

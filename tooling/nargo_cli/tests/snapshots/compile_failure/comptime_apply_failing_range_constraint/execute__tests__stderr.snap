@@ -3,13 +3,14 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: 0x0100 has 9 bits which do not fit in 8 bits
-   ┌─ std/field/mod.nr:17:9
-   │
-17 │         __assert_max_bit_size(self, BIT_SIZE);
-   │         ------------------------------------- Assertion failed
-   │
-   = Call stack:
-     1. src/main.nr:3:9
-     2. std/field/mod.nr:17:9
+    ┌─ std/field/mod.nr:237:4
+    │
+237 │ fn __assert_max_bit_size(value: Field, bit_size: u32) {}
+    │    --------------------- Assertion failed
+    │
+    = Call stack:
+      1. src/main.nr:3:9
+      2. std/field/mod.nr:17:9
+      3. std/field/mod.nr:237:4
 
 Aborting due to 1 previous error

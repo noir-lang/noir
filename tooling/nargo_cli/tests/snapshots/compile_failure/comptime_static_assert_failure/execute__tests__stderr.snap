@@ -3,13 +3,14 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: static_assert failed: x != 4
-  ┌─ src/main.nr:4:5
-  │
-4 │     static_assert(x == 4, "x != 4");
-  │     ------------------------------- Assertion failed
-  │
-  = Call stack:
-    1. src/main.nr:10:23
-    2. src/main.nr:4:5
+    ┌─ std/lib.nr:111:8
+    │
+111 │ pub fn static_assert<T>(predicate: bool, message: T) {}
+    │        ------------- Assertion failed
+    │
+    = Call stack:
+      1. src/main.nr:10:23
+      2. src/main.nr:4:5
+      3. std/lib.nr:111:8
 
 Aborting due to 1 previous error

@@ -3,12 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: 
-  ┌─ src/main.nr:4:5
-  │
-4 │     std::static_assert([1, 2, dynamic_one].len() == 4, "");
-  │     ------------------------------------------------------
-  │
-  = Call stack:
-    1. src/main.nr:4:5
+    ┌─ std/lib.nr:111:8
+    │
+111 │ pub fn static_assert<T>(predicate: bool, message: T) {}
+    │        -------------
+    │
+    = Call stack:
+      1. src/main.nr:4:5
+      2. std/lib.nr:111:8
 
 Aborting due to 1 previous error

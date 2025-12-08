@@ -78,8 +78,8 @@ impl Elaborator<'_> {
         function_set: &mut UnresolvedFunctions,
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
-        // Transform oracle functions into wrappers
-        self.transform_oracles_to_wrappers(function_set);
+        // Transform oracle, lowlevel, & builtin functions into wrappers
+        self.make_wrappers_for_special_functions(function_set);
 
         // Define metas for all functions
         for (local_module, id, func) in &mut function_set.functions {
@@ -589,11 +589,11 @@ impl Elaborator<'_> {
         self.current_item = old_item;
     }
 
-    /// Transforms oracle functions into wrapper functions that can be passed by value.
-    /// For each oracle function:
-    /// 1. Renames it to `name_oracle`
-    /// 2. Creates a new wrapper function with the original name that calls the oracle
-    fn transform_oracles_to_wrappers(&mut self, function_set: &mut UnresolvedFunctions) {
+    /// Transforms oracle, lowlevel, & builtin functions into wrapper functions that can be passed by value.
+    /// For each of these functions:
+    /// 1. Rename it to `name_inner`
+    /// 2. Creates a new wrapper function with the original name that calls `name_inner`
+    fn make_wrappers_for_special_functions(&mut self, function_set: &mut UnresolvedFunctions) {
         use crate::ast::{
             BlockExpression, CallExpression, Expression, ExpressionKind, Ident, NoirFunction,
             Pattern, Statement, StatementKind,
@@ -602,20 +602,21 @@ impl Elaborator<'_> {
         let mut wrappers = Vec::new();
 
         for (local_module, func_id, func) in &mut function_set.functions {
-            if func.kind != FunctionKind::Oracle {
+            use FunctionKind::*;
+            if !matches!(func.kind, Oracle | LowLevel | Builtin) || func.def.is_comptime {
                 continue;
             }
 
             let original_name = func.def.name.clone();
-            let oracle_name = format!("{}_oracle", original_name.as_str());
-            let oracle_name_ident = Ident::new(oracle_name.clone(), original_name.location());
+            let new_name = format!("{}_inner", original_name.as_str());
+            let new_name_ident = Ident::new(new_name.clone(), original_name.location());
 
-            // Rename the oracle function in both the AST and interner
-            func.def.name = oracle_name_ident.clone();
+            // Rename the original function in both the AST and interner
+            func.def.name = new_name_ident.clone();
 
             // Update the function name in the interner's modifiers
             let modifiers = self.interner.function_modifiers_mut(func_id);
-            modifiers.name = oracle_name.clone();
+            modifiers.name = new_name.clone();
             modifiers.name_location = original_name.location();
 
             // Update the module's def_map to reflect the rename
@@ -627,7 +628,7 @@ impl Elaborator<'_> {
             // Remove the old name and re-declare with new name
             module_data.remove_function(&original_name);
             let visibility = func.def.visibility;
-            match module_data.declare_function(oracle_name_ident, visibility, *func_id) {
+            match module_data.declare_function(new_name_ident, visibility, *func_id) {
                 Ok(_) => {}
                 Err((first_def, second_def)) => {
                     let error = DefCollectorErrorKind::Duplicate {
@@ -639,10 +640,10 @@ impl Elaborator<'_> {
                 }
             }
 
-            // Create the wrapper function body: oracle_name(param1, param2, ...)
-            let oracle_path = crate::ast::Path::from_single(oracle_name, original_name.location());
-            let oracle_expr = Expression {
-                kind: ExpressionKind::Variable(oracle_path),
+            // Create the wrapper function body: wrapper_name(param1, param2, ...)
+            let wrapper_path = crate::ast::Path::from_single(new_name, original_name.location());
+            let wrapper_expr = Expression {
+                kind: ExpressionKind::Variable(wrapper_path),
                 location: original_name.location(),
             };
 
@@ -669,10 +670,10 @@ impl Elaborator<'_> {
                 })
                 .collect();
 
-            // Create call expression: oracle_name(...)
+            // Create call expression: wrapper_name(...)
             let call_expr = Expression {
                 kind: ExpressionKind::Call(Box::new(CallExpression {
-                    func: Box::new(oracle_expr),
+                    func: Box::new(wrapper_expr),
                     arguments,
                     is_macro_call: false,
                 })),
@@ -724,7 +725,7 @@ impl Elaborator<'_> {
                 }
             }
 
-            let wrapper_func = NoirFunction { kind: FunctionKind::Normal, def: wrapper_def };
+            let wrapper_func = NoirFunction { kind: Normal, def: wrapper_def };
             wrappers.push((*local_module, wrapper_id, wrapper_func));
         }
 
