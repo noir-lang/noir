@@ -193,7 +193,7 @@ fn cannot_return_slice_from_main() {
        ^^^^ Invalid type found in the entry point to a program
        ~~~~ Slice is not a valid entry point type. Found: [Field]
         &[1,2]
-        
+
     }
         "#;
     check_errors(src);
@@ -302,12 +302,58 @@ fn call_type_variable_of_kind_any() {
 }
 
 #[test]
-fn error_on_returning_empty_unit() {
+fn error_on_returning_empty_unit_array() {
     let src = r#"
     fn main() -> pub [(); 0] {
        ^^^^ Invalid type found in the entry point to a program
        ~~~~ Unit is not a valid entry point type
         [(); 0]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_returning_non_empty_unit_array() {
+    let src = r#"
+    fn main() -> pub [(); 1] {
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Unit is not a valid entry point type
+        [()]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_error_on_returning_empty_array() {
+    let src = r#"
+    fn main() -> pub [u32; 0] {
+        []
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_returning_empty_array_with_empty_nested_array() {
+    let src = r#"
+    fn main() -> pub [[u32; 0]; 0] {
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Empty array is not a valid entry point type. Found: [u32; 0]
+        []
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_returning_non_empty_array_with_empty_nested_array() {
+    let src = r#"
+    fn main() -> pub [[u32; 0]; 1] {
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Empty array is not a valid entry point type. Found: [u32; 0]
+        [[]]
     }
     "#;
     check_errors(src);
