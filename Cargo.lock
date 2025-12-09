@@ -3744,7 +3744,6 @@ dependencies = [
 name = "noir_wasm"
 version = "1.0.0-beta.16"
 dependencies = [
- "acvm",
  "build-data",
  "console_error_panic_hook",
  "fm",
