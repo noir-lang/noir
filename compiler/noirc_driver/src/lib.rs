@@ -5,7 +5,6 @@ use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
-use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -60,10 +59,6 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 
 #[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
-    /// Specify the backend expression width that should be targeted
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
-
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -234,7 +229,6 @@ pub struct CompileOptions {
 impl Default for CompileOptions {
     fn default() -> Self {
         Self {
-            expression_width: None,
             force_compile: false,
             show_ssa: false,
             show_ssa_pass: Vec::new(),
@@ -313,11 +307,8 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 
     match width {
         0 => Ok(ExpressionWidth::Unbounded),
-        w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
-            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
-        )),
+        w if w >= 3 => Ok(ExpressionWidth::Bounded { width }),
+        _ => Err(Error::new(ErrorKind::InvalidInput, "has to be 0 or at least 3".to_string())),
     }
 }
 
@@ -543,7 +534,7 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        noirc_errors::println_to_stdout!("Compiled ACIR for main (non-transformed):");
+        noirc_errors::println_to_stdout!("Compiled ACIR for main:");
         noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
@@ -731,7 +722,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -885,7 +876,7 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 
