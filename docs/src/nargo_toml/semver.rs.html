@@ -250,12 +250,7 @@
 <a href="#249" id="249">249</a>
 <a href="#250" id="250">250</a>
 <a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{ManifestError, errors::SemverError};
+<a href="#252" id="252">252</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{ManifestError, errors::SemverError};
 <span class="kw">use </span>nargo::{
     package::{Dependency, Package},
     workspace::Workspace,
@@ -364,7 +359,6 @@
             name: CrateName::from_str(<span class="string">"test"</span>).unwrap(),
             dependencies: BTreeMap::new(),
             version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
         };
         <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
             <span class="macro">panic!</span>(
@@ -401,7 +395,6 @@
             name: CrateName::from_str(<span class="string">"test"</span>).unwrap(),
             dependencies: BTreeMap::new(),
             version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
         };
 
         <span class="kw">let </span>valid_dependency = Package {
@@ -458,7 +451,6 @@
             name: CrateName::from_str(<span class="string">"test"</span>).unwrap(),
             dependencies: BTreeMap::new(),
             version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
         };
 
         <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
@@ -481,7 +473,6 @@
             name: CrateName::from_str(<span class="string">"test"</span>).unwrap(),
             dependencies: BTreeMap::new(),
             version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
         };
 
         <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
@@ -502,7 +493,6 @@
             name: CrateName::from_str(<span class="string">"test"</span>).unwrap(),
             dependencies: BTreeMap::new(),
             version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
         };
 
         <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {

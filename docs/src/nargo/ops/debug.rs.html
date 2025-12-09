@@ -187,14 +187,12 @@
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>noirc_driver::{
-    CompileOptions, CompiledProgram, CrateId, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
-    file_manager_with_stdlib, link_to_debug_crate,
+    CompileOptions, CompiledProgram, CrateId, compile_no_check, file_manager_with_stdlib,
+    link_to_debug_crate,
 };
 <span class="kw">use </span>noirc_frontend::{
     debug::DebugInstrumenter,
@@ -202,13 +200,11 @@
 };
 
 <span class="kw">use crate</span>::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
-    parse_all, prepare_package, workspace::Workspace,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::optimize_program,
+    package::Package, parse_all, prepare_package, workspace::Workspace,
 };
 
-<span class="kw">use super</span>::{
-    compile_program, compile_program_with_debug_instrumenter, report_errors, transform_program,
-};
+<span class="kw">use super</span>::{compile_program, compile_program_with_debug_instrumenter, report_errors};
 
 <span class="kw">pub struct </span>TestDefinition {
     <span class="kw">pub </span>name: String,
@@ -264,7 +260,7 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, noirc_driver::CompileError&gt; {
     <span class="kw">let </span>compiled_program =
         compile_no_check(context, <span class="kw-2">&amp;</span>compile_options, test_def.function.id, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>compiled_program = transform_program(compiled_program, DEFAULT_EXPRESSION_WIDTH);
+    <span class="kw">let </span>compiled_program = optimize_program(compiled_program);
     <span class="prelude-val">Ok</span>(compiled_program)
 }
 
@@ -305,7 +301,7 @@
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
-    .map(|compiled_program| transform_program(compiled_program, DEFAULT_EXPRESSION_WIDTH))
+    .map(optimize_program)
 }
 
 <span class="kw">pub fn </span>compile_options_for_debugging(

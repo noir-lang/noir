@@ -443,8 +443,7 @@
 <a href="#442" id="442">442</a>
 <a href="#443" id="443">443</a>
 <a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#445" id="445">445</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -771,7 +770,6 @@
         entry_path: PathBuf::from(file_path),
         name: crate_name,
         dependencies: BTreeMap::new(),
-        expression_width: <span class="prelude-val">None</span>,
     };
     <span class="kw">let </span>workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),

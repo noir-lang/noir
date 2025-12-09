@@ -303,8 +303,7 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
+<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
 <span class="kw">use </span>std::io::{Read, Write};
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::time::Duration;
@@ -318,7 +317,6 @@
 <span class="kw">use </span>noir_artifact_cli::fs::artifact::{
     read_program_from_file, save_contract_to_file, save_program_to_file,
 };
-<span class="kw">use </span>noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 <span class="kw">use </span>noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 <span class="kw">use </span>noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
 
@@ -543,8 +541,8 @@
         </span><span class="kw">if </span>cached_hash == <span class="prelude-val">Some</span>(rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program)) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(((), warnings));
         }
-        <span class="comment">// Run ACVM optimizations and set the target width.
-        </span><span class="kw">let </span>program = nargo::ops::transform_program(program, DEFAULT_EXPRESSION_WIDTH);
+        <span class="comment">// Run ACVM optimizations.
+        </span><span class="kw">let </span>program = nargo::ops::optimize_program(program);
         <span class="comment">// Check solvability.
         </span>nargo::ops::check_program(<span class="kw-2">&amp;</span>program)<span class="question-mark">?</span>;
         <span class="comment">// Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
@@ -583,7 +581,7 @@
             <span class="kw">let </span>(contract, warnings) =
                 compile_contract(file_manager, parsed_files, package, compile_options)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>contract = nargo::ops::transform_contract(contract, DEFAULT_EXPRESSION_WIDTH);
+            <span class="kw">let </span>contract = nargo::ops::optimize_contract(contract);
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             <span class="prelude-val">Ok</span>(((), warnings))
         })

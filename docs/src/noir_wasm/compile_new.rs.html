@@ -371,24 +371,11 @@
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::compile::{
+<a href="#373" id="373">373</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::compile::{
     JsCompileContractResult, JsCompileProgramResult, PathToFileSourceMap,
     file_manager_with_source_map,
 };
 <span class="kw">use </span><span class="kw">crate</span>::errors::{CompileError, JsCompileError};
-<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>nargo::parse_all;
 <span class="kw">use </span>noirc_driver::{
     CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
@@ -478,13 +465,8 @@
 
     <span class="kw">pub fn </span>compile_program(
         <span class="kw-2">mut </span><span class="self">self</span>,
-        program_width: usize,
+        _program_width: usize,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;JsCompileProgramResult, JsCompileError&gt; {
-        <span class="kw">let </span>expression_width = <span class="kw">if </span>program_width == <span class="number">0 </span>{
-            ExpressionWidth::Unbounded
-        } <span class="kw">else </span>{
-            ExpressionWidth::Bounded { width: <span class="number">4 </span>}
-        };
         <span class="kw">let </span>compile_options = CompileOptions::default();
 
         <span class="kw">let </span>root_crate_id = <span class="kw-2">*</span><span class="self">self</span>.context.root_crate_id();
@@ -499,7 +481,7 @@
                 })<span class="question-mark">?
                 </span>.<span class="number">0</span>;
 
-        <span class="kw">let </span>optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+        <span class="kw">let </span>optimized_program = nargo::ops::optimize_program(compiled_program);
         nargo::ops::check_program(<span class="kw-2">&amp;</span>optimized_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 <span class="string">"Compiled program is not solvable"</span>,
@@ -514,13 +496,8 @@
 
     <span class="kw">pub fn </span>compile_contract(
         <span class="kw-2">mut </span><span class="self">self</span>,
-        program_width: usize,
+        _program_width: usize,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;JsCompileContractResult, JsCompileError&gt; {
-        <span class="kw">let </span>expression_width = <span class="kw">if </span>program_width == <span class="number">0 </span>{
-            ExpressionWidth::Unbounded
-        } <span class="kw">else </span>{
-            ExpressionWidth::Bounded { width: <span class="number">4 </span>}
-        };
         <span class="kw">let </span>compile_options = CompileOptions::default();
 
         <span class="kw">let </span>root_crate_id = <span class="kw-2">*</span><span class="self">self</span>.context.root_crate_id();
@@ -535,8 +512,7 @@
                 })<span class="question-mark">?
                 </span>.<span class="number">0</span>;
 
-        <span class="kw">let </span>optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, expression_width);
+        <span class="kw">let </span>optimized_contract = nargo::ops::optimize_contract(compiled_contract);
         <span class="kw">let </span>warnings = optimized_contract.warnings.clone();
 
         <span class="prelude-val">Ok</span>(JsCompileContractResult::new(optimized_contract.into(), warnings))

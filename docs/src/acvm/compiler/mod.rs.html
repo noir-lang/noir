@@ -123,32 +123,7 @@
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
 <a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `compiler` module contains several passes to transform an ACIR program.
+<a href="#125" id="125">125</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `compiler` module contains several passes to transform an ACIR program.
 //! Roughly, the passes are separated into the `optimizers` which try to reduce the number of opcodes
 //! and the `transformers` which adapt the opcodes to the proving backend.
 //!
@@ -164,15 +139,9 @@
 //! The compiled program will be returned as an `Artifacts` type.
 //!
 
-</span><span class="kw">use </span>std::collections::{BTreeMap, HashMap};
+</span><span class="kw">use </span>std::collections::HashMap;
 
-<span class="kw">use </span>acir::{
-    AcirField,
-    circuit::{
-        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
-        brillig::BrilligFunctionId,
-    },
-};
+<span class="kw">use </span>acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
 
 <span class="comment">// The various passes that we can use over ACIR
 </span><span class="kw">pub use </span>optimizers::optimize;
@@ -269,25 +238,6 @@
             new_locations.map(<span class="kw">move </span>|new_location| (new_location, message.clone()))
         })
         .collect()
-}
-
-<span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
-///
-/// optimize_internal:
-/// - General optimizer: canonicalize AssertZero opcodes.
-/// - Unused Memory: remove unused MemoryInit opcodes.
-/// - Redundant Ranges: remove RANGE opcodes that are redundant.
-///
-/// transform_internal: run multiple times (up to 4) until the output stabilizes.
-/// - CSAT: limit AssertZero opcodes to the Circuit's width.
-/// - Eliminate intermediate variables: Combine AssertZero opcodes used only once.
-/// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
-</span><span class="kw">pub fn </span>compile&lt;F: AcirField&gt;(
-    acir: Circuit&lt;F&gt;,
-    _expression_width: ExpressionWidth,
-    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
-) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
-    optimize(acir, brillig_side_effects)
 }
 
 <span class="attr">#[macro_export]

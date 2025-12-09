@@ -439,10 +439,7 @@
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#441" id="441">441</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -453,9 +450,7 @@
     pwg::ForeignCallWaitInfo,
 };
 <span class="kw">use </span>noirc_abi::{Abi, input_parser::json::serialize_to_json};
-<span class="kw">use </span>noirc_driver::{
-    CompileError, CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
-};
+<span class="kw">use </span>noirc_driver::{CompileError, CompileOptions, CompiledProgram, compile_no_check};
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
 <span class="kw">use </span>noirc_frontend::{
     hir::{
@@ -576,8 +571,7 @@
     E: ForeignCallExecutor&lt;FieldElement&gt;,
 {
     <span class="comment">// Do the same optimizations as `compile_cmd`.
-    </span><span class="kw">let </span>target_width = DEFAULT_EXPRESSION_WIDTH;
-    <span class="kw">let </span>compiled_program = <span class="kw">crate</span>::ops::transform_program(compiled_program, target_width);
+    </span><span class="kw">let </span>compiled_program = <span class="kw">crate</span>::ops::optimize_program(compiled_program);
 
     <span class="kw">let </span>ignore_foreign_call_failures =
         std::env::var(<span class="string">"NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS"</span>)

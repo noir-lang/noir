@@ -495,8 +495,7 @@
 <a href="#494" id="494">494</a>
 <a href="#495" id="495">495</a>
 <a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#497" id="497">497</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
 <span class="kw">use </span>std::ops::ControlFlow;
 <span class="kw">use </span>std::path::{Path, PathBuf};
@@ -758,7 +757,6 @@
         entry_path: PathBuf::from_str(<span class="string">"fake_entry_path.nr"</span>).unwrap(),
         name: CrateName::from_str(<span class="string">"fake_std"</span>).unwrap(),
         dependencies: BTreeMap::new(),
-        expression_width: <span class="prelude-val">None</span>,
     };
     Workspace {
         root_dir: PathBuf::from_str(<span class="string">"std"</span>).unwrap(),

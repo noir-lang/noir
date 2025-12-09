@@ -432,11 +432,7 @@
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
-<span class="kw">use </span>fm::FileManager;
+<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>gloo_utils::format::JsValueSerdeExt;
 <span class="kw">use </span>js_sys::{JsString, Object};
 <span class="kw">use </span>nargo::parse_all;
@@ -606,7 +602,6 @@ export type CompileResult = ContractCompileResult | ProgramCompileResult;
     console_error_panic_hook::set_once();
     <span class="kw">let </span>(crate_id, <span class="kw-2">mut </span>context) = prepare_context(entry_point, dependency_graph, file_source_map)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>expression_width = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
     <span class="kw">let </span>compile_options = CompileOptions::default();
 
     <span class="kw">let </span>compiled_program =
@@ -620,7 +615,7 @@ export type CompileResult = ContractCompileResult | ProgramCompileResult;
             })<span class="question-mark">?
             </span>.<span class="number">0</span>;
 
-    <span class="kw">let </span>optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+    <span class="kw">let </span>optimized_program = nargo::ops::optimize_program(compiled_program);
     nargo::ops::check_program(<span class="kw-2">&amp;</span>optimized_program).map_err(|errs| {
         CompileError::with_custom_diagnostics(
             <span class="string">"Compiled program is not solvable"</span>,
@@ -642,7 +637,6 @@ export type CompileResult = ContractCompileResult | ProgramCompileResult;
     console_error_panic_hook::set_once();
     <span class="kw">let </span>(crate_id, <span class="kw-2">mut </span>context) = prepare_context(entry_point, dependency_graph, file_source_map)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>expression_width = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
     <span class="kw">let </span>compile_options = CompileOptions::default();
 
     <span class="kw">let </span>compiled_contract =
@@ -656,7 +650,7 @@ export type CompileResult = ContractCompileResult | ProgramCompileResult;
             })<span class="question-mark">?
             </span>.<span class="number">0</span>;
 
-    <span class="kw">let </span>optimized_contract = nargo::ops::transform_contract(compiled_contract, expression_width);
+    <span class="kw">let </span>optimized_contract = nargo::ops::optimize_contract(compiled_contract);
     <span class="kw">let </span>warnings = optimized_contract.warnings.clone();
 
     <span class="prelude-val">Ok</span>(JsCompileContractResult::new(optimized_contract.into(), warnings))
