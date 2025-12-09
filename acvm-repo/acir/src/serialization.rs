@@ -76,25 +76,33 @@ pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
 ///
 /// Set `compact` to `true` if we want old readers to fail when a new field is added to a struct,
 /// that is, if we think that ignoring a new field could lead to incorrect behavior.
-#[allow(dead_code)]
 pub(crate) fn msgpack_serialize<T: Serialize>(
     value: &T,
     compact: bool,
 ) -> std::io::Result<Vec<u8>> {
-    if compact {
-        // The default behavior encodes struct fields as
-        rmp_serde::to_vec(value).map_err(std::io::Error::other)
+    // There are convenience methods to serialize structs as tuples or maps:
+    // * `rmp_serde::to_vec` uses tuples
+    // * `rmp_serde::to_vec_named` uses maps
+    // However it looks like the default `BytesMode` is not compatible with the C++ deserializer,
+    // so we have to use `rmp_serde::Serializer` directly.
+    let mut buf = Vec::new();
+
+    let serializer = rmp_serde::Serializer::new(&mut buf)
+        .with_bytes(rmp_serde::config::BytesMode::ForceIterables);
+
+    let result = if compact {
+        value.serialize(&mut serializer.with_struct_tuple())
     } else {
-        // Or this to be able to configure the serialization:
-        // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
-        // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
-        // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
-        rmp_serde::to_vec_named(value).map_err(std::io::Error::other)
+        value.serialize(&mut serializer.with_struct_map())
+    };
+
+    match result {
+        Ok(()) => Ok(buf),
+        Err(e) => Err(std::io::Error::other(e)),
     }
 }
 
 /// Deserialize a value using MessagePack, based on `serde`.
-#[allow(dead_code)]
 pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
@@ -102,7 +110,6 @@ pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
 /// Serialize a value using `protobuf`.
 ///
 /// This format is forwards and backwards compatible, but requires code generation based on `.proto` schemas.
-#[allow(dead_code)]
 pub(crate) fn proto_serialize<F, T, R>(value: &T) -> Vec<u8>
 where
     F: AcirField,
@@ -113,7 +120,6 @@ where
 }
 
 /// Deserialize a value using `protobuf`.
-#[allow(dead_code)]
 pub(crate) fn proto_deserialize<F, T, R>(buf: &[u8]) -> std::io::Result<T>
 where
     F: AcirField,
