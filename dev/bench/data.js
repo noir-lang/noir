@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765228796738,
+  "lastUpdate": 1765295651047,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "df9c20a655a741a1201b8764aa06200883a99cca",
-          "message": "fix(comptime): Validate that radix decomposition fits in the specified limbs (#10656)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-12-01T16:44:33Z",
-          "tree_id": "5293a81e03364ad9e2b2274f34650a45fed4b87a",
-          "url": "https://github.com/noir-lang/noir/commit/df9c20a655a741a1201b8764aa06200883a99cca"
-        },
-        "date": 1764608775719,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258828,
-            "range": "± 901",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231491,
-            "range": "± 3908",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798761,
-            "range": "± 2353",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25314,6 +25272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791304,
             "range": "± 5356",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "723dd59f48cc937e66f15ffbdb3927687952563a",
+          "message": "fix: handle u128 indices in comptime interpreter (#10867)",
+          "timestamp": "2025-12-09T15:26:51Z",
+          "tree_id": "e5c8e13ac4a5d678006b68b8bbcf5de9c9f1be2f",
+          "url": "https://github.com/noir-lang/noir/commit/723dd59f48cc937e66f15ffbdb3927687952563a"
+        },
+        "date": 1765295620621,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252143,
+            "range": "± 688",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223616,
+            "range": "± 5489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790037,
+            "range": "± 1457",
             "unit": "ns/iter"
           }
         ]
