@@ -233,6 +233,79 @@ fn slice_pop_back_unknown_length() {
 }
 
 #[test]
+fn slice_pop_back_nested_arrays() {
+    let src = "
+  acir(inline) predicate_pure fn main f0 {
+    b0(v0: u32, v1: [u32; 3], v2: u32, v3: u32):
+      v4 = make_array [v0, v1] : [(u32, [u32; 3])]
+      v7, v8 = call slice_push_back(u32 1, v4, v0, v1) -> (u32, [(u32, [u32; 3])])
+      v9, v10 = call slice_push_back(v7, v8, v2, v1) -> (u32, [(u32, [u32; 3])])
+      v12, v13, v14, v15 = call slice_pop_back(v9, v10) -> (u32, [(u32, [u32; 3])], u32, [u32; 3])
+      constrain v14 == v3
+      return
+  }
+  ";
+    let program = ssa_to_acir_program(src);
+
+    // After b3 you can see where we do our final push_back where (v2, v1) are attached to the slice
+    // rather than (v0, v1)
+    // We then read w18 from b3 at index `8` (the flattened starting index of the slice).
+    assert_circuit_snapshot!(program, @r"
+  func 0
+  private parameters: [w0, w1, w2, w3, w4, w5]
+  public parameters: []
+  return values: []
+  BLACKBOX::RANGE input: w0, bits: 32
+  BLACKBOX::RANGE input: w1, bits: 32
+  BLACKBOX::RANGE input: w2, bits: 32
+  BLACKBOX::RANGE input: w3, bits: 32
+  BLACKBOX::RANGE input: w4, bits: 32
+  BLACKBOX::RANGE input: w5, bits: 32
+  ASSERT w6 = 0
+  ASSERT w7 = 1
+  ASSERT w8 = 4
+  ASSERT w9 = 5
+  ASSERT w10 = 8
+  ASSERT w11 = 9
+  ASSERT w12 = 12
+  ASSERT w13 = 13
+  INIT b2 = [w6, w7, w8, w9, w10, w11, w12, w13]
+  INIT b3 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
+  READ w14 = b2[w8]
+  WRITE b3[w14] = w4
+  ASSERT w15 = w14 + 1
+  WRITE b3[w15] = w1
+  ASSERT w16 = w15 + 1
+  WRITE b3[w16] = w2
+  ASSERT w17 = w16 + 1
+  WRITE b3[w17] = w3
+  READ w18 = b3[w10]
+  READ w19 = b3[w11]
+  ASSERT w20 = 10
+  READ w21 = b3[w20]
+  ASSERT w22 = 11
+  READ w23 = b3[w22]
+  READ w24 = b3[w6]
+  READ w25 = b3[w7]
+  ASSERT w26 = 2
+  READ w27 = b3[w26]
+  ASSERT w28 = 3
+  READ w29 = b3[w28]
+  READ w30 = b3[w8]
+  READ w31 = b3[w9]
+  ASSERT w32 = 6
+  READ w33 = b3[w32]
+  ASSERT w34 = 7
+  READ w35 = b3[w34]
+  READ w36 = b3[w10]
+  READ w37 = b3[w11]
+  READ w38 = b3[w20]
+  READ w39 = b3[w22]
+  ASSERT w18 = w5
+  ");
+}
+
+#[test]
 fn slice_pop_front() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
