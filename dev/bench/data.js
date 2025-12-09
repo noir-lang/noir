@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765295651047,
+  "lastUpdate": 1765295803349,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a0f05179e5db8b6bc82fbc256655bf24a577c1a0",
-          "message": "fix: address off-by-one error when calculating bitsize of remainder (#10721)",
-          "timestamp": "2025-12-01T18:32:51Z",
-          "tree_id": "6e78176f48f1295a98b7a4641394d3226f506b64",
-          "url": "https://github.com/noir-lang/noir/commit/a0f05179e5db8b6bc82fbc256655bf24a577c1a0"
-        },
-        "date": 1764614132883,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257179,
-            "range": "± 460",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229547,
-            "range": "± 1558",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792978,
-            "range": "± 18921",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25314,6 +25272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790037,
             "range": "± 1457",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d72318b8230679b4217d34a7564958f3932094bb",
+          "message": "chore: bump timeout in external repo checks (#10869)",
+          "timestamp": "2025-12-09T15:52:38Z",
+          "tree_id": "6285df657faef508ad23a19270eea6a467a5a970",
+          "url": "https://github.com/noir-lang/noir/commit/d72318b8230679b4217d34a7564958f3932094bb"
+        },
+        "date": 1765295772245,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252159,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223450,
+            "range": "± 4961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789360,
+            "range": "± 1133",
             "unit": "ns/iter"
           }
         ]
