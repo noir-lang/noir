@@ -732,7 +732,9 @@
 <a href="#731" id="731">731</a>
 <a href="#732" id="732">732</a>
 <a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
@@ -1021,8 +1023,10 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>var_index = new_slice_length;
 
         <span class="kw">let </span>slice_type = dfg.type_of_value(slice_contents);
-        <span class="kw">let </span>item_size = slice_type.element_size();
-        <span class="kw">let </span>item_size = <span class="self">self</span>.acir_context.add_constant(item_size);
+        <span class="kw">let </span>item_size = slice_type.element_types();
+        <span class="comment">// Must read from the flattened last index of the slice in case the slice contains nested arrays.
+        </span><span class="kw">let </span>flat_item_size: u32 = item_size.iter().map(|typ| typ.flattened_size()).sum();
+        <span class="kw">let </span>item_size = <span class="self">self</span>.acir_context.add_constant(flat_item_size);
         var_index = <span class="self">self</span>.acir_context.mul_var(var_index, item_size)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>popped_elements = Vec::new();
