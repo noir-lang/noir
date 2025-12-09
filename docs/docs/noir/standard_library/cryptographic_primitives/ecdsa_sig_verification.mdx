@@ -12,7 +12,6 @@ Noir supports ECDSA signatures verification over the secp256k1 and secp256r1 cur
 ## ecdsa_secp256k1::verify_signature
 
 Verifier for ECDSA Secp256k1 signatures.
-See ecdsa_secp256k1::verify_signature_slice for a version that accepts slices directly.
 
 #include_code ecdsa_secp256k1 noir_stdlib/src/ecdsa_secp256k1.nr rust
 
@@ -26,14 +25,6 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
 ```
 
 <BlackBoxInfo to="../black_box_fns" />
-
-## ecdsa_secp256k1::verify_signature_slice
-
-Verifier for ECDSA Secp256k1 signatures where the message is a slice.
-
-#include_code ecdsa_secp256k1_slice noir_stdlib/src/ecdsa_secp256k1.nr rust
-
-<BlackBoxInfo to="../black_box_fns"/>
 
 ## ecdsa_secp256r1::verify_signature
 
@@ -50,13 +41,5 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
      assert(valid_signature);
 }
 ```
-
-<BlackBoxInfo to="../black_box_fns"/>
-
-## ecdsa_secp256r1::verify_signature
-
-Verifier for ECDSA Secp256r1 signatures where the message is a slice.
-
-#include_code ecdsa_secp256r1_slice noir_stdlib/src/ecdsa_secp256r1.nr rust
 
 <BlackBoxInfo to="../black_box_fns"/>

@@ -1,0 +1,6 @@
+[package]
+name = "unconditional_break"
+type = "bin"
+authors = [""]
+
+[dependencies]

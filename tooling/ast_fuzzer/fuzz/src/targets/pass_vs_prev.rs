@@ -13,17 +13,15 @@ use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, ssa_gen};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = Config::default();
+    let config = Config { avoid_overflow: u.arbitrary()?, ..Config::default() };
 
     let inputs = CompareInterpreted::arb(u, config, |u, program| {
         let options = CompareOptions::arbitrary(u)?;
         let ssa_options = options.onto(default_ssa_options());
         let ssa_passes = primary_passes(&ssa_options);
 
-        // For now limit the passes to the ones in the canary audit.
-        let max_passes = ssa_passes.len().min(3);
-
         // Choose the number of passes we run on top of the initial SSA.
+        let max_passes = ssa_passes.len();
         let run_passes = u.int_in_range(1..=max_passes)?;
 
         // Generate the initial SSA, which is considered to be step 0.
@@ -67,12 +65,12 @@ fn clone_ssa(ssa: &Ssa) -> Ssa {
 #[cfg(test)]
 mod tests {
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
+    /// RUST_LOG=debug \
     /// cargo test -p noir_ast_fuzzer_fuzz pass_vs_prev
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 20000);
     }
 }

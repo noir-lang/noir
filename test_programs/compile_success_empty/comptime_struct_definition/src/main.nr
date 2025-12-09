@@ -17,8 +17,19 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 }
 
 comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields = &[(quote {x}, quote {i32}.as_type()), (quote {y}, quote {Field}.as_type())];
+    let fields = &[
+        (quote {x}, quote {i32}.as_type(), quote { pub }),
+        (quote {y}, quote {Field}.as_type(), quote { pub(crate) }),
+    ];
     s.set_fields(fields);
+
+    let fields = s.fields([]);
+    assert_eq(fields[0].2, quote { pub });
+    assert_eq(fields[1].2, quote { pub(crate) });
+
+    let fields = s.fields_as_written();
+    assert_eq(fields[0].2, quote { pub });
+    assert_eq(fields[1].2, quote { pub(crate) });
 }
 
 mod foo {
@@ -54,8 +65,8 @@ fn main() {
         let fields = struct_def.fields(generics);
         assert_eq(fields.len(), 2);
 
-        let (field1_name, field1_type) = fields[0];
-        let (field2_name, field2_type) = fields[1];
+        let (field1_name, field1_type, visibility1) = fields[0];
+        let (field2_name, field2_type, visibility2) = fields[1];
 
         assert_eq(field1_name, quote { field1 });
         assert_eq(field2_name, quote { field2 });
@@ -63,5 +74,17 @@ fn main() {
         // Ensure .fields(generics) actually performs substitutions on generics
         assert_eq(field1_type, quote { [i8; 10] }.as_type());
         assert_eq(field2_type, quote { (i16, i32) }.as_type());
+
+        assert_eq(visibility1, quote {});
+        assert_eq(visibility2, quote {});
+
+        // Test TypeDefinition::as_type_with_generics
+        let i32_type = quote [i32].as_type();
+
+        let applied = struct_def.as_type_with_generics(&[i32_type, i32_type, i32_type]);
+        let invalid = struct_def.as_type_with_generics(&[i32_type, i32_type]); // invalid generic count
+
+        assert_eq(applied.unwrap(), quote [MyType<i32, i32, i32>].as_type());
+        assert(invalid.is_none());
     }
 }

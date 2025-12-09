@@ -3,13 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(x: u32) -> pub str<3> {
-    let mut idx_b: Field = 0;
+    let mut idx_b: Field = 0_Field;
     while true {
-        if idx_b == 0 {
+        if idx_b == 0_Field {
             break;
         } else {
-            idx_b = idx_b + 1;
-            let c: u32 = 5 / x;
+            idx_b = idx_b + 1_Field;
+            let c: u32 = 5_u32 / x;
             println(c);
         }
     }

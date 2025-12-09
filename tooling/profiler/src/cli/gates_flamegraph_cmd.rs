@@ -66,10 +66,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
     let backend_gates_response =
         gates_provider.get_gates(artifact_path).context("Error querying backend for gates")?;
 
-    let function_names = std::mem::take(&mut program.names);
-
     let bytecode = std::mem::take(&mut program.bytecode);
-
     let debug_artifact: DebugArtifact = program.into();
 
     let num_functions = bytecode.functions.len();
@@ -79,9 +76,9 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         let function_name = if num_functions > 1 {
-            format!("{}_{}", function_names[func_idx].as_str(), func_idx)
+            format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            function_names[func_idx].to_owned()
+            circuit.function_name.to_owned()
         };
 
         println!(
@@ -105,9 +102,9 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .collect();
 
         let output_filename = if let Some(output_filename) = &output_filename {
-            format!("{}_{}_gates.svg", output_filename, function_name)
+            format!("{output_filename}_{function_name}_gates.svg")
         } else {
-            format!("{}_gates.svg", function_name)
+            format!("{function_name}_gates.svg")
         };
         flamegraph_generator.generate_flamegraph(
             samples,
@@ -185,11 +182,16 @@ mod tests {
             noir_version: "0.0.0".to_string(),
             hash: 27,
             abi: noirc_abi::Abi::default(),
-            bytecode: Program { functions: vec![Circuit::default()], ..Program::default() },
+            bytecode: Program {
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
+                ..Program::default()
+            },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: Vec::new(),
+            expression_width: acir::circuit::ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file

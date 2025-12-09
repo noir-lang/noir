@@ -4,9 +4,9 @@ expression: expanded_code
 ---
 fn main() {
     { Foo::static() };
-    let _: Field = Field::from_be_bytes([1]);
-    let _: () = Trait::method();
-    let _: [i32; 3] = Trait::method();
+    let _: Field = Field::from_be_bytes([1_u8]);
+    let _: () = <()>::method();
+    let _: [i32; 3] = <[i32; 3]>::method();
 }
 
 pub struct Foo {}
@@ -27,6 +27,6 @@ impl Trait for () {
 
 impl Trait for [i32; 3] {
     fn method() -> Self {
-        [1, 2, 3]
+        [1_i32, 2_i32, 3_i32]
     }
 }

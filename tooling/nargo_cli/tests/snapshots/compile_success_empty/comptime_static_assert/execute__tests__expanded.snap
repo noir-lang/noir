@@ -5,8 +5,8 @@ expression: expanded_code
 use std::static_assert;
 
 comptime fn foo(x: Field) -> bool {
-    static_assert(x == 4, "x != 4");
-    x == 4
+    static_assert(x == 4_Field, "x != 4");
+    x == 4_Field
 }
 
 global C: bool = true;

@@ -1,1 +1,2 @@
-is_active=false
+is_active = false
+return = { x = "0x00", y = "0x05", is_infinite = false }

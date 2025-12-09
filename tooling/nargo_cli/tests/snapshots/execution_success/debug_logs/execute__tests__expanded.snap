@@ -19,17 +19,17 @@ fn main(x: Field, y: pub Field) {
     println(fmt_str);
     println(x);
     println([x, y]);
-    let foo: fooStruct = fooStruct { my_struct: s, foo: 15 };
+    let foo: fooStruct = fooStruct { my_struct: s, foo: 15_Field };
     println(f"s: {s}, foo: {foo}");
     println(f"x: 0, y: 1");
-    let s_2: myStruct = myStruct { x: 20, y: 30 };
+    let s_2: myStruct = myStruct { x: 20_Field, y: 30_Field };
     println(f"s1: {s}, s2: {s_2}");
-    let bar: fooStruct = fooStruct { my_struct: s_2, foo: 20 };
+    let bar: fooStruct = fooStruct { my_struct: s_2, foo: 20_Field };
     println(f"foo1: {foo}, foo2: {bar}");
-    let struct_string: fmtstr<5, (fooStruct,)> = if x != 5 { f"{foo}" } else { f"{bar}" };
+    let struct_string: fmtstr<5, (fooStruct,)> = if x != 5_Field { f"{foo}" } else { f"{bar}" };
     println(struct_string);
-    let one_tuple: (Field, Field, Field) = (1, 2, 3);
-    let another_tuple: (Field, Field, Field) = (4, 5, 6);
+    let one_tuple: (Field, Field, Field) = (1_Field, 2_Field, 3_Field);
+    let another_tuple: (Field, Field, Field) = (4_Field, 5_Field, 6_Field);
     println(f"one_tuple: {one_tuple}, another_tuple: {another_tuple}");
     println(one_tuple);
     let tuples_nested: ((Field, Field, Field), (Field, Field, Field)) = (one_tuple, another_tuple);
@@ -37,16 +37,16 @@ fn main(x: Field, y: pub Field) {
     println(tuples_nested);
     regression_2903();
     regression_2906();
-    let first_array: [Field; 3] = [1, 2, 3];
-    let second_array: [Field; 3] = [4, 5, 6];
+    let first_array: [Field; 3] = [1_Field, 2_Field, 3_Field];
+    let second_array: [Field; 3] = [4_Field, 5_Field, 6_Field];
     let arrays_nested: [[Field; 3]; 2] = [first_array, second_array];
     println(f"first_array: {first_array}, second_array: {second_array}");
     println(f"arrays_nested: {arrays_nested}");
-    let free_lambda: fn(Field) -> Field = |x: Field| -> Field { x + 1 };
-    let sentinel: u32 = 8888;
+    let free_lambda: fn(Field) -> Field = |x: Field| -> Field { x + 1_Field };
+    let sentinel: u32 = 8888_u32;
     println(f"free_lambda: {free_lambda}, sentinel: {sentinel}");
     println(free_lambda);
-    let one: Field = 1;
+    let one: Field = 1_Field;
     let closured_lambda: fn[(Field,)](Field) -> Field = |x: Field| -> Field { x + one };
     println(f"closured_lambda: {closured_lambda}, sentinel: {sentinel}");
     println(closured_lambda);
@@ -80,18 +80,18 @@ struct fooStruct {
 fn regression_2903() {
     let v: [str<1>; 1] = ["1"; 1];
     println(v);
-    let a: str<1> = v[0];
+    let a: str<1> = v[0_u32];
     println(a);
     let bytes: [str<3>; 3] = ["aaa", "bbb", "ccc"];
     println(bytes);
 }
 
 fn regression_2906() {
-    let array_two_vals: [Field; 2] = [1, 2];
+    let array_two_vals: [Field; 2] = [1_Field, 2_Field];
     println(f"array_two_vals: {array_two_vals}");
     let label_two_vals: str<2> = "12";
     println(f"label_two_vals: {label_two_vals}");
-    let array_five_vals: [Field; 5] = [1, 2, 3, 4, 5];
+    let array_five_vals: [Field; 5] = [1_Field, 2_Field, 3_Field, 4_Field, 5_Field];
     println(f"array_five_vals: {array_five_vals}");
     let label_five_vals: str<5> = "12345";
     println(f"label_five_vals: {label_five_vals}");
@@ -101,11 +101,11 @@ fn regression_2906() {
 }
 
 fn regression_4967() {
-    let sentinel: u32 = 8888;
-    let slice_of_tuples: [(i32, u8)] = &[(11, 22), (33, 44)];
+    let sentinel: u32 = 8888_u32;
+    let slice_of_tuples: [(i32, u8)] = &[(11_i32, 22_u8), (33_i32, 44_u8)];
     println(f"slice_of_tuples: {slice_of_tuples}, sentinel: {sentinel}");
     println(slice_of_tuples);
-    let slice_of_tuples_coerced: [(i32, u8)] = [(11, 22), (33, 44)].as_slice();
+    let slice_of_tuples_coerced: [(i32, u8)] = [(11_i32, 22_u8), (33_i32, 44_u8)].as_slice();
     println(
         f"slice_of_tuples: {slice_of_tuples_coerced}, sentinel: {sentinel}",
     );

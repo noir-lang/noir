@@ -12,13 +12,13 @@ fn main(x: Field) {
     unsafe {
         assert(x == identity(x));
         let arr: [Field; 2] = identity_array([x, x]);
-        assert(x == arr[0]);
-        assert(x == arr[1]);
+        assert(x == arr[0_u32]);
+        assert(x == arr[1_u32]);
         let s: myStruct = myStruct { foo: x, foo_arr: [x, x] };
         let identity_struct: myStruct = identity_struct(s);
         assert(x == identity_struct.foo);
-        assert(x == identity_struct.foo_arr[0]);
-        assert(x == identity_struct.foo_arr[1]);
+        assert(x == identity_struct.foo_arr[0_u32]);
+        assert(x == identity_struct.foo_arr[1_u32]);
     }
 }
 

@@ -7,50 +7,24 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength {
-        length: Type,
-        err: TypeCheckError,
-        location: Location,
-    },
-    UnknownConstant {
-        location: Location,
-    },
-    NoDefaultType {
-        location: Location,
-    },
-    NoDefaultTypeInItem {
-        location: Location,
-        generic_name: String,
-        item_kind: &'static str,
-        item_name: String,
-    },
-    InternalError {
-        message: &'static str,
-        location: Location,
-    },
+    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
+    UnknownConstant { location: Location },
+    NoDefaultType { location: Location },
+    InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
-    ComptimeFnInRuntimeCode {
-        name: String,
-        location: Location,
-    },
-    ComptimeTypeInRuntimeCode {
-        typ: String,
-        location: Location,
-    },
-    CheckedTransmuteFailed {
-        actual: Type,
-        expected: Type,
-        location: Location,
-    },
-    CheckedCastFailed {
-        actual: Type,
-        expected: Type,
-        location: Location,
-    },
-    RecursiveType {
-        typ: Type,
-        location: Location,
-    },
+    ComptimeFnInRuntimeCode { name: String, location: Location },
+    ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    RecursiveType { typ: Type, location: Location },
+    CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
+    ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
+    AssignedToVarContainingReference { typ: String, location: Location },
+    NestedSlices { location: Location },
+    InvalidTypeInErrorMessage { typ: String, location: Location },
+    ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedSliceReturnToConstrained { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -65,7 +39,18 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. } => *location,
+            | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
+            | MonomorphizationError::AssignedToVarContainingReference { location, .. }
+            | MonomorphizationError::NestedSlices { location }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
+            | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location, .. } => {
+                *location
+            }
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -91,18 +76,6 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let secondary = "Could not determine type of generic argument".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
-            MonomorphizationError::NoDefaultTypeInItem {
-                location,
-                generic_name,
-                item_kind,
-                item_name,
-            } => {
-                let message = "Type annotation needed".into();
-                let secondary = format!(
-                    "Could not determine the type of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"
-                );
-                return CustomDiagnostic::simple_error(message, secondary, *location);
-            }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
             MonomorphizationError::ComptimeFnInRuntimeCode { name, location } => {
@@ -120,6 +93,57 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let message = format!("Type `{typ}` is recursive");
                 let secondary = "All types in Noir must have a known size at compile-time".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } => {
+                format!(
+                    "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                )
+            }
+            MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location } => {
+                let message =
+                    "Cannot return a reference type from an if or match expression".to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("`{typ}` returned here")
+                } else {
+                    format!("`{typ}`, which contains a reference type internally, returned here")
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::AssignedToVarContainingReference { typ, location } => {
+                let message =
+                    "Cannot assign to a mutable variable which contains a reference internally"
+                        .to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("Assigned expression has the type `{typ}`")
+                } else {
+                    format!(
+                        "Assigned expression has the type `{typ}`, which contains a reference type internally"
+                    )
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::NestedSlices { .. } => {
+                "Nested slices, i.e. slices within an array or slice, are not supported".to_string()
+            }
+            MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
+                let message = format!("Invalid type {typ} used in the error message");
+                let secondary = "Error message fragments must be ABI compatible".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::ConstrainedReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
             }
         };
 

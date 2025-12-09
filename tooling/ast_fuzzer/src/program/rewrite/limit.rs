@@ -4,13 +4,19 @@ use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_frontend::{
     ast::BinaryOpKind,
-    monomorphization::ast::{
-        Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
+    monomorphization::{
+        ast::{
+            Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
+        },
+        visitor::visit_expr_mut,
     },
     shared::Visibility,
 };
 
-use crate::program::{Context, VariableId, expr, types, visitor::visit_expr_mut};
+use crate::{
+    Config,
+    program::{Context, VariableId, expr, types},
+};
 
 use super::next_local_and_ident_id;
 
@@ -31,18 +37,18 @@ pub(crate) fn add_recursion_limit(
     ctx: &mut Context,
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
-    // Collect functions called from ACIR; they will need proxy functions.
+    // Collect functions potentially called from ACIR; they will need proxy functions.
     let called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
         HashSet::<FuncId>::new(),
         |mut acc, func| {
-            acc.extend(expr::callees(&func.body));
+            acc.extend(expr::reachable_functions(&func.body));
             acc
         },
     );
 
     // Create proxies for unconstrained functions called from ACIR.
     let mut proxy_functions = HashMap::new();
-    let mut next_func_id = FuncId(ctx.functions.len() as u32);
+    let mut next_func_id = ctx.functions.len() as u32;
 
     for (func_id, func) in &ctx.functions {
         if !func.unconstrained
@@ -52,18 +58,18 @@ pub(crate) fn add_recursion_limit(
             continue;
         }
         let mut proxy = func.clone();
-        proxy.id = next_func_id;
+        proxy.id = FuncId(next_func_id);
         proxy.name = format!("{}_proxy", proxy.name);
         // We will replace the body, update the params, and append the function later.
         proxy_functions.insert(*func_id, proxy);
-        next_func_id = FuncId(next_func_id.0 + 1);
+        next_func_id += 1;
     }
 
     // Rewrite functions.
     for (func_id, func) in ctx.functions.iter_mut() {
-        let mut ctx = LimitContext::new(*func_id, func, ctx.config.max_recursive_calls as u32);
+        let mut limit_ctx = LimitContext::new(*func_id, func, &ctx.config);
 
-        ctx.rewrite_functions(u, &mut proxy_functions)?;
+        limit_ctx.rewrite_functions(u, &mut proxy_functions)?;
     }
 
     // Append proxy functions.
@@ -86,18 +92,18 @@ fn ctx_limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained
     }
 }
 
-struct LimitContext<'a> {
+struct LimitContext<'a, 'b> {
     func_id: FuncId,
     func: &'a mut Function,
+    config: &'b Config,
     is_main: bool,
     is_recursive: bool,
     next_local_id: u32,
     next_ident_id: u32,
-    max_recursive_calls: u32,
 }
 
-impl<'a> LimitContext<'a> {
-    fn new(func_id: FuncId, func: &'a mut Function, max_recursive_calls: u32) -> Self {
+impl<'a, 'b> LimitContext<'a, 'b> {
+    fn new(func_id: FuncId, func: &'a mut Function, config: &'b Config) -> Self {
         let is_main = func_id == Program::main_id();
 
         // Recursive functions are those that call another function.
@@ -112,15 +118,7 @@ impl<'a> LimitContext<'a> {
         // traverse the AST to figure out what the next ID to use is.
         let (next_local_id, next_ident_id) = next_local_and_ident_id(func);
 
-        Self {
-            func_id,
-            func,
-            is_main,
-            is_recursive,
-            next_local_id,
-            next_ident_id,
-            max_recursive_calls,
-        }
+        Self { func_id, func, config, is_main, is_recursive, next_local_id, next_ident_id }
     }
 
     /// Rewrite the function and its proxy (if it has one).
@@ -170,7 +168,7 @@ impl<'a> LimitContext<'a> {
             limit_id,
             true,
             LIMIT_NAME.to_string(),
-            expr::u32_literal(self.max_recursive_calls),
+            expr::u32_literal(self.config.max_recursive_calls as u32),
         );
         expr::prepend(&mut self.func.body, init_limit);
     }
@@ -194,7 +192,7 @@ impl<'a> LimitContext<'a> {
         ));
 
         // Generate a random value to return.
-        let default_return = expr::gen_literal(u, &self.func.return_type)?;
+        let default_return = expr::gen_literal(u, &self.func.return_type, self.config)?;
 
         let limit_ident = expr::ident_inner(
             limit_var,
@@ -322,17 +320,26 @@ impl<'a> LimitContext<'a> {
         // it into the proxy version if necessary.
         visit_expr_mut(&mut body, &mut |expr: &mut Expression| {
             if let Expression::Call(call) = expr {
-                let Expression::Ident(ident) = call.func.as_mut() else {
-                    unreachable!("functions are called by ident");
+                let Expression::Ident(ident) = expr::unref_mut(call.func.as_mut()) else {
+                    unreachable!("functions are called by ident; got {}", call.func);
                 };
 
                 let proxy = match &ident.definition {
                     Definition::Function(id) => proxy_functions.get(id),
-                    Definition::Local(_) => None,
-                    other => unreachable!("function or local definition expected; got {}", other),
+                    Definition::Local(_) => {
+                        // Doesn't have a proxy, but still needs its parameters adjusted.
+                        None
+                    }
+                    Definition::Oracle(_) | Definition::Builtin(_) => {
+                        // Oracles don't participate in recursion, let's leave them alone.
+                        return true;
+                    }
+                    other => unreachable!("unexpected call target definition: {}", other),
                 };
 
-                let Type::Function(param_types, _, _, callee_unconstrained) = &mut ident.typ else {
+                let Type::Function(param_types, _, _, callee_unconstrained) =
+                    types::unref_mut(&mut ident.typ)
+                else {
                     unreachable!("function type expected");
                 };
 
@@ -442,7 +449,8 @@ fn modify_function_pointer_param_types(param_types: &mut [Type], callee_unconstr
 
 /// Recursively modify function pointers in the param type.
 fn modify_function_pointer_param_type(param_type: &mut Type, callee_unconstrained: bool) {
-    let Type::Function(param_types, _, _, param_unconstrained) = param_type else {
+    let Type::Function(param_types, _, _, param_unconstrained) = types::unref_mut(param_type)
+    else {
         return;
     };
 
@@ -464,6 +472,10 @@ fn modify_function_pointer_param_values(
     proxy_functions: &HashMap<FuncId, Function>,
 ) {
     for i in 0..param_types.len() {
+        // We only consider parameters that take functions, not function references,
+        // because if something can take a function reference, and we can call it,
+        // then it must be a Brillig to Brillig call, and we don't have to change
+        // it to pass the proxy instead.
         let Type::Function(_, _, _, param_unconstrained) = &param_types[i] else {
             continue;
         };
@@ -475,9 +487,15 @@ fn modify_function_pointer_param_values(
         }
 
         // If we need to pass by value, then it's going to the proxy, but only if it's a global function,
-        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
-        // happens when it's first passed as a global.
+        // and not a function parameter, which we wouldn't know what to change to, and doing so happens
+        // when it's first passed as a global.
         let arg = &mut args[i];
+
+        // If we are dereferencing a variable, then it's not a global function we are passing.
+        if expr::is_deref(arg) {
+            continue;
+        }
+        // Otherwise we should be passing a function by identifier directly.
         let Expression::Ident(param_func_ident) = arg else {
             unreachable!("functions are passed by ident; got {arg}");
         };

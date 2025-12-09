@@ -1,0 +1,7 @@
+[package]
+name = "last_uses_regression_8935"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

@@ -308,7 +308,7 @@ where
                                         };
                                     }
                                     panic!(
-                                        "The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution"
+                                        "The program being executed or the system is flakey. Found a failing testcase that didn't fail on re-execution"
                                     )
                                 }
                             }

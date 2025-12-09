@@ -3,12 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: Field) {
-    assert(x == 1);
-    assert(1 == conditional(x as bool));
+    assert(x == 1_Field);
+    assert(1_Field == conditional(x != 0_Field));
 }
 
 fn conditional(x: bool) -> Field {
     assert(x, f"Expected x to be true but got {x}");
     assert(x == true, f"Expected x to be true but got {x}");
-    1
+    1_Field
 }

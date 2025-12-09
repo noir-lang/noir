@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 acvm.workspace = true
+brillig.workspace = true
 fm.workspace = true
 noirc_abi.workspace = true
 noirc_driver.workspace = true
@@ -37,6 +38,10 @@ rand = { workspace = true, optional = true }
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["server"] }
+serde_json.workspace = true
+proptest.workspace = true
+proptest-derive.workspace = true
+num-bigint.workspace = true
 
 [features]
 default = []

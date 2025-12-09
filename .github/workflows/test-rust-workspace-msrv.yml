@@ -23,10 +23,15 @@ jobs:
     name: Build test artifacts
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Delete android SDK
+        run: sudo rm -rf /usr/local/lib/android/sdk
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -49,7 +54,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Build and archive tests
         run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
@@ -57,7 +62,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload archive to workflow
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nextest-archive
           path: nextest-archive.tar.zst
@@ -67,12 +72,14 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4]
+        partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -82,18 +89,18 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Download archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: nextest-archive
       - name: Run tests
         run: |
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
-            --partition count:${{ matrix.partition }}/4 \
-            --no-fail-fast
+            --partition count:${{ matrix.partition }}/8 \
+            --profile ci-master
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -104,6 +111,8 @@ jobs:
     if: ${{ always() }}
     needs:
       - run-tests
+    permissions:
+      contents: read
 
     steps:
       - name: Report overall success
@@ -119,7 +128,7 @@ jobs:
 
       - name: Checkout
         if: ${{ failure() }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Raise an issue if the tests failed
       - name: Alert on failed publish

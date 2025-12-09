@@ -1,3 +1,5 @@
+return = 3
+
 [[foos]]
 bar = 0
 baz = 0

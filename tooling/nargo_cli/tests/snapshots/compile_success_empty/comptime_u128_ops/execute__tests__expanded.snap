@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    ()
+}
+
+struct T<let N: u128> {}
+
+impl<let N: u128> T<N> {
+    fn n(self) -> u128 {
+        let _: Self = self;
+        N
+    }
+}
+
+fn foo<let x: u128, let y: u128>() -> T<x - y> {
+    T::<x - y> {}
+}

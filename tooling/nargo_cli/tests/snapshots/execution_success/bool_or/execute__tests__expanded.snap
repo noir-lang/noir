@@ -3,6 +3,6 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u1, y: u1) {
-    assert((x | y) == 1);
-    assert(((x | y) | x) == 1);
+    assert((x | y) == 1_u1);
+    assert(((x | y) | x) == 1_u1);
 }

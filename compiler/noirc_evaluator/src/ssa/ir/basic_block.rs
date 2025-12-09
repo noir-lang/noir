@@ -149,8 +149,9 @@ impl BasicBlock {
             Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
                 vec![*then_destination, *else_destination].into_iter()
             }
-            Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
-            None => vec![].into_iter(),
+            Some(TerminatorInstruction::Return { .. })
+            | Some(TerminatorInstruction::Unreachable { .. })
+            | None => vec![].into_iter(),
         }
     }
 }

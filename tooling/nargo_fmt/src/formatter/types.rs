@@ -55,7 +55,7 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersando or SliceStart in the lexer depending
+                // `&` can be represented with Ampersand or SliceStart in the lexer depending
                 // on whether it's right next to a `[` or not.
                 match &self.token {
                     Token::Ampersand => {
@@ -142,7 +142,6 @@ impl Formatter<'_> {
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error => unreachable!("Should not be present in the AST"),
-            UnresolvedTypeData::Unspecified => panic!("Unspecified type should have been handled"),
         }
     }
 
@@ -167,10 +166,10 @@ mod tests {
     use crate::Config;
 
     fn assert_format_type(src: &str, expected: &str) {
-        let module_src = format!("type X = {};", src);
+        let module_src = format!("type X = {src};");
         let (parsed_module, errors) = parser::parse_program_with_dummy_file(&module_src);
         if !errors.is_empty() {
-            panic!("Expected no errors, got: {:?}", errors);
+            panic!("Expected no errors, got: {errors:?}");
         }
         let result = crate::format(&module_src, parsed_module, &Config::default());
         let type_result = &result["type X = ".len()..];
@@ -179,7 +178,7 @@ mod tests {
 
         let (parsed_module, errors) = parser::parse_program_with_dummy_file(&result);
         if !errors.is_empty() {
-            panic!("Expected no errors in idempotent check, got: {:?}", errors);
+            panic!("Expected no errors in idempotent check, got: {errors:?}");
         }
         let result = crate::format(&result, parsed_module, &Config::default());
         let type_result = &result["type X = ".len()..];
@@ -352,6 +351,13 @@ mod tests {
     fn format_as_trait_path_type() {
         let src = " < Field as foo :: Bar> :: baz ";
         let expected = "<Field as foo::Bar>::baz";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_as_trait_path_type_expression() {
+        let src = "[ Field ; < Field as foo :: Bar> :: baz ]";
+        let expected = "[Field; <Field as foo::Bar>::baz]";
         assert_format_type(src, expected);
     }
 }

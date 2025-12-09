@@ -4,10 +4,11 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::{
     Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
-    node_interner::{FuncId, TraitId, TraitMethodId},
+    node_interner::{FuncId, TraitId},
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -62,6 +63,7 @@ pub struct Trait {
     pub method_ids: HashMap<String, FuncId>,
 
     pub associated_types: Generics,
+    pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -78,6 +80,11 @@ pub struct Trait {
     pub trait_bounds: Vec<ResolvedTraitBound>,
 
     pub where_clause: Vec<TraitConstraint>,
+
+    pub all_generics: Generics,
+
+    /// Map from each associated constant's name to a unique DefinitionId for that constant.
+    pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
 #[derive(Debug)]
@@ -113,13 +120,24 @@ pub struct TraitConstraint {
 }
 
 impl TraitConstraint {
+    /// Update the type in the constraint by substituting the bindings onto it,
+    /// then apply the bindings onto the trait bounds as well.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
     }
+
+    pub fn to_string(&self, interner: &NodeInterner) -> String {
+        interner.trait_constraint_string(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct ResolvedTraitBound {
     pub trait_id: TraitId,
     pub trait_generics: TraitGenerics,
@@ -127,6 +145,7 @@ pub struct ResolvedTraitBound {
 }
 
 impl ResolvedTraitBound {
+    /// Update all [Type]s in the bound generics by substituting some [TypeBindings] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
@@ -135,6 +154,13 @@ impl ResolvedTraitBound {
         for named in &mut self.trait_generics.named {
             named.typ = named.typ.substitute(type_bindings);
         }
+    }
+}
+
+impl PartialEq for ResolvedTraitBound {
+    fn eq(&self, other: &Self) -> bool {
+        // Location doesn't matter for equality
+        self.trait_id == other.trait_id && self.trait_generics == other.trait_generics
     }
 }
 
@@ -167,13 +193,36 @@ impl Trait {
         self.visibility = visibility;
     }
 
-    pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
-        for (idx, method) in self.methods.iter().enumerate() {
+    pub fn set_all_generics(&mut self, generics: Generics) {
+        self.all_generics = generics;
+    }
+
+    pub fn set_associated_type_bounds(
+        &mut self,
+        associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
+    ) {
+        self.associated_type_bounds = associated_type_bounds;
+    }
+
+    pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
+        for method in self.methods.iter() {
             if &method.name == name {
-                return Some(TraitMethodId { trait_id: self.id, method_index: idx });
+                let id = *self.method_ids.get(name).unwrap();
+                return Some(interner.function_definition_id(id));
             }
         }
         None
+    }
+
+    pub fn find_method_or_constant(
+        &self,
+        name: &str,
+        interner: &NodeInterner,
+    ) -> Option<DefinitionId> {
+        if let Some(method) = self.find_method(name, interner) {
+            return Some(method);
+        }
+        self.associated_constant_ids.get(name).copied()
     }
 
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(c: bool) -> pub bool {
+    let b: [(&mut bool, Field); 1] = if c {
+        [(&mut true, 1_Field)]
+    } else {
+        [(&mut true, 1_Field)]
+    };
+    *b[0_u32].0
+}

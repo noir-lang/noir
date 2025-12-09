@@ -1,14 +1,15 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::btree_map;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId},
     map::AtomicCounter,
+    value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -20,7 +21,6 @@ use super::ValueId;
 pub struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub functions: BTreeMap<FunctionId, Function>,
-    pub used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     pub main_id: FunctionId,
     #[serde(skip)]
     pub next_id: AtomicCounter<Function>,
@@ -54,9 +54,6 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            // This field is set only after running DIE and is utilized
-            // for optimizing implementation of globals post-SSA.
-            used_globals: HashMap::default(),
         }
     }
 
@@ -101,6 +98,78 @@ impl Ssa {
     pub(crate) fn is_entry_point(&self, function: FunctionId) -> bool {
         function == self.main_id || self.functions[&function].runtime().is_entry_point()
     }
+
+    /// Collect all the global value IDs used per function.
+    pub(crate) fn used_globals_in_functions(&self) -> HashMap<FunctionId, HashSet<ValueId>> {
+        fn add_value_to_globals_if_global(
+            function: &Function,
+            value_id: ValueId,
+            used_globals: &mut HashSet<ValueId>,
+        ) {
+            if !function.dfg.is_global(value_id) {
+                return;
+            }
+
+            if !used_globals.insert(value_id) {
+                return;
+            }
+
+            // If we found a new global, its value could be an instruction that points to other globals.
+            let globals = &function.dfg.globals;
+            if let Value::Instruction { instruction, .. } = globals[value_id] {
+                let instruction = &globals[instruction];
+                instruction.for_each_value(|value_id| {
+                    add_value_to_globals_if_global(function, value_id, used_globals);
+                });
+            }
+        }
+
+        let mut used_globals = HashMap::default();
+
+        for (function_id, function) in &self.functions {
+            let mut used_globals_in_function = HashSet::default();
+
+            for call_data in &function.dfg.data_bus.call_data {
+                add_value_to_globals_if_global(
+                    function,
+                    call_data.array_id,
+                    &mut used_globals_in_function,
+                );
+            }
+
+            for block_id in function.reachable_blocks() {
+                let block = &function.dfg[block_id];
+                for instruction_id in block.instructions() {
+                    let instruction = &function.dfg[*instruction_id];
+                    instruction.for_each_value(|value_id| {
+                        add_value_to_globals_if_global(
+                            function,
+                            value_id,
+                            &mut used_globals_in_function,
+                        );
+                    });
+                }
+
+                block.unwrap_terminator().for_each_value(|value_id| {
+                    add_value_to_globals_if_global(
+                        function,
+                        value_id,
+                        &mut used_globals_in_function,
+                    );
+                });
+            }
+
+            used_globals.insert(*function_id, used_globals_in_function);
+        }
+
+        used_globals
+    }
+}
+
+impl std::fmt::Display for Ssa {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.print_without_locations().fmt(f)
+    }
 }
 
 #[cfg(test)]
@@ -131,7 +200,7 @@ mod test {
         let ssa = builder.finish();
         let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
         let deserialized_ssa: Ssa = serde_json::from_str(serialized_ssa).unwrap();
-        let actual_string = format!("{}", deserialized_ssa);
+        let actual_string = format!("{}", deserialized_ssa.print_without_locations());
 
         let expected_string = "acir(inline) fn main f0 {\n  \
         b0(v0: Field):\n    \

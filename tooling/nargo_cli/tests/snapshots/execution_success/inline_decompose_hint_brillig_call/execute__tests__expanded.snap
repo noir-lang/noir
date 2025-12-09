@@ -4,18 +4,18 @@ expression: expanded_code
 ---
 use std::{
     embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul},
-    ops::arith::Add,
+    ops::Add,
 };
 
 fn main() -> pub Field {
     let pre_address: Field =
-        -5673237294186472592112959384456528266748340368561543898456539766476662085614;
+        -5673237294186472592112959384456528266748340368561543898456539766476662085614_Field;
     let (a, b): (Field, Field) = std::field::bn254::decompose(pre_address);
     let curve: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: a, hi: b };
     let key: EmbeddedCurvePoint = fixed_base_scalar_mul(curve);
     let point: EmbeddedCurvePoint = EmbeddedCurvePoint {
-        x: 7721365207469689951757300880340056666751408554323047984441392991478714371870,
-        y: -4142472734945281170909704725710727431818425750402703416563327378104690426220,
+        x: 7721365207469689951757300880340056666751408554323047984441392991478714371870_Field,
+        y: -4142472734945281170909704725710727431818425750402703416563327378104690426220_Field,
         is_infinite: false,
     };
     let address_point: EmbeddedCurvePoint = key.add(point);

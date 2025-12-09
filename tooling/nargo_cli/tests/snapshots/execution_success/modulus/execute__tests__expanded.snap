@@ -4,31 +4,31 @@ expression: expanded_code
 ---
 fn main(bn254_modulus_be_bytes: [u8; 32], bn254_modulus_be_bits: [u1; 254]) {
     let modulus_size: u64 = std::field::modulus_num_bits();
-    assert(modulus_size == 254);
+    assert(modulus_size == 254_u64);
     assert_reverse(
         std::field::modulus_be_bytes(),
         std::field::modulus_le_bytes(),
     );
     let modulus_be_byte_array: [u8] = std::field::modulus_be_bytes();
-    for i in 0..32 {
+    for i in 0_u32..32_u32 {
         assert(modulus_be_byte_array[i] == bn254_modulus_be_bytes[i]);
     }
     let modulus_le_byte_array: [u8] = std::field::modulus_le_bytes();
-    for i in 0..32 {
-        assert(modulus_le_byte_array[i] == bn254_modulus_be_bytes[31 - i]);
+    for i in 0_u32..32_u32 {
+        assert(modulus_le_byte_array[i] == bn254_modulus_be_bytes[31_u32 - i]);
     }
     let modulus_be_bits: [u1] = std::field::modulus_be_bits();
-    for i in 0..254 {
+    for i in 0_u32..254_u32 {
         assert(modulus_be_bits[i] == bn254_modulus_be_bits[i]);
     }
     let modulus_le_bits: [u1] = std::field::modulus_le_bits();
-    for i in 0..254 {
-        assert(modulus_le_bits[i] == bn254_modulus_be_bits[253 - i]);
+    for i in 0_u32..254_u32 {
+        assert(modulus_le_bits[i] == bn254_modulus_be_bits[253_u32 - i]);
     }
 }
 
 fn assert_reverse(forwards: [u8], backwards: [u8]) {
-    for i in 0..32 {
-        assert(forwards[i] == backwards[31 - i]);
+    for i in 0_u32..32_u32 {
+        assert(forwards[i] == backwards[31_u32 - i]);
     }
 }

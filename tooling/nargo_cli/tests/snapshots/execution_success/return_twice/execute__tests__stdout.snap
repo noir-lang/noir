@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[return_twice] Circuit output: Vec([Field(100), Field(100)])
+[return_twice] Circuit output: (0x64, 0x64)

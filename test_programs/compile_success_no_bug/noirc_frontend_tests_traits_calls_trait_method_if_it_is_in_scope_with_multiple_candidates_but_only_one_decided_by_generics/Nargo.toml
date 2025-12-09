@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -26,7 +26,7 @@ struct Context {
 impl Context {
     fn emit_raw_log<let M: u32>(&mut self, randomness: Field, _log: [u8; M], log_hash: Field) {
         let log_hash: LogHash =
-            LogHash { value: log_hash, counter: 0, length: 0, randomness: randomness };
+            LogHash { value: log_hash, counter: 0_u32, length: 0_Field, randomness: randomness };
         self.log_hashes.push(log_hash);
     }
 }
@@ -42,7 +42,7 @@ fn compute<Event>(_event: Event) -> ([u8; 5], Field)
 where
     Event: EventInterface,
 {
-    ([0 as u8; 5], 0)
+    ([0_u8; 5], 0_Field)
 }
 
 fn emit_with_keys<Event, let OB: u32>(
@@ -75,16 +75,17 @@ where
 unconstrained fn func(input: u32) {
     let mut var: u32 = input;
     let ref: &mut &mut u32 = &mut &mut var;
-    for _ in 0..1 {
-        *(*(ref)) = 2;
+    for _ in 0_u32..1_u32 {
+        **ref = 2_u32;
     }
-    assert(var == 2);
-    assert(**ref == 2);
+    assert(var == 2_u32);
+    assert(**ref == 2_u32);
 }
 
 fn main(input: [Field; 4], randomness: Field, context_input: u32) {
     let b: [u32; 3] = [context_input, context_input, context_input];
-    let mut context: Context = Context { a: context_input, b: b, log_hashes: BoundedVec::new() };
-    let event0: ExampleEvent0 = ExampleEvent0 { value0: input[0], value1: input[1] };
+    let mut context: Context =
+        Context { a: context_input, b: b, log_hashes: BoundedVec::<LogHash, 4>::new() };
+    let event0: ExampleEvent0 = ExampleEvent0 { value0: input[0_u32], value1: input[1_u32] };
     event0.emit(encode_event_with_randomness(&mut context, randomness));
 }

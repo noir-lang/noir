@@ -31,6 +31,17 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for GeneratedBrillig<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}", self.name)?;
+        let width = self.byte_code.len().to_string().len();
+        for (index, opcode) in self.byte_code.iter().enumerate() {
+            writeln!(f, "{index:>width$}: {opcode}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
@@ -41,7 +52,7 @@ pub struct BrilligArtifact<F> {
     /// resolved.
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
     /// A map of labels to their position in byte code.
-    labels: HashMap<Label, OpcodeLocation>,
+    pub(crate) labels: HashMap<Label, OpcodeLocation>,
     /// Set of labels which are external to the bytecode.
     ///
     /// This will most commonly contain the labels of functions
@@ -65,6 +76,17 @@ pub struct BrilligArtifact<F> {
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}", self.name)?;
+        let width = self.byte_code.len().to_string().len();
+        for (index, opcode) in self.byte_code.iter().enumerate() {
+            writeln!(f, "{index:>width$}: {opcode}")?;
+        }
+        Ok(())
+    }
+}
+
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
@@ -86,13 +108,13 @@ impl std::fmt::Display for LabelType {
         match self {
             LabelType::Function(function_id, block_id) => {
                 if let Some(block_id) = block_id {
-                    write!(f, "Function({:?}, {:?})", function_id, block_id)
+                    write!(f, "Function({function_id:?}, {block_id:?})")
                 } else {
-                    write!(f, "Function({:?})", function_id)
+                    write!(f, "Function({function_id:?})")
                 }
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
-            LabelType::Procedure(procedure_id) => write!(f, "Procedure({:?})", procedure_id),
+            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id:?})"),
             LabelType::GlobalInit(function_id) => {
                 write!(f, "Globals Initialization({function_id:?})")
             }
@@ -111,7 +133,7 @@ pub(crate) struct Label {
 }
 
 impl Label {
-    pub(crate) fn add_section(&self, section: usize) -> Self {
+    pub(crate) fn with_section(&self, section: usize) -> Self {
         Label { label_type: self.label_type.clone(), section: Some(section) }
     }
 
@@ -268,12 +290,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     /// Returns true if the opcode is a jump instruction
     fn is_jmp_instruction(instruction: &BrilligOpcode<F>) -> bool {
-        matches!(
-            instruction,
-            BrilligOpcode::JumpIfNot { .. }
-                | BrilligOpcode::JumpIf { .. }
-                | BrilligOpcode::Jump { .. }
-        )
+        matches!(instruction, BrilligOpcode::JumpIf { .. } | BrilligOpcode::Jump { .. })
     }
 
     /// Adds a label in the bytecode to specify where this block's
@@ -289,7 +306,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Returns the index of the next opcode.
     ///
     /// This is useful for labelling regions of code
-    /// before you have generated the opcodes for the region.
+    /// before we start generating the opcodes for the region.
     pub(crate) fn index_of_next_opcode(&self) -> OpcodeLocation {
         self.byte_code.len()
     }
@@ -312,15 +329,6 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
-                }
-                BrilligOpcode::JumpIfNot { condition, location } => {
-                    assert_eq!(
-                        location, 0,
-                        "location is not zero, which means that the jump label does not need resolving"
-                    );
-
-                    self.byte_code[*location_of_jump] =
-                        BrilligOpcode::JumpIfNot { condition, location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
                     assert_eq!(

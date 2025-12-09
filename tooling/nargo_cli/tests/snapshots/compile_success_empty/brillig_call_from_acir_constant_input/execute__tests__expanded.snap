@@ -3,15 +3,15 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    bar(0)
+    bar(0_Field)
 }
 
 pub unconstrained fn foo(input: Field) -> Field {
-    (input == 0) as Field
+    (input == 0_Field) as Field
 }
 
 pub fn bar(input: Field) {
     // Safety: comment added by `nargo expand`
     let output: Field = unsafe { foo(input) };
-    assert(output != 0, "");
+    assert(output != 0_Field, "");
 }

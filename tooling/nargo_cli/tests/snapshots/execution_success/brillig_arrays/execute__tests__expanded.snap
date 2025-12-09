@@ -11,18 +11,18 @@ fn main(x: [Field; 3]) {
 }
 
 unconstrained fn read_array(x: [Field; 3]) {
-    assert(x[0] == 1);
-    let y: [Field; 3] = [1, 5, 27];
-    assert(y[x[0]] == 5);
+    assert(x[0_u32] == 1_Field);
+    let y: [Field; 3] = [1_Field, 5_Field, 27_Field];
+    assert(y[x[0_u32] as u32] == 5_Field);
 }
 
 unconstrained fn read_write_array(x: [Field; 3]) {
     let mut y: [Field; 3] = x;
-    y[0] = 5;
-    assert(y[0] == 5);
-    assert(y[1] == 2);
-    assert(y[2] == 3);
-    assert(x[0] == 1);
-    assert(x[1] == 2);
-    assert(x[2] == 3);
+    y[0_u32] = 5_Field;
+    assert(y[0_u32] == 5_Field);
+    assert(y[1_u32] == 2_Field);
+    assert(y[2_u32] == 3_Field);
+    assert(x[0_u32] == 1_Field);
+    assert(x[1_u32] == 2_Field);
+    assert(x[2_u32] == 3_Field);
 }

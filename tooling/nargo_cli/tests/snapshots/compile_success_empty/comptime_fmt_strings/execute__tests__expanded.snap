@@ -7,6 +7,7 @@ fn main() {
     assert(s1 == "x is 4, fake interpolation: {y}, y is 5");
     assert(s2 == "\0\0\0\0");
     { hello_world() };
+    ()
 }
 
 comptime fn glue(x: Quoted, y: Quoted) -> Quoted {
@@ -16,5 +17,5 @@ comptime fn glue(x: Quoted, y: Quoted) -> Quoted {
 fn hello_world() {}
 
 comptime fn call(x: Quoted) -> Quoted {
-    quote { x() }
+    quote { $x() }
 }

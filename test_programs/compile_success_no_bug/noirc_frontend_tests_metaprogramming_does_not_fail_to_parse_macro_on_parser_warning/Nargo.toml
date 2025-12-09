@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_metaprogramming_does_not_fail_to_parse_macro_on_parser_warning"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

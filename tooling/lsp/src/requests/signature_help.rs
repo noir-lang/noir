@@ -4,15 +4,18 @@ use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
-use fm::{FileId, PathString};
+use fm::FileId;
 use noirc_errors::{Location, Span};
+use noirc_frontend::ast::AttributeTarget;
+use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::token::{MetaAttribute, MetaAttributeName, SecondaryAttributeKind};
 use noirc_frontend::{
     ParsedModule, Type,
     ast::{
         CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
     },
-    hir_def::{function::FuncMeta, stmt::HirPattern},
+    hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
     parser::Item,
 };
@@ -27,24 +30,20 @@ pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
 ) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
-    let uri = params.text_document_position_params.clone().text_document.uri;
-
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).and_then(|file_id| {
-            utils::position_to_byte_index(
-                args.files,
-                file_id,
-                &params.text_document_position_params.position,
-            )
-            .and_then(|byte_index| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        utils::position_to_byte_index(
+            args.files,
+            file_id,
+            &params.text_document_position_params.position,
+        )
+        .and_then(|byte_index| {
+            let file = args.files.get_file(file_id).unwrap();
+            let source = file.source();
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
-                finder.find(&parsed_module)
-            })
+            let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
+            finder.find(&parsed_module)
         })
     });
     future::ready(result)
@@ -74,6 +73,7 @@ impl<'a> SignatureFinder<'a> {
         arguments_span: Span,
         name_span: Span,
         has_self: bool,
+        is_attribute: bool,
     ) {
         if self.signature_help.is_some() {
             return;
@@ -88,11 +88,12 @@ impl<'a> SignatureFinder<'a> {
 
         // Check if the call references a named function
         if let Some(ReferenceId::Function(func_id)) = self.interner.find_referenced(location) {
-            let name = self.interner.function_name(&func_id);
-            let func_meta = self.interner.function_meta(&func_id);
-
-            let signature_information =
-                self.func_meta_signature_information(func_meta, name, active_parameter, has_self);
+            let signature_information = self.func_id_signature_information(
+                func_id,
+                active_parameter,
+                has_self,
+                is_attribute,
+            );
             self.set_signature_help(signature_information);
             return;
         }
@@ -115,13 +116,18 @@ impl<'a> SignatureFinder<'a> {
         }
     }
 
-    fn func_meta_signature_information(
+    fn func_id_signature_information(
         &self,
-        func_meta: &FuncMeta,
-        name: &str,
+        func_id: FuncId,
         active_parameter: Option<u32>,
         has_self: bool,
+        is_attribute: bool,
     ) -> SignatureInformation {
+        let name = self.interner.function_name(&func_id);
+        let func_meta = self.interner.function_meta(&func_id);
+        let mut attributes = self.interner.function_attributes(&func_id).secondary.iter();
+        let is_varargs = attributes.any(|attr| attr.kind == SecondaryAttributeKind::Varargs);
+
         let enum_type_id = match (func_meta.type_id, func_meta.enum_variant_index) {
             (Some(type_id), Some(_)) => Some(type_id),
             _ => None,
@@ -129,6 +135,10 @@ impl<'a> SignatureFinder<'a> {
 
         let mut label = String::new();
         let mut parameters = Vec::new();
+
+        if is_varargs {
+            label.push_str("#[varargs]\n");
+        }
 
         if let Some(enum_type_id) = enum_type_id {
             label.push_str("enum ");
@@ -140,7 +150,16 @@ impl<'a> SignatureFinder<'a> {
 
         label.push_str(name);
         label.push('(');
-        for (index, (pattern, typ, _)) in func_meta.parameters.0.iter().enumerate() {
+
+        let mut func_parameters = func_meta.parameters.0.iter();
+
+        if is_attribute {
+            // The first argument is `FunctionDefinition`, `TypeDefinition`, etc., and we don't
+            // want to show that in the signature help.
+            func_parameters.next();
+        }
+
+        for (index, (pattern, typ, _)) in func_parameters.enumerate() {
             if index > 0 {
                 label.push_str(", ");
             }
@@ -355,12 +374,14 @@ impl Visitor for SignatureFinder<'_> {
         let span = call_expression.func.location.span;
         let name_span = Span::from(span.end() - 1..span.end());
         let has_self = false;
+        let is_attribute = false;
 
         self.try_compute_signature_help(
             &call_expression.arguments,
             arguments_span,
             name_span,
             has_self,
+            is_attribute,
         );
 
         false
@@ -377,12 +398,14 @@ impl Visitor for SignatureFinder<'_> {
             Span::from(method_call_expression.method_name.span().end() + 1..span.end() - 1);
         let name_span = method_call_expression.method_name.span();
         let has_self = true;
+        let is_attribute = false;
 
         self.try_compute_signature_help(
             &method_call_expression.arguments,
             arguments_span,
             name_span,
             has_self,
+            is_attribute,
         );
 
         false
@@ -416,6 +439,38 @@ impl Visitor for SignatureFinder<'_> {
             }
             ConstrainKind::Constrain => (),
         }
+
+        false
+    }
+
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &MetaAttribute,
+        _target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
+        let MetaAttributeName::Path(path) = &attribute.name else {
+            return false;
+        };
+
+        let name_span = path.span();
+        let arguments_span = if attribute.arguments.is_empty() {
+            Span::from(name_span.end() + 1..name_span.end() + 2)
+        } else {
+            Span::from(
+                name_span.end() + 1..attribute.arguments.last().unwrap().location.span.end() + 1,
+            )
+        };
+
+        let has_self = false;
+        let is_attribute = true;
+        self.try_compute_signature_help(
+            &attribute.arguments,
+            arguments_span,
+            name_span,
+            has_self,
+            is_attribute,
+        );
 
         false
     }

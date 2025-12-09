@@ -1,0 +1,7 @@
+[package]
+name = "serialize_1"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

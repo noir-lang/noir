@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Casting value of type Field to a smaller type (i8)
+  ┌─ src/main.nr:3:23
+  │
+3 │         let i: i8 = -(128 as i8);
+  │                       --------- casting untyped value (128) to a type with a maximum size (127) that's smaller than it
+  │
+
+warning: unused variable i
+  ┌─ src/main.nr:3:13
+  │
+3 │         let i: i8 = -(128 as i8);
+  │             - unused variable
+  │
+
+error: Attempt to negate with overflow
+  ┌─ src/main.nr:3:21
+  │
+3 │         let i: i8 = -(128 as i8);
+  │                     ------------
+  │
+
+error: Cannot apply unary operator `-` to type `u8`
+  ┌─ src/main.nr:8:17
+  │
+8 │         let _ = -i;
+  │                 --
+  │
+
+error: Cannot apply unary operator `-` to type `u8`
+  ┌─ src/main.nr:8:17
+  │
+8 │         let _ = -i;
+  │                 --
+  │
+
+Aborting due to 3 previous errors

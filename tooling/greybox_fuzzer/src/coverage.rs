@@ -126,7 +126,7 @@ pub enum BrilligCoverageItemRange {
 
 pub type BrilligCoverageRanges = Vec<BrilligCoverageItemRange>;
 
-/// Raw brillig coverage is just a buffer of uints that contain counters
+/// Raw brillig coverage is just a buffer of unsigned ints that contain counters
 pub type RawBrilligCoverage = Vec<u32>;
 
 /// Information about the coverage of a single testcase execution
@@ -640,8 +640,7 @@ pub fn analyze_brillig_program_before_fuzzing(
     for (opcode_index, opcode) in fuzzed_brillig_function.bytecode.iter().enumerate() {
         match opcode {
             // Conditional branching
-            &BrilligOpcode::JumpIf { location, .. }
-            | &BrilligOpcode::JumpIfNot { location, .. } => {
+            &BrilligOpcode::JumpIf { location, .. } => {
                 feature_to_index_map.insert((opcode_index, location), total_features);
                 feature_to_index_map.insert((opcode_index, opcode_index + 1), total_features + 1);
                 coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {

@@ -1,6 +1,8 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
+use std::collections::{BTreeMap, HashSet};
 use std::ops::ControlFlow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::str::FromStr as _;
 
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
@@ -9,8 +11,10 @@ use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
-use fxhash::FxHashMap as HashMap;
+use nargo::package::{Package, PackageType};
+use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
+use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 
@@ -46,13 +50,10 @@ pub(crate) fn on_did_open_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
-    let output_diagnostics = true;
+    let change = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
-        Ok(_) => {
-            state.open_documents_count += 1;
-            ControlFlow::Continue(())
-        }
+    match handle_text_document_notification(state, document_uri, change) {
+        Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
 }
@@ -66,9 +67,9 @@ pub(super) fn on_did_change_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
-    let output_diagnostics = false;
+    let change = true;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match handle_text_document_notification(state, document_uri, change) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -79,20 +80,12 @@ pub(super) fn on_did_close_text_document(
     params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
-    state.cached_lenses.remove(&params.text_document.uri.to_string());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
-    state.open_documents_count -= 1;
-
-    if state.open_documents_count == 0 {
-        state.package_cache.clear();
-        state.workspace_cache.clear();
-    }
-
     let document_uri = params.text_document.uri;
-    let output_diagnostics = false;
+    let change = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match handle_text_document_notification(state, document_uri, change) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -102,38 +95,113 @@ pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let document_uri = params.text_document.uri;
-    let output_diagnostics = true;
+    let workspace = match workspace_from_document_uri(params.text_document.uri) {
+        Ok(workspace) => workspace,
+        Err(err) => return ControlFlow::Break(Err(err)),
+    };
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
+    // Process any pending changes
+    if state.workspaces_to_process.remove(&workspace.root_dir) {
+        let _ = process_workspace(state, &workspace, false);
+    }
+
+    // Cached data should be here but, if it doesn't, we'll just type-check and output diagnostics
+    let (Some(workspace_cache), Some(package_cache)) = (
+        state.workspace_cache.get(&workspace.root_dir),
+        state.package_cache.get(&workspace.root_dir),
+    ) else {
+        let output_diagnostics = true;
+        return match process_workspace(state, &workspace, output_diagnostics) {
+            Ok(_) => ControlFlow::Continue(()),
+            Err(err) => return ControlFlow::Break(Err(err)),
+        };
+    };
+
+    // If the last thing the user did was to save a file in the workspace, it could be that
+    // the underlying files in the filesystem have changed (for example a `git checkout`),
+    // so here we force a type-check just in case.
+    if package_cache.diagnostics_just_published {
+        let output_diagnostics = true;
+        return match process_workspace(state, &workspace, output_diagnostics) {
+            Ok(_) => ControlFlow::Continue(()),
+            Err(err) => return ControlFlow::Break(Err(err)),
+        };
+    }
+
+    // Otherwise, we can publish the diagnostics we computed in the last type-check
+    publish_diagnostics(
+        state,
+        &workspace.root_dir,
+        &workspace_cache.file_manager.clone(),
+        package_cache.diagnostics.clone(),
+    );
+
+    if let Some(package_cache) = state.package_cache.get_mut(&workspace.root_dir) {
+        package_cache.diagnostics_just_published = true;
+    }
+
+    ControlFlow::Continue(())
+}
+
+fn handle_text_document_notification(
+    state: &mut LspState,
+    document_uri: Url,
+    change: bool,
+) -> Result<(), async_lsp::Error> {
+    let workspace = workspace_from_document_uri(document_uri.clone())?;
+
+    if state.package_cache.contains_key(&workspace.root_dir) {
+        // If we have cached data but the file didn't change there's nothing to do
+        if change {
+            state.workspaces_to_process.insert(workspace.root_dir.clone());
+        }
+        Ok(())
+    } else {
+        // If it's the first time we see this package, show diagnostics.
+        // This can happen for example when a user opens a Noir file in a package for the first time.
+        let output_diagnostics = true;
+        process_workspace(state, &workspace, output_diagnostics)
+    }
+}
+
+pub(crate) fn workspace_from_document_uri(
+    document_uri: Url,
+) -> Result<Workspace, async_lsp::Error> {
+    if document_uri.scheme() == "noir-std" {
+        Ok(fake_stdlib_workspace())
+    } else {
+        let file_path = document_uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })?;
+
+        let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+        })?;
+
+        Ok(workspace)
     }
 }
 
 // Given a Noir document, find the workspace it's contained in (an assumed workspace is created if
 // it's only contained in a package), then type-checks the workspace's packages,
-// caching code lenses and type definitions, and notifying about compilation errors.
-pub(crate) fn process_workspace_for_noir_document(
+// caching type definitions, and notifying about compilation errors if `output_diagnostics` is true.
+pub(crate) fn process_workspace(
     state: &mut LspState,
-    document_uri: Url,
+    workspace: &Workspace,
     output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
-    let file_path = document_uri.to_file_path().map_err(|_| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-    })?;
-
-    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-    })?;
-
     let mut workspace_file_manager = workspace.new_file_manager();
-
-    insert_all_files_for_workspace_into_file_manager(
-        state,
-        &workspace,
-        &mut workspace_file_manager,
-    );
+    if workspace.is_assumed {
+        let package = workspace.members.first().unwrap();
+        workspace_file_manager
+            .add_file_with_source_canonical_path(&package.entry_path, String::new());
+    } else {
+        insert_all_files_for_workspace_into_file_manager(
+            state,
+            workspace,
+            &mut workspace_file_manager,
+        );
+    }
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
@@ -154,14 +222,6 @@ pub(crate) fn process_workspace_for_noir_document(
             });
         }
 
-        let collected_lenses = crate::requests::collect_lenses_for_package(
-            &context,
-            crate_id,
-            &workspace,
-            package,
-            Some(&file_path),
-        );
-        state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
         state.package_cache.insert(
             package.root_dir.clone(),
             PackageCacheData {
@@ -170,14 +230,15 @@ pub(crate) fn process_workspace_for_noir_document(
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
+                diagnostics: file_diagnostics.clone(),
+                diagnostics_just_published: output_diagnostics,
             },
         );
 
         let fm = &context.file_manager;
-        let files = fm.as_file_map();
 
         if output_diagnostics {
-            publish_diagnostics(state, &package.root_dir, files, fm, file_diagnostics);
+            publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
         }
     }
 
@@ -189,19 +250,40 @@ pub(crate) fn process_workspace_for_noir_document(
     Ok(())
 }
 
+pub(crate) fn fake_stdlib_workspace() -> Workspace {
+    let assumed_package = Package {
+        version: None,
+        compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        compiler_required_unstable_features: Vec::new(),
+        root_dir: PathBuf::from_str("std").unwrap(),
+        package_type: PackageType::Binary,
+        entry_path: PathBuf::from_str("fake_entry_path.nr").unwrap(),
+        name: CrateName::from_str("fake_std").unwrap(),
+        dependencies: BTreeMap::new(),
+        expression_width: None,
+    };
+    Workspace {
+        root_dir: PathBuf::from_str("std").unwrap(),
+        members: vec![assumed_package],
+        selected_package_index: Some(0),
+        is_assumed: true,
+        target_dir: None,
+    }
+}
+
 fn publish_diagnostics(
     state: &mut LspState,
     package_root_dir: &PathBuf,
-    files: &FileMap,
     fm: &FileManager,
     custom_diagnostics: Vec<CustomDiagnostic>,
 ) {
+    let files = fm.as_file_map();
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
     for custom_diagnostic in custom_diagnostics.into_iter() {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
-        if let Ok(uri) = Url::from_file_path(path) {
+        if let Some(uri) = uri_from_path(path) {
             if let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
             {
@@ -274,6 +356,7 @@ fn custom_diagnostic_to_diagnostic(
     let call_stack = diagnostic
         .call_stack
         .into_iter()
+        .rev()
         .filter_map(|frame| call_stack_frame_to_related_information(frame, files, fm));
     let related_information: Vec<_> = secondaries.chain(notes).chain(call_stack).collect();
 
@@ -298,10 +381,20 @@ fn secondary_to_related_information(
 ) -> Option<DiagnosticRelatedInformation> {
     let secondary_file = secondary.location.file;
     let path = fm.path(secondary_file)?;
-    let uri = Url::from_file_path(path).ok()?;
+    let uri = uri_from_path(path)?;
     let range = byte_span_to_range(files, secondary_file, secondary.location.span.into())?;
     let message = secondary.message;
     Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
+}
+
+fn uri_from_path(path: &Path) -> Option<Url> {
+    if let Ok(uri) = Url::from_file_path(path) {
+        Some(uri)
+    } else if path.starts_with("std") {
+        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+    } else {
+        None
+    }
 }
 
 fn call_stack_frame_to_related_information(
@@ -310,7 +403,7 @@ fn call_stack_frame_to_related_information(
     fm: &FileManager,
 ) -> Option<DiagnosticRelatedInformation> {
     let path = fm.path(frame.file)?;
-    let uri = Url::from_file_path(path).ok()?;
+    let uri = uri_from_path(path)?;
     let range = byte_span_to_range(files, frame.file, frame.span.into())?;
     Some(DiagnosticRelatedInformation {
         location: lsp_types::Location { uri, range },
@@ -342,7 +435,7 @@ mod notification_tests {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
 
         // Open the document, fake the text to be empty
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
@@ -355,7 +448,7 @@ mod notification_tests {
         );
 
         // Fake the text to change to "global a = 1;"
-        on_did_change_text_document(
+        let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {
                 text_document: VersionedTextDocumentIdentifier {

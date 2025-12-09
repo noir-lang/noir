@@ -40,7 +40,7 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
         Some(name) => name,
         None => {
             let name = args.path.file_name().unwrap().to_str().unwrap();
-            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+            name.parse().map_err(CliError::InvalidPackageName)?
         }
     };
     let package_type = if args.lib {
@@ -50,6 +50,5 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
     } else {
         PackageType::Binary
     };
-    initialize_project(package_dir, package_name, package_type);
-    Ok(())
+    initialize_project(package_dir, package_name, package_type)
 }

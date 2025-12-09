@@ -1,4 +1,4 @@
-fn main(x: u128, y: u128, z: u8) {
+fn main(x: u128, y: u128, z: u128) {
     let const_x = 12345;
     let const_y = 2345678;
     let const_z = 2;

@@ -1,5 +1,5 @@
 //! Execute unit tests in the Noir standard library.
-#![allow(clippy::items_after_test_module)]
+
 use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
@@ -42,7 +42,7 @@ impl Options {
 /// Inlining happens if `inline_cost - retain_cost < aggressiveness` (see `inlining.rs`).
 /// NB the CLI uses maximum aggressiveness.
 ///
-/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behaviour.
+/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behavior.
 #[test_matrix(
     [false, true],
     [i64::MIN, 0, i64::MAX]
@@ -58,6 +58,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let dummy_package = Package {
         version: None,
         compiler_required_version: None,
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from("."),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from("main.nr"),
@@ -151,7 +152,7 @@ fn display_test_report(
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        &[diag.clone()],
+                        std::slice::from_ref(diag),
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
                     );
@@ -166,7 +167,7 @@ fn display_test_report(
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[err.clone()],
+                    std::slice::from_ref(err),
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );

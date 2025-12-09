@@ -15,12 +15,12 @@ comptime fn attr_with_varargs(s: TypeDefinition, t: [Field]) {
     let _: TypeDefinition = s;
     {
         let ___i0: [Field] = t;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let _: Field = ___i0[___i1];
             {}
         }
     };
-    assert(t.len() < 5);
+    assert(t.len() < 5_u32);
 }
 
 fn main() {}

@@ -8,13 +8,13 @@ global G_B: [u16; 3] = [59890, 17417, 14409];
 
 fn main(a: [u16; 3], b: [bool; 1]) -> pub bool {
     // Safety: comment added by `nargo expand`
-    let res: bool = unsafe { func_1(G_B, true) }[((a[0] as u32) % (G_B[2] as u32)) % 1];
+    let res: bool = unsafe { func_1(G_B, true) }[((a[0_u32] as u32) % (G_B[2_u32] as u32)) % 1_u32];
     if res {
         // Safety: comment added by `nargo expand`
-        let c: [bool; 1] = unsafe { func_1(a, b[0]) };
-        b[0]
+        let c: [bool; 1] = unsafe { func_1(a, b[0_u32]) };
+        b[0_u32]
     } else {
-        (a[(a[0] as u32) % 3] as u32) > ((24993 % G_A[1]) as u32)
+        (a[(a[0_u32] as u32) % 3_u32] as u32) > ((24993_u16 % G_A[1_u32]) as u32)
     }
 }
 

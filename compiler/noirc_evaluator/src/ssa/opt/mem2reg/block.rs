@@ -30,7 +30,7 @@ pub(super) struct Block {
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ReferenceValue>,
+    pub(super) references: im::OrdMap<ValueId, ValueId>,
 
     /// The last instance of a `Store` instruction to each address in this block
     pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
@@ -42,70 +42,56 @@ pub(super) struct Block {
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
-    Dereference(Box<Expression>),
-    ArrayElement(Box<Expression>),
+    Dereference(ValueId),
+    ArrayElement(ValueId),
     Other(ValueId),
-}
-
-/// Every reference's value is either Known and can be optimized away, or Unknown.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(super) enum ReferenceValue {
-    Unknown,
-    Known(ValueId),
-}
-
-impl ReferenceValue {
-    fn unify(self, other: Self) -> Self {
-        if self == other { self } else { ReferenceValue::Unknown }
-    }
 }
 
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        if let Some(expression) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                // We could allow multiple aliases if we check that the reference
-                // value in each is equal.
-                if let Some(alias) = aliases.single_alias() {
-                    if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
-                        return Some(*value);
-                    }
-                }
-            }
-        }
-        None
+        self.references.get(&address).copied()
     }
 
-    /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
+    /// If the given address is known, set its value to `value`.
     pub(super) fn set_known_value(&mut self, address: ValueId, value: ValueId) {
-        self.set_value(address, ReferenceValue::Known(value));
+        self.set_value(address, Some(value));
     }
 
     pub(super) fn set_unknown(&mut self, address: ValueId) {
-        self.set_value(address, ReferenceValue::Unknown);
+        self.set_value(address, None);
     }
 
-    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
+    fn set_value(&mut self, address: ValueId, value: Option<ValueId>) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = self.aliases.entry(expression.clone()).or_default();
+        let aliases = self.aliases.entry(*expression).or_default();
 
         if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
         } else if let Some(alias) = aliases.single_alias() {
-            self.references.insert(alias, value);
+            // We always know address points to value
+            self.set_reference_value(alias, value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
-            aliases.for_each(|alias| {
-                if let Some(reference_value) = self.references.get_mut(&alias) {
-                    *reference_value = ReferenceValue::Unknown;
-                }
-            });
+            for alias in aliases.iter() {
+                self.references.remove(&alias);
+            }
+        }
+
+        // We always know address points to value
+        self.set_reference_value(address, value);
+    }
+
+    fn set_reference_value(&mut self, address: ValueId, value: Option<ValueId>) {
+        if let Some(value) = value {
+            self.references.insert(address, value);
+        } else {
+            self.references.remove(&address);
         }
     }
 
@@ -119,7 +105,7 @@ impl Block {
             if let Some(existing) = self.expressions.get(value_id) {
                 assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
             } else {
-                self.expressions.insert(*value_id, expression.clone());
+                self.expressions.insert(*value_id, *expression);
             }
         }
 
@@ -130,10 +116,8 @@ impl Block {
                     continue;
                 }
             }
-            let expression = expression.clone();
-
             self.aliases
-                .entry(expression)
+                .entry(*expression)
                 .and_modify(|aliases| aliases.unify(new_aliases))
                 .or_insert_with(|| new_aliases.clone());
         }
@@ -142,10 +126,23 @@ impl Block {
         let mut intersection = im::OrdMap::new();
         for (value_id, reference) in &other.references {
             if let Some(existing) = self.references.get(value_id) {
-                intersection.insert(*value_id, existing.unify(*reference));
+                if reference == existing {
+                    intersection.insert(*value_id, *reference);
+                }
             }
         }
         self.references = intersection;
+
+        // Keep only the last loads present in both maps, if they map to the same InstructionId
+        let mut intersection = im::OrdMap::new();
+        for (value_id, instruction) in &other.last_loads {
+            if let Some(existing) = self.last_loads.get(value_id) {
+                if existing == instruction {
+                    intersection.insert(*value_id, *instruction);
+                }
+            }
+        }
+        self.last_loads = intersection;
 
         self
     }
@@ -162,7 +159,7 @@ impl Block {
             if let Some(known_address) = self.get_known_value(address) {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
-                let expression = Expression::Dereference(Box::new(Expression::Other(address)));
+                let expression = Expression::Dereference(address);
                 self.expressions.insert(result, expression);
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
@@ -171,26 +168,24 @@ impl Block {
         }
     }
 
-    /// Iterate through each known alias of the given address and apply the function `f` to each.
-    fn for_each_alias_of<T>(
-        &mut self,
-        address: ValueId,
-        mut f: impl FnMut(&mut Self, ValueId) -> T,
-    ) {
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
-                    f(self, alias);
-                });
-            }
+    /// Forget the last store to an address and all of its aliases, to eliminate them
+    /// from the candidates for removal at the end.
+    ///
+    /// Note that this only affects this block: when we merge blocks we clear the
+    /// last stores anyway, we don't inherit them from predecessors, so if one
+    /// block stores to an address and a descendant block loads it, this mechanism
+    /// does not affect the candidacy of the last store in the predecessor block.
+    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
+        self.keep_last_store(address, function);
+
+        for alias in (*self.get_aliases_for_value(address)).clone().iter() {
+            self.keep_last_store(alias, function);
         }
     }
 
-    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
-        self.keep_last_store(address, function);
-        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
-    }
-
+    /// Forget the last store to an address, to remove it from the set of instructions
+    /// which are candidates for removal at the end. Also marks the values in the last
+    /// store as used, now that we know we want to keep them.
     fn keep_last_store(&mut self, address: ValueId, function: &Function) {
         if let Some(instruction) = self.last_stores.remove(&address) {
             // Whenever we decide we want to keep a store instruction, we also need
@@ -206,6 +201,8 @@ impl Block {
         }
     }
 
+    /// Mark a value (for example an address we loaded) as used by forgetting the last store instruction,
+    /// which removes it from the candidates for removal.
     pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
         self.keep_last_stores_for(value, function);
 
@@ -241,11 +238,21 @@ impl Block {
     }
 
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
-        self.last_loads.insert(address, instruction);
+        let aliases = self.get_aliases_for_value(address);
+        if !aliases.is_unknown() {
+            self.last_loads.insert(address, instruction);
+        }
     }
 
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
-        self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
+
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                for alias in aliases.iter() {
+                    self.last_loads.remove(&alias);
+                }
+            }
+        }
     }
 }

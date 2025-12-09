@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Unused expression result of type str<1>
+  ┌─ src/main.nr:4:1
+  │
+4 │ #[foo]
+  │ ------ While running this function attribute
+  ·
+8 │             1 + "a";
+  │             -------
+  │
+
+warning: Unused expression result of type str<1>
+   ┌─ src/other.nr:2:13
+   │
+ 2 │     quote { 1 + "a" }
+   │             -
+   │
+   ┌─ src/main.nr:13:1
+   │
+13 │ #[bar]
+   │ ------ While running this function attribute
+   │
+
+error: Types in a binary operation should match, but found Field and str<1>
+  ┌─ src/main.nr:4:1
+  │
+4 │ #[foo]
+  │ ------ While running this function attribute
+  ·
+8 │             1 + "a";
+  │             -------
+  │
+
+error: Types in a binary operation should match, but found Field and str<1>
+   ┌─ src/other.nr:2:13
+   │
+ 2 │     quote { 1 + "a" }
+   │             -
+   │
+   ┌─ src/main.nr:13:1
+   │
+13 │ #[bar]
+   │ ------ While running this function attribute
+   │
+
+error: Expected value, found built-in type `(resolved type)`
+   ┌─ src/main.nr:23:1
+   │
+23 │ #[derive_bn254_impl]
+   │ -------------------- Failed to parse macro's token stream into top-level item
+   ·
+34 │                 crate::mul_with_hint($typ, scalar, transcript)
+   │                                       ---
+   │
+   = The resulting token stream was: (stream starts on next line)
+       impl BN254 {
+         fn one() {
+             
+         }
+         fn mul < let NScalarSlices: u32 > (self, scalar: ScalarField < NScalarSlices > ) -> Self {
+             unconstrained_function();
+             crate::mul_with_hint(BN254, scalar, transcript)
+         }
+     }
+   = To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message
+
+Aborting due to 3 previous errors

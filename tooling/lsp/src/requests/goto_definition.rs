@@ -1,12 +1,11 @@
 use std::future::{self, Future};
 
-use crate::attribute_reference_finder::AttributeReferenceFinder;
 use crate::utils;
+use crate::visitor_reference_finder::VisitorReferenceFinder;
 use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
-use async_lsp::lsp_types;
-use fm::PathString;
+use async_lsp::lsp_types::{self, LocationLink};
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
 
@@ -33,40 +32,48 @@ fn on_goto_definition_inner(
     params: GotoDefinitionParams,
     return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let uri = params.text_document_position_params.text_document.uri.clone();
     let position = params.text_document_position_params.position;
     process_request(state, params.text_document_position_params, |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        let reference_id = args.files.get_file_id(&path).and_then(|file_id| {
+        let file_id = args.location.file;
+        let result =
             utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = AttributeReferenceFinder::new(
-                    file_id,
-                    byte_index,
-                    args.crate_id,
-                    args.def_maps,
-                );
+                let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, &args);
                 finder.find(&parsed_module)
-            })
-        });
-        let location = if let Some(reference_id) = reference_id {
-            Some(args.interner.reference_location(reference_id))
+            });
+        let location = if let Some((reference_id, link_lsp_location)) = result {
+            let location = args.interner.reference_location(reference_id);
+            Some((location, link_lsp_location))
         } else {
-            args.interner
+            let location = args
+                .interner
                 .get_definition_location_from(args.location, return_type_location_instead)
                 .or_else(|| {
                     args.interner
                         .reference_at_location(args.location)
                         .map(|reference| args.interner.reference_location(reference))
-                })
+                });
+            location.map(|location| (location, None))
         };
-        location.and_then(|found_location| {
-            let file_id = found_location.file;
-            let definition_position = to_lsp_location(args.files, file_id, found_location.span)?;
-            let response = GotoDefinitionResponse::from(definition_position).to_owned();
+        location.and_then(|(location, link_lsp_location)| {
+            let location = to_lsp_location(args.files, location.file, location.span)?;
+            let response = match link_lsp_location {
+                Some(lsp_location) => {
+                    // In case of doc comment references we want the underline to cover the entire
+                    // range of the reference, not just the word that's being hovered.
+                    let location_link = LocationLink {
+                        origin_selection_range: Some(lsp_location.range),
+                        target_uri: location.uri,
+                        target_range: location.range,
+                        target_selection_range: location.range,
+                    };
+                    GotoDefinitionResponse::Link(vec![location_link])
+                }
+                None => GotoDefinitionResponse::from(location).to_owned(),
+            };
             Some(response)
         })
     })
@@ -287,5 +294,57 @@ mod goto_definition_tests {
             },
         )
         .await;
+    }
+
+    #[test]
+    async fn goto_reference_in_doc_comment() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("go_to_definition").await;
+        let position = Position { line: 38, character: 10 };
+
+        let params = GotoDefinitionParams {
+            text_document_position_params: lsp_types::TextDocumentPositionParams {
+                text_document: lsp_types::TextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                },
+                position,
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let response = on_goto_definition_request(&mut state, params)
+            .await
+            .expect("Could execute on_goto_definition_request")
+            .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
+        let GotoDefinitionResponse::Link(links) = response else {
+            panic!("Expected a link response");
+        };
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert!(link.target_uri.to_string().ends_with("src/main.nr"));
+
+        // This range is `[Foo]` in the doc comment
+        assert_eq!(
+            link.origin_selection_range,
+            Some(Range {
+                start: Position { line: 38, character: 8 },
+                end: Position { line: 38, character: 13 },
+            },)
+        );
+
+        assert_eq!(
+            link.target_range,
+            Range {
+                start: Position { line: 21, character: 7 },
+                end: Position { line: 21, character: 10 },
+            }
+        );
+        assert_eq!(
+            link.target_selection_range,
+            Range {
+                start: Position { line: 21, character: 7 },
+                end: Position { line: 21, character: 10 },
+            }
+        );
     }
 }

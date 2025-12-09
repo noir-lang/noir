@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(c: bool) -> pub Field {
+    let mut s: Field = 0_Field;
+    if c {
+        for i in 0_u32..150_u32 {
+            for j in 0_u32..150_u32 {
+                if c {
+                    s = s + (i as Field);
+                } else {
+                    s = s + (j as Field);
+                }
+            }
+        }
+    };
+    s
+}

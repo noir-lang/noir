@@ -8,21 +8,29 @@ pub struct MyType<A, B, C> {
 }
 
 pub struct I32AndField {
-    x: i32,
-    y: Field,
+    pub x: i32,
+    pub(crate) y: Field,
 }
 
 comptime fn my_comptime_fn(typ: TypeDefinition) {
     let _: Type = typ.as_type();
-    assert(typ.generics().len() == 3);
-    assert(typ.fields_as_written().len() == 2);
+    assert(typ.generics().len() == 3_u32);
+    assert(typ.fields_as_written().len() == 2_u32);
     assert(typ.name() == quote { MyType });
 }
 
 comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields: [(Quoted, Type)] =
-        &[(quote { x }, quote { i32 }.as_type()), (quote { y }, quote { Field }.as_type())];
+    let fields: [(Quoted, Type, Quoted)] = &[
+        (quote { x }, quote { i32 }.as_type(), quote { pub }),
+        (quote { y }, quote { Field }.as_type(), quote { pub(crate) }),
+    ];
     s.set_fields(fields);
+    let fields: [(Quoted, Type, Quoted)] = s.fields([].as_slice());
+    assert(fields[0_u32].2 == quote { pub });
+    assert(fields[1_u32].2 == quote { pub(crate) });
+    let fields: [(Quoted, Type, Quoted)] = s.fields_as_written();
+    assert(fields[0_u32].2 == quote { pub });
+    assert(fields[1_u32].2 == quote { pub(crate) });
 }
 
 mod foo {
@@ -35,11 +43,11 @@ mod foo {
     pub struct Bar<T> {}
 
     comptime fn add_generic(s: TypeDefinition) {
-        assert(s.generics().len() == 0);
+        assert(s.generics().len() == 0_u32);
         let new_generic: Type = s.add_generic("T");
         let generics: [(Type, Option<Type>)] = s.generics();
-        assert(generics.len() == 1);
-        let (typ, numeric): (Type, Option<Type>) = generics[0];
+        assert(generics.len() == 1_u32);
+        let (typ, numeric): (Type, Option<Type>) = generics[0_u32];
         assert(typ == new_generic);
         assert(numeric.is_none());
     }

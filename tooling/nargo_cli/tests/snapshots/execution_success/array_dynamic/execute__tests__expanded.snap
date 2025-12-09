@@ -6,34 +6,34 @@ fn main(
     x: [u32; 5],
     mut z: u32,
     t: u32,
-    index: [Field; 5],
-    index2: [Field; 5],
-    offset: Field,
+    index: [u32; 5],
+    index2: [u32; 5],
+    offset: u32,
     sublen: Field,
 ) {
-    let idx: Field = ((z - (5 * t)) - 5) as Field;
-    dyn_array(x, idx, idx - 3);
-    let mut s: Field = 0;
-    let x3: [Field; 5] = [246, 159, 32, 176, 8];
-    for i in 0..5 {
+    let idx: u32 = (z - (5_u32 * t)) - 5_u32;
+    dyn_array(x, idx, idx - 3_u32);
+    let mut s: Field = 0_Field;
+    let x3: [Field; 5] = [246_Field, 159_Field, 32_Field, 176_Field, 8_Field];
+    for i in 0_u32..5_u32 {
         s = s + x3[index[i]];
     }
-    assert(s != 0);
-    if 3 < (sublen as u32) {
-        assert(index[offset + 3] == index2[3]);
+    assert(s != 0_Field);
+    if 3_u32 < (sublen as u32) {
+        assert(index[offset + 3_u32] == index2[3_u32]);
     }
 }
 
-fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
-    assert(x[y] == 111);
-    assert(x[z] == 101);
-    x[z] = 0;
-    assert(x[y] == 111);
-    assert(x[1] == 0);
-    if (y as u32) < 10 {
-        x[y] = x[y] - 2;
+fn dyn_array(mut x: [u32; 5], y: u32, z: u32) {
+    assert(x[y] == 111_u32);
+    assert(x[z] == 101_u32);
+    x[z] = 0_u32;
+    assert(x[y] == 111_u32);
+    assert(x[1_u32] == 0_u32);
+    if (y as u32) < 10_u32 {
+        x[y] = x[y] - 2_u32;
     } else {
-        x[y] = 0;
+        x[y] = 0_u32;
     };
-    assert(x[4] == 109);
+    assert(x[4_u32] == 109_u32);
 }

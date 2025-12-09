@@ -3,23 +3,24 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn decode_ascii(ascii: u8) -> u8 {
-    if ascii < 58 {
-        ascii - 48
-    } else if ascii < 71 {
-        ascii - 55
+    if ascii < 58_u8 {
+        ascii - 48_u8
+    } else if ascii < 71_u8 {
+        ascii - 55_u8
     } else {
-        ascii - 87
+        ascii - 87_u8
     }
 }
 
 unconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {
-    let mut result: [u8; M] = [0; M];
+    let mut result: [u8; M] = [0_u8; M];
     let as_bytes: [u8; N] = s.as_bytes();
-    for i in 0..N {
-        if (i % 2) != 0 { continue; };
+    for i in 0_u32..N {
+        if (i % 2_u32) != 0_u32 { continue; };
         {
-            let i_3785: u32 = i / 2;
-            result[i_3785] = (decode_ascii(as_bytes[i]) * 16) + decode_ascii(as_bytes[i + 1]);
+            let i_4497: u32 = i / 2_u32;
+            result[i_4497] =
+                (decode_ascii(as_bytes[i]) * 16_u8) + decode_ascii(as_bytes[i + 1_u32]);
         }
     }
     result

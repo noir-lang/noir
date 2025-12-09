@@ -9,13 +9,13 @@ warning: unused trait MyTrait
   │       ------- unused trait
   │
 
-error: Duplicate definitions of trait associated function with name MyItem found
+error: Duplicate definitions of trait associated item with name MyItem found
   ┌─ src/main.nr:2:7
   │
 2 │   let MyItem: u32;
-  │       ------ First trait associated function found here
+  │       ------ First trait associated item found here
 3 │   fn MyItem();
-  │      ------ Second trait associated function found here
+  │      ------ Second trait associated item found here
   │
 
 Aborting due to 1 previous error

@@ -8,6 +8,7 @@ members = [
     "compiler/noirc_errors",
     "compiler/noirc_driver",
     "compiler/noirc_printable_type",
+    "compiler/noirc_span",
     "compiler/fm",
     "compiler/wasm",
     # Crates related to tooling built on top of the Noir compiler
@@ -17,6 +18,8 @@ members = [
     "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
     "tooling/nargo",
+    "tooling/nargo_doc",
+    "tooling/nargo_expand",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -41,14 +44,18 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
+    "tooling/ssa_cli",
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
+    "tooling/ssa_verification",
+    "tooling/ssa_executor",
     "utils/protobuf",
 ]
 default-members = [
     "tooling/nargo_cli",
     "tooling/acvm_cli",
     "tooling/artifact_cli",
+    "tooling/ssa_cli",
     "tooling/profiler",
     "tooling/inspector",
 ]
@@ -56,7 +63,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.6"
+version = "1.0.0-beta.16"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
@@ -69,17 +76,27 @@ trivial_casts = "warn"
 trivial_numeric_casts = "warn"
 unused_import_braces = "warn"
 unused_qualifications = "warn"
+unreachable_pub = "warn"
+unsafe_code = "deny"
+unused_must_use = "warn"
+mismatched_lifetime_syntaxes = "allow"
+
+[workspace.lints.clippy]
+cast_lossless = "warn"
+semicolon_if_nothing_returned = "warn"
+result_large_err = "allow"
+uninlined_format_args = "warn"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.6", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.6", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.6", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.6", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.6", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.6", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.6", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.16", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.16", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.16", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.16", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.16", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.16", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.16", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -89,11 +106,14 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
+noirc_span = { path = "compiler/noirc_span" }
 
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
+nargo_doc = { path = "tooling/nargo_doc" }
+nargo_expand = { path = "tooling/nargo_expand" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
@@ -103,6 +123,8 @@ noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
 noir_protobuf = { path = "utils/protobuf" }
+noir_ssa_executor = { path = "tooling/ssa_executor" }
+noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [
@@ -113,7 +135,7 @@ ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
 ] }
 ark-grumpkin = { version = "^0.5.0", default-features = false }
 ark-ec = { version = "^0.5.0", default-features = false }
-ark-ff = { version = "^0.5.0", default-features = false }
+ark-ff = { version = "^0.5.0", default-features = false, features = ["asm"] }
 ark-std = { version = "^0.5.0", default-features = false }
 
 # Misc utils crates
@@ -140,18 +162,15 @@ codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 
 # Benchmarking
-criterion = "0.5.1"
+criterion = "^0.5.0"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
-pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
+pprof = { version = "^0.15.0", features = ["flamegraph", "criterion"] }
 
 # Protobuf
 prost = "0.13"
 prost-build = "0.13"
-protoc-prebuilt = "0.3"
-
-# MessagePack
-rmp = "0.8.14"
+protoc-bin-vendored = "3.1.0"
 rmp-serde = "1.3.0"
 rmpv = "1.3.0"
 
@@ -167,12 +186,13 @@ smol_str = { version = "0.3.2", features = ["serde"] }
 thiserror = "1.0.21"
 toml = "0.7.2"
 url = "2.5.4"
-base64 = "0.21.2"
-fxhash = "0.2.1"
-build-data = "0.1.3"
-bincode = "1.3.3"
+base64 = "^0.22.1"
+rustc-hash = "2.1.1"
+build-data = "^0.3.3"
+bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
+indexmap = "^2.10.0"
 lazy_static = "1.4"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
@@ -193,7 +213,7 @@ proptest = { version = "1.6.0", default-features = false, features = [
     "std",
     "bit-set",
 ] }
-proptest-derive = "0.5.0"
+proptest-derive = "^0.6.0"
 rayon = "1.8.0"
 sha2 = { version = "0.10.6", features = ["compress"] }
 sha3 = "0.10.6"
@@ -204,8 +224,8 @@ im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
-rust-embed = "6.6.0"
-petgraph = "0.6"
+rust-embed = "^8.7.2"
+petgraph = "^0.8.2"
 insta = "1.42.2"
 
 [profile.dev]

@@ -5,17 +5,17 @@ expression: expanded_code
 comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics: [(Type, Option<Type>)] = typ.generics();
     assert(
-        generics.len() == 0,
+        generics.len() == 0_u32,
         "derive_default: Deriving Default on generic types is currently unimplemented",
     );
     let type_name: Type = typ.as_type();
-    let fields: [(Quoted, Type)] = typ.fields_as_written();
+    let fields: [(Quoted, Type, Quoted)] = typ.fields_as_written();
     let fields: Quoted = join(make_field_exprs(fields));
     quote {
-        impl Default for type_name {
+        impl Default for $type_name {
             fn default() -> Self {
                 Self {
-                    fields
+                    $fields
                 }
             }
         }
@@ -37,19 +37,19 @@ struct Foo {
 
 impl Default for Foo {
     fn default() -> Self {
-        Self { x: Default::default(), y: Default::default() }
+        Self { x: <Field as Default>::default(), y: <Bar as Default>::default() }
     }
 }
 
-comptime fn make_field_exprs(fields: [(Quoted, Type)]) -> [Quoted] {
+comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     let mut result: [Quoted] = &[];
     {
-        let ___i0: [(Quoted, Type)] = fields;
-        for ___i1 in 0..___i0.len() {
-            let my_field: (Quoted, Type) = ___i0[___i1];
+        let ___i0: [(Quoted, Type, Quoted)] = fields;
+        for ___i1 in 0_u32..___i0.len() {
+            let my_field: (Quoted, Type, Quoted) = ___i0[___i1];
             {
                 let name: Quoted = my_field.0;
-                result = result.push_back(quote { name: Default::default(),  });
+                result = result.push_back(quote { $name: Default::default(),  });
             }
         }
     };
@@ -60,10 +60,10 @@ comptime fn join(slice: [Quoted]) -> Quoted {
     let mut result: Quoted = quote {  };
     {
         let ___i0: [Quoted] = slice;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let elem: Quoted = ___i0[___i1];
             {
-                result = quote { result elem };
+                result = quote { $result $elem };
             }
         }
     };
@@ -71,5 +71,5 @@ comptime fn join(slice: [Quoted]) -> Quoted {
 }
 
 fn main() {
-    let _foo: Foo = Default::default();
+    let _foo: Foo = <Foo as Default>::default();
 }

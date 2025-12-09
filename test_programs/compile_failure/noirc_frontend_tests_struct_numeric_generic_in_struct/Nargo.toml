@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_struct_numeric_generic_in_struct"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

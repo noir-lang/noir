@@ -20,37 +20,26 @@ pub enum CrateId {
     /// In that case there's only one crate, and it's both the root
     /// crate and the stdlib crate.
     RootAndStdlib(usize),
-    Dummy,
 }
 
 impl CrateId {
-    pub fn dummy_id() -> CrateId {
-        CrateId::Dummy
-    }
-
     pub fn is_stdlib(&self) -> bool {
         match self {
             CrateId::Stdlib(_) | CrateId::RootAndStdlib(_) => true,
-            CrateId::Root(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+            CrateId::Root(_) | CrateId::Crate(_) => false,
         }
     }
 
     pub fn is_root(&self) -> bool {
         match self {
             CrateId::Root(_) | CrateId::RootAndStdlib(_) => true,
-            CrateId::Stdlib(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+            CrateId::Stdlib(_) | CrateId::Crate(_) => false,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct CrateName(SmolStr);
-
-impl CrateName {
-    fn is_valid_name(name: &str) -> bool {
-        !name.is_empty() && name.chars().all(|n| !CHARACTER_BLACK_LIST.contains(&n))
-    }
-}
 
 impl Display for CrateName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -69,36 +58,72 @@ impl From<&CrateName> for String {
     }
 }
 
-/// Creates a new CrateName rejecting any crate name that
-/// has a character on the blacklist.
-/// The difference between RA and this implementation is that
-/// characters on the blacklist are never allowed; there is no normalization.
+/// Creates a new CrateName rejecting any invalid crate name.
+/// Valid crate names are ones that are also valid Noir identifiers:
+/// they must start with an ASCII alphabetic character or '_' (underscore),
+/// then continue with ASCII alphanumeric characters or '_' (underscore).
+/// In Rust '-' is also allowed, but we disallow it as it's similar to '_'
+/// and we do not want names that differ by a hyphen.
 impl FromStr for CrateName {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
-        if Self::is_valid_name(name) {
-            Ok(Self(SmolStr::new(name)))
-        } else {
-            Err("Package names must be non-empty and cannot contain hyphens".into())
+        if name.is_empty() {
+            return Err("an empty name is not a valid package name".to_string());
         }
+
+        for (index, char) in name.chars().enumerate() {
+            if index == 0 {
+                if !(char.is_ascii_alphabetic() || char == '_') {
+                    if char.is_ascii_digit() {
+                        return Err(format!(
+                            "invalid character '{char}' in package name \"{name}\", the name cannot start with a digit"
+                        ));
+                    } else {
+                        return Err(format!(
+                            "invalid character '{char}' in package name \"{name}\", the first character must be an ASCII alphabetic character or '_' (underscore)"
+                        ));
+                    }
+                }
+            } else if !(char.is_ascii_alphanumeric() || char == '_') {
+                return Err(format!(
+                    "invalid character '{char}' in package name \"{name}\", characters must be ASCII alphanumeric characters or '_' (underscore)"
+                ));
+            }
+        }
+
+        Ok(Self(SmolStr::new(name)))
     }
 }
 
 #[cfg(test)]
 mod crate_name {
-    use super::{CHARACTER_BLACK_LIST, CrateName};
+    use std::str::FromStr;
+
+    use super::CrateName;
 
     #[test]
     fn it_rejects_empty_string() {
-        assert!(!CrateName::is_valid_name(""));
+        assert!(CrateName::from_str("").is_err());
     }
 
     #[test]
-    fn it_rejects_blacklisted_chars() {
-        for bad_char in CHARACTER_BLACK_LIST {
-            let bad_char_string = bad_char.to_string();
-            assert!(!CrateName::is_valid_name(&bad_char_string));
+    fn it_rejects_number_as_the_first_char() {
+        assert!(CrateName::from_str("1hello").is_err());
+    }
+
+    #[test]
+    fn it_rejects_some_chars_in_the_middle_of_the_name() {
+        for bad_char in [' ', '-', '!', '@', '/'] {
+            let name = format!("hello{bad_char}world");
+            assert!(CrateName::from_str(&name).is_err());
+        }
+    }
+
+    #[test]
+    fn it_allows_a_few_valid_name() {
+        for name in ["one", "one1", "one_two", "_one"] {
+            assert!(CrateName::from_str(name).is_ok());
         }
     }
 
@@ -147,11 +172,6 @@ impl CrateGraph {
             })
     }
 }
-
-/// List of characters that are not allowed in a crate name
-/// For example, Hyphen(-) is disallowed as it is similar to underscore(_)
-/// and we do not want names that differ by a hyphen
-pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
@@ -225,9 +245,6 @@ impl CrateGraph {
             }
             Some((CrateId::Stdlib(_), _)) | Some((CrateId::RootAndStdlib(_), _)) => {
                 panic!("ICE: Tried to re-add the stdlib crate as a regular crate")
-            }
-            Some((CrateId::Dummy, _)) => {
-                panic!("ICE: A dummy CrateId should not exist in the CrateGraph")
             }
             None => {
                 let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };

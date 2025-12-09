@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::{embedded_curve_ops::embedded_curve_add, ops::Add};
 
 fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
     let g1 = std::embedded_curve_ops::EmbeddedCurvePoint::generator();
@@ -39,4 +39,56 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
         [scalar, const_zero, scalar],
     );
     assert(partial_mul == g1);
+
+    // Additional tests for validating embedded_curve_add under a conditional
+    if pub_x == pub_y {
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: 2, is_infinite: false };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: 3, is_infinite: false };
+        let doubling = a1.double();
+        assert(doubling.x == 1);
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint {
+            x: pub_x + 1,
+            y: pub_y,
+            is_infinite: false,
+        };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint {
+            x: pub_x + 1,
+            y: pub_y + 1,
+            is_infinite: false,
+        };
+        let doubling = a1.double();
+        assert(doubling.x == 1);
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 2, y: 3, is_infinite: false };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint {
+            x: pub_x,
+            y: pub_y + 1 as Field,
+            is_infinite: false,
+        };
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 2, y: 3, is_infinite: false };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 2, y: 4, is_infinite: false };
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 2, y: 3, is_infinite: false };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 2, y: 3, is_infinite: false };
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: 3, is_infinite: false };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: 3, is_infinite: false };
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+        let a1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: pub_x, y: 3, is_infinite: false };
+        let a2 = std::embedded_curve_ops::EmbeddedCurvePoint { x: pub_x, y: 2, is_infinite: false };
+        let res = embedded_curve_add(a1, a2);
+        assert(res.x == 1);
+    }
 }

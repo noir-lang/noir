@@ -17,7 +17,6 @@ build-data.workspace = true
 acvm.workspace = true
 fm.workspace = true
 nargo = { workspace = true, features = ["rpc"] }
-noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
 noirc_driver.workspace = true
@@ -26,8 +25,7 @@ thiserror.workspace = true
 codespan-reporting.workspace = true
 dap.workspace = true
 easy-repl = "0.2.1"
-owo-colors = "3"
-serde_json.workspace = true
+owo-colors = "^4.2.2"
 bn254_blackbox_solver.workspace = true
 
 

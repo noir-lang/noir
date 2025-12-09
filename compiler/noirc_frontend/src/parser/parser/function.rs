@@ -284,7 +284,7 @@ impl Parser<'_> {
 
         if self.eat_keyword(Keyword::CallData) {
             if self.eat_left_paren() {
-                if let Some(int) = self.eat_int() {
+                if let Some((int, None)) = self.eat_int() {
                     self.eat_or_error(Token::RightParen);
 
                     let id = int.to_u128() as u32;

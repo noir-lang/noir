@@ -12,7 +12,7 @@ struct StdLibAssets;
 // This is needed because when we preload the file manager, it needs to know where
 // the source code for the stdlib is. The stdlib is treated special because it comes with
 // the compiler and is never included as a dependency like other user defined crates.
-pub(crate) fn stdlib_paths_with_source() -> Vec<(String, String)> {
+pub fn stdlib_paths_with_source() -> Vec<(String, String)> {
     StdLibAssets::iter()
         .map(|path| {
             let source = std::str::from_utf8(StdLibAssets::get(&path).unwrap().data.as_ref())
@@ -21,4 +21,9 @@ pub(crate) fn stdlib_paths_with_source() -> Vec<(String, String)> {
             (path.to_string(), source)
         })
         .collect()
+}
+
+/// Returns the contents of the Nargo.toml file for the standard library as a string.
+pub fn stdlib_nargo_toml_source() -> String {
+    include_str!("../../../noir_stdlib/Nargo.toml").to_string()
 }

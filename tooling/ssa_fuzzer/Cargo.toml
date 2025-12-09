@@ -14,17 +14,15 @@ workspace = true
 
 [dependencies]
 noirc_frontend.workspace = true
-noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
-noirc_abi.workspace = true
+noir_ssa_executor.workspace = true
 acvm.workspace = true
-bn254_blackbox_solver.workspace = true
-im.workspace = true
 thiserror.workspace = true
-nargo = { path = "../nargo", features = ["rpc"] }
-libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
-log = "0.4"
+libfuzzer-sys = { workspace = true, features = ["arbitrary-derive"] }
+serde.workspace = true
+strum_macros = "0.24"
+strum = "0.24"
 
 [dev-dependencies]
 rand.workspace = true

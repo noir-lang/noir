@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(four_as_u32: u32) {
-    let four_as_u8: u8 = 4;
+    let four_as_u8: u8 = 4_u8;
     let not_four_as_u8: u8 = !four_as_u8;
-    assert(not_four_as_u8 == 251);
+    assert(not_four_as_u8 == 251_u8);
     let not_four_as_u32: u32 = !four_as_u32;
-    assert(not_four_as_u32 == 4294967291);
+    assert(not_four_as_u32 == 4294967291_u32);
 }

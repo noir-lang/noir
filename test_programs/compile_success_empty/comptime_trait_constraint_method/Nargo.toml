@@ -1,0 +1,6 @@
+[package]
+name = "comptime_trait_constraint_method"
+type = "bin"
+authors = [""]
+
+[dependencies]

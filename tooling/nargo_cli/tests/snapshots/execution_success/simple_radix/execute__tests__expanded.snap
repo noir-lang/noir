@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(x: Field) {
     let bits: [u1; 3] = x.to_le_bits();
-    assert(bits[0] == 0);
-    assert(bits[1] == 1);
-    assert(bits[2] == 0);
+    assert(bits[0_u32] == 0_u1);
+    assert(bits[1_u32] == 1_u1);
+    assert(bits[2_u32] == 0_u1);
 }

@@ -12,11 +12,11 @@ impl Trigger {
     fn execute(self) -> ResultType {
         // Safety: comment added by `nargo expand`
         let result: ResultType = unsafe { convert(self) };
-        assert(result.a == (self.x + 1));
-        assert(result.b == ((self.y - 1) + self.z[2]));
-        assert(result.c[0] == self.z[0]);
-        assert(result.c[1] == 0);
-        assert(result.c[2] == self.z[1]);
+        assert(result.a == (self.x + 1_u32));
+        assert(result.b == ((self.y - 1_Field) + self.z[2_u32]));
+        assert(result.c[0_u32] == self.z[0_u32]);
+        assert(result.c[1_u32] == 0_Field);
+        assert(result.c[2_u32] == self.z[1_u32]);
         result
     }
 }
@@ -29,9 +29,9 @@ struct ResultType {
 
 unconstrained fn convert(trigger: Trigger) -> ResultType {
     let result: ResultType = ResultType {
-        a: trigger.x + 1,
-        b: (trigger.y - 1) + trigger.z[2],
-        c: [trigger.z[0], 0, trigger.z[1]],
+        a: trigger.x + 1_u32,
+        b: (trigger.y - 1_Field) + trigger.z[2_u32],
+        c: [trigger.z[0_u32], 0_Field, trigger.z[1_u32]],
     };
     result
 }

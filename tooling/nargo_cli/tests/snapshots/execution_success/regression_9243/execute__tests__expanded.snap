@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    for idx_b in 119718805667097306623756199175472805749_u128..119718805667097306623756199175472805750_u128 {
+        let start: u128 = 169386661893075804622328296976770135180_u128 % 9_u128;
+        let end: u128 = idx_b % 9_u128;
+        for _ in start..end {
+            assert(idx_b <= 115517568315105269094017991206916906366_u128, "UHL");
+        }
+    }
+}

@@ -23,7 +23,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -126,7 +126,8 @@ impl FunctionBuilder {
         let call_stack = self.current_function.dfg.get_call_stack(self.call_stack);
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
-        self.current_block = new_function.entry_block();
+        self.switch_to_block(new_function.entry_block());
+
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
         self.call_stack =
@@ -155,6 +156,7 @@ impl FunctionBuilder {
     /// Consume the FunctionBuilder returning all the functions it has generated.
     pub fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
+
         Ssa::new(self.finished_functions, self.error_types)
     }
 
@@ -176,7 +178,6 @@ impl FunctionBuilder {
     }
 
     /// Insert a numeric constant into the current function of type Field
-    #[cfg(test)]
     pub fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), NumericType::NativeField)
     }
@@ -215,6 +216,7 @@ impl FunctionBuilder {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         let block = self.current_block();
+
         if self.simplify {
             self.current_function.dfg.insert_instruction_and_results(
                 instruction,
@@ -244,7 +246,7 @@ impl FunctionBuilder {
         self.current_block
     }
 
-    pub fn get_current_block_index(&mut self) -> BasicBlockId {
+    pub fn get_current_block_index(&self) -> BasicBlockId {
         self.current_block
     }
 
@@ -351,12 +353,10 @@ impl FunctionBuilder {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index, offset }, element_type)
-            .first()
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -366,9 +366,8 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
     ) -> ValueId {
-        let instruction = Instruction::ArraySet { array, index, value, mutable, offset };
+        let instruction = Instruction::ArraySet { array, index, value, mutable };
         self.insert_instruction(instruction, None).first()
     }
 
@@ -437,6 +436,12 @@ impl FunctionBuilder {
     pub fn terminate_with_return(&mut self, return_values: Vec<ValueId>) {
         let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
+    }
+
+    /// Terminate the current block with an unreachable instruction
+    pub fn terminate_with_unreachable(&mut self) {
+        let call_stack = self.call_stack;
+        self.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
     }
 
     /// Returns a ValueId pointing to the given function or imports the function
@@ -547,10 +552,10 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 fn validate_numeric_type(typ: &NumericType) {
     match &typ {
         NumericType::Signed { bit_size } => match bit_size {
-            8 | 16 | 32 | 64 | 128 => (),
+            8 | 16 | 32 | 64 => (),
             _ => {
                 panic!(
-                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, 64 or 128."
+                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, or 64."
                 );
             }
         },

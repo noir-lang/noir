@@ -27,12 +27,12 @@ pub fn sha256_compression(state: &mut [u32; 8], msg_blocks: &[u32; 16]) {
         let bytes = block.to_be_bytes();
         blocks[i * 4..i * 4 + 4].copy_from_slice(&bytes);
     }
-    let blocks: GenericArray<u8, sha2::digest::typenum::U64> = blocks.into();
+    let blocks: GenericArray<u8, sha2::digest::typenum::U64> = blocks.into(); // cSpell:disable-line
     sha2::compress256(state, &[blocks]);
 }
 
 const KECCAK_LANES: usize = 25;
-
+/// Keccak permutation for a state of size 1600 bits, represented by 25 lanes of 64 bits (25*64 = 1600)
 pub fn keccakf1600(
     mut state: [u64; KECCAK_LANES],
 ) -> Result<[u64; KECCAK_LANES], BlackBoxResolutionError> {
@@ -46,6 +46,7 @@ mod keccakf1600_tests {
 
     #[test]
     fn sanity_check() {
+        // cSpell:disable-next-line
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-1600-IntermediateValues.txt
         let zero_state = [0u64; 25];

@@ -227,6 +227,13 @@ impl<'a> Formatter<'a> {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
     }
 
+    /// Writes whatever is in the given span relative to the file's source that's being formatted
+    /// but trims the whitespaces at the end.
+    pub(crate) fn write_source_span_trimmed(&mut self, span: Span) {
+        let source = self.source[span.start() as usize..span.end() as usize].trim_end();
+        self.write(source);
+    }
+
     /// Writes the current indentation to the buffer, but only if the buffer
     /// is empty or it ends with a newline (otherwise we'd be indenting when not needed).
     pub(crate) fn write_indentation(&mut self) {
@@ -305,7 +312,7 @@ impl<'a> Formatter<'a> {
         if let Some(token) = token {
             match token {
                 Ok(token) => token.into_spanned_token(),
-                Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
+                Err(err) => panic!("Expected lexer not to error, but got: {err:?}"),
             }
         } else {
             SpannedToken::new(Token::EOF, Default::default())

@@ -47,8 +47,8 @@ unconstrained fn shl(shift: u32) -> [u64; 6] {
     result[num_shifted_limbs] = 1 << limb_shift;
     for i in 1..6 - num_shifted_limbs {
         {
-            let i_3791: u32 = i + num_shifted_limbs;
-            result[i_3791] = 0;
+            let i_3792: u32 = i + num_shifted_limbs;
+            result[i_3792] = 0;
         }
     }
     result

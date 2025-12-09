@@ -2,10 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: Field) {
-    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];
-    let fetched_value: [(Field, [Field; 1], [Field; 1]); 1] = array[x - 3];
-    assert(fetched_value[0].0 == 1);
-    assert(fetched_value[0].1[0] == 2);
-    assert(fetched_value[0].2[0] == 3);
+fn main(x: u32) {
+    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1_Field, [2_Field], [3_Field])]];
+    let fetched_value: [(Field, [Field; 1], [Field; 1]); 1] = array[x - 3_u32];
+    assert(fetched_value[0_u32].0 == 1_Field);
+    assert(fetched_value[0_u32].1[0_u32] == 2_Field);
+    assert(fetched_value[0_u32].2[0_u32] == 3_Field);
 }

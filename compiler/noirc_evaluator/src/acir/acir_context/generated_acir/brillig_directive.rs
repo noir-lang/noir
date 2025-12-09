@@ -13,7 +13,7 @@ use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(u32::MAX);
 
 #[derive(Debug, Clone)]
 pub(crate) struct BrilligStdLib<F> {
@@ -49,11 +49,11 @@ pub enum BrilligStdlibFunc {
     ToLeBytes,
 }
 
-/// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
+/// Generates brillig bytecode which computes the inverse of its input if not null, else zero.
 pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
-    //  We generate the following code:
+    // We generate the following code:
     // fn invert(x : Field) -> Field {
-    //    1/ x
+    //    1 / x
     // }
 
     // The input argument, ie the value that will be inverted.
@@ -151,28 +151,28 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
                 offset_address: MemoryAddress::direct(11),
             },
             // No cast, since calldata is typed as field by default
-            //q = a/b is set into register (2)
+            // q = a/b is set into register (2)
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::IntegerDiv, // We want integer division, not field division!
                 lhs: MemoryAddress::direct(0),
                 rhs: MemoryAddress::direct(1),
                 destination: MemoryAddress::direct(2),
             },
-            //(1)= q*b
+            // (1)= q*b
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Mul,
                 lhs: MemoryAddress::direct(2),
                 rhs: MemoryAddress::direct(1),
                 destination: MemoryAddress::direct(1),
             },
-            //(1) = a-q*b
+            // (1) = a-q*b
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Sub,
                 lhs: MemoryAddress::direct(0),
                 rhs: MemoryAddress::direct(1),
                 destination: MemoryAddress::direct(1),
             },
-            //(0) = q
+            // (0) = q
             BrilligOpcode::Mov {
                 destination: MemoryAddress::direct(0),
                 source: MemoryAddress::direct(2),
@@ -262,14 +262,14 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
             rhs: radix,
             destination: MemoryAddress::direct(3),
         },
-        //(4) = (3)*256
+        // (4) = (3)*256
         BrilligOpcode::BinaryFieldOp {
             op: BinaryFieldOp::Mul,
             lhs: MemoryAddress::direct(3),
             rhs: radix,
             destination: MemoryAddress::direct(4),
         },
-        //(4) = a-(3)*256 (remainder)
+        // (4) = a-(3)*256 (remainder)
         BrilligOpcode::BinaryFieldOp {
             op: BinaryFieldOp::Sub,
             lhs: MemoryAddress::direct(0),
@@ -289,7 +289,7 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
             destination: result_pointer,
             bit_size: memory_adr_int_size,
         },
-        //a := quotient
+        // a := quotient
         BrilligOpcode::Mov {
             destination: MemoryAddress::direct(0),
             source: MemoryAddress::direct(3),

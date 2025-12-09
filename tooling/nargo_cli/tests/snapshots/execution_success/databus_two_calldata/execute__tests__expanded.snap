@@ -3,14 +3,14 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(mut x: [u32; 4], y: [u32; 3], z: [u32; 4]) -> return_data [u32; 4] {
-    let mut result: [u32; 4] = [0; 4];
-    for i in 0..3 {
+    let mut result: [u32; 4] = [0_u32; 4];
+    for i in 0_u32..3_u32 {
         let idx: u32 = x[i];
         result[idx] = y[idx] + z[idx];
     }
     {
-        let i_3774: u32 = x[3];
-        result[i_3774] = z[x[3]];
+        let i_4486: u32 = x[3_u32];
+        result[i_4486] = z[x[3_u32]];
     };
     result
 }

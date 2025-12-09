@@ -1,5 +1,6 @@
 ---
 title: HashMap
+description: A bounded key–value map with fixed capacity and Poseidon-compatible hashing—APIs for insert, get, iteration, and more.
 keywords: [noir, map, hash, hashmap]
 sidebar_position: 1
 ---

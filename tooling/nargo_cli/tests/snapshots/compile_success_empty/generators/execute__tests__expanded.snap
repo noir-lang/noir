@@ -3,44 +3,44 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn make_counter() -> fn[(&mut Field,)]() -> Field {
-    let mut x: &mut Field = &mut 0;
+    let mut x: &mut Field = &mut 0_Field;
     || -> Field {
-        *(x) = *x + 1;
+        *x = *x + 1_Field;
         *x
     }
 }
 
 fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
-    let mut x: &mut Field = &mut 1;
-    let mut y: &mut Field = &mut 2;
+    let mut x: &mut Field = &mut 1_Field;
+    let mut y: &mut Field = &mut 2_Field;
     || -> Field {
         let old_x: Field = *x;
         let old_y: Field = *y;
-        *(y) = *x + *y;
-        *(x) = old_y;
+        *y = *x + *y;
+        *x = old_y;
         old_x
     }
 }
 
 fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {
-    [0, 0, 0, 0, 0].map(|_: Field| -> Field generator())
+    [0_Field, 0_Field, 0_Field, 0_Field, 0_Field].map(|_: Field| -> Field generator())
 }
 
 fn test_fib() {
     let fib: fn[(&mut Field, &mut Field)]() -> Field = fibonacci_generator();
-    assert(fib() == 1);
-    assert(fib() == 2);
-    assert(fib() == 3);
-    assert(fib() == 5);
-    assert(get_some(fib) == [8, 13, 21, 34, 55]);
+    assert(fib() == 1_Field);
+    assert(fib() == 2_Field);
+    assert(fib() == 3_Field);
+    assert(fib() == 5_Field);
+    assert(get_some(fib) == [8_Field, 13_Field, 21_Field, 34_Field, 55_Field]);
 }
 
 fn test_counter() {
     let counter: fn[(&mut Field,)]() -> Field = make_counter();
-    assert(counter() == 1);
-    assert(counter() == 2);
-    assert(counter() == 3);
-    assert(get_some(counter) == [4, 5, 6, 7, 8]);
+    assert(counter() == 1_Field);
+    assert(counter() == 2_Field);
+    assert(counter() == 3_Field);
+    assert(get_some(counter) == [4_Field, 5_Field, 6_Field, 7_Field, 8_Field]);
 }
 
 fn main() {

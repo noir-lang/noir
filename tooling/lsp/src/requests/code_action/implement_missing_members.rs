@@ -52,7 +52,7 @@ impl CodeActionFinder<'_> {
                     associated_types.remove(name.as_string());
                 }
                 TraitImplItemKind::Type { name, alias } => {
-                    if let UnresolvedTypeData::Unspecified = alias.typ {
+                    if alias.is_none() {
                         continue;
                     }
                     associated_types.remove(name.as_string());
@@ -104,9 +104,9 @@ impl CodeActionFinder<'_> {
 
         for (name, generic) in associated_types {
             if let Kind::Numeric(typ) = generic.kind() {
-                stubs.push(format!("{}let {}: {};\n", indent_string, name, typ));
+                stubs.push(format!("{indent_string}let {name}: {typ};\n"));
             } else {
-                stubs.push(format!("{}type {};\n", indent_string, name));
+                stubs.push(format!("{indent_string}type {name};\n"));
             }
         }
 
@@ -125,7 +125,7 @@ impl CodeActionFinder<'_> {
                 self.module_id,
                 indent + 4,
             );
-            generator.set_body(format!("panic(f\"Implement {}\")", name));
+            generator.set_body(format!("panic(f\"Implement {name}\")"));
 
             let stub = generator.generate();
             stubs.push(stub);

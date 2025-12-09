@@ -11,12 +11,14 @@ jobs:
   code:
     name: Code
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check spelling
-        uses: streetsidesoftware/cspell-action@v2
+        uses: streetsidesoftware/cspell-action@v8
         with:
           strict: false # Do not fail, if a spelling mistake is found (This can be annoying for contributors)
           incremental_files_only: true # Run this action on files which have changed in PR
@@ -26,12 +28,14 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check spelling
-        uses: streetsidesoftware/cspell-action@v2
+        uses: streetsidesoftware/cspell-action@v8
         with:
           strict: true # Documentation has higher standards for correctness.
           incremental_files_only: true # Run this action on files which have changed in PR

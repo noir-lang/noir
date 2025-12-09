@@ -120,7 +120,12 @@ impl JsonTypes {
                 JsonTypes::Array(fields)
             }
 
-            _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
+            _ => {
+                return Err(InputParserError::AbiTypeMismatch(
+                    format!("{value:?}"),
+                    abi_type.clone(),
+                ));
+            }
         };
         Ok(json_value)
     }
@@ -161,7 +166,7 @@ impl InputValue {
                 JsonTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let new_value = parse_integer_to_signed(integer as i128, *width, arg_name)?;
+                let new_value = parse_integer_to_signed(i128::from(integer), *width, arg_name)?;
                 InputValue::Field(new_value)
             }
 
@@ -212,7 +217,12 @@ impl InputValue {
                 InputValue::Vec(tuple_fields)
             }
 
-            (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+            (value, _) => {
+                return Err(InputParserError::AbiTypeMismatch(
+                    format!("{value:?}"),
+                    param_type.clone(),
+                ));
+            }
         };
 
         Ok(input_value)

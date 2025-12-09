@@ -2,15 +2,15 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::ops::arith::WrappingSub;
+use std::ops::WrappingSub;
 
 fn main(mut x: i32, mut y: i32, mut z: i32) {
     assert((x / y) == z);
-    let minus_x: i32 = (0 as i32).wrapping_sub(x);
-    let minus_z: i32 = (0 as i32).wrapping_sub(z);
-    let minus_y: i32 = (0 as i32).wrapping_sub(y);
-    assert((x + minus_x) == 0);
-    assert((z + minus_z) == 0);
+    let minus_x: i32 = 0_i32.wrapping_sub(x);
+    let minus_z: i32 = 0_i32.wrapping_sub(z);
+    let minus_y: i32 = 0_i32.wrapping_sub(y);
+    assert((x + minus_x) == 0_i32);
+    assert((z + minus_z) == 0_i32);
     assert((minus_x / y) == minus_z);
     assert((minus_x / minus_y) == z);
     assert((x / minus_y) == minus_z);

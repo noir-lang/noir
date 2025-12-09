@@ -38,6 +38,7 @@ nargo = { workspace = true, features = ["rpc"] }
 noirc_abi.workspace = true
 noirc_artifacts_info.workspace = true
 noirc_artifacts.workspace = true
+noirc_printable_type.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
 serde.workspace = true

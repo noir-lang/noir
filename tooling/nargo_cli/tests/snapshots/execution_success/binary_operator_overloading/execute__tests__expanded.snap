@@ -2,16 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::{
-    cmp::Ordering,
-    ops::{arith::{Add, Div, Mul, Rem, Sub}, bit::{BitAnd, BitOr, BitXor, Shl, Shr}},
-};
+use std::{cmp::Ordering, ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub}};
 
 fn main(x: u32, y: u32) {
     let wx: Wrapper = Wrapper::new(x);
     let wy: Wrapper = Wrapper::new(y);
-    let ex: u32 = 3;
-    let ey: u32 = 9;
+    let ex: u32 = 3_u32;
+    let ey: u32 = 9_u32;
     assert((wx + wy).inner == (ex + ey));
     assert((wy - wx).inner == (ey - ex));
     assert((wx * wy).inner == (ex * ey));
@@ -20,8 +17,8 @@ fn main(x: u32, y: u32) {
     assert((wx & wy).inner == (ex & ey));
     assert((wx | wy).inner == (ex | ey));
     assert((wx ^ wy).inner == (ex ^ ey));
-    assert((wy << (x as u8)).inner == (ey << (ex as u8)));
-    assert((wy >> (x as u8)).inner == (ey >> (ex as u8)));
+    assert((wy << wx).inner == (ey << ex));
+    assert((wy >> wx).inner == (ey >> ex));
     assert((wx == wy) == (ex == ey));
     assert((wx < wy) == (ex < ey));
     assert((wx <= wy) == (ex <= ey));
@@ -97,14 +94,14 @@ impl BitXor for Wrapper {
 }
 
 impl Shl for Wrapper {
-    fn shl(self, other: u8) -> Self {
-        Self::new(self.inner << other)
+    fn shl(self, other: Self) -> Self {
+        Self::new(self.inner << other.inner)
     }
 }
 
 impl Shr for Wrapper {
-    fn shr(self, other: u8) -> Self {
-        Self::new(self.inner >> other)
+    fn shr(self, other: Self) -> Self {
+        Self::new(self.inner >> other.inner)
     }
 }
 

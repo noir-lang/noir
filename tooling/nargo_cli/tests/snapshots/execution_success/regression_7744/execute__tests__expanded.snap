@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint};
+
+fn main(is_active: bool) -> pub EmbeddedCurvePoint {
+    let bad: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 0_Field, y: 5_Field, is_infinite: false };
+    if is_active {
+        embedded_curve_add(bad, bad)
+    } else {
+        bad
+    }
+}

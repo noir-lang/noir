@@ -5,9 +5,9 @@ expression: expanded_code
 fn main(x: u8) {
     // Safety: comment added by `nargo expand`
     let predicate: bool = unsafe { return_true() };
-    let tmp: u8 = if predicate { 255 } else { 0 };
+    let tmp: u8 = if predicate { 255_u8 } else { 0_u8 };
     let y: u8 = tmp & x;
-    assert(y == 1);
+    assert(y == 1_u8);
 }
 
 unconstrained fn return_true() -> bool {

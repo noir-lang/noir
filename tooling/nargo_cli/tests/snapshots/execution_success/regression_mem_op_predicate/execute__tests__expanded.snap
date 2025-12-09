@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(mut x: [u32; 5], idx: Field) {
-    if (idx as u32) < 3 { x[idx] = 10; };
-    assert(x[4] == 111);
+fn main(mut x: [u32; 5], idx: u32) {
+    if (idx as u32) < 3_u32 { x[idx] = 10_u32; };
+    assert(x[4_u32] == 111_u32);
 }

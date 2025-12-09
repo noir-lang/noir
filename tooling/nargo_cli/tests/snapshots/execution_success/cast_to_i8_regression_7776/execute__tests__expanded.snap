@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(a: Field, b: Field) -> pub i8 {
+    (a - b) as i8
+}

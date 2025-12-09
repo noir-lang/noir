@@ -1,0 +1,67 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    type E: Bar;
+
+    fn bar(self) -> E;
+}
+
+impl Foo for i32 {
+    type E = Self;
+
+    fn bar(self) -> Self {
+        1_i32
+    }
+}
+
+trait Bar {
+    fn bar_method(self);
+}
+
+impl Bar for i32 {
+    fn bar_method(self) {}
+}
+
+pub struct Baz<T> {
+    t: T,
+}
+
+impl<T> Baz<T> {
+    pub fn baz_method(t: T)
+    where
+        T: Foo,
+    {
+        let bar: <T as Foo>::E = t.bar();
+        bar.bar_method();
+    }
+}
+
+impl<T> Eq for Baz<T>
+where
+    T: Foo,
+{
+    fn eq(self, other: Self) -> bool {
+        let bar: <T as Foo>::E = other.t.bar();
+        bar.bar_method();
+        true
+    }
+}
+
+trait Another {
+    fn foo<F>(f: F)
+    where
+        F: Foo;
+}
+
+impl Another for i32 {
+    fn foo<F>(f: F)
+    where
+        F: Foo,
+    {
+        f.bar().bar_method();
+    }
+}
+
+fn main() {}

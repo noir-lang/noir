@@ -2,15 +2,15 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::ops::{arith::Neg, bit::Not};
+use std::ops::{Neg, Not};
 
 fn main(x: u32) {
     let wx: Wrapper = Wrapper::new(x as i32);
-    let ex: i32 = 3;
+    let ex: i32 = 3_i32;
     assert(-wx.inner == -ex);
     assert(!wx.inner == !ex);
-    let x: Field = 3;
-    assert(-3 == -x);
+    let x: Field = 3_Field;
+    assert(-3_Field == -x);
 }
 
 struct Wrapper {

@@ -8,20 +8,52 @@ license.workspace = true
 [package.metadata]
 cargo-fuzz = true
 
+[lints]
+workspace = true
+
 [dependencies]
 libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
+noirc_frontend.workspace = true
 acvm.workspace = true
+noir_ssa_executor.workspace = true
 log.workspace = true
 env_logger.workspace = true
+bincode.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+sha1 = "0.10.6"
+redis = { version = "0.26"}
+lazy_static = { version = "1.4" }
+strum_macros = "0.24"
+strum = "0.24"
+sha2.workspace = true
+p256 = "0.13.2"
+k256 = "0.13.4"
+reqwest = { version = "0.12.23", features = ["json", "blocking"] }
+sancov = { git = "https://github.com/noir-lang/sancov.git", version = "0.1.0", features = ["hash_increment"] }
+flate2.workspace = true
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"
 
 [[bin]]
-name = "base_target"
-path = "src/base_target.rs"
+name = "acir_vs_brillig"
+path = "src/acir_vs_brillig.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "brillig"
+path = "src/brillig.rs"
+test = false
+doc  = false 
+bench = false
+
+[[test]]
+name = "test_fuzz_target"
+path = "src/fuzz_lib/mod.rs"

@@ -194,6 +194,11 @@ impl<T> DenseMap<T> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
+
+    /// Length of the underlying storage.
+    pub(crate) fn len(&self) -> usize {
+        self.storage.len()
+    }
 }
 
 impl<T> Default for DenseMap<T> {
@@ -270,7 +275,7 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 /// Useful for assigning ids before the storage is created or assigning ids
 /// for types that have no single owner.
 ///
-/// This type wraps an AtomicUsize so it can safely be used across threads.
+/// This type wraps an atomic number so it can safely be used across threads.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AtomicCounter<T> {
     next: AtomicU32,

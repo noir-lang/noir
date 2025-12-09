@@ -16,6 +16,8 @@ workspace = true
 acvm.workspace = true
 codespan-lsp.workspace = true
 nargo = { workspace = true, features = ["rpc"] }
+nargo_expand.workspace = true
+nargo_doc.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noirc_driver.workspace = true
@@ -29,7 +31,7 @@ async-lsp = { workspace = true, features = ["omni-trait"] }
 thiserror.workspace = true
 fm.workspace = true
 rayon.workspace = true
-fxhash.workspace = true
+rustc-hash.workspace = true
 iter-extended.workspace = true
 convert_case = "0.6.0"
 num-bigint.workspace = true
@@ -40,3 +42,4 @@ wasm-bindgen.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros", "rt"] }
+insta.workspace = true

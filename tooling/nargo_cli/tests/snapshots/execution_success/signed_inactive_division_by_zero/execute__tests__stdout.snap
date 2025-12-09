@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[signed_inactive_division_by_zero] Circuit output: Field(0)
+[signed_inactive_division_by_zero] Circuit output: 0

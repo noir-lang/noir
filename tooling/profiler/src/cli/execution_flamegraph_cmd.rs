@@ -234,7 +234,10 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit::default()],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: vec![
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),
@@ -242,8 +245,7 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: Vec::new(),
+            expression_width: acir::circuit::ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file
@@ -261,10 +263,10 @@ mod tests {
                 &artifact_path,
                 &prover_toml_path,
                 &flamegraph_generator,
-                &Some(temp_dir.into_path()),
+                &Some(temp_dir.keep()),
                 false,
                 false,
-                false
+                false,
             )
             .is_err()
         );

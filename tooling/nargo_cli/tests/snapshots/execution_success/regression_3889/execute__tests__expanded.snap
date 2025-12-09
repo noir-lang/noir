@@ -4,20 +4,20 @@ expression: expanded_code
 ---
 mod Foo {
     pub(crate) struct NewType {
-        a: Field,
+        pub(crate) a: Field,
     }
 }
 
 mod Bar {
-    pub(crate) use super::Foo::{NewType, NewType as BarStruct};
+    pub(crate) use crate::Foo::{NewType, NewType as BarStruct};
 
 }
 
 mod Baz {
-    pub(crate) use super::Foo::{NewType, NewType as BarStruct};
+    pub(crate) use crate::Foo::{NewType, NewType as BarStruct};
 
     pub(crate) struct Works {
-        a: Field,
+        pub(crate) a: Field,
     }
 }
 

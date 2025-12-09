@@ -13,18 +13,20 @@ use completion_items::{
     trait_impl_method_completion_item,
 };
 use convert_case::{Case, Casing};
-use fm::{FileId, FileMap, PathString};
+use fm::{FileId, FileMap};
+use iter_extended::vecmap;
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
-        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -35,6 +37,7 @@ use noirc_frontend::{
         },
     },
     hir_def::traits::Trait,
+    modules::module_def_id_is_visible,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{MetaAttribute, MetaAttributeName, Token, Tokens},
@@ -44,7 +47,7 @@ use sort_text::underscore_sort_text;
 use crate::{
     LspState, requests::to_lsp_location,
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
+    use_segment_positions::UseSegmentPositions, utils,
 };
 
 use super::{TraitReexport, process_request};
@@ -60,16 +63,9 @@ pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
 ) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
-    let uri = params.text_document_position.clone().text_document.uri;
-
     let result = process_request(state, params.text_document_position.clone(), |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).and_then(|file_id| {
-            utils::position_to_byte_index(
-                args.files,
-                file_id,
-                &params.text_document_position.position,
-            )
+        let file_id = args.location.file;
+        utils::position_to_byte_index(args.files, file_id, &params.text_document_position.position)
             .and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
@@ -84,12 +80,11 @@ pub(crate) fn on_completion_request(
                     byte,
                     args.crate_id,
                     args.def_maps,
-                    args.dependencies,
+                    args.dependencies(),
                     args.interner,
                 );
                 finder.find(&parsed_module)
             })
-        })
     });
     future::ready(result)
 }
@@ -343,9 +338,14 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::ModuleId(id) => module_id = id,
                 ModuleDefId::TypeId(type_id) => {
                     let data_type = self.interner.get_type(type_id);
+                    // Use `Type::Error` for the generics since they unify with anything, to get methods from all impls.
+                    // We could use fresh type variables instead, but we have a non-mutable NodeInterner here.
+                    // Note: ideally we'd also use any turbofish for `generics`, but at least Rust Analyzer seems
+                    // to ignore them and offers all methods from all impls, so for now we do the same.
+                    let generics = vecmap(&data_type.borrow().generics, |_| Type::Error);
                     self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::DataType(data_type, vec![]),
+                        &Type::DataType(data_type, generics),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
@@ -379,7 +379,7 @@ impl<'a> NodeFinder<'a> {
                     );
                     return;
                 }
-                ModuleDefId::GlobalId(_) => return,
+                ModuleDefId::GlobalId(_) | ModuleDefId::TraitAssociatedTypeId(_) => return,
             }
         }
 
@@ -576,15 +576,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
-        match generic {
-            UnresolvedGeneric::Variable(ident, _) => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Resolved(..) => (),
-        };
+        if let IdentOrQuotedType::Ident(ident) = generic.ident() {
+            self.type_parameters.insert(ident.to_string());
+        }
     }
 
     fn complete_type_fields_and_methods(
@@ -738,6 +732,7 @@ impl<'a> NodeFinder<'a> {
 
                 if is_primitive
                     && !method_call_is_visible(
+                        self.self_type.as_ref(),
                         typ,
                         func_id,
                         self.module_id,
@@ -777,7 +772,7 @@ impl<'a> NodeFinder<'a> {
         };
 
         let func_meta = self.interner.function_meta(&func_id);
-        for constraint in &func_meta.trait_constraints {
+        for constraint in func_meta.all_trait_constraints() {
             if *typ == constraint.typ {
                 let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
                 self.complete_trait_methods(
@@ -1008,7 +1003,7 @@ impl<'a> NodeFinder<'a> {
     fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
         let last_segment = segments.last().unwrap().clone();
 
-        // If we can't resolve a path trough lookup, let's see if the last segment is bound to a type
+        // If we can't resolve a path through lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
         if let Some(reference_id) = self.interner.find_referenced(location) {
             if let Some(id) = module_def_id_from_reference_id(reference_id) {
@@ -1035,9 +1030,9 @@ impl<'a> NodeFinder<'a> {
         for name in attributes {
             if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
-                    format!("{}(…)", name),
+                    format!("{name}(…)"),
                     CompletionItemKind::METHOD,
-                    format!("{}(${{1:name}})", name),
+                    format!("{name}(${{1:name}})"),
                     None,
                 ));
             }
@@ -1135,7 +1130,7 @@ impl<'a> NodeFinder<'a> {
 
     fn get_lvalue_type(&self, lvalue: &LValue) -> Option<Type> {
         match lvalue {
-            LValue::Ident(ident) => {
+            LValue::Path(ident) => {
                 let location = Location::new(ident.span(), self.file);
                 if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.find_referenced(location)
@@ -1197,7 +1192,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            let label = if module.has_semicolon { name.to_string() } else { format!("{name};") };
             self.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,
@@ -1591,10 +1586,10 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
-    fn visit_lvalue_ident(&mut self, ident: &Ident) {
+    fn visit_lvalue_path(&mut self, path: &Path) {
         // If we have `foo.>|<` we suggest `foo`'s type fields and methods
-        if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
-            let location = Location::new(ident.span(), self.file);
+        if self.byte == Some(b'.') && path.span().end() as usize == self.byte_index - 1 {
+            let location = Location::new(path.span(), self.file);
             if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
             {
                 let typ = self.interner.definition_type(definition_id);
@@ -1801,7 +1796,9 @@ impl Visitor for NodeFinder<'_> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (_, unresolved_type) in &lambda.parameters {
-            unresolved_type.accept(self);
+            if let Some(unresolved_type) = unresolved_type {
+                unresolved_type.accept(self);
+            }
         }
 
         let old_local_variables = self.local_variables.clone();
@@ -1986,8 +1983,8 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
-/// // "merk" and "ro" match "merkle" and "root" and are in order
-/// name_matches("compute_merkle_root", "merk_ro") == true
+/// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
+/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
 /// // "ro" matches "root", but "merkle" comes before it, so no match
 /// name_matches("compute_merkle_root", "ro_mer") == false
@@ -2026,6 +2023,7 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
         ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::TraitAssociatedType(id) => Some(ModuleDefId::TraitAssociatedTypeId(id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(_, _)

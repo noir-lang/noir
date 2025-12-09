@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Params<T> {}
+
+trait Trait {
+    type T;
+
+    fn params() -> Params<T>;
+}
+
+pub struct Foo {}
+
+impl Trait for Foo {
+    type T = i32;
+
+    fn params() -> Params<i32> {
+        Params::<i32> {}
+    }
+}
+
+fn main() {
+    let params: Params<i32> = <Foo as Trait<T = i32>>::params();
+    foo(params);
+}
+
+fn foo<T>(_: Params<T>) {}

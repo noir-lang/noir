@@ -42,7 +42,21 @@ pub(crate) struct ParsedFunction {
     pub(crate) purity: Option<Purity>,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
+    pub(crate) data_bus: ParsedDataBus,
     pub(crate) blocks: Vec<ParsedBlock>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedDataBus {
+    pub(crate) call_data: Vec<ParsedCallData>,
+    pub(crate) return_data: Option<ParsedValue>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedCallData {
+    pub(crate) call_data_id: u32,
+    pub(crate) array: ParsedValue,
+    pub(crate) index_map: Vec<(ParsedValue, usize)>,
 }
 
 #[derive(Debug)]
@@ -155,6 +169,7 @@ pub(crate) enum ParsedInstruction {
     RangeCheck {
         value: ParsedValue,
         max_bit_size: u32,
+        assert_message: Option<String>,
     },
     Store {
         value: ParsedValue,
@@ -179,6 +194,7 @@ pub(crate) enum ParsedTerminator {
     Jmp { destination: Identifier, arguments: Vec<ParsedValue> },
     Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
     Return(Vec<ParsedValue>),
+    Unreachable,
 }
 
 #[derive(Debug, Clone)]

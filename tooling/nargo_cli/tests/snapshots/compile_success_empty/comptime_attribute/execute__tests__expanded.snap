@@ -6,7 +6,7 @@ mod moo {
     pub comptime fn add_fn(f: FunctionDefinition, name: Quoted) -> Quoted {
         assert(f.has_named_attribute("add_fn"));
         quote {
-            pub fn name() {
+            pub fn $name() {
                 
             }
         }
@@ -20,7 +20,7 @@ mod moo {
 comptime fn add_foo(_: Module) -> Quoted {
     let func: fn(FunctionDefinition, Quoted) -> Quoted = moo::add_fn;
     quote {
-        #[func(quote {
+        #[$func(quote {
             bar
         })]pub fn foo() {
             

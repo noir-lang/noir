@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[higher_order_functions] Circuit output: Field(6)
+[higher_order_functions] Circuit output: 0x06

@@ -4,7 +4,8 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::HashSet;
 
 /// A container for the successors and predecessors of some Block.
 #[derive(Clone, Default)]
@@ -147,6 +148,79 @@ impl ControlFlowGraph {
     /// Returns the entry blocks for a CFG. This is all nodes without any predecessors.
     pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
         self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).copied().collect()
+    }
+
+    /// Computes the reverse graph of the extended CFG.
+    /// The extended CFG is the CFG with an additional unique exit node (if there is none)
+    /// such that there is a path from every block to the exit node.
+    /// Ex: below the forward CFG has one exit node: b2
+    /// However, there is no path from b5 to b2
+    /// ```text
+    /// forward          reverse
+    ///  -------          -------
+    ///   b0*              b0
+    ///   |                ^
+    ///   v                |
+    ///   b1               b1
+    ///  /  \             ^  ^
+    /// v    v           /    \
+    /// b3   b4          b3   b4
+    /// |    |           ^    ^
+    /// v    v           |    |
+    /// b2   b5 <-|      b2*  b5 <-|
+    ///       \___|            \___|
+    /// ```
+    ///
+    /// The extended CFG is the forward CFG with a new 'exit' node:
+    /// ```text
+    ///  extended         extended reverse
+    ///  -------          -------
+    ///   b0*              b0
+    ///   |                ^
+    ///   v                |
+    ///   b1               b1
+    ///  /  \             ^  ^
+    /// v    v           /    \
+    /// b3   b4          b3   b4
+    /// |    |           ^    ^
+    /// v    v           |    |
+    /// b2   b5 <-|      b2   b5 <-|
+    /// \    /\___|      ^    ^\___|
+    ///  v  v            \    /
+    ///  exit             exit*
+    /// ```
+    pub(crate) fn extended_reverse(func: &mut Function) -> Self {
+        let mut cfg = Self::with_function(func);
+        // Exit blocks are the ones having no successor
+        let exit_nodes: Vec<BasicBlockId> =
+            cfg.data.keys().filter(|&&block| cfg.successors(block).len() == 0).copied().collect();
+        // Traverse the reverse CFG from the exit blocks
+        let reverse = cfg.reverse();
+        let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
+        // Extract blocks that are not reachable from the exit blocks
+        let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
+        let dead_blocks: Vec<BasicBlockId> =
+            cfg.data.keys().filter(|&block| !rpo_traversal.contains(block)).copied().collect();
+
+        // If some blocks, that we call 'dead' blocks, are not in the post-order traversal of the reverse CFG,
+        // or if there are multiple exit nodes, then the reverse CFG is not a CFG because
+        // it does not have a single entry node and so we will not be able to apply the dominance frontier algorithm.
+        // In that case, we extend the CFG with a new 'exit' node and connect the exit blocks and the 'dead' blocks to it.
+        if exit_nodes.len() > 1 || !dead_blocks.is_empty() {
+            // Create a fake 'exit' block
+            let exit = func.dfg.make_block();
+            cfg.data.insert(exit, CfgNode::default());
+            // Connect the exit nodes to it
+            for e in exit_nodes {
+                cfg.add_edge(e, exit);
+            }
+            // Connect the 'dead' blocks to it
+            for block in dead_blocks {
+                cfg.add_edge(block, exit);
+            }
+        }
+        // We can now reverse the extended CFG
+        cfg.reverse()
     }
 }
 

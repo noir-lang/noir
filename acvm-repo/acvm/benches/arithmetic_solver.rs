@@ -76,7 +76,7 @@ fn bench_bytecode<F: AcirField>(c: &mut Criterion, benchmark_name: &str, bytecod
             },
             |mut vm| {
                 let status = vm.solve();
-                assert!(matches!(status, ACVMStatus::Solved))
+                assert!(matches!(status, ACVMStatus::Solved));
             },
             criterion::BatchSize::SmallInput,
         );

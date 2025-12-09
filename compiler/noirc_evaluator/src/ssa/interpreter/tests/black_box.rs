@@ -1,5 +1,3 @@
-use acvm::AcirField;
-
 use crate::ssa::{
     interpreter::tests::{expect_values, expect_values_with_args, from_constant, from_u32_slice},
     ir::types::NumericType,
@@ -12,7 +10,7 @@ fn test_msm() {
     b0(v0: Field, v1: Field):
       v2 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
       v3 = make_array [v0, v1] : [(Field, Field); 1]
-      v4= call multi_scalar_mul(v2, v3) -> [(Field, Field, u1); 1]
+      v4= call multi_scalar_mul(v2, v3, u1 1) -> [(Field, Field, u1); 1]
       return v4
   }
       ";
@@ -32,7 +30,7 @@ fn test_ec_add() {
     let src = "
   acir(inline) fn main f0  {
     b0(v0: Field):
-      v1 = call embedded_curve_add(v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0) -> [(Field, Field, u1); 1]
+      v1 = call embedded_curve_add(v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, u1 1) -> [(Field, Field, u1); 1]
       return v1
   }
       ";
@@ -54,7 +52,7 @@ fn test_pedersen() {
       "#;
     let values = expect_values(src);
     let result = values[0].as_array_or_slice().unwrap();
-    assert!(result.elements.borrow().len() == 24);
+    assert_eq!(result.elements.borrow().len(), 3);
 }
 #[test]
 fn test_aes() {
@@ -81,7 +79,7 @@ fn test_aes() {
 
     let result = values[0].as_array_or_slice().unwrap();
     let result = result.elements.borrow();
-    let result = result.iter().map(|v| v.as_field().unwrap().to_i128() as u8);
+    let result = result.iter().map(|v| v.as_u8().unwrap());
     assert_eq!(
         result.collect::<Vec<u8>>(),
         vec![244, 14, 126, 172, 171, 40, 208, 186, 173, 184, 226, 105, 238, 122, 205, 191]
@@ -103,7 +101,7 @@ fn test_blake3() {
     assert!(values.len() == 1);
     let result = values[0].as_array_or_slice().unwrap();
     let result = result.elements.borrow();
-    let result = result.iter().map(|v| v.as_field().unwrap().to_i128() as u8);
+    let result = result.iter().map(|v| v.as_u8().unwrap());
     assert_eq!(
         result.collect::<Vec<u8>>(),
         vec![
@@ -128,7 +126,7 @@ fn test_blake2s() {
     assert!(values.len() == 1);
     let result = values[0].as_array_or_slice().unwrap();
     let result = result.elements.borrow();
-    let result = result.iter().map(|v| v.as_field().unwrap().to_i128() as u8);
+    let result = result.iter().map(|v| v.as_u8().unwrap());
     assert_eq!(
         result.collect::<Vec<u8>>(),
         vec![
@@ -161,14 +159,14 @@ fn test_poseidon() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [Field; 4]):
-        v1 = call poseidon2_permutation(v0) -> [u64; 4]
+        v1 = call poseidon2_permutation(v0) -> [Field; 4]
         return v1
     }
       ";
     let input = from_u32_slice(&[1, 2, 3, 4], NumericType::NativeField);
 
     let values = expect_values_with_args(src, vec![input]);
-    assert!(values.len() == 1);
+    assert_eq!(values.len(), 1);
 }
 
 #[test]
@@ -194,8 +192,8 @@ fn test_sha256() {
 fn test_ecdsa_k1() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
-      b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 32], v3: [u8; 64]):
-        v4 = call ecdsa_secp256k1(v0, v1, v2, v3) -> u1
+      b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+        v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
         return v4
     }
       ";
@@ -241,8 +239,8 @@ fn test_ecdsa_k1() {
 fn test_ecdsa_r1() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
-      b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 32], v3: [u8; 64]):
-        v4 = call ecdsa_secp256r1(v0, v1, v2, v3) -> u1
+      b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+        v4 = call ecdsa_secp256r1(v0, v1, v2, v3, u1 1) -> u1
         return v4
     }
       ";

@@ -23,7 +23,7 @@ use noirc_frontend::{
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
-pub(super) fn gen_abi(
+pub fn gen_abi(
     context: &Context,
     func_id: &FuncId,
     return_visibility: Visibility,
@@ -56,11 +56,13 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
             if let Type::FmtString(len, item_types) = typ {
                 let span = get_main_function_location(context);
                 let length = len.evaluate_to_u32(span).expect("Cannot evaluate fmt length");
-                let Type::Tuple(item_types) = item_types.as_ref() else {
-                    unreachable!("FmtString items must be a tuple")
+                let item_types = match item_types.as_ref() {
+                    Type::Tuple(item_types) => {
+                        vecmap(item_types, |typ| abi_type_from_hir_type(context, typ))
+                    }
+                    Type::Unit => Vec::new(),
+                    _ => unreachable!("FmtString items must be a tuple or unit"),
                 };
-                let item_types =
-                    item_types.iter().map(|typ| abi_type_from_hir_type(context, typ)).collect();
                 AbiErrorType::FmtString { length, item_types }
             } else {
                 AbiErrorType::Custom(abi_type_from_hir_type(context, &typ))
@@ -114,7 +116,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args).unwrap_or_default();
             let fields =
-                vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, &typ)));
+                vecmap(fields, |(name, typ, _)| (name, abi_type_from_hir_type(context, &typ)));
             // For the ABI, we always want to resolve the struct paths from the root crate
             let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }
@@ -226,9 +228,10 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(value) => {
-                AbiValue::Integer { value: value.field.to_hex(), sign: value.is_negative }
-            }
+            HirLiteral::Integer(value) => AbiValue::Integer {
+                value: value.absolute_value().to_hex(),
+                sign: value.is_negative(),
+            },
             _ => unreachable!("Literal cannot be used in the abi"),
         },
         _ => unreachable!("Type cannot be used in the abi {:?}", expression),

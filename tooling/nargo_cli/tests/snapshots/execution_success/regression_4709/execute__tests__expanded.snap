@@ -3846,9 +3846,9 @@ global EXPONENTIATE: [[Field; 257]; 257] = [
 ];
 
 fn main(x: Field, y: pub Field) {
-    let mut acc: Field = 0;
-    for i in 0..257 {
-        for j in 0..257 {
+    let mut acc: Field = 0_Field;
+    for i in 0_u32..257_u32 {
+        for j in 0_u32..257_u32 {
             acc = acc + EXPONENTIATE[i][j];
         }
     }

@@ -79,13 +79,13 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     })
 }
 
-fn interpret(src: &str) -> Value {
+pub(super) fn interpret(src: &str) -> Value {
     interpret_helper(src).unwrap_or_else(|error| {
         panic!("Expected interpreter to exit successfully, but found {error:?}")
     })
 }
 
-fn interpret_expect_error(src: &str) -> InterpreterError {
+pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
     interpret_helper(src).expect_err("Expected interpreter to error")
 }
 
@@ -313,4 +313,21 @@ fn generic_functions() {
     ";
     let result = interpret(program);
     assert_eq!(result, Value::U8(2));
+}
+
+#[test]
+fn capture_variables_by_copy() {
+    let program = "
+    fn main() {
+        comptime {
+            let mut x = 4;
+            let closure_capturing_mutable = |y| y + x;
+            assert(closure_capturing_mutable(1) == 5);
+            x += 1;
+            assert(closure_capturing_mutable(1) == 5);
+        }
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Unit);
 }

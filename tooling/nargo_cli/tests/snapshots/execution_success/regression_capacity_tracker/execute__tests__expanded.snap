@@ -5,14 +5,17 @@ expression: expanded_code
 fn main(expected: pub Field, first: Field, input: [Field; 20]) {
     let mut hasher_slice: [Field] = input.as_slice();
     hasher_slice = hasher_slice.push_front(first);
-    assert(hasher_slice[0] == expected);
-    if (expected as u32) > 10 {
+    assert(hasher_slice[0_u32] == expected);
+    if (expected as u32) > 10_u32 {
         {
-            let i_3772: Field = expected - 10;
-            hasher_slice[i_3772] = 100;
+            let i_4484: u32 = (expected - 10_Field) as u32;
+            hasher_slice[i_4484] = 100_Field;
         }
     } else {
-        hasher_slice[expected] = 100;
+        {
+            let i_4485: u32 = expected as u32;
+            hasher_slice[i_4485] = 100_Field;
+        }
     };
-    assert(hasher_slice[0] == expected);
+    assert(hasher_slice[0_u32] == expected);
 }

@@ -1,0 +1,6 @@
+[package]
+name = "nested_mutable_ref_in_if"
+type = "bin"
+authors = [""]
+
+[dependencies]

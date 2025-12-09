@@ -6,11 +6,11 @@ on:
       noir-ref:
         description: The noir reference to checkout
         required: false
-        default: 'master'
+        default: "master"
       npm-tag:
         description: Repository Tag to publish under
         required: false
-        default: 'nightly'
+        default: "nightly"
 
 run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-tag }} tag.
 
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
@@ -34,14 +34,13 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
+      - uses: taiki-e/install-action@just
 
       - name: Build noirc_abi
-        run: ./.github/scripts/noirc-abi-build.sh
+        run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: noirc_abi_wasm
           path: |
@@ -53,7 +52,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
@@ -65,20 +64,19 @@ jobs:
           key: noir-wasm
           save-if: false
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
-
       - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
+        run: just build-package @noir-lang/types
 
       - name: Build noir_wasm
-        run: ./.github/scripts/noir-wasm-build.sh
+        run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: noir_wasm
           path: |
@@ -90,7 +88,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
@@ -105,14 +103,13 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
+      - uses: taiki-e/install-action@just
 
       - name: Build acvm_js
-        run: ./.github/scripts/acvm_js-build.sh
+        run: just build-package @noir-lang/acvm_js
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: acvm-js
           path: |
@@ -123,29 +120,33 @@ jobs:
   publish-es-packages:
     runs-on: ubuntu-22.04
     needs: [build-acvm_js, build-noirc_abi_wasm, build-noir_wasm]
+    permissions:
+      contents: read
+      id-token: write # Necessary for NPM provenance: https://docs.npmjs.com/generating-provenance-statements
+      issues: write # To alert on failure
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: acvm-js
           path: acvm-repo/acvm_js
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: noir_wasm
           path: compiler/wasm
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: noirc_abi_wasm
           path: tooling/noirc_abi_wasm
 
       - name: Install Yarn dependencies
-        run: yarn install
+        uses: ./.github/actions/setup
 
       - name: Build ES Packages
         run: yarn build:js:only
@@ -155,11 +156,8 @@ jobs:
         run: |
           yarn nightly:version -- .${{ inputs.npm-tag }}
 
-      - name: Authenticate with npm
-        run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
-
       - name: Publish ES Packages
-        run: yarn publish:all --access public --tag ${{ inputs.npm-tag }}
+        run: yarn publish:all --provenance --access public --tag ${{ inputs.npm-tag }}
 
       # Raise an issue if any package failed to publish
       - name: Alert on failed publish

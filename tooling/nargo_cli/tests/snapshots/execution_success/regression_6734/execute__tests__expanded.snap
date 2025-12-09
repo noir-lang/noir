@@ -13,12 +13,12 @@ pub fn sub_array_extended<let SRC_LEN: u32, let DST_LEN: u32>(
         DST_LEN
     };
     let mut dst: [Field; DST_LEN] = std::mem::zeroed();
-    for i in 0..elements_to_copy {
+    for i in 0_u32..elements_to_copy {
         dst[i] = src[i + offset];
     }
     dst
 }
 
 unconstrained fn main() {
-    assert(sub_array_extended([], 0) == []);
+    assert(sub_array_extended([], 0_u32) == []);
 }

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
 use noirc_errors::{
@@ -59,6 +59,142 @@ pub enum Expression {
 impl Expression {
     pub fn is_array_or_slice_literal(&self) -> bool {
         matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+
+    /// The return type of an expression, if it has an obvious one.
+    pub fn return_type(&self) -> Option<Cow<Type>> {
+        fn borrowed(typ: &Type) -> Option<Cow<Type>> {
+            Some(Cow::Borrowed(typ))
+        }
+        let owned = |typ: Type| Some(Cow::Owned(typ));
+
+        match self {
+            Expression::Ident(ident) => borrowed(&ident.typ),
+            Expression::Literal(literal) => match literal {
+                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Integer(_, typ, _) => borrowed(typ),
+                Literal::Bool(_) => borrowed(&Type::Bool),
+                Literal::Unit => borrowed(&Type::Unit),
+                Literal::Str(s) => owned(Type::String(s.len() as u32)),
+                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
+                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                }),
+            },
+            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Unary(unary) => borrowed(&unary.result_type),
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    borrowed(&Type::Bool)
+                } else {
+                    binary.lhs.return_type()
+                }
+            }
+            Expression::Index(index) => borrowed(&index.element_type),
+            Expression::Cast(cast) => borrowed(&cast.r#type),
+            Expression::If(if_) => borrowed(&if_.typ),
+            Expression::ExtractTupleField(x, idx) => match x.as_ref() {
+                Expression::Tuple(xs) => {
+                    assert!(xs.len() > *idx, "index out of bounds in tuple return type");
+                    xs[*idx].return_type()
+                }
+                x => {
+                    let typ = x.return_type()?;
+                    let Type::Tuple(types) = typ.as_ref() else {
+                        unreachable!("unexpected type for tuple field extraction: {typ}");
+                    };
+                    assert!(types.len() > *idx, "index out of bounds in tuple return type");
+                    owned(types[*idx].clone())
+                }
+            },
+            Expression::Clone(x) => x.return_type(),
+            Expression::Call(call) => borrowed(&call.return_type),
+            Expression::Match(m) => borrowed(&m.typ),
+
+            Expression::Tuple(xs) => {
+                let types = xs
+                    .iter()
+                    .filter_map(|x| x.return_type())
+                    .map(|t| t.into_owned())
+                    .collect::<Vec<_>>();
+                if types.len() != xs.len() {
+                    return None;
+                }
+                owned(Type::Tuple(types))
+            }
+
+            Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => None,
+        }
+    }
+
+    /// Check if the expression will need to have its type deduced from a literal,
+    /// which could be ambiguous.
+    ///
+    /// For example:
+    /// ```ignore
+    /// let a = 1;
+    /// let b = if (a > 0) { 2 } else { 3 };
+    /// ```
+    pub fn needs_type_inference_from_literal(&self) -> bool {
+        match self {
+            Expression::Literal(_) => true,
+
+            Expression::Block(expressions) => expressions
+                .last()
+                .map(|x| x.needs_type_inference_from_literal())
+                .unwrap_or_default(),
+
+            Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
+
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    false
+                } else {
+                    binary.lhs.needs_type_inference_from_literal()
+                }
+            }
+            Expression::If(if_) => {
+                if_.consequence.needs_type_inference_from_literal()
+                    && if_
+                        .alternative
+                        .as_ref()
+                        .map(|x| x.needs_type_inference_from_literal())
+                        .unwrap_or_default()
+            }
+            Expression::Match(m) => {
+                m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
+                    && m.default_case.as_ref().is_none_or(|x| x.needs_type_inference_from_literal())
+            }
+
+            Expression::Tuple(xs) => xs.iter().any(|x| x.needs_type_inference_from_literal()),
+
+            Expression::ExtractTupleField(x, _) => x.needs_type_inference_from_literal(),
+
+            // The following expressions either carry an obvious type, or return nothing.
+            Expression::Ident(_)
+            | Expression::Call(_)
+            | Expression::Index(_)
+            | Expression::Cast(_)
+            | Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Clone(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => false,
+        }
     }
 }
 
@@ -147,6 +283,11 @@ pub struct Unary {
     pub rhs: Box<Expression>,
     pub result_type: Type,
     pub location: Location,
+
+    /// Carried over from `HirPrefixExpression::skip`. This also flags whether we should directly
+    /// return `rhs` and skip performing this operation. Compared to replacing this node with rhs
+    /// directly, keeping this flag keeps `--show-monomorphized` output the same.
+    pub skip: bool,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -169,7 +310,7 @@ pub struct If {
 
 #[derive(Debug, Clone, Hash)]
 pub struct Match {
-    pub variable_to_match: LocalId,
+    pub variable_to_match: (LocalId, String),
     pub cases: Vec<MatchCase>,
     pub default_case: Option<Box<Expression>>,
     pub typ: Type,
@@ -178,7 +319,7 @@ pub struct Match {
 #[derive(Debug, Clone, Hash)]
 pub struct MatchCase {
     pub constructor: Constructor,
-    pub arguments: Vec<LocalId>,
+    pub arguments: Vec<(LocalId, String)>,
     pub branch: Expression,
 }
 
@@ -248,9 +389,22 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
-    MemberAccess { object: Box<LValue>, field_index: usize },
-    Dereference { reference: Box<LValue>, element_type: Type },
+    Index {
+        array: Box<LValue>,
+        index: Box<Expression>,
+        element_type: Type,
+        location: Location,
+    },
+    MemberAccess {
+        object: Box<LValue>,
+        field_index: usize,
+    },
+    Dereference {
+        reference: Box<LValue>,
+        element_type: Type,
+    },
+    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    Clone(Box<LValue>),
 }
 
 pub type Parameters =
@@ -308,9 +462,31 @@ impl InlineType {
             InlineType::NoPredicates => false,
         }
     }
+
+    /// Produce an `InlineType` which we can use with an unconstrained version of a function.
+    pub fn into_unconstrained(self) -> Self {
+        match self {
+            InlineType::Inline | InlineType::InlineAlways => self,
+            InlineType::Fold => {
+                // The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                Self::default()
+            }
+            InlineType::NoPredicates => {
+                // The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                // We can keep these, or try inlining more aggressively, since we don't
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                self
+            }
+        }
+    }
 }
 
-impl std::fmt::Display for InlineType {
+impl Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
@@ -353,6 +529,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -460,13 +637,13 @@ impl std::ops::IndexMut<FuncId> for Program {
     }
 }
 
-impl std::fmt::Display for Program {
+impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
-impl std::fmt::Display for Function {
+impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_function(
             self,
@@ -476,13 +653,13 @@ impl std::fmt::Display for Function {
     }
 }
 
-impl std::fmt::Display for Expression {
+impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_expr(self, f)
     }
 }
 
-impl std::fmt::Display for Type {
+impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),
@@ -499,7 +676,11 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {

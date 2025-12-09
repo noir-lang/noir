@@ -1,0 +1,6 @@
+[package]
+name = "regression_9852"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,4 +1,21 @@
-use crate::{QuotedType, Type, ast::IntegerBitSize, shared::Signedness};
+//! Primitive type definitions
+
+use iter_extended::vecmap;
+use noirc_errors::Location;
+
+use crate::{
+    QuotedType, Type,
+    ast::{GenericTypeArgs, IntegerBitSize},
+    elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        type_check::{
+            TypeCheckError,
+            generics::{FmtstrPrimitiveType, Generic as _, StrPrimitiveType},
+        },
+    },
+    shared::Signedness,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIter)]
 pub enum PrimitiveType {
@@ -161,6 +178,182 @@ impl PrimitiveType {
             Self::TypedExpr => "TypedExpr",
             Self::Type => "Type",
             Self::UnresolvedType => "UnresolvedType",
+        }
+    }
+}
+
+impl Elaborator<'_> {
+    pub(crate) fn instantiate_primitive_type(
+        &mut self,
+        primitive_type: PrimitiveType,
+        args: GenericTypeArgs,
+        location: Location,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
+        match primitive_type {
+            PrimitiveType::Bool
+            | PrimitiveType::CtString
+            | PrimitiveType::Expr
+            | PrimitiveType::Field
+            | PrimitiveType::FunctionDefinition
+            | PrimitiveType::I8
+            | PrimitiveType::I16
+            | PrimitiveType::I32
+            | PrimitiveType::I64
+            | PrimitiveType::U1
+            | PrimitiveType::U8
+            | PrimitiveType::U16
+            | PrimitiveType::U32
+            | PrimitiveType::U64
+            | PrimitiveType::U128
+            | PrimitiveType::Module
+            | PrimitiveType::Quoted
+            | PrimitiveType::StructDefinition
+            | PrimitiveType::TraitConstraint
+            | PrimitiveType::TraitDefinition
+            | PrimitiveType::TraitImpl
+            | PrimitiveType::TypeDefinition
+            | PrimitiveType::TypedExpr
+            | PrimitiveType::Type
+            | PrimitiveType::UnresolvedType => {
+                if !args.is_empty() {
+                    let found = args.ordered_args.len() + args.named_args.len();
+                    self.push_err(CompilationError::TypeError(
+                        TypeCheckError::GenericCountMismatch {
+                            item: primitive_type.name().to_string(),
+                            expected: 0,
+                            found,
+                            location,
+                        },
+                    ));
+                }
+            }
+            PrimitiveType::Str => {
+                let item = StrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                    wildcard_allowed,
+                );
+                assert_eq!(args.len(), 1, "str generics should be: [length]");
+                let length = args.pop().unwrap();
+                return Type::String(Box::new(length));
+            }
+            PrimitiveType::Fmtstr => {
+                let item = FmtstrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                    wildcard_allowed,
+                );
+                assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
+                let element = args.pop().unwrap();
+                let length = args.pop().unwrap();
+                return Type::FmtString(Box::new(length), Box::new(element));
+            }
+        }
+
+        primitive_type.to_type()
+    }
+
+    /// Instantiates a primitive type with turbofish generics.
+    ///
+    /// # Returns
+    /// A tuple of:
+    /// - The instantiated [Type]
+    /// - A boolean indicating whether this primitive type has generics
+    pub(crate) fn instantiate_primitive_type_with_turbofish(
+        &mut self,
+        primitive_type: PrimitiveType,
+        turbofish: Option<Turbofish>,
+    ) -> (Type, bool) {
+        match primitive_type {
+            PrimitiveType::Bool
+            | PrimitiveType::CtString
+            | PrimitiveType::Expr
+            | PrimitiveType::Field
+            | PrimitiveType::FunctionDefinition
+            | PrimitiveType::I8
+            | PrimitiveType::I16
+            | PrimitiveType::I32
+            | PrimitiveType::I64
+            | PrimitiveType::U1
+            | PrimitiveType::U8
+            | PrimitiveType::U16
+            | PrimitiveType::U32
+            | PrimitiveType::U64
+            | PrimitiveType::U128
+            | PrimitiveType::Module
+            | PrimitiveType::Quoted
+            | PrimitiveType::StructDefinition
+            | PrimitiveType::TraitConstraint
+            | PrimitiveType::TraitDefinition
+            | PrimitiveType::TraitImpl
+            | PrimitiveType::TypeDefinition
+            | PrimitiveType::TypedExpr
+            | PrimitiveType::Type
+            | PrimitiveType::UnresolvedType => {
+                if let Some(turbofish) = turbofish {
+                    self.push_err(CompilationError::TypeError(
+                        TypeCheckError::GenericCountMismatch {
+                            item: primitive_type.name().to_string(),
+                            expected: 0,
+                            found: turbofish.generics.len(),
+                            location: turbofish.location,
+                        },
+                    ));
+                }
+                (primitive_type.to_type(), false)
+            }
+            PrimitiveType::Str => {
+                let item = StrPrimitiveType;
+                let item_generic_kinds = item.generic_kinds(self.interner);
+                let generics = vecmap(&item_generic_kinds, |kind| {
+                    self.interner.next_type_variable_with_kind(kind.clone())
+                });
+                let mut args = if let Some(turbofish) = turbofish {
+                    self.resolve_item_turbofish_generics(
+                        item.item_kind(),
+                        &item.item_name(self.interner),
+                        item_generic_kinds,
+                        generics,
+                        Some(turbofish.generics),
+                        turbofish.location,
+                    )
+                } else {
+                    generics
+                };
+                assert_eq!(args.len(), 1, "str generics should be: [length]");
+                let length = args.pop().unwrap();
+                (Type::String(Box::new(length)), true)
+            }
+            PrimitiveType::Fmtstr => {
+                let item = FmtstrPrimitiveType;
+                let item_generic_kinds = item.generic_kinds(self.interner);
+                let generics = vecmap(&item_generic_kinds, |kind| {
+                    self.interner.next_type_variable_with_kind(kind.clone())
+                });
+                let mut args = if let Some(turbofish) = turbofish {
+                    self.resolve_item_turbofish_generics(
+                        FmtstrPrimitiveType.item_kind(),
+                        &item.item_name(self.interner),
+                        item_generic_kinds,
+                        generics,
+                        Some(turbofish.generics),
+                        turbofish.location,
+                    )
+                } else {
+                    generics
+                };
+                assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
+                let element = args.pop().unwrap();
+                let length = args.pop().unwrap();
+                (Type::FmtString(Box::new(length), Box::new(element)), true)
+            }
         }
     }
 }

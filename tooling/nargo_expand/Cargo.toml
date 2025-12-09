@@ -1,0 +1,17 @@
+[package]
+name = "nargo_expand"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nargo_fmt.workspace = true
+noirc_driver.workspace = true
+noirc_frontend.workspace = true
+
+[dev-dependencies]

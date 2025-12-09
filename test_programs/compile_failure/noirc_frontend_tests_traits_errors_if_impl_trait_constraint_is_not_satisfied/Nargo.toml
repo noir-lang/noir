@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_errors_if_impl_trait_constraint_is_not_satisfied"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

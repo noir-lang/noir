@@ -1,5 +1,0 @@
-[package]
-name = "1327_concrete_in_generic"
-type = "bin"
-authors = [""]
-[dependencies]

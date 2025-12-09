@@ -4,24 +4,29 @@ expression: expanded_code
 ---
 fn main(x: Field, y: Field) {
     let pair: (Field, Field) = (x, y);
-    assert(pair.0 == 1);
-    assert(pair.1 == 0);
-    let (a, b): (Field, Field) = if true { (0, 1) } else { (2, 3) };
-    assert(a == 0);
-    assert(b == 1);
-    let (u, v): (Field, Field) = if (x as u32) < 1 {
-        (x, x + 1)
+    assert(pair.0 == 1_Field);
+    assert(pair.1 == 0_Field);
+    let (a, b): (Field, Field) = if true {
+        (0_Field, 1_Field)
     } else {
-        (x + 1, x)
+        (2_Field, 3_Field)
     };
-    assert(u == (x + 1));
+    assert(a == 0_Field);
+    assert(b == 1_Field);
+    let (u, v): (Field, Field) = if (x as u32) < 1_u32 {
+        (x, x + 1_Field)
+    } else {
+        (x + 1_Field, x)
+    };
+    assert(u == (x + 1_Field));
     assert(v == x);
-    let mut mutable: ((Field, Field), Field, Field, Field) = ((0, 0), 1, 2, 3);
+    let mut mutable: ((Field, Field), Field, Field, Field) =
+        ((0_Field, 0_Field), 1_Field, 2_Field, 3_Field);
     mutable.0 = (x, y);
-    mutable.2 = 7;
-    assert(mutable.0.0 == 1);
-    assert(mutable.0.1 == 0);
-    assert(mutable.1 == 1);
-    assert(mutable.2 == 7);
-    assert(mutable.3 == 3);
+    mutable.2 = 7_Field;
+    assert(mutable.0.0 == 1_Field);
+    assert(mutable.0.1 == 0_Field);
+    assert(mutable.1 == 1_Field);
+    assert(mutable.2 == 7_Field);
+    assert(mutable.3 == 3_Field);
 }

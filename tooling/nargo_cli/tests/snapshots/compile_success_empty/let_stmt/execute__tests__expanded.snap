@@ -7,8 +7,8 @@ struct Foo {
 }
 
 fn main() {
-    let _: Field = 42;
-    let _: Field = 42;
-    let Foo { a: _ }: Foo = Foo { a: 42 };
-    let _regression_2786: [Foo; 8] = [Foo { a: 1 }; 8];
+    let _: Field = 42_Field;
+    let _: Field = 42_Field;
+    let Foo { a: _ }: Foo = Foo { a: 42_u64 };
+    let _regression_2786: [Foo; 8] = [Foo { a: 1_u64 }; 8];
 }

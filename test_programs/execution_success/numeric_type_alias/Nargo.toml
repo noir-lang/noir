@@ -1,0 +1,7 @@
+[package]
+name = "numeric_type_alias"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

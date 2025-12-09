@@ -4,7 +4,6 @@ use noirc_frontend::{
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
-        UnresolvedTypeData,
     },
     token::{Keyword, Token, TokenKind},
 };
@@ -98,17 +97,17 @@ impl ChunkFormatter<'_, '_> {
                     false, // force multiple lines
                 ));
             }
-            ExpressionKind::Unsafe(unsafe_xpression) => {
+            ExpressionKind::Unsafe(unsafe_expression) => {
                 group.group(self.format_unsafe_expression(
-                    unsafe_xpression.block,
+                    unsafe_expression.block,
                     false, // force multiple lines
                 ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                group.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
+                group.text(self.chunk(|formatter| formatter.format_as_trait_path(*as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) => {
-                group.group(self.format_type_path(type_path));
+                group.group(self.format_type_path(*type_path));
             }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
@@ -218,21 +217,28 @@ impl ChunkFormatter<'_, '_> {
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut group = ChunkGroup::new();
 
-        let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+        let lambda_has_return_type = lambda.return_type.is_some();
 
         let params_and_return_type_chunk = self.chunk(|formatter| {
+            if lambda.unconstrained {
+                formatter.write_keyword(Keyword::Unconstrained);
+                formatter.write_space();
+            }
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
                 if index > 0 {
                     formatter.write_comma();
                     formatter.write_space();
                 }
-                formatter.format_pattern(pattern);
-                if typ.typ != UnresolvedTypeData::Unspecified {
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_type(typ);
+                let mut pattern_and_type_group = formatter.format_pattern(pattern);
+                if let Some(typ) = typ {
+                    pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }));
                 }
+                formatter.format_chunk_group(pattern_and_type_group);
             }
             formatter.skip_comments_and_whitespace();
             if formatter.is_at(Token::Comma) {
@@ -240,10 +246,10 @@ impl ChunkFormatter<'_, '_> {
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            if lambda_has_return_type {
+            if let Some(return_type) = lambda.return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
-                formatter.format_type(lambda.return_type);
+                formatter.format_type(return_type);
                 formatter.write_space();
             }
         });
@@ -263,11 +269,9 @@ impl ChunkFormatter<'_, '_> {
         let comments_count_before_body = self.written_comments_count;
         self.format_expression(lambda.body, &mut body_group);
 
-        body_group.kind = GroupKind::LambdaBody {
-            block_statement_count,
-            has_comments: self.written_comments_count > comments_count_before_body,
-            lambda_has_return_type,
-        };
+        let has_comments = self.written_comments_count > comments_count_before_body;
+        body_group.kind =
+            GroupKind::LambdaBody { block_statement_count, has_comments, lambda_has_return_type };
 
         group.group(body_group);
 
@@ -340,7 +344,7 @@ impl ChunkFormatter<'_, '_> {
             '(' => ')',
             '{' => '}',
             '[' => ']',
-            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+            _ => panic!("Unexpected delimiter: {delimiter_start}"),
         };
 
         // We use the current token rather than the Tokens we got from `Token::Quote` because
@@ -963,6 +967,7 @@ impl ChunkFormatter<'_, '_> {
 
             // Add a trailing comma regardless of whether the user specified one or not
             group.text(self.chunk(|formatter| {
+                formatter.skip_comments_and_whitespace();
                 if formatter.token == Token::Comma {
                     formatter.write_current_token_and_bump();
                 } else {
@@ -1383,6 +1388,13 @@ mod tests {
     fn format_negative_integer() {
         let src = "global x =  - 42 ;";
         let expected = "global x = -42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_double_negative_integer() {
+        let src = "global x =  - - 42 ;";
+        let expected = "global x = --42;\n";
         assert_format(src, expected);
     }
 
@@ -1912,9 +1924,9 @@ global y = 1;
 
     #[test]
     fn format_method_call_chain_3() {
-        let src = "fn foo() {     assert(p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
+        let src = "fn foo() {     assert(p4_affine.eq(Something::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
         let expected = "fn foo() {
-    assert(p4_affine.eq(Gaffine::new(
+    assert(p4_affine.eq(Something::new(
         6890855772600357754907169075114257697580319025794532037257385534741338397365,
         4338620300185947561074059802482547481416142213883829469920100239455078257889,
     )));
@@ -1950,7 +1962,7 @@ global y = 1;
     fn format_nested_method_call_with_maximum_width_2() {
         let src = "fn foo() {
     assert(
-        p4_affine.eq(Gaffine::new(
+        p4_affine.eq(Something::new(
             6890855772600357754907169075114257697580319025794532037257385534741338397365,
             4338620300185947561074059802482547481416142213883829469920100239455078257889,
         )),
@@ -1958,7 +1970,7 @@ global y = 1;
 }
 ";
         let expected = "fn foo() {
-    assert(p4_affine.eq(Gaffine::new(
+    assert(p4_affine.eq(Something::new(
         6890855772600357754907169075114257697580319025794532037257385534741338397365,
         4338620300185947561074059802482547481416142213883829469920100239455078257889,
     )));
@@ -2264,6 +2276,13 @@ global y = 1;
     }
 
     #[test]
+    fn format_unconstrained_lambda_no_parameters() {
+        let src = "global x =  unconstrained  | |  1 ;";
+        let expected = "global x = unconstrained || 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_lambda_with_parameters() {
         let src = "global x = | x , y : Field , z |  1 ;";
         let expected = "global x = |x, y: Field, z| 1;\n";
@@ -2476,7 +2495,7 @@ global y = 1;
 
     #[test]
     fn format_match() {
-        let src = "fn main() {  match  x  {  A=>B,C  =>  {D}E=>(),  } }";
+        let src = "fn main() {  match  x  {  A=>B  ,  C  =>  {D}E=>()  ,  } }";
         // We should remove the block on D for single expressions in the future,
         // unless D is an if or match.
         let expected = "fn main() {
@@ -2601,5 +2620,33 @@ global y = 1;
 }
 "#;
         assert_format_with_max_width(src, src, 28);
+    }
+
+    #[test]
+    fn cast_broken_to_two_lines_inside_array() {
+        let src = r#"fn foo() {
+    bar(
+        "",
+        [
+            (private_call_timestamp)
+                 as i32,
+            2,
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, src, 40);
+    }
+
+    #[test]
+    fn regression_9556() {
+        let src = r#"fn foo() {
+    let x = a()
+        .bcde(fghijk
+            );
+    x
+}
+"#;
+        assert_format_with_max_width(src, src, 20);
     }
 }

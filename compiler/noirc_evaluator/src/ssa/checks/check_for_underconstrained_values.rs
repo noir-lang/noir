@@ -8,6 +8,7 @@ use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
+use crate::ssa::visit_once_deque::VisitOnceDeque;
 use im::HashMap;
 use noirc_errors::Location;
 use rayon::prelude::*;
@@ -385,6 +386,7 @@ impl DependencyContext {
         //Then, go over the instructions
         for instruction in function.dfg[block].instructions().iter() {
             let mut arguments = Vec::new();
+            let mut results = Vec::new();
 
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
@@ -393,15 +395,34 @@ impl DependencyContext {
                 }
             });
 
+            // Collect non-constant instruction results
+            for value_id in function.dfg.instruction_results(*instruction).iter() {
+                if function.dfg.get_numeric_constant(*value_id).is_none() {
+                    results.push(*value_id);
+                }
+            }
+
             // If the lookback feature is enabled, start tracking calls when
-            // their argument value ids first appear, or when their
+            // their value ids first appear in arguments or results, or when their
             // instruction id comes up (in case there were no non-constant arguments)
             if self.enable_lookback {
-                for argument in &arguments {
-                    if let Some(calls) = self.call_arguments.get(argument) {
+                for id in arguments.iter().chain(&results) {
+                    if let Some(calls) = self.call_arguments.get(id) {
                         for call in calls {
                             if self.tainted.contains_key(call) {
                                 self.tracking.insert(*call);
+
+                                // If the instruction is a cast or truncate, also update the
+                                // tainted arguments of the call with its argument
+                                // (fixes #10547)
+                                if matches!(
+                                    &function.dfg[*instruction],
+                                    Instruction::Cast(..) | Instruction::Truncate { .. }
+                                ) {
+                                    if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                                        tainted_ids.arguments.extend(&arguments);
+                                    }
+                                }
                             }
                         }
                     }
@@ -413,15 +434,6 @@ impl DependencyContext {
 
             // We can skip over instructions while nothing is being tracked
             if !self.tracking.is_empty() {
-                let mut results = Vec::new();
-
-                // Collect non-constant instruction results
-                for value_id in function.dfg.instruction_results(*instruction).iter() {
-                    if function.dfg.get_numeric_constant(*value_id).is_none() {
-                        results.push(*value_id);
-                    }
-                }
-
                 match &function.dfg[*instruction] {
                     // For memory operations, we have to link up the stored value as a parent
                     // of one loaded from the same memory slot
@@ -434,8 +446,7 @@ impl DependencyContext {
                             self.update_children(&[*value_id], &results);
                         } else {
                             panic!(
-                                "load instruction {} has attempted to access previously unused memory location",
-                                instruction
+                                "load instruction {instruction} has attempted to access previously unused memory location"
                             );
                         }
                     }
@@ -522,7 +533,7 @@ impl DependencyContext {
                     // For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index, offset: _ } => {
+                    Instruction::ArrayGet { array, index } => {
                         self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
@@ -651,8 +662,7 @@ impl DependencyContext {
 
 #[derive(Default)]
 struct Context {
-    visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
+    block_queue: VisitOnceDeque,
     value_sets: Vec<BTreeSet<ValueId>>,
     brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
     brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
@@ -668,12 +678,8 @@ impl Context {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
         // Go through each block in the function and create a list of sets of ValueIds connected by instructions
-        self.block_queue.push(function.entry_block());
-        while let Some(block) = self.block_queue.pop() {
-            if self.visited_blocks.contains(&block) {
-                continue;
-            }
-            self.visited_blocks.insert(block);
+        self.block_queue.push_back(function.entry_block());
+        while let Some(block) = self.block_queue.pop_back() {
             self.connect_value_ids_in_block(function, block, all_functions);
         }
         // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
@@ -687,7 +693,7 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
-        let returns = function.returns();
+        let returns = function.returns().unwrap_or_default();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()
@@ -1033,7 +1039,7 @@ mod test {
             inc_rc v4
             inc_rc v5
             v8 = call f1(v4) -> u32
-            v9 = allocate -> &mut u32
+            v9 = allocate -> &mut u1
             store u1 0 at v9
             v10 = load v9 -> u1
             v11 = array_get v4, index u32 0 -> u32
@@ -1449,6 +1455,65 @@ mod test {
 
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test for programs equivalent to the below (#10547):
+    ///
+    /// ```noir
+    /// unconstrained fn identity(input: u64) -> u64 {
+    ///     input
+    /// }
+    ///
+    /// pub fn main(input: u32) {
+    ///     let casted_input = input as u64;
+    ///     let input_copy = unsafe { identity(casted_input) };
+    ///     assert_eq(input_copy as Field, casted_input as Field);
+    /// }
+    /// ```
+    fn multiple_casts_on_brillig_input_does_not_result_in_warning() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+            v1 = cast v0 as u64
+            v3 = call f1(v1) -> u64
+            v4 = cast v3 as Field
+            v5 = cast v0 as Field
+            constrain v4 == v5
+            return
+        }
+        brillig(inline) predicate_pure fn identity f1 {
+            b0(v0: u64):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    fn truncating_brillig_argument_does_not_result_in_warning() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: Field):
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = call f1(v1) -> Field
+            constrain v2 == v0
+            return
+        }
+        brillig(inline) predicate_pure fn identity32 f1 {
+            b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }

@@ -10,7 +10,7 @@ struct Builder {
 impl Builder {
     fn append_note_hashes_with_logs(&mut self, num_note_hashes: u32) {
         let index_offset: u32 = self.note_hashes.len();
-        for i in 0..self.note_hashes.max_len() {
+        for i in 0_u32..self.note_hashes.max_len() {
             if i < num_note_hashes {
                 self.add_new_note_hash((index_offset + i) as Field);
             }
@@ -29,14 +29,16 @@ fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_ind
 }
 
 unconstrained fn main() {
-    let mut builder: Builder =
-        Builder { note_hashes: BoundedVec::new(), nullifiers: BoundedVec::new() };
-    builder.append_note_hashes_with_logs(2);
-    builder.nullifiers.set_unchecked(1, 27);
+    let mut builder: Builder = Builder {
+        note_hashes: BoundedVec::<Field, 2>::new(),
+        nullifiers: BoundedVec::<Field, 2>::new(),
+    };
+    builder.append_note_hashes_with_logs(2_u32);
+    builder.nullifiers.set_unchecked(1_u32, 27_Field);
     let note_hashes: [Field; 2] = builder.note_hashes.storage();
-    let original_first_note_hash: Field = note_hashes[0];
-    swap_items(&mut builder.note_hashes, 1, 0);
-    for i in 0..1 {
+    let original_first_note_hash: Field = note_hashes[0_u32];
+    swap_items(&mut builder.note_hashes, 1_u32, 0_u32);
+    for i in 0_u32..1_u32 {
         assert(note_hashes[i] == original_first_note_hash);
     }
 }

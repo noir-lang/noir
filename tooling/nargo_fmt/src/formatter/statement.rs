@@ -1,7 +1,7 @@
 use noirc_frontend::{
     ast::{
         AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
+        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -72,8 +72,8 @@ impl ChunkFormatter<'_, '_> {
             StatementKind::For(for_loop_statement) => {
                 group.group(self.format_for_loop(for_loop_statement));
             }
-            StatementKind::Loop(block, _) => {
-                group.group(self.format_loop(block));
+            StatementKind::Loop(loop_) => {
+                group.group(self.format_loop(loop_));
             }
             StatementKind::While(while_) => {
                 group.group(self.format_while(while_));
@@ -122,7 +122,7 @@ impl ChunkFormatter<'_, '_> {
         &mut self,
         keyword: Keyword,
         pattern: Pattern,
-        typ: UnresolvedType,
+        typ: Option<UnresolvedType>,
         value: Option<Expression>,
         attributes: Vec<SecondaryAttribute>,
     ) -> ChunkGroup {
@@ -132,15 +132,19 @@ impl ChunkFormatter<'_, '_> {
             formatter.format_secondary_attributes(attributes);
             formatter.write_keyword(keyword);
             formatter.write_space();
-            formatter.increase_indentation();
-            formatter.format_pattern(pattern);
-            formatter.decrease_indentation();
-            if typ.typ != UnresolvedTypeData::Unspecified {
+        }));
+
+        let mut pattern_and_type_group = self.format_pattern(pattern);
+
+        if let Some(typ) = typ {
+            pattern_and_type_group.text(self.chunk(|formatter| {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
                 formatter.format_type(typ);
-            }
-        }));
+            }));
+        }
+
+        group.group(pattern_and_type_group);
 
         if let Some(value) = value {
             // If there's a line comment right before the value we'll put
@@ -277,7 +281,7 @@ impl ChunkFormatter<'_, '_> {
         group
     }
 
-    fn format_loop(&mut self, block: Expression) -> ChunkGroup {
+    fn format_loop(&mut self, loop_: LoopStatement) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
@@ -285,6 +289,8 @@ impl ChunkFormatter<'_, '_> {
         }));
 
         group.space(self);
+
+        let block = loop_.body;
 
         let ExpressionKind::Block(block) = block.kind else {
             panic!("Expected a block expression for loop body");
@@ -444,7 +450,7 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_unsafe_comment() {
-        let src = " fn foo() { 
+        let src = " fn foo() {
         // Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
@@ -457,7 +463,7 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_unsafe_doc_comment() {
-        let src = " fn foo() { 
+        let src = " fn foo() {
         /// Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
@@ -470,8 +476,8 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_unsafe_comment_right_before_unsafe() {
-        let src = " fn foo() { 
-        
+        let src = " fn foo() {
+
         let  x  =  // Safety: some comment
         unsafe { 1 } ; } ";
         let expected = "fn foo() {
@@ -481,6 +487,22 @@ mod tests {
 }
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_long_type() {
+        let src = " fn foo() {
+        let  some_variable: ThisIsAReallyLongType  = 123;
+        foo();
+}
+";
+        let expected = "fn foo() {
+    let some_variable: ThisIsAReallyLongType =
+        123;
+    foo();
+}
+";
+        assert_format_with_max_width(src, expected, 30);
     }
 
     #[test]

@@ -3,9 +3,9 @@
 
 use ec::bjj::BabyJubJubParams;
 use ec::{Curve, CurveTrait};
-use ec::scalar_field::ScalarField;
-use std::field::bn254::assert_lt;
+use ec::ScalarField;
 use poseidon::poseidon::bn254::hash_2 as poseidon;
+use std::field::bn254::assert_lt;
 
 // The maximum depth of the Merkle Tree the inclusion proof will be coming from.
 // This value can get updated by overwriting this line.

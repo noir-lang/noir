@@ -24,7 +24,7 @@ pub(crate) enum MulTerm<F> {
 
 impl ExpressionSolver {
     /// Derives the rest of the witness in the provided expression based on the known witness values
-    /// 1. Fist we simplify the expression based on the known values and try to reduce the multiplication and linear terms
+    /// 1. First we simplify the expression based on the known values and try to reduce the multiplication and linear terms
     /// 2. If we end up with only the constant term;
     ///     - if it is 0 then the opcode is solved, if not,
     ///     - the assert_zero opcode is not satisfied and we return an error
@@ -73,7 +73,7 @@ impl ExpressionSolver {
                         insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
-                    // TODO: can we be more specific with this error?
+                    // TODO(https://github.com/noir-lang/noir/issues/10191): can we be more specific with this error?
                     Err(OpcodeResolutionError::OpcodeNotSolvable(
                         OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
                     ))
@@ -148,8 +148,8 @@ impl ExpressionSolver {
         arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap<F>,
     ) -> Result<MulTerm<F>, OpcodeStatus<F>> {
-        // First note that the mul term can only contain one/zero term
-        // We are assuming it has been optimized.
+        // First note that the mul term can only contain one/zero term,
+        // e.g. that it has been optimized, or else we're returning OpcodeUnsolvable
         match arith_opcode.mul_terms.len() {
             0 => Ok(MulTerm::Solved(F::zero())),
             1 => Ok(ExpressionSolver::solve_mul_term_helper(
@@ -195,13 +195,12 @@ impl ExpressionSolver {
     }
 
     /// Returns the summation of all of the variables, plus the unknown variable
-    /// Returns None, if there is more than one unknown variable
-    /// We cannot assign
+    /// Returns [`OpcodeStatus::OpcodeUnsolvable`], if there is more than one unknown variable
     pub(super) fn solve_fan_in_term<F: AcirField>(
         arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap<F>,
     ) -> OpcodeStatus<F> {
-        // This is assuming that the fan-in is more than 0
+        // If the fan-in has more than 0 num_unknowns:
 
         // This is the variable that we want to assign the value to
         let mut unknown_variable = (F::zero(), Witness::default());
@@ -276,13 +275,17 @@ impl ExpressionSolver {
 /// is ±1.
 ///
 /// Field inversion is the most significant cost of solving [`Opcode::AssertZero`][acir::circuit::opcodes::Opcode::AssertZero]
-/// opcodes, we can avoid this in the situation
+/// opcodes, which we can avoid when the denominator is ±1.
 fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
     if denominator == F::one() {
         numerator
     } else if denominator == -F::one() {
         -numerator
     } else {
+        assert!(
+            denominator != F::zero(),
+            "quick_invert: attempting to divide numerator by F::zero()"
+        );
         numerator / denominator
     }
 }
@@ -301,15 +304,17 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "quick_invert: attempting to divide numerator by F::zero()")]
+    fn quick_invert_zero_denominator() {
+        quick_invert(FieldElement::one(), FieldElement::zero());
+    }
+
+    #[test]
     fn solves_simple_assignment() {
         let a = Witness(0);
 
         // a - 1 == 0;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), a)],
-            q_c: -FieldElement::one(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a} - 1")).unwrap();
 
         let mut values = WitnessMap::new();
         assert_eq!(ExpressionSolver::solve(&mut values, &opcode_a), Ok(()));
@@ -325,15 +330,7 @@ mod tests {
         let d = Witness(3);
 
         // a * b - b - c - d == 0;
-        let opcode_a = Expression {
-            mul_terms: vec![(FieldElement::one(), a, b)],
-            linear_combinations: vec![
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a}*{b} - {b} - {c} - {d}")).unwrap();
 
         let mut values = WitnessMap::new();
         values.insert(b, FieldElement::from(2_i128));
@@ -353,27 +350,10 @@ mod tests {
         let d = Witness(3);
 
         // a = b + c + d;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), a),
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a} - {b} - {c} - {d}")).unwrap();
 
         let e = Witness(4);
-        let opcode_b = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), e),
-                (-FieldElement::one(), a),
-                (-FieldElement::one(), b),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_b = Expression::from_str(&format!("{e} - {a} - {b}")).unwrap();
 
         let mut values = WitnessMap::new();
         values.insert(b, FieldElement::from(2_i128));

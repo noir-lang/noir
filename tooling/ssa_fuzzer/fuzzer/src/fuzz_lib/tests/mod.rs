@@ -1,0 +1,11 @@
+mod advanced_references;
+mod arrays;
+mod basic_tests;
+mod basic_unsigned_test;
+mod common;
+mod ecdsa;
+mod embedded_curve_ops;
+mod function_calls;
+mod hash_tests;
+mod loops;
+mod witness;

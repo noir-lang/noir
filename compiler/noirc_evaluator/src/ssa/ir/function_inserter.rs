@@ -1,8 +1,6 @@
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::ir::types::Type;
-
 use super::{
     basic_block::BasicBlockId,
     dfg::InsertInstructionResult,
@@ -10,7 +8,7 @@ use super::{
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// The FunctionInserter can be used to help modify existing Functions
 /// and map old values to new values after re-inserting optimized versions
@@ -19,34 +17,19 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
-
-    /// Map containing repeat array constants so that we do not initialize a new
-    /// array unnecessarily. An extra tuple field is included as part of the key to
-    /// distinguish between array/slice types.
-    ///
-    /// This is optional since caching arrays relies on the inserter inserting strictly
-    /// in control-flow order. Otherwise, if arrays later in the program are cached first,
-    /// they may be referred to by instructions earlier in the program.
-    array_cache: Option<ArrayCache>,
-
-    /// If this pass is loop unrolling, store the block before the loop to optionally
-    /// hoist any make_array instructions up to after they are retrieved from the `array_cache`.
-    pre_loop: Option<BasicBlockId>,
 }
-
-pub(crate) type ArrayCache = HashMap<im::Vector<ValueId>, HashMap<Type, ValueId>>;
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::default(), array_cache: None, pre_loop: None }
+        Self { function, values: HashMap::default() }
     }
 
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&self, value: ValueId) -> ValueId {
         match self.values.get(&value) {
-            Some(value) => self.resolve(*value),
+            Some(new_value) => self.resolve(*new_value),
             None => value,
         }
     }
@@ -58,6 +41,8 @@ impl<'f> FunctionInserter<'f> {
             // existing entries, but we should never have a value in the map referring to itself anyway.
             self.values.remove(&key);
         } else {
+            #[cfg(debug_assertions)]
+            self.validate_map_value(key, value);
             self.values.entry(key).or_insert(value);
         }
     }
@@ -67,7 +52,18 @@ impl<'f> FunctionInserter<'f> {
         if key == value {
             self.values.remove(&key);
         } else {
+            #[cfg(debug_assertions)]
+            self.validate_map_value(key, value);
             self.values.insert(key, value);
+        }
+    }
+
+    /// Sanity check that we are not creating back-and-forth cycles.
+    /// Doesn't catch longer cycles, but has detected mistakes with reusing instructions.
+    #[cfg(debug_assertions)]
+    fn validate_map_value(&self, key: ValueId, value: ValueId) {
+        if let Some(value_of_value) = self.values.get(&value) {
+            assert!(*value_of_value != key, "mapping short-circuit: {key} <-> {value}");
         }
     }
 
@@ -101,143 +97,72 @@ impl<'f> FunctionInserter<'f> {
         self.function.dfg.data_bus = data_bus;
     }
 
-    /// Push a new instruction to the given block and return its new InstructionId.
-    /// If the instruction was simplified out of the program, None is returned.
+    /// Push an instruction by ID, after re-mapping the values in it, to the given block and return its new `InstructionId`.
+    /// If the instruction was simplified out of the program, `None` is returned.
     pub(crate) fn push_instruction(
         &mut self,
         id: InstructionId,
         block: BasicBlockId,
+        allow_reinsert: bool,
     ) -> Option<InstructionId> {
         let (instruction, location) = self.map_instruction(id);
 
-        match self.push_instruction_value(instruction, id, block, location) {
+        match self.push_instruction_value(instruction, id, block, location, allow_reinsert) {
             InsertInstructionResult::Results(new_id, _) => Some(new_id),
             _ => None,
         }
     }
 
+    /// Push a instruction that already exists with an ID, given as an instance with potential modification already applied to it.
+    ///
+    /// If `allow_insert` is set, we consider reinserting the instruction as it is, if it hasn't changed and cannot be simplified.
+    /// Consider using this if we are re-inserting when we take instructions from a block and re-insert them into the same block.
     pub(crate) fn push_instruction_value(
         &mut self,
         instruction: Instruction,
         id: InstructionId,
-        mut block: BasicBlockId,
+        block: BasicBlockId,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+        allow_reinsert: bool,
+    ) -> InsertInstructionResult<'_> {
         let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
 
-        // Large arrays can lead to OOM panics if duplicated from being unrolled in loops.
-        // To prevent this, try to reuse the same ID for identical arrays instead of inserting
-        // another MakeArray instruction. Note that this assumes the function inserter is inserting
-        // in control-flow order. Otherwise we could refer to ValueIds defined later in the program.
-        let make_array = if let Instruction::MakeArray { elements, typ } = &instruction {
-            if self.array_is_constant(elements) && self.function.runtime().is_acir() {
-                if let Some(fetched_value) = self.get_cached_array(elements, typ) {
-                    assert_eq!(results.len(), 1);
-                    self.values.insert(results[0], fetched_value);
-                    return InsertInstructionResult::SimplifiedTo(fetched_value);
-                }
-
-                // Hoist constant arrays out of the loop and cache their value
-                if let Some(pre_loop) = self.pre_loop {
-                    block = pre_loop;
-                }
-                Some((elements.clone(), typ.clone()))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        let new_results = self.function.dfg.insert_instruction_and_results(
+        let new_results = self.function.dfg.insert_instruction_and_results_if_simplified(
             instruction,
             block,
             ctrl_typevars,
             call_stack,
+            allow_reinsert.then_some(id),
         );
-
-        // Cache an array in the fresh_array_cache if array caching is enabled.
-        // The fresh cache isn't used for deduplication until an external pass confirms we
-        // pass a sequence point and all blocks that may be before the current insertion point
-        // are finished.
-        if let Some((elements, typ)) = make_array {
-            Self::cache_array(&mut self.array_cache, elements, typ, new_results.first());
-        }
 
         Self::insert_new_instruction_results(&mut self.values, &results, &new_results);
         new_results
     }
 
-    fn get_cached_array(&self, elements: &im::Vector<ValueId>, typ: &Type) -> Option<ValueId> {
-        self.array_cache.as_ref()?.get(elements)?.get(typ).copied()
-    }
-
-    fn cache_array(
-        arrays: &mut Option<ArrayCache>,
-        elements: im::Vector<ValueId>,
-        typ: Type,
-        result_id: ValueId,
-    ) {
-        if let Some(arrays) = arrays {
-            arrays.entry(elements).or_default().insert(typ, result_id);
-        }
-    }
-
-    fn array_is_constant(&self, elements: &im::Vector<ValueId>) -> bool {
-        elements.iter().all(|element| self.function.dfg.is_constant(*element))
-    }
-
-    pub(crate) fn set_array_cache(
-        &mut self,
-        new_cache: Option<ArrayCache>,
-        pre_loop: BasicBlockId,
-    ) {
-        self.array_cache = new_cache;
-        self.pre_loop = Some(pre_loop);
-    }
-
-    /// Finish this inserter, returning its array cache merged with the fresh array cache.
-    /// Since this consumes the inserter this assumes we're at a sequence point where all
-    /// predecessor blocks to the current block are finished. Since this is true, the fresh
-    /// array cache can be merged with the existing array cache.
-    pub(crate) fn into_array_cache(self) -> Option<ArrayCache> {
-        self.array_cache
-    }
-
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
-    pub(crate) fn insert_new_instruction_results(
+    fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
         new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], *new_result);
+        for i in 0..old_results.len() {
+            if old_results[i] != new_results[i] {
+                values.insert(old_results[i], new_results[i]);
             }
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(*new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
         }
     }
 
+    /// Associates each block parameter with a value, unless the parameter already has a value,
+    /// in which case it is kept as-is.
     pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId]) {
         let old_parameters = self.function.dfg.block_parameters(block);
-
+        assert_eq!(old_parameters.len(), new_values.len());
         for (param, new_param) in old_parameters.iter().zip(new_values) {
             self.values.entry(*param).or_insert(*new_param);
         }
@@ -250,7 +175,7 @@ impl<'f> FunctionInserter<'f> {
     ) {
         let old_parameters = self.function.dfg.block_parameters(block);
         let new_parameters = self.function.dfg.block_parameters(new_block);
-
+        assert_eq!(old_parameters.len(), new_parameters.len(),);
         for (param, new_param) in old_parameters.iter().zip(new_parameters) {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
             self.values.entry(*param).or_insert(*new_param);

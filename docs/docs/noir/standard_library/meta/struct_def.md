@@ -1,5 +1,6 @@
 ---
 title: TypeDefinition
+description: Inspect and transform struct/enum type definitions—fields, generics, attributes, and module context.
 ---
 
 `std::meta::type_def` contains methods on the built-in `TypeDefinition` type.
@@ -38,11 +39,18 @@ Example:
 Returns this type definition as a type in the source program. If this definition has
 any generics, the generics are also included as-is.
 
+### as_type_with_generics
+
+#include_code as_type_with_generics noir_stdlib/src/meta/type_def.nr rust
+
+Returns a type from this type definition using the given generic arguments. Returns `Option::none()`
+if an incorrect amount of generic arguments are given for this type.
+
 ### generics
 
 #include_code generics noir_stdlib/src/meta/type_def.nr rust
 
-Returns each generic on this type definition. Each generic is represented as a tuple containing the type, 
+Returns each generic on this type definition. Each generic is represented as a tuple containing the type,
 and an optional containing the numeric type if it's a numeric generic.
 
 Example:
@@ -71,7 +79,7 @@ comptime fn example(foo: TypeDefinition) {
 
 #include_code fields noir_stdlib/src/meta/type_def.nr rust
 
-Returns (name, type) pairs of each field in this struct type.
+Returns (name, type, visibility) tuples of each field in this struct type.
 Any generic types used in each field type is automatically substituted with the
 provided generic arguments.
 
@@ -79,7 +87,7 @@ provided generic arguments.
 
 #include_code fields_as_written noir_stdlib/src/meta/type_def.nr rust
 
-Returns (name, type) pairs of each field in this struct type. Each type is as-is
+Returns (name, type, visibility) tuples of each field in this struct type. Each type is as-is
 with any generic arguments unchanged. Unless the field types are not needed,
 users should generally prefer to use `TypeDefinition::fields` over this
 function if possible.
@@ -120,7 +128,7 @@ Example:
 ```rust
 // Change this struct to:
 // struct Foo {
-//     a: u32,
+//     pub a: u32,
 //     b: i8,
 // }
 #[mangle_fields]
@@ -128,8 +136,8 @@ struct Foo { x: Field }
 
 comptime fn mangle_fields(s: TypeDefinition) {
     s.set_fields(&[
-        (quote { a }, quote { u32 }.as_type()),
-        (quote { b }, quote { i8 }.as_type()),
+        (quote { a }, quote { u32 }.as_type(), quote { pub }),
+        (quote { b }, quote { i8 }.as_type(), quote {}),
     ]);
 }
 ```

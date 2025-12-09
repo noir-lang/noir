@@ -27,7 +27,7 @@
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use super::Context;
 
@@ -56,7 +56,7 @@ pub(super) enum Branches {
     /// No use in this branch or there is no branch
     None,
     Direct(IdentId),
-    IfOrMatch(Vec<Branches>),
+    IfOrMatch(IfOrMatchId, HashMap<BranchId, Branches>),
 }
 
 impl Branches {
@@ -65,7 +65,23 @@ impl Branches {
         match self {
             Branches::None => Vec::new(),
             Branches::Direct(ident_id) => vec![ident_id],
-            Branches::IfOrMatch(cases) => cases.into_iter().flat_map(Self::flatten_uses).collect(),
+            Branches::IfOrMatch(_, cases) => {
+                cases.into_values().flat_map(Self::flatten_uses).collect()
+            }
+        }
+    }
+
+    fn get_if_or_match_id(&self) -> Option<IfOrMatchId> {
+        match self {
+            Branches::IfOrMatch(id, _) => Some(*id),
+            _ => None,
+        }
+    }
+
+    fn get_branches_map(&mut self) -> Option<&mut HashMap<BranchId, Branches>> {
+        match self {
+            Branches::IfOrMatch(_, map) => Some(map),
+            _ => None,
         }
     }
 }
@@ -73,19 +89,24 @@ impl Branches {
 /// A single path through a `Branches` enum.
 ///
 /// This is used by the context to keep track of where we currently are within a function.
-#[derive(Debug)]
-enum BranchesPath {
-    /// We've reached our destination
-    Here,
-    /// We're in a fork in the road, take the branch at the given index
-    IfOrMatch { branch_index: usize, rest: Box<BranchesPath> },
-}
+type BranchesPath = Vec<(IfOrMatchId, BranchId)>;
+
+/// The Id of an `if` or `match`, used to distinguish multiple sequential ifs/matches
+/// from each other.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(super) struct IfOrMatchId(u32);
+
+/// The Id for a single branch of an if or match
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(super) struct BranchId(u32);
 
 struct LastUseContext {
     /// The outer `Vec` is each loop we're currently in, while the `BranchPath` contains
     /// the path to overwrite the last use in any `Branches` enums of the variables we find.
     /// As a whole, this tracks the current control-flow of the function we're in.
     current_loop_and_branch: Vec<BranchesPath>,
+
+    next_id: u32,
 
     /// Stores the location of each variable's last use
     ///
@@ -132,8 +153,12 @@ impl Context {
     pub(super) fn find_last_uses_of_variables(
         function: &Function,
     ) -> HashMap<LocalId, Vec<IdentId>> {
-        let mut context =
-            LastUseContext { current_loop_and_branch: Vec::new(), last_uses: HashMap::default() };
+        let mut context = LastUseContext {
+            current_loop_and_branch: Vec::new(),
+            last_uses: HashMap::default(),
+            next_id: 0,
+        };
+
         context.push_loop_scope();
         for (parameter, ..) in &function.parameters {
             context.declare_variable(*parameter);
@@ -145,29 +170,30 @@ impl Context {
 
 impl LastUseContext {
     fn push_loop_scope(&mut self) {
-        self.current_loop_and_branch.push(BranchesPath::Here);
+        self.current_loop_and_branch.push(BranchesPath::new());
     }
 
     fn pop_loop_scope(&mut self) {
-        self.current_loop_and_branch.pop();
+        self.current_loop_and_branch.pop().expect("No loop to pop");
     }
 
-    fn branch(&mut self, branch_index: usize) {
+    fn branch(&mut self, id: IfOrMatchId, branch_id: u32) {
         let path =
             self.current_loop_and_branch.last_mut().expect("We should always have at least 1 path");
-        let rest = Box::new(std::mem::replace(path, BranchesPath::Here));
-        *path = BranchesPath::IfOrMatch { branch_index, rest };
+
+        path.push((id, BranchId(branch_id)));
+    }
+
+    fn next_if_or_match_id(&mut self) -> IfOrMatchId {
+        let id = self.next_id;
+        self.next_id += 1;
+        IfOrMatchId(id)
     }
 
     fn unbranch(&mut self) {
         let path =
             self.current_loop_and_branch.last_mut().expect("We should always have at least 1 path");
-        let rest = std::mem::replace(path, BranchesPath::Here);
-
-        match rest {
-            BranchesPath::Here => panic!("unbranch called without any branches"),
-            BranchesPath::IfOrMatch { branch_index: _, rest } => *path = *rest,
-        }
+        path.pop().expect("No branch to unbranch");
     }
 
     fn loop_index(&self) -> usize {
@@ -203,12 +229,18 @@ impl LastUseContext {
 
     fn remember_use_of_variable_rec(
         branches: &mut Branches,
-        path: &BranchesPath,
+        path: &[(IfOrMatchId, BranchId)],
         variable: IdentId,
     ) {
+        let reset_branch_and_recur = |branch: &mut Branches, if_or_match_id, branch_id| {
+            let empty_branch = [(branch_id, Branches::None)].into_iter().collect();
+            *branch = Branches::IfOrMatch(if_or_match_id, empty_branch);
+            Self::remember_use_of_variable_rec(branch, path, variable);
+        };
+
         match (branches, path) {
             // Path is direct, overwrite the last use entirely
-            (branch, BranchesPath::Here) => {
+            (branch, []) => {
                 *branch = Branches::Direct(variable);
             }
             // Our path says we need to enter an if or match but the variable's last
@@ -216,24 +248,19 @@ impl LastUseContext {
             // and write to the relevant branch of that
             (
                 branch @ (Branches::None | Branches::Direct { .. }),
-                BranchesPath::IfOrMatch { branch_index, rest: _ },
+                [(if_or_match_id, branch_id), ..],
             ) => {
                 // The branch doesn't exist for this variable; create it
-                let empty_branches =
-                    std::iter::repeat_n(Branches::None, *branch_index + 1).collect();
-                *branch = Branches::IfOrMatch(empty_branches);
-                Self::remember_use_of_variable_rec(branch, path, variable);
+                reset_branch_and_recur(branch, *if_or_match_id, *branch_id);
             }
-            // The variable's last use was in an if or match, and our current path is in one
-            // as well so just follow to the relevant branch in both. We just need to possibly
-            // resize the variable's branches count in case it was created with fewer than we
-            // know we currently have.
-            (Branches::IfOrMatch(branches), BranchesPath::IfOrMatch { branch_index, rest }) => {
-                let required_len = *branch_index + 1;
-                if branches.len() < required_len {
-                    branches.resize(required_len, Branches::None);
+            (branches @ Branches::IfOrMatch(..), [(new_if_id, branch_id), rest @ ..]) => {
+                if branches.get_if_or_match_id() == Some(*new_if_id) {
+                    let nested = branches.get_branches_map().expect("We know this is a IfOrMatch");
+                    let entry = nested.entry(*branch_id).or_insert(Branches::None);
+                    Self::remember_use_of_variable_rec(entry, rest, variable);
+                } else {
+                    reset_branch_and_recur(branches, *new_if_id, *branch_id);
                 }
-                Self::remember_use_of_variable_rec(&mut branches[*branch_index], rest, variable);
             }
         }
     }
@@ -261,7 +288,7 @@ impl LastUseContext {
             Expression::While(while_expr) => self.track_variables_in_while(while_expr),
             Expression::If(if_expr) => self.track_variables_in_if(if_expr),
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
-            Expression::Tuple(elems) => self.track_variables_in_tuple(elems),
+            Expression::Tuple(elements) => self.track_variables_in_tuple(elements),
             Expression::ExtractTupleField(tuple, _index) => {
                 self.track_variables_in_expression(tuple);
             }
@@ -338,37 +365,40 @@ impl LastUseContext {
     fn track_variables_in_if(&mut self, if_expr: &ast::If) {
         self.track_variables_in_expression(&if_expr.condition);
 
-        self.branch(0);
+        let if_id = self.next_if_or_match_id();
+        self.branch(if_id, 0);
         self.track_variables_in_expression(&if_expr.consequence);
         self.unbranch();
 
         if let Some(alt) = &if_expr.alternative {
-            self.branch(1);
+            self.branch(if_id, 1);
             self.track_variables_in_expression(alt);
             self.unbranch();
         }
     }
 
     fn track_variables_in_match(&mut self, match_expr: &ast::Match) {
+        let match_id = self.next_if_or_match_id();
+
         for (i, case) in match_expr.cases.iter().enumerate() {
-            for argument in &case.arguments {
+            for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
             }
 
-            self.branch(i);
+            self.branch(match_id, i as u32);
             self.track_variables_in_expression(&case.branch);
             self.unbranch();
         }
 
         if let Some(default_case) = &match_expr.default_case {
-            self.branch(match_expr.cases.len());
+            self.branch(match_id, match_expr.cases.len() as u32);
             self.track_variables_in_expression(default_case);
             self.unbranch();
         }
     }
 
-    fn track_variables_in_tuple(&mut self, elems: &[Expression]) {
-        for elem in elems {
+    fn track_variables_in_tuple(&mut self, elements: &[Expression]) {
+        for elem in elements {
             self.track_variables_in_expression(elem);
         }
     }
@@ -398,8 +428,8 @@ impl LastUseContext {
     }
 
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
-        self.track_variables_in_lvalue(&assign.lvalue);
         self.track_variables_in_expression(&assign.expression);
+        self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
     }
 
     /// A variable in an lvalue position is never moved (otherwise you wouldn't
@@ -411,20 +441,29 @@ impl LastUseContext {
     /// if the last use of one was just before it is assigned, it can actually be
     /// moved before it is assigned. This should be fine because we move out of the
     /// binding, and the binding isn't used until it is set to a new value.
-    fn track_variables_in_lvalue(&mut self, lvalue: &ast::LValue) {
+    ///
+    /// The `nested` parameter indicates whether this l-value is nested inside another l-value.
+    /// For top-level identifiers there's nothing to track, but for an identifier happening
+    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as moved.
+    fn track_variables_in_lvalue(&mut self, lvalue: &ast::LValue, nested: bool) {
         match lvalue {
             // All identifiers in lvalues are implicitly `&mut ident` and thus aren't moved
-            ast::LValue::Ident(_) => (),
+            ast::LValue::Ident(ident) => {
+                if nested {
+                    self.track_variables_in_ident(ident);
+                }
+            }
             ast::LValue::Index { array, index, element_type: _, location: _ } => {
                 self.track_variables_in_expression(index);
-                self.track_variables_in_lvalue(array);
+                self.track_variables_in_lvalue(array, true);
             }
             ast::LValue::MemberAccess { object, field_index: _ } => {
-                self.track_variables_in_lvalue(object);
+                self.track_variables_in_lvalue(object, true);
             }
             ast::LValue::Dereference { reference, element_type: _ } => {
-                self.track_variables_in_lvalue(reference);
+                self.track_variables_in_lvalue(reference, true);
             }
+            ast::LValue::Clone(_) => todo!(),
         }
     }
 }

@@ -3,23 +3,30 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u64) {
-    let two: u64 = 2;
-    let three: u64 = 3;
-    assert((two << 2) == 8);
-    assert(((two << 3) / 8) == two);
-    assert((three >> 1) == 1);
-    assert((x << 1) == 128);
-    assert((x >> 2) == 16);
+    let two: u64 = 2_u64;
+    let three: u64 = 3_u64;
+    assert((two << 2_u64) == 8_u64);
+    assert(((two << 3_u64) / 8_u64) == two);
+    assert((three >> 1_u64) == 1_u64);
+    assert((x << 1_u64) == 128_u64);
+    assert((x >> 2_u64) == 16_u64);
     regression_2250();
-    assert((x << 63) == 0);
-    assert(((1 as u64) << 32) == 4294967296);
-    let a: i16 = -769;
-    assert((a >> 3) == -97);
+    assert((x << 63_u64) == 0_u64);
+    assert((1_u64 << 32_u64) == 4294967296_u64);
+    let a: i16 = -769_i16;
+    assert((a >> 3_i16) == -97_i16);
+    regression_8310();
+    assert((-(x as i64) >> 62_i64) == -1_i64);
+    assert((a >> 14_i16) == -1_i16);
 }
 
 fn regression_2250() {
-    let a: u1 = 1 >> 1;
-    assert(a == 0);
-    let b: u32 = 1 >> 32;
-    assert(b == 0);
+    let b: u32 = 1_u32 >> 31_u32;
+    assert(b == 0_u32);
+}
+
+fn regression_8310() {
+    let x: i64 = -356710612598522715_i64;
+    let b: i64 = x >> 62_i64;
+    assert(b == -1_i64);
 }

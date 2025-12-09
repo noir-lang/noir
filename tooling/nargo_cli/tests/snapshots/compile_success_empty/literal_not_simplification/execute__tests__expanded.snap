@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let four: u8 = 4;
+    let four: u8 = 4_u8;
     let not_four: u8 = !four;
-    let five: u8 = 5;
+    let five: u8 = 5_u8;
     let not_five: u8 = !five;
     assert(not_four != not_five);
 }

@@ -4,12 +4,12 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if std::env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
@@ -27,12 +27,14 @@ fn main() {
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed=ignored-tests.txt");
-    // TODO: Running the tests changes the timestamps on test_programs files (file lock?).
+    // TODO(https://github.com/noir-lang/noir/issues/8351): Running the tests changes the timestamps on test_programs files (file lock?).
     // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_debugger_tests(&mut test_file, &test_dir);
     generate_test_runner_debugger_tests(&mut test_file, &test_dir);
+
+    Ok(())
 }
 
 fn generate_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -105,7 +107,7 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
             .flatten()
             .collect();
         for test_name_line in test_names {
-            // TODO: get test name by regex perhaps?
+            // TODO(https://github.com/noir-lang/noir/issues/8352): get test name by regex perhaps?
             let test_name = test_name_line
                 .split("fn ")
                 .collect::<Vec<&str>>()

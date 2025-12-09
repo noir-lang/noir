@@ -1,12 +1,10 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 // See Cargo.toml for explanation.
 use getrandom as _;
 
 use acvm::{
-    FieldElement,
+    AcirField, FieldElement,
     acir::native_types::{WitnessMap, WitnessStack},
     pwg::RawAssertionPayload,
 };
@@ -122,7 +120,7 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
 }
 
 #[wasm_bindgen(js_name = serializeWitness)]
-pub fn serialise_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiError> {
+pub fn serialize_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiError> {
     console_error_panic_hook::set_once();
     let converted_witness: WitnessMap<FieldElement> = witness_map.into();
     let witness_stack: WitnessStack<FieldElement> = converted_witness.into();
@@ -139,17 +137,24 @@ pub fn abi_decode_error(
     let mut abi: Abi =
         JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
 
-    let raw_error: RawAssertionPayload<FieldElement> =
+    let raw_error: RawAssertionPayload<String> =
         JsValueSerdeExt::into_serde(&JsValue::from(raw_error)).map_err(|err| err.to_string())?;
+    // `FieldElement` is represented as a string in JS so we must convert these into `FieldElements` manually.
+    let error_data = raw_error
+        .data
+        .iter()
+        .map(|field| FieldElement::from_hex(field))
+        .collect::<Option<Vec<_>>>()
+        .unwrap();
 
     let error_type = abi.error_types.remove(&raw_error.selector).expect("Missing error type");
     match error_type {
         AbiErrorType::FmtString { .. } => {
-            let string = display_abi_error(&raw_error.data, error_type).to_string();
+            let string = display_abi_error(&error_data, error_type).to_string();
             Ok(JsValue::from_str(&string))
         }
         AbiErrorType::Custom(typ) => {
-            let input_value = decode_value(&mut raw_error.data.into_iter(), &typ)?;
+            let input_value = decode_value(&mut error_data.into_iter(), &typ)?;
             let json_types = JsonTypes::try_from_input_value(&input_value, &typ)?;
             <JsValue as JsValueSerdeExt>::from_serde(&json_types)
                 .map_err(|err| err.to_string().into())

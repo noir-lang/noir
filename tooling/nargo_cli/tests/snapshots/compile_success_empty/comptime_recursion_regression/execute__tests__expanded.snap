@@ -3,6 +3,6 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: Field, y: Field) {
-    let flag: bool = (x == 1) | (y == 2);
+    let flag: bool = (x == 1_Field) | (y == 2_Field);
     assert((flag | false) == flag);
 }

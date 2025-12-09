@@ -83,12 +83,12 @@ impl DebugTypeTracker {
     }
 
     fn insert_type(&mut self, the_type: &Type) -> DebugTypeId {
-        let ptype: PrintableType = the_type.follow_bindings().into();
-        self.types_reverse.get(&ptype).copied().unwrap_or_else(|| {
+        let printable_type: PrintableType = the_type.follow_bindings().into();
+        self.types_reverse.get(&printable_type).copied().unwrap_or_else(|| {
             let type_id = DebugTypeId(self.next_type_id);
             self.next_type_id += 1;
-            self.types_reverse.insert(ptype.clone(), type_id);
-            self.types.insert(type_id, ptype);
+            self.types_reverse.insert(printable_type.clone(), type_id);
+            self.types.insert(type_id, printable_type);
             type_id
         })
     }
@@ -128,8 +128,8 @@ impl DebugTypeTracker {
     }
 }
 
-fn get_field(ptype: &PrintableType, field_name: &str) -> Option<usize> {
-    match ptype {
+fn get_field(printable_type: &PrintableType, field_name: &str) -> Option<usize> {
+    match printable_type {
         PrintableType::Struct { fields, .. } => {
             fields.iter().position(|(name, _)| name == field_name)
         }

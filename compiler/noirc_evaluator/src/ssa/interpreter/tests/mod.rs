@@ -3,9 +3,10 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use insta::assert_snapshot;
 
 use crate::ssa::{
-    interpreter::value::NumericValue,
+    interpreter::value::{ArrayValue, NumericValue},
     ir::types::{NumericType, Type},
 };
 
@@ -13,6 +14,7 @@ use super::{InterpreterError, Ssa, Value};
 
 mod black_box;
 mod instructions;
+mod intrinsics;
 
 #[track_caller]
 fn executes_with_no_errors(src: &str) {
@@ -45,20 +47,72 @@ fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
 }
 
 #[track_caller]
-fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
+pub(crate) fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     let mut results = expect_values_with_args(src, args);
     assert_eq!(results.len(), 1);
     results.pop().unwrap()
 }
 
-fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
+#[track_caller]
+fn expect_printed_output(src: &str) -> String {
+    let mut output = Vec::new();
+    let ssa = Ssa::from_str(src).unwrap();
+    let _ = ssa
+        .interpret_with_options(Vec::new(), Default::default(), &mut output)
+        .expect("interpret not expected to fail");
+    String::from_utf8(output).expect("not a UTF-8 string")
+}
+
+pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
     Value::from_constant(constant, typ).unwrap()
 }
 
 fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
-    let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
-    let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
-    Value::array(values, types)
+    let values = slice.iter().map(|v| from_constant(u128::from(*v).into(), typ)).collect();
+    Value::array(values, vec![Type::Numeric(typ)])
+}
+
+#[test]
+fn value_snapshot_detaches_from_original() {
+    // Create a `[[bool; 2]; 2]` of all `false` values.
+    let v0 = {
+        let a0 = Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::bool()]);
+        let a1 = Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::bool()]);
+        Value::array(vec![a0, a1], vec![Type::Array(Arc::new(vec![Type::bool()]), 2)])
+    };
+    // Take a clone and a snapshot, to demonstrate the difference.
+    let v1 = v0.clone();
+    let v2 = v0.snapshot();
+
+    // Access `array[0][0]`
+    fn with_0_0<F>(value: &Value, f: F)
+    where
+        F: FnOnce(&mut bool),
+    {
+        let Value::ArrayOrSlice(ArrayValue { elements, .. }) = value else {
+            unreachable!("values are arrays")
+        };
+        let elements = elements.borrow_mut();
+        let value = &elements[0];
+        let Value::ArrayOrSlice(ArrayValue { elements, .. }) = value else {
+            unreachable!("inner values are arrays")
+        };
+        let mut elements = elements.borrow_mut();
+        let mut value = &mut elements[0];
+        let Value::Numeric(NumericValue::U1(b)) = &mut value else {
+            unreachable!("elements are bool");
+        };
+        f(b);
+    }
+
+    // Update the original.
+    with_0_0(&v0, |b| {
+        *b = true;
+    });
+    // The clone is also changed.
+    with_0_0(&v1, |b| assert!(*b));
+    // The snapshot is not changed.
+    with_0_0(&v2, |b| assert!(!(*b)));
 }
 
 #[test]
@@ -83,17 +137,17 @@ fn return_all_numeric_constant_types() {
     let returns = expect_values(src);
     assert_eq!(returns.len(), 11);
 
-    assert_eq!(returns[0], Value::Numeric(NumericValue::Field(FieldElement::zero())));
-    assert_eq!(returns[1], Value::Numeric(NumericValue::U1(true)));
-    assert_eq!(returns[2], Value::Numeric(NumericValue::U8(2)));
-    assert_eq!(returns[3], Value::Numeric(NumericValue::U16(3)));
-    assert_eq!(returns[4], Value::Numeric(NumericValue::U32(4)));
-    assert_eq!(returns[5], Value::Numeric(NumericValue::U64(5)));
-    assert_eq!(returns[6], Value::Numeric(NumericValue::U128(6)));
-    assert_eq!(returns[7], Value::Numeric(NumericValue::I8(-1)));
-    assert_eq!(returns[8], Value::Numeric(NumericValue::I16(-2)));
-    assert_eq!(returns[9], Value::Numeric(NumericValue::I32(-3)));
-    assert_eq!(returns[10], Value::Numeric(NumericValue::I64(-4)));
+    assert_eq!(returns[0], Value::field(FieldElement::zero()));
+    assert_eq!(returns[1], Value::bool(true));
+    assert_eq!(returns[2], Value::u8(2));
+    assert_eq!(returns[3], Value::u16(3));
+    assert_eq!(returns[4], Value::u32(4));
+    assert_eq!(returns[5], Value::u64(5));
+    assert_eq!(returns[6], Value::u128(6));
+    assert_eq!(returns[7], Value::i8(-1));
+    assert_eq!(returns[8], Value::i16(-2));
+    assert_eq!(returns[9], Value::i32(-3));
+    assert_eq!(returns[10], Value::i64(-4));
 }
 
 #[test]
@@ -112,7 +166,7 @@ fn call_function() {
         }
     ";
     let actual = expect_value(src);
-    assert_eq!(Value::Numeric(NumericValue::U32(6)), actual);
+    assert_eq!(Value::u32(6), actual);
 }
 
 #[test]
@@ -148,10 +202,10 @@ fn run_flattened_function() {
     let v1 = Value::array(v1_elements, v1_element_types);
 
     let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 false]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 0]");
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 1]");
 }
 
 #[test]
@@ -172,7 +226,7 @@ fn loads_passed_to_a_call() {
         v10 = eq v9, Field 2
         constrain v9 == Field 2
         v11 = load v3 -> &mut Field
-        call f1(v3)
+        call f1(v11)
         v13 = load v3 -> &mut Field
         v14 = load v13 -> Field
         v15 = eq v14, Field 2
@@ -1594,7 +1648,7 @@ fn signed_integer_casting() {
     //  fn main() -> pub i8 {
     //      let a: i8 = 28;
     //      let b = (1, -a, 0);
-    //      let mut c = (a + (((b.1 as i64) << (b.2 as u8)) as i8));
+    //      let mut c = (a + (((b.1 as i64) << (b.2 as i64)) as i8));
     //      c = -c;
     //      c
     //  }
@@ -1611,7 +1665,7 @@ fn signed_integer_casting() {
           v9 = cast u8 228 as u64
           v10 = unchecked_add v8, v9
           v11 = cast v10 as i64
-          v13 = shl v11, u8 0
+          v13 = shl v11, i64 0
           v14 = truncate v13 to 64 bits, max_bit_size: 65
           v15 = truncate v14 to 8 bits, max_bit_size: 64
           v16 = cast v15 as i8
@@ -1643,7 +1697,7 @@ fn signed_integer_casting() {
       }
       "#;
     let value = expect_value(src);
-    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
+    assert_eq!(value, Value::i8(0));
 }
 
 #[test]
@@ -1684,5 +1738,33 @@ fn signed_integer_casting_2() {
       }
       "#;
     let value = expect_value(src);
-    assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
+    assert_eq!(value, Value::i64(89));
+}
+
+#[test]
+fn infinite_loop_with_step_limit() {
+    let src = r#"
+    acir(inline) predicate_pure fn main f0 {
+    b0():
+      call f1(u1 0)
+      return
+    }
+    brillig(inline) predicate_pure fn func_2 f1 {
+      b0(v0: u1):
+        jmp b1()
+      b1():
+        jmpif v0 then: b2, else: b3
+      b2():
+        return
+      b3():
+        jmp b1()
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let options = super::InterpreterOptions { step_limit: Some(100), ..Default::default() };
+    let mut output = std::io::empty();
+    let result = ssa.interpret_with_options(Vec::new(), options, &mut output);
+    let Err(InterpreterError::OutOfBudget { .. }) = result else {
+        panic!("unexpected result: {result:?}")
+    };
 }

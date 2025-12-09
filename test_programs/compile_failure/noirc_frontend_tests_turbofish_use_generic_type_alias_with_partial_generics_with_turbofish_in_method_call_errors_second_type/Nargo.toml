@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_turbofish_use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_second_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

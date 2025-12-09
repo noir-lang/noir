@@ -17,16 +17,16 @@ struct MyStruct {
 }
 
 fn main(x: [Field; 2]) {
-    let a: Foo<Field> = [1, 2];
-    assert(a[0] != x[0]);
-    let b: Bar = 2;
-    assert(x[0] == b);
-    let c: u8 = 1;
-    let d: u32 = 2;
+    let a: Foo<Field> = [1_Field, 2_Field];
+    assert(a[0_u32] != x[0_u32]);
+    let b: Bar = 2_Field;
+    assert(x[0_u32] == b);
+    let c: u8 = 1_u8;
+    let d: u32 = 2_u32;
     let e: Three = (c, d);
-    assert(e.0 == 1);
-    let s: MyStruct = MyStruct { foo: 10 };
-    assert(s.foo == 10);
+    assert(e.0 == 1_u8);
+    let s: MyStruct = MyStruct { foo: 10_Field };
+    assert(s.foo == 10_Field);
     let _regression2502: Regression2502Alias = Regression2502 {};
 }
 

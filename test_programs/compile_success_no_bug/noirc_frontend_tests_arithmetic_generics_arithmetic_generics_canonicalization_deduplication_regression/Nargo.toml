@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_arithmetic_generics_arithmetic_generics_canonicalization_deduplication_regression"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -3,5 +3,5 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(input: u32) {
-    assert(input == 5);
+    assert(input == 5_u32);
 }

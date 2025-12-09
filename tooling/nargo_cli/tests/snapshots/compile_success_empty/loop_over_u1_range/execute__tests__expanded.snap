@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let zero: u1 = 0;
+    let zero: u1 = 0_u1;
     for _ in zero..zero {}
-    let one: u1 = 1;
+    let one: u1 = 1_u1;
     for _ in one..one {}
     for _ in zero..one {}
 }

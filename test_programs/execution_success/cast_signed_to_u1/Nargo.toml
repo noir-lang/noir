@@ -1,0 +1,7 @@
+[package]
+name = "cast_signed_to_u1"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.30.0"
+
+[dependencies]

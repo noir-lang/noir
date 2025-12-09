@@ -5,6 +5,7 @@ use nargo_toml::{
     ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
     get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
+use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
     collections::BTreeMap,
@@ -21,6 +22,7 @@ mod check_cmd;
 pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
+mod doc_cmd;
 mod execute_cmd;
 mod expand_cmd;
 mod export_cmd;
@@ -29,6 +31,7 @@ mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
+mod interpret_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
@@ -59,11 +62,11 @@ struct NargoCli {
 #[derive(Args, Clone, Debug)]
 pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_and_normalize_path)]
     program_dir: PathBuf,
 
     /// Override the default target directory.
-    #[arg(long, hide = true, global = true, value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, value_parser = parse_and_normalize_path)]
     target_dir: Option<PathBuf>,
 }
 
@@ -100,6 +103,8 @@ enum NargoCommand {
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
+    #[command(hide = true)]
+    Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -112,6 +117,7 @@ enum NargoCommand {
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
     Expand(expand_cmd::ExpandCommand),
+    Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -145,6 +151,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
+        NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
@@ -155,6 +162,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
         NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
+        NargoCommand::Doc(args) => with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
@@ -185,6 +193,7 @@ fn read_workspace(
 }
 
 /// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+#[allow(clippy::field_reassign_with_default)]
 fn compile_with_maybe_dummy_workspace(
     cmd: compile_cmd::CompileCommand,
     config: NargoConfig,
@@ -194,6 +203,8 @@ fn compile_with_maybe_dummy_workspace(
 
         // dummy root dir
         let root_dir = PathBuf::new();
+        // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
+        // is invalid because the fields are private
         let mut package = PackageMetadata::default();
         package.name = Some(package_name.clone());
         package.package_type = Some("bin".into());
@@ -290,32 +301,10 @@ fn lock_workspace(
     Ok(locks)
 }
 
-/// Parses a path and turns it into an absolute one by joining to the current directory.
-fn parse_path(path: &str) -> Result<PathBuf, String> {
-    use fm::NormalizePath;
-    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
-    if !path.is_absolute() {
-        path = std::env::current_dir().unwrap().join(path).normalize();
-    }
-    Ok(path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::NargoCli;
     use clap::Parser;
-
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
-    }
 
     #[test]
     fn test_parse_target_dir() {

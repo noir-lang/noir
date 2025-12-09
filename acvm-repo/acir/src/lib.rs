@@ -5,13 +5,12 @@
 //! NOIR_CODEGEN_OVERWRITE=1 cargo test -p acir cpp_codegen
 //! ```
 #![cfg_attr(not(test), forbid(unsafe_code))] // `std::env::set_var` is used in tests.
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 #[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
+mod parser;
 mod proto;
 mod serialization;
 
@@ -20,6 +19,8 @@ pub use acir_field::{AcirField, FieldElement};
 pub use brillig;
 pub use circuit::black_box_functions::BlackBoxFunc;
 pub use circuit::opcodes::InvalidInputBitSize;
+pub use parser::parse_opcodes;
+pub use serialization::Format as SerializationFormat;
 
 #[cfg(test)]
 mod reflection {
@@ -36,6 +37,7 @@ mod reflection {
     use std::{
         collections::BTreeMap,
         fs::File,
+        hash::BuildHasher,
         io::Write,
         path::{Path, PathBuf},
     };
@@ -57,7 +59,7 @@ mod reflection {
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
             brillig::{BrilligInputs, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockType, FunctionInput},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };
@@ -88,7 +90,7 @@ mod reflection {
         tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
-        tracer.trace_simple_type::<ConstantOrWitnessEnum<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
         tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BlackBoxFuncCall<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligInputs<FieldElement>>().unwrap();
@@ -145,7 +147,7 @@ mod reflection {
         let old_hash = if path.is_file() {
             let old_source = std::fs::read(path).expect("failed to read existing code");
             let old_source = String::from_utf8(old_source).expect("old source not UTF-8");
-            Some(fxhash::hash64(&old_source))
+            Some(rustc_hash::FxBuildHasher.hash_one(&old_source))
         } else {
             None
         };
@@ -168,7 +170,7 @@ mod reflection {
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
-                let new_hash = fxhash::hash64(&source);
+                let new_hash = rustc_hash::FxBuildHasher.hash_one(&source);
                 assert_eq!(new_hash, old_hash, "Serialization format has changed",);
             }
         }
@@ -232,6 +234,7 @@ mod reflection {
         fn add_helpers(source: &mut String, namespace: &str) {
             // Based on https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75
             // Using a `struct Helpers` with `static` methods, because top level functions turn up as duplicates in `wasm-ld`.
+            // cSpell:disable
             let helpers = r#"
     struct Helpers {
         static std::map<std::string, msgpack::object const*> make_kvmap(
@@ -278,6 +281,7 @@ mod reflection {
         }
     };
     "#;
+            // cSpell:enable
             let pos = source.find(&format!("namespace {namespace}")).expect("namespace");
             source.insert_str(pos, &format!("namespace {namespace} {{{helpers}}}\n\n"));
         }
@@ -357,7 +361,7 @@ mod reflection {
             // code is more verbose, but also easier to control, e.g. we can
             // raise errors telling specifically which field was wrong,
             // or we could reject the data if there was a new field we could
-            // not recognise, or we could even handle aliases.
+            // not recognize, or we could even handle aliases.
 
             self.msgpack_pack(name, &{
                 let mut body = format!(
@@ -378,18 +382,22 @@ mod reflection {
             self.msgpack_unpack(name, &{
                 // Turn the MAP into a `std::map<string, msgpack::object>`,
                 // then look up each field, returning error if one isn't found.
+                // cSpell:disable
                 let mut body = format!(
                     r#"
     auto name = "{name}";
     auto kvmap = Helpers::make_kvmap(o, name);"#
                 );
+                // cSpell:enable
                 for field in fields {
                     let field_name = &field.name;
                     let is_optional = matches!(field.value, Format::Option(_));
+                    // cSpell:disable
                     body.push_str(&format!(
                         r#"
     Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     ));
+                    // cSpell:enable
                 }
                 body
             });
@@ -400,6 +408,7 @@ mod reflection {
             self.msgpack_pack(name, "packer.pack(value);");
             self.msgpack_unpack(
                 name,
+                // cSpell:disable
                 &format!(
                     r#"
     try {{
@@ -410,6 +419,7 @@ mod reflection {
     }}
             "#
                 ),
+                // cSpell:enable
             );
         }
 
@@ -470,6 +480,7 @@ mod reflection {
             // See https://c.msgpack.org/cpp/structmsgpack_1_1object.html#a8c7c484d2a6979a833bdb69412ad382c
             // for how to access the object's content without parsing it.
             self.msgpack_unpack(name, &{
+                // cSpell:disable
                 let mut body = format!(
                     r#"
 
@@ -492,6 +503,7 @@ mod reflection {
         throw_or_abort("error converting tag to string for enum '{name}'");
     }}"#
                 );
+                // cSpell:enable
 
                 for (i, v) in variants.iter() {
                     let variant = &v.name;
@@ -503,6 +515,7 @@ mod reflection {
                     ));
 
                     if !matches!(v.value, VariantFormat::Unit) {
+                        // cSpell:disable
                         body.push_str(&format!(
                             r#"
         try {{
@@ -513,6 +526,7 @@ mod reflection {
         }}
         "#
                         ));
+                        // cSpell:enable
                     }
                     // Closing brace of if statement
                     body.push_str(
@@ -521,6 +535,7 @@ mod reflection {
     }"#,
                     );
                 }
+                // cSpell:disable
                 body.push_str(&format!(
                     r#"
     else {{
@@ -528,6 +543,7 @@ mod reflection {
         throw_or_abort("unknown '{name}' enum variant: " + tag);
     }}"#
                 ));
+                // cSpell:enable
 
                 body
             });
@@ -553,7 +569,7 @@ mod reflection {
         #[allow(dead_code)]
         fn msgpack_fields(&mut self, name: &str, fields: impl Iterator<Item = String>) {
             let fields = fields.collect::<Vec<_>>().join(", ");
-            let code = format!("MSGPACK_FIELDS({});", fields);
+            let code = format!("MSGPACK_FIELDS({fields});");
             self.add_code(name, &code);
         }
 
@@ -565,7 +581,7 @@ mod reflection {
 
         /// Add a `msgpack_unpack` implementation.
         fn msgpack_unpack(&mut self, name: &str, body: &str) {
-            // Using `msgpack::object const& o` instad of `auto o`, because the latter is passed as `msgpack::object::implicit_type`,
+            // Using `msgpack::object const& o` instead of `auto o`, because the latter is passed as `msgpack::object::implicit_type`,
             // which would have to be cast like `msgpack::object obj = o;`. This `const&` pattern exists in `msgpack-c` codebase.
 
             // Instead of implementing the `msgpack_unpack` method as suggested by `msgpack.hpp` in Barretenberg,
@@ -581,7 +597,7 @@ mod reflection {
             //     {
             //         return o;
             //         if (o.type != msgpack::type::MAP || o.via.map.size != 1) {
-            //             throw_or_abort("expecteed signle element map for 'Opcode'");
+            //             throw_or_abort("expected single element map for 'Opcode'");
             //         }
 
             //         auto& kv = o.via.map.ptr[0];

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_numeric_generic_as_unused_trait_fn_param_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

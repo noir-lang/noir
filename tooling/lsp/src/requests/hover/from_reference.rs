@@ -1,9 +1,13 @@
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::{FileId, FileMap};
+use iter_extended::vecmap;
+use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
-use noirc_frontend::node_interner::GlobalValue;
+use noirc_frontend::hir::def_map::ModuleDefId;
+use noirc_frontend::modules::get_parent_module;
+use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
@@ -18,37 +22,34 @@ use noirc_frontend::{
     },
 };
 
+use crate::doc_comments::current_module_and_type;
 use crate::{
-    attribute_reference_finder::AttributeReferenceFinder,
     requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
+    visitor_reference_finder::VisitorReferenceFinder,
 };
 
 pub(super) fn hover_from_reference(
-    file_id: Option<FileId>,
+    file_id: FileId,
     position: Position,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
-    file_id
-        .and_then(|file_id| {
-            utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    utils::position_to_byte_index(args.files, file_id, &position)
+        .and_then(|byte_index| {
+            let file = args.files.get_file(file_id).unwrap();
+            let source = file.source();
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = AttributeReferenceFinder::new(
-                    file_id,
-                    byte_index,
-                    args.crate_id,
-                    args.def_maps,
-                );
-                finder.find(&parsed_module)
-            })
+            let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
+            finder.find(&parsed_module)
         })
-        .or_else(|| args.interner.reference_at_location(args.location))
-        .and_then(|reference| {
+        .or_else(|| {
+            args.interner.reference_at_location(args.location).map(|reference| (reference, None))
+        })
+        .and_then(|(reference, link_lsp_location)| {
             let location = args.interner.reference_location(reference);
-            let lsp_location = to_lsp_location(args.files, location.file, location.span);
+            let lsp_location = link_lsp_location
+                .or_else(|| to_lsp_location(args.files, location.file, location.span));
             format_reference(reference, args).map(|formatted| Hover {
                 range: lsp_location.map(|location| location.range),
                 contents: HoverContents::Markup(MarkupContent {
@@ -59,7 +60,10 @@ pub(super) fn hover_from_reference(
         })
 }
 
-fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -> Option<String> {
+pub(super) fn format_reference(
+    reference: ReferenceId,
+    args: &ProcessRequestCallbackArgs,
+) -> Option<String> {
     match reference {
         ReferenceId::Module(id) => format_module(id, args),
         ReferenceId::Type(id) => Some(format_type(id, args)),
@@ -70,6 +74,7 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
             Some(format_enum_variant(id, variant_index, args))
         }
         ReferenceId::Trait(id) => Some(format_trait(id, args)),
+        ReferenceId::TraitAssociatedType(id) => Some(format_trait_associated_type(id, args)),
         ReferenceId::Global(id) => Some(format_global(id, args)),
         ReferenceId::Function(id) => Some(format_function(id, args)),
         ReferenceId::Alias(id) => Some(format_alias(id, args)),
@@ -85,7 +90,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let mut string = String::new();
 
     if id.local_id == crate_root {
-        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate)?;
+        let dep = args.dependencies().iter().find(|dep| dep.crate_id == id.krate)?;
         string.push_str("    crate ");
         string.push_str(&dep.name.to_string());
     } else {
@@ -93,11 +98,11 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
         // This is a workaround to avoid panicking in that case (which brings the LSP server down).
         // Cases where this happens are related to generated code, so once that stops happening
         // this won't be an issue anymore.
-        let module_attributes = args.interner.try_module_attributes(&id)?;
+        let module_attributes = args.interner.try_module_attributes(id)?;
 
         if let Some(parent_local_id) = module_attributes.parent {
             if format_parent_module_from_module_id(
-                &ModuleId { krate: id.krate, local_id: parent_local_id },
+                ModuleId { krate: id.krate, local_id: parent_local_id },
                 args,
                 &mut string,
             ) {
@@ -109,7 +114,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
         string.push_str(&module_attributes.name);
     }
 
-    append_doc_comments(args.interner, ReferenceId::Module(id), &mut string);
+    append_doc_comments(ReferenceId::Module(id), &mut string, args);
 
     Some(string)
 }
@@ -132,7 +137,7 @@ fn format_struct(
     args: &ProcessRequestCallbackArgs,
 ) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -149,7 +154,7 @@ fn format_struct(
     }
     string.push_str("    }");
 
-    append_doc_comments(args.interner, ReferenceId::Type(typ.id), &mut string);
+    append_doc_comments(ReferenceId::Type(typ.id), &mut string, args);
 
     string
 }
@@ -160,7 +165,7 @@ fn format_enum(
     args: &ProcessRequestCallbackArgs,
 ) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -183,7 +188,7 @@ fn format_enum(
     }
     string.push_str("    }");
 
-    append_doc_comments(args.interner, ReferenceId::Type(typ.id), &mut string);
+    append_doc_comments(ReferenceId::Type(typ.id), &mut string, args);
 
     string
 }
@@ -198,7 +203,7 @@ fn format_struct_member(
     let field = struct_type.field_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(struct_type.name.as_str());
@@ -207,9 +212,10 @@ fn format_struct_member(
     string.push_str(field.name.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", field.typ));
-    string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
-    append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+    append_doc_comments(ReferenceId::StructMember(id, field_index), &mut string, args);
+
+    string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
     string
 }
@@ -224,7 +230,7 @@ fn format_enum_variant(
     let variant = enum_type.variant_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(enum_type.name.as_str());
@@ -238,11 +244,11 @@ fn format_enum_variant(
         string.push(')');
     }
 
+    append_doc_comments(ReferenceId::EnumVariant(id, field_index), &mut string, args);
+
     for typ in variant.params.iter() {
         string.push_str(&go_to_type_links(typ, args.interner, args.files));
     }
-
-    append_doc_comments(args.interner, ReferenceId::EnumVariant(id, field_index), &mut string);
 
     string
 }
@@ -251,7 +257,7 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     let a_trait = args.interner.get_trait(id);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Trait(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TraitId(id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -259,8 +265,26 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(a_trait.name.as_str());
     format_generics(&a_trait.generics, &mut string);
 
-    append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
+    append_doc_comments(ReferenceId::Trait(id), &mut string, args);
 
+    string
+}
+
+fn format_trait_associated_type(
+    id: TraitAssociatedTypeId,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let associated_type = args.interner.get_trait_associated_type(id);
+    let mut string = String::new();
+    if format_parent_module(ModuleDefId::TraitId(associated_type.trait_id), args, &mut string) {
+        let trait_ = args.interner.get_trait(associated_type.trait_id);
+        string.push_str("::");
+        string.push_str(trait_.name.as_str());
+        string.push('\n');
+    }
+    string.push_str("    ");
+    string.push_str("type ");
+    string.push_str(associated_type.name.as_str());
     string
 }
 
@@ -271,7 +295,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let typ = args.interner.definition_type(definition_id);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Global(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::GlobalId(id), args, &mut string) {
         string.push('\n');
     }
 
@@ -291,7 +315,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("global ");
     string.push_str(global_info.ident.as_str());
     string.push_str(": ");
-    string.push_str(&format!("{}", typ));
+    string.push_str(&format!("{typ}"));
 
     if let GlobalValue::Resolved(value) = &global_info.value {
         if let Some(value) = value_to_string(value) {
@@ -300,9 +324,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
         }
     }
 
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+    append_doc_comments(ReferenceId::Global(id), &mut string, args);
 
-    append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
+    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
 
     string
 }
@@ -324,14 +348,14 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         _ => None,
     };
 
-    let reference_id = if let Some((type_id, variant_index)) = enum_variant {
-        ReferenceId::EnumVariant(type_id, variant_index)
+    let (reference_id, module_def_id) = if let Some((type_id, variant_index)) = enum_variant {
+        (ReferenceId::EnumVariant(type_id, variant_index), ModuleDefId::TypeId(type_id))
     } else {
-        ReferenceId::Function(id)
+        (ReferenceId::Function(id), ModuleDefId::FunctionId(id))
     };
 
     let mut string = String::new();
-    let formatted_parent_module = format_parent_module(reference_id, args, &mut string);
+    let formatted_parent_module = format_parent_module(module_def_id, args, &mut string);
 
     let formatted_parent_type = if let Some(trait_impl_id) = func_meta.trait_impl {
         let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
@@ -454,7 +478,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         }
 
         if enum_variant.is_some() {
-            string.push_str(&format!("{}", typ));
+            string.push_str(&format!("{typ}"));
         } else {
             format_pattern(pattern, args.interner, &mut string);
 
@@ -464,7 +488,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 if matches!(visibility, Visibility::Public) {
                     string.push_str("pub ");
                 }
-                string.push_str(&format!("{}", typ));
+                string.push_str(&format!("{typ}"));
             }
         }
 
@@ -481,17 +505,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             Type::Unit => (),
             _ => {
                 string.push_str(" -> ");
-                string.push_str(&format!("{}", return_type));
+                string.push_str(&format!("{return_type}"));
             }
         }
-
-        string.push_str(&go_to_type_links(return_type, args.interner, args.files));
     }
 
     if enum_variant.is_some() {
-        append_doc_comments(args.interner, reference_id, &mut string);
+        append_doc_comments(reference_id, &mut string, args);
     } else {
-        let had_doc_comments = append_doc_comments(args.interner, reference_id, &mut string);
+        let had_doc_comments = append_doc_comments(reference_id, &mut string, args);
         if !had_doc_comments {
             // If this function doesn't have doc comments, but it's a trait impl method,
             // use the trait method doc comments.
@@ -501,10 +523,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 let trait_ = args.interner.get_trait(trait_impl.trait_id);
                 if let Some(func_id) = trait_.method_ids.get(func_name) {
                     let reference_id = ReferenceId::Function(*func_id);
-                    append_doc_comments(args.interner, reference_id, &mut string);
+                    append_doc_comments(reference_id, &mut string, args);
                 }
             }
         }
+    }
+
+    if enum_variant.is_none() {
+        let return_type = func_meta.return_type();
+        string.push_str(&go_to_type_links(return_type, args.interner, args.files));
     }
 
     string
@@ -540,7 +567,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     let type_alias = type_alias.borrow();
 
     let mut string = String::new();
-    format_parent_module(ReferenceId::Alias(id), args, &mut string);
+    format_parent_module(ModuleDefId::TypeAliasId(id), args, &mut string);
     string.push('\n');
     string.push_str("    ");
     string.push_str("type ");
@@ -548,7 +575,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
 
-    append_doc_comments(args.interner, ReferenceId::Alias(id), &mut string);
+    append_doc_comments(ReferenceId::Alias(id), &mut string, args);
 
     string
 }
@@ -581,7 +608,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&definition_info.name);
     if !matches!(typ, Type::Error) {
         string.push_str(": ");
-        string.push_str(&format!("{}", typ));
+        string.push_str(&format!("{typ}"));
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
@@ -666,11 +693,11 @@ fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
 }
 
 fn format_parent_module(
-    referenced: ReferenceId,
+    module_def_id: ModuleDefId,
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let Some(module) = args.interner.reference_module(referenced) else {
+    let Some(module) = get_parent_module(module_def_id, args.interner, args.def_maps) else {
         return false;
     };
 
@@ -678,12 +705,17 @@ fn format_parent_module(
 }
 
 fn format_parent_module_from_module_id(
-    module: &ModuleId,
+    module: ModuleId,
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let full_path =
-        module_full_path(module, args.interner, args.crate_id, &args.crate_name, args.dependencies);
+    let full_path = module_full_path(
+        module,
+        args.interner,
+        args.crate_id,
+        &args.crate_name,
+        args.dependencies(),
+    );
     if full_path.is_empty() {
         return false;
     }
@@ -789,7 +821,7 @@ impl TypeLinksGatherer<'_> {
         if let Some(lsp_location) =
             to_lsp_location(self.files, struct_type.location.file, struct_type.name.span())
         {
-            self.push_link(format_link(struct_type.name.to_string(), lsp_location));
+            self.push_link(format_link(struct_type.name.as_str(), lsp_location));
         }
     }
 
@@ -798,7 +830,7 @@ impl TypeLinksGatherer<'_> {
         if let Some(lsp_location) =
             to_lsp_location(self.files, type_alias.location.file, type_alias.name.span())
         {
-            self.push_link(format_link(type_alias.name.to_string(), lsp_location));
+            self.push_link(format_link(type_alias.name.as_str(), lsp_location));
         }
     }
 
@@ -806,7 +838,7 @@ impl TypeLinksGatherer<'_> {
         if let Some(lsp_location) =
             to_lsp_location(self.files, some_trait.location.file, some_trait.name.span())
         {
-            self.push_link(format_link(some_trait.name.to_string(), lsp_location));
+            self.push_link(format_link(some_trait.name.as_str(), lsp_location));
         }
     }
 
@@ -827,7 +859,7 @@ impl TypeLinksGatherer<'_> {
     }
 }
 
-fn format_link(name: String, location: lsp_types::Location) -> String {
+fn format_link(name: &str, location: lsp_types::Location) -> String {
     format!(
         "[{}]({}#L{},{}-{},{})",
         name,
@@ -839,16 +871,122 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
     )
 }
 
-fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) -> bool {
-    if let Some(doc_comments) = interner.doc_comments(id) {
-        string.push_str("\n\n---\n\n");
-        for comment in doc_comments {
-            string.push_str(comment);
-            string.push('\n');
+fn append_doc_comments(
+    id: ReferenceId,
+    string: &mut String,
+    args: &ProcessRequestCallbackArgs,
+) -> bool {
+    let Some(doc_comments) = args.interner.doc_comments(id) else {
+        return false;
+    };
+
+    string.push_str("\n\n---\n\n");
+
+    let doc_comments = vecmap(doc_comments, |comment| comment.contents.clone()).join("\n");
+    let doc_comments = process_doc_comments_links(doc_comments, id, args);
+
+    string.push_str(&doc_comments);
+    string.push('\n');
+
+    true
+}
+
+/// Replaces markdown links inside doc comments that point to Noir items to point at code locations
+/// where those items are defined.
+fn process_doc_comments_links(
+    comments: String,
+    id: ReferenceId,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let Some((current_module_id, current_type)) = current_module_and_type(id, args) else {
+        return comments;
+    };
+
+    let links = LinkFinder::default().find_links(
+        &comments,
+        current_module_id,
+        current_type,
+        args.interner,
+        args.def_maps,
+        args.crate_graph,
+    );
+    if links.is_empty() {
+        return comments;
+    }
+
+    let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
+
+    for link in links.into_iter().rev() {
+        let Some(location) = link_target_location(&link.target, args) else {
+            continue;
+        };
+        let mut line = lines[link.line].to_string();
+        let replacement = format_link(&link.name, location);
+        line.replace_range(link.start..link.end, &replacement);
+        lines[link.line] = line;
+    }
+
+    lines.join("\n")
+}
+
+/// Returns the Location where a link target exists.
+/// The Location might not exist. For example, primitive types have no definition location.
+fn link_target_location(
+    target: &LinkTarget,
+    args: &ProcessRequestCallbackArgs,
+) -> Option<lsp_types::Location> {
+    match target {
+        LinkTarget::TopLevelItem(module_def_id) => match module_def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                let module_attributes = args.interner.try_module_attributes(*module_id)?;
+                let location = module_attributes.location;
+                to_lsp_location(args.files, location.file, location.span)
+            }
+            ModuleDefId::FunctionId(func_id) => {
+                let func_meta = args.interner.function_meta(func_id);
+                let location = func_meta.location;
+                to_lsp_location(args.files, location.file, location.span)
+            }
+            ModuleDefId::TypeId(type_id) => {
+                let typ = args.interner.get_type(*type_id);
+                let typ = typ.borrow();
+                let location = typ.location;
+                to_lsp_location(args.files, location.file, location.span)
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                let type_alias = args.interner.get_type_alias(*type_alias_id);
+                let type_alias = type_alias.borrow();
+                let location = type_alias.location;
+                to_lsp_location(args.files, location.file, location.span)
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                let some_trait = args.interner.get_trait(*trait_id);
+                let location = some_trait.location;
+                to_lsp_location(args.files, location.file, location.span)
+            }
+            ModuleDefId::TraitAssociatedTypeId(..) => None,
+            ModuleDefId::GlobalId(global_id) => {
+                let global_info = args.interner.get_global(*global_id);
+                let location = global_info.location;
+                to_lsp_location(args.files, location.file, location.span)
+            }
+        },
+        LinkTarget::Method(_, func_id) | LinkTarget::PrimitiveTypeFunction(_, func_id) => {
+            let func_meta = args.interner.function_meta(func_id);
+            let location = func_meta.location;
+            to_lsp_location(args.files, location.file, location.span)
         }
-        true
-    } else {
-        false
+        LinkTarget::StructMember(type_id, index) => {
+            let struct_type = args.interner.get_type(*type_id);
+            let struct_type = struct_type.borrow();
+            let field = struct_type.field_at(*index);
+            let location = field.name.location();
+            to_lsp_location(args.files, location.file, location.span)
+        }
+        LinkTarget::PrimitiveType(_) => {
+            // Can't link to primitive types
+            None
+        }
     }
 }
 
@@ -881,7 +1019,7 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
                 if index > 0 {
                     string.push_str(", ");
                 }
-                append_value_to_string(value, string)?;
+                append_value_to_string(&value.borrow(), string)?;
             }
             if len == 1 {
                 string.push(',');

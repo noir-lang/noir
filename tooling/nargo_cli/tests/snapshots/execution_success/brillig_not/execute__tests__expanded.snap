@@ -5,8 +5,8 @@ expression: expanded_code
 fn main(x: Field, y: Field) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        assert(false == not_operator(x as bool));
-        assert(true == not_operator(y as bool));
+        assert(false == not_operator(x != 0_Field));
+        assert(true == not_operator(y != 0_Field));
     }
 }
 

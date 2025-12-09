@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    bug();
+    ()
+}
+
+fn bug() {
+    let mut a: ([Field; 2], Field) = ([1, 2], 3);
+    {
+        let i_3767: Field = {
+            a = ([4, 5], 6);
+            1
+        };
+        a.0[i_3767] = 7;
+    };
+    assert(a == ([4, 7], 6));
+}

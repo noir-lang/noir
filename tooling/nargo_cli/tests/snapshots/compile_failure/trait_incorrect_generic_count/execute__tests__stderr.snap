@@ -16,6 +16,13 @@ warning: unused variable x
   │                    - unused variable
   │
 
+error: Type annotation needed
+  ┌─ src/main.nr:3:5
+  │
+3 │     x.trait_fn();
+  │     ---------- Could not determine the type of the generic argument `B` declared on the function `trait_fn`
+  │
+
 error: expected type T, found type ()
   ┌─ src/main.nr:7:8
   │
@@ -33,4 +40,4 @@ error: trait_fn expects 1 generic but 2 were given
    │        --------
    │
 
-Aborting due to 2 previous errors
+Aborting due to 3 previous errors

@@ -1,0 +1,18 @@
+name: Download noir-inspector
+description: Downloads the noir-inspector binary from an artifact and adds it to the path
+
+runs:
+  using: composite
+  steps:
+    - name: Download noir-inspector binary
+      uses: actions/download-artifact@v4
+      with:
+        name: noir-inspector
+        path: ./noir-inspector
+
+    - name: Set noir-inspector on PATH
+      shell: bash
+      run: |
+        noir_inspector_binary="${{ github.workspace }}/noir-inspector/noir-inspector"
+        chmod +x $noir_inspector_binary
+        echo "$(dirname $noir_inspector_binary)" >> $GITHUB_PATH

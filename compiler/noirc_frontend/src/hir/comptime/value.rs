@@ -1,6 +1,7 @@
+//! Defines the [Value] type, representing a compile-time value, used by the
+//! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
-use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -26,7 +27,7 @@ use crate::{
     parser::{Item, Parser},
     shared::Signedness,
     signed_field::SignedField,
-    token::{LocatedToken, Token, Tokens},
+    token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -35,6 +36,7 @@ use super::{
     errors::{IResult, InterpreterError},
 };
 
+/// A value representing the result of evaluating a Noir expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Unit,
@@ -59,8 +61,14 @@ pub enum Value {
     // in case they use functions such as `Quoted::as_type` which require them.
     Closure(Box<Closure>),
 
-    Tuple(Vec<Value>),
-    Struct(HashMap<Rc<String>, Value>, Type),
+    /// Tuple elements are automatically shared to support projection into a tuple:
+    /// `let elem = &mut tuple.0` should mutate the original element.
+    Tuple(Vec<Shared<Value>>),
+
+    /// Struct elements are automatically shared to support projection:
+    /// `let elem = &mut my_struct.field` should mutate the original element.
+    Struct(StructFields, Type),
+
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
@@ -79,6 +87,8 @@ pub enum Value {
     UnresolvedType(UnresolvedTypeData),
 }
 
+pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
     pub lambda: HirLambda,
@@ -89,6 +99,7 @@ pub struct Closure {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[allow(clippy::large_enum_variant)] // Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
@@ -111,14 +122,16 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
-    pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
+    pub(crate) fn lvalue(lvalue: LValue) -> Self {
+        Value::Expr(Box::new(ExprValue::LValue(lvalue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
+    /// Retrieves the type of this value. Types can always be determined from the value,
+    /// in cases where it would be ambiguous, Values store the type directly.
     pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
@@ -144,7 +157,7 @@ impl Value {
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
+                Type::Tuple(vecmap(fields, |field| field.borrow().get_type().into_owned()))
             }
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
@@ -174,6 +187,12 @@ impl Value {
         })
     }
 
+    /// Lowers this value into a runtime expression.
+    ///
+    /// For literals this is often simple, e.g. `Value::I8(3)` translates to `3`, but not
+    /// all values are valid to lower. Certain values change form - e.g. format strings lowering
+    /// into normal string literals. Lowering quoted code will simply return the quoted code (after
+    /// parsing), this is how macros are implemented.
     pub(crate) fn into_expression(
         self,
         elaborator: &mut Elaborator,
@@ -182,37 +201,49 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value)),
-            Value::I8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
+            Value::Field(value) => {
+                ExpressionKind::Literal(Literal::Integer(value, Some(IntegerTypeSuffix::Field)))
             }
-            Value::I16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::U1(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U128(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
+            Value::I8(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I8),
+            )),
+            Value::I16(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I16),
+            )),
+            Value::I32(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I32),
+            )),
+            Value::I64(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I64),
+            )),
+            Value::U1(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U1),
+            )),
+            Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(u128::from(value)),
+                Some(IntegerTypeSuffix::U8),
+            )),
+            Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(u128::from(value)),
+                Some(IntegerTypeSuffix::U16),
+            )),
+            Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U32),
+            )),
+            Value::U64(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U64),
+            )),
+            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U128),
+            )),
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
@@ -224,20 +255,23 @@ impl Value {
                 let id = elaborator.interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, None));
-                elaborator.interner.push_expr_location(expr_id, location);
-                elaborator.interner.push_expr_type(expr_id, typ);
+                let expr_id = elaborator.interner.push_expr_full(
+                    HirExpression::Ident(ident, None),
+                    location,
+                    typ,
+                );
                 elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_expression(elaborator, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_expression(elaborator, location)
+                })?;
                 ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_expression(elaborator, location)?;
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -286,8 +320,9 @@ impl Value {
 
                         Ok(expr)
                     }
-                    Err(mut errors) => {
-                        let error = Box::new(errors.swap_remove(0));
+                    Err(errors) => {
+                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
@@ -339,13 +374,15 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
+    /// Lowers this compile-time value into a HIR expression. This is similar to
+    /// [Self::into_expression] but is used in some cases in the monomorphizer where
+    /// code must already be in HIR.
     pub(crate) fn into_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,
     ) -> IResult<ExprId> {
         let typ = self.get_type().into_owned();
-
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
@@ -365,12 +402,12 @@ impl Value {
             Value::U1(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
+            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
+                u128::from(value),
+            ))),
+            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(
+                SignedField::positive(u128::from(value)),
+            )),
             Value::U32(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
@@ -391,20 +428,20 @@ impl Value {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
-                interner.push_expr_location(expr_id, location);
-                interner.push_expr_type(expr_id, typ);
+                let expr_id =
+                    interner.push_expr_full(HirExpression::Ident(ident, None), location, typ);
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_hir_expression(interner, location)?;
+                    let field = field.unwrap_or_clone().into_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -473,12 +510,14 @@ impl Value {
             }
         };
 
-        let id = interner.push_expr(expression);
-        interner.push_expr_location(id, location);
-        interner.push_expr_type(id, typ);
+        let id = interner.push_expr_full(expression, location, typ);
         Ok(id)
     }
 
+    /// Attempt to convert this value into a Vec of tokens representing this value if it appeared
+    /// in source code. For example, `Value::Unit` is `vec!['(', ')']`. This is used for splicing
+    /// values into quoted values when `$` is used within a `quote {  }` expression. Since `Quoted`
+    /// code is represented as tokens, we need to convert the value into tokens.
     pub(crate) fn into_tokens(
         self,
         interner: &mut NodeInterner,
@@ -516,46 +555,86 @@ impl Value {
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
-            Value::U1(bool) => vec![Token::Bool(bool)],
-            Value::U8(value) => vec![Token::Int((value as u128).into())],
-            Value::U16(value) => vec![Token::Int((value as u128).into())],
-            Value::U32(value) => vec![Token::Int((value as u128).into())],
-            Value::U64(value) => vec![Token::Int((value as u128).into())],
-            Value::U128(value) => vec![Token::Int(value.into())],
+            Value::Bool(bool) => vec![Token::Bool(bool)],
+            Value::U1(bool) => {
+                vec![Token::Int(u128::from(bool).into(), Some(IntegerTypeSuffix::U1))]
+            }
+            Value::U8(value) => {
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U8))]
+            }
+            Value::U16(value) => {
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U16))]
+            }
+            Value::U32(value) => {
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U32))]
+            }
+            Value::U64(value) => {
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U64))]
+            }
+            Value::U128(value) => {
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U128))]
+            }
             Value::I8(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I8),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I8))]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I16),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I16))]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I32),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I32))]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I64),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I64))]
                 }
             }
             Value::Field(value) => {
-                if value.is_negative {
-                    vec![Token::Minus, Token::Int(value.field)]
+                if value.is_negative() {
+                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
                 } else {
-                    vec![Token::Int(value.field)]
+                    vec![Token::Int(value.absolute_value(), None)]
                 }
+            }
+            Value::String(value) | Value::CtString(value) | Value::FormatString(value, _) => {
+                vec![Token::Str(unwrap_rc(value))]
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
@@ -573,6 +652,7 @@ impl Value {
                 | I16(_)
                 | I32(_)
                 | I64(_)
+                | U1(_)
                 | U8(_)
                 | U16(_)
                 | U32(_)
@@ -581,35 +661,100 @@ impl Value {
         )
     }
 
-    pub(crate) fn is_closure(&self) -> bool {
-        matches!(self, Value::Closure(..))
+    pub(crate) fn is_zero(&self) -> bool {
+        use Value::*;
+        match self {
+            Field(value) => value.is_zero(),
+            I8(value) => *value == 0,
+            I16(value) => *value == 0,
+            I32(value) => *value == 0,
+            I64(value) => *value == 0,
+            U1(value) => !*value,
+            U8(value) => *value == 0,
+            U16(value) => *value == 0,
+            U32(value) => *value == 0,
+            U64(value) => *value == 0,
+            U128(value) => *value == 0,
+            _ => false,
+        }
     }
 
-    /// Converts any non-negative `Value` into a `FieldElement`.
-    /// Returns `None` for negative integers and non-integral `Value`s.
-    pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
+    pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
-            Self::Field(value) => {
-                if value.is_negative {
-                    None
-                } else {
-                    Some(value.field)
-                }
+            Value::Function(..) => true,
+            Value::Closure(..) => true,
+            Value::Array(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
             }
+            Value::Slice(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Tuple(values) => {
+                values.iter().any(|value| value.borrow().contains_function_or_closure())
+            }
+            Value::Struct(fields, _) => {
+                fields.values().any(|value| value.borrow().contains_function_or_closure())
+            }
+            Value::Enum(_, values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Field(_)
+            | Value::I8(_)
+            | Value::I16(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::U1(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::U128(_)
+            | Value::String(_)
+            | Value::FormatString(_, _)
+            | Value::CtString(_)
+            | Value::Quoted(_)
+            | Value::TypeDefinition(_)
+            | Value::TraitConstraint(_, _)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Zeroed(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_) => false,
+        }
+    }
+
+    /// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s.
+    pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
+        match self {
+            Self::Field(value) => Some(*value),
 
             Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U8(value) => Some((*value as u128).into()),
-            Self::U16(value) => Some((*value as u128).into()),
-            Self::U32(value) => Some((*value as u128).into()),
-            Self::U64(value) => Some((*value as u128).into()),
+            Self::U1(value) => Some(if *value { SignedField::one() } else { SignedField::zero() }),
+            Self::U8(value) => Some(u128::from(*value).into()),
+            Self::U16(value) => Some(u128::from(*value).into()),
+            Self::U32(value) => Some(u128::from(*value).into()),
+            Self::U64(value) => Some(u128::from(*value).into()),
             Self::U128(value) => Some((*value).into()),
             _ => None,
         }
     }
 
+    /// Similar to [Self::into_expression] or [Self::into_hir_expression] but for converting
+    /// into top-level item(s). Unlike those other methods, most expressions are invalid
+    /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
+    /// this method is significantly simpler because we only have to parse `Quoted` values
+    /// into top level items.
     pub(crate) fn into_top_level_items(
         self,
         location: Location,
@@ -627,6 +772,37 @@ impl Value {
             }
         }
     }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            Value::I8(x) => *x < 0,
+            Value::I16(x) => *x < 0,
+            Value::I32(x) => *x < 0,
+            Value::I64(x) => *x < 0,
+            _ => false, // Unsigned or Field types are never negative
+        }
+    }
+
+    /// Structs and tuples store references to their fields internally which need to be manually
+    /// changed when moving them.
+    ///
+    /// All references are shared by default but when we have `let mut foo = Struct { .. }` in
+    /// code, we don't want moving it: `let mut bar = foo;` to refer to the same references.
+    /// This function will copy them so that mutating the fields of `foo` will not mutate `bar`.
+    pub(crate) fn move_struct(self) -> Value {
+        match self {
+            Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
+                Shared::new(field.unwrap_or_clone().move_struct())
+            })),
+            Value::Struct(fields, typ) => {
+                let fields = fields.into_iter().map(|(name, field)| {
+                    (name, Shared::new(field.unwrap_or_clone().move_struct()))
+                });
+                Value::Struct(fields.collect(), typ)
+            }
+            other => other,
+        }
+    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
@@ -634,6 +810,9 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
+/// Helper to parse the given tokens using the given parse function.
+///
+/// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
 fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
@@ -653,8 +832,9 @@ where
             }
             Ok(expr)
         }
-        Err(mut errors) => {
-            let error = Box::new(errors.swap_remove(0));
+        Err(errors) => {
+            let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+            let error = Box::new(error);
             let tokens = tokens_to_string(&tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }

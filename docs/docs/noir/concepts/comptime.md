@@ -2,7 +2,7 @@
 title: Compile-time Code & Metaprogramming
 description: Learn how to use metaprogramming in Noir to create macros or derive your own traits
 keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote]
-sidebar_position: 15
+sidebar_position: 16
 ---
 
 ## Overview
@@ -221,6 +221,19 @@ will not work if the external crate renames the dependency `my_function` was def
 For cases like this there is `$crate` which when used in a quote will always resolve to the crate the quote is in.
 So the library author can instead quote `$crate::foo::my_function()` and have it work in all cases as long as
 `foo` and `my_function` are both publicly visible.
+
+```rust
+/// We want to access this function within the quoted code below
+/// and we want it to work in external crates.
+pub fn double(x: u64) -> u64 { x * 2 }
+
+comptime fn double_twice(code: Quoted) -> Quoted {
+    quote {
+        // `$crate` is a stand-in for the current crate
+        $crate::double($crate::double($code))
+    }
+}
+```
 
 ---
 

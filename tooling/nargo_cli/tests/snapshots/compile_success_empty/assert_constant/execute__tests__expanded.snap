@@ -25,11 +25,11 @@ fn main(dynamic_one: Field, dynamic_two: Field) {
     let dynamic_slice_pair: [Field] = &[dynamic_one, dynamic_two];
     assert_constant(true);
     assert_constant(false);
-    assert_constant(2 == 2);
-    assert_constant((1 + 1) == 2);
-    assert_constant((1 + 1) == 3);
-    let local_one: Field = 1;
-    let local_two: Field = 2;
+    assert_constant(2_Field == 2_Field);
+    assert_constant((1_Field + 1_Field) == 2_Field);
+    assert_constant((1_Field + 1_Field) == 3_Field);
+    let local_one: Field = 1_Field;
+    let local_two: Field = 2_Field;
     let local_three: Field = local_one + local_two;
     let local_array_pair: [Field; 2] = [local_one, local_two];
     let local_slice_pair: [Field] = &[local_one, local_two];
@@ -41,9 +41,9 @@ fn main(dynamic_one: Field, dynamic_two: Field) {
     assert_constant(GLOBAL_THREE);
     assert_constant(GLOBAL_ARRAY_PAIR);
     assert_constant(GLOBAL_SLICE_PAIR);
-    assert_constant([1, 2, dynamic_one].len() == 4);
-    static_assert(dynamic_array_pair.len() == 2, "");
-    static_assert(dynamic_slice_pair.len() == 2, "");
-    let foo: Foo = Foo { field: 0, array: [1, 2, 3], slice: &[] };
+    assert_constant([1_Field, 2_Field, dynamic_one].len() == 4_u32);
+    static_assert(dynamic_array_pair.len() == 2_u32, "");
+    static_assert(dynamic_slice_pair.len() == 2_u32, "");
+    let foo: Foo = Foo { field: 0_Field, array: [1_Field, 2_Field, 3_Field], slice: &[] };
     assert_constant(foo);
 }

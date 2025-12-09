@@ -12,11 +12,7 @@ where
     A: Eq,
     B: Eq,
 {
-    fn eq(self, other: Self) -> bool
-    where
-        A: Eq,
-        B: Eq,
-    {
+    fn eq(self, other: Self) -> bool {
         (self.field1 == other.field1) & (self.field2 == other.field2)
     }
 }
@@ -32,6 +28,7 @@ comptime fn foo(_s: TypeDefinition) -> Quoted {
 }
 
 fn main() {
-    let x: MyOtherStruct<Field, Field> = MyOtherStruct::<Field, Field> { field1: 1, field2: 2 };
+    let x: MyOtherStruct<Field, Field> =
+        MyOtherStruct::<Field, Field> { field1: 1_Field, field2: 2_Field };
     assert(x == x);
 }

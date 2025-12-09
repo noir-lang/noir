@@ -22,21 +22,22 @@ struct bar_field {
 
 fn main(x: [foo; 3], y: u32, z: u32) -> pub u8 {
     let a: [u32; 3] = [y, z, x[y].counter as u32];
-    let mut b: [bar; 3] = [bar { value: 0, counter: 0, dummy: [0; 3] }; 3];
-    let mut c: [bar_field; 3] = [bar_field { value: 0, counter: 0, dummy: [0; 3] }; 3];
-    for i in 0..3 {
+    let mut b: [bar; 3] = [bar { value: 0_Field, counter: 0_u8, dummy: [0_u8; 3] }; 3];
+    let mut c: [bar_field; 3] =
+        [bar_field { value: 0_Field, counter: 0_u8, dummy: [0_Field; 3] }; 3];
+    for i in 0_u32..3_u32 {
         b[i].value = x[i].value;
         b[i].counter = x[i].counter;
-        b[i].dummy[0] = x[i].dummy;
+        b[i].dummy[0_u32] = x[i].dummy;
         c[i].value = x[i].value;
         c[i].counter = x[i].counter;
-        c[i].dummy[0] = x[i].dummy as Field;
+        c[i].dummy[0_u32] = x[i].dummy as Field;
     }
-    if z == 0 {
+    if z == 0_u32 {
         assert((y as u8) < x[y].counter);
         assert(y <= a[y]);
         assert((y as u8) < b[y].counter);
         assert((y as u8) < c[y].counter);
     };
-    x[0].counter
+    x[0_u32].counter
 }

@@ -5,8 +5,8 @@ expression: expanded_code
 global NUM_RESULTS: u32 = 2;
 
 fn main(x: Field, y: pub Field, enable: bool) -> pub [Field; 2] {
-    let mut result: [Field; 2] = [0; 2];
-    for i in 0..NUM_RESULTS {
+    let mut result: [Field; 2] = [0_Field; 2];
+    for i in 0_u32..NUM_RESULTS {
         if enable {
             result[i] = return_value(x, y);
         }

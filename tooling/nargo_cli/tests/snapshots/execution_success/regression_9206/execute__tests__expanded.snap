@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G_A: [[u128; 0]; 2] = [[], []];
+
+global G_S: [[u128; 0]] = &[[], []];
+
+fn main(i: u32) -> pub u32 {
+    // Safety: comment added by `nargo expand`
+    let _a: [u128; 0] = unsafe { func_3(G_A[i])[1_u32] };
+    // Safety: comment added by `nargo expand`
+    let _s: [u128; 0] = unsafe { func_3(G_S[i])[1_u32] };
+    i
+}
+
+unconstrained fn func_3(_a: [u128; 0]) -> [[u128; 0]; 2] {
+    G_A
+}

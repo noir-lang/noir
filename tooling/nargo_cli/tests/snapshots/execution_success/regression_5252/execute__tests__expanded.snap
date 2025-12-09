@@ -13,8 +13,8 @@ pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
 }
 
 fn main(to_hash: [[Field; 20]; 3], enable: [bool; 3]) -> pub [Field; 3] {
-    let mut result: [Field; 3] = [0; 3];
-    for i in 0..NUM_HASHES {
+    let mut result: [Field; 3] = [0_Field; 3];
+    for i in 0_u32..NUM_HASHES {
         let enable: bool = enable[i];
         let to_hash: [Field; 20] = to_hash[i];
         if enable {

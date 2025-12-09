@@ -4,37 +4,40 @@ expression: expanded_code
 ---
 fn main(mut x: Field) {
     add1(&mut x);
-    assert(x == 3);
+    assert(x == 3_Field);
     let mut s: S = S { y: x };
     s.add2();
-    assert(s.y == 5);
+    assert(s.y == 5_Field);
     let s_ref: &mut S = &mut s;
     s_ref.add2();
-    assert(s.y == 7);
-    let mut a: Field = 0;
+    assert(s.y == 7_Field);
+    let mut a: Field = 0_Field;
     mutate_copy(a);
-    assert(a == 0);
-    let mut nested_allocations: Nested = Nested { y: &mut &mut 0 };
+    assert(a == 0_Field);
+    let mut nested_allocations: Nested = Nested { y: &mut &mut 0_Field };
     add1(*nested_allocations.y);
-    assert(**nested_allocations.y == 1);
-    let mut c: C = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
-    *(c.bar.array) = [3, 4];
-    assert(*c.bar.array == [3, 4]);
+    assert(**nested_allocations.y == 1_Field);
+    let mut c: C = C { foo: 0_Field, bar: &mut C2 { array: &mut [1_Field, 2_Field] } };
+    *c.bar.array = [3_Field, 4_Field];
+    assert(*c.bar.array == [3_Field, 4_Field]);
     regression_1887();
     regression_2054();
     regression_2030();
     regression_2255();
     regression_6443();
-    assert(x == 3);
-    regression_2218_if_inner_if(x, 10);
-    regression_2218_if_inner_else(20, x);
-    regression_2218_else(x, 3);
-    regression_2218_loop(x, 10);
+    assert(x == 3_Field);
+    regression_2218_if_inner_if(x, 10_Field);
+    regression_2218_if_inner_else(20_Field, x);
+    regression_2218_else(x, 3_Field);
+    regression_2218_loop(x, 10_Field);
     regression_2560(s_ref);
+    nested_struct_aliases(x, 10_Field);
+    assert(x == 3_Field);
+    nested_struct_aliases(x, 3_Field);
 }
 
 fn add1(x: &mut Field) {
-    *(x) = *x + 1;
+    *x = *x + 1_Field;
 }
 
 struct S {
@@ -43,7 +46,7 @@ struct S {
 
 impl S {
     fn add2(&mut self) {
-        self.y = self.y + 2;
+        self.y = self.y + 2_Field;
     }
 
     fn get_y(self) -> Field {
@@ -65,13 +68,13 @@ struct C2 {
 }
 
 fn mutate_copy(mut a: Field) {
-    a = 7;
+    a = 7_Field;
 }
 
 fn regression_1887() {
-    let foo: &mut Foo = &mut Foo { bar: Bar { x: 0 } };
+    let foo: &mut Foo = &mut Foo { bar: Bar { x: 0_Field } };
     foo.bar.mutate();
-    assert(foo.bar.x == 32);
+    assert(foo.bar.x == 32_Field);
 }
 
 struct Foo {
@@ -84,61 +87,61 @@ struct Bar {
 
 impl Bar {
     fn mutate(&mut self) {
-        self.x = 32;
+        self.x = 32_Field;
     }
 }
 
 fn regression_2054() {
-    let mut x: Field = 2;
+    let mut x: Field = 2_Field;
     let z: Field = x;
-    x = x + 1;
-    assert(z == 2);
+    x = x + 1_Field;
+    assert(z == 2_Field);
 }
 
 fn regression_2030() {
-    let ref: &mut Field = &mut 0;
+    let ref: &mut Field = &mut 0_Field;
     let mut array: [&mut Field; 2] = [ref, ref];
-    let _: Field = *array[0];
-    *(array[0]) = 1;
+    let _: Field = *array[0_u32];
+    *array[0_u32] = 1_Field;
 }
 
 fn regression_2255() {
-    let x: &mut Field = &mut 0;
+    let x: &mut Field = &mut 0_Field;
     regression_2255_helper(x);
-    assert(*x == 1);
+    assert(*x == 1_Field);
 }
 
 fn regression_2255_helper(mut x: &mut Field) {
-    *(x) = 1;
+    *x = 1_Field;
 }
 
 fn regression_6443() {
-    let x: &mut Field = &mut 0;
+    let x: &mut Field = &mut 0_Field;
     regression_6443_helper(x);
-    assert(*x == 1);
+    assert(*x == 1_Field);
 }
 
 fn regression_6443_helper(x: &mut Field) {
-    *(x) = 1;
+    *x = 1_Field;
 }
 
 fn regression_2218(x: Field, y: Field) -> Field {
-    let q: &mut &mut Field = &mut &mut 0;
+    let q: &mut &mut Field = &mut &mut 0_Field;
     let q1: &mut Field = *q;
     let q2: &mut Field = *q;
     if x != y {
-        *(q1) = 1;
-        if x != 20 {
-            *(q1) = 10;
-            *(q2) = 2;
-            assert(*q1 == 2);
+        *q1 = 1_Field;
+        if x != 20_Field {
+            *q1 = 10_Field;
+            *q2 = 2_Field;
+            assert(*q1 == 2_Field);
         } else {
-            *(q2) = 15;
-            assert(*q1 == 15);
+            *q2 = 15_Field;
+            assert(*q1 == 15_Field);
         }
     } else {
-        *(q2) = 20;
-        assert(*q1 == 20);
+        *q2 = 20_Field;
+        assert(*q1 == 20_Field);
     };
     let value: Field = *q1;
     value
@@ -146,81 +149,139 @@ fn regression_2218(x: Field, y: Field) -> Field {
 
 fn regression_2218_if_inner_if(x: Field, y: Field) {
     let value: Field = regression_2218(x, y);
-    assert(value == 2);
+    assert(value == 2_Field);
 }
 
 fn regression_2218_if_inner_else(x: Field, y: Field) {
     let value: Field = regression_2218(x, y);
-    assert(value == 15);
+    assert(value == 15_Field);
 }
 
 fn regression_2218_else(x: Field, y: Field) {
     let value: Field = regression_2218(x, y);
-    assert(value == 20);
+    assert(value == 20_Field);
 }
 
 fn regression_2218_loop(x: Field, y: Field) {
-    let q: &mut &mut Field = &mut &mut 0;
+    let q: &mut &mut Field = &mut &mut 0_Field;
     let q1: &mut Field = *q;
     let q2: &mut Field = *q;
-    for _ in 0..1 {
+    for _ in 0_u32..1_u32 {
         if x != y {
-            *(q1) = 10;
-            *(q2) = 2;
-            assert(*q1 == 2);
+            *q1 = 10_Field;
+            *q2 = 2_Field;
+            assert(*q1 == 2_Field);
         } else {
-            *(q2) = 20;
-            assert(*q1 == 20);
+            *q2 = 20_Field;
+            assert(*q1 == 20_Field);
         }
     }
-    assert(*q1 == 2);
-    for _ in 0..1 {
-        for _ in 0..5 {
+    assert(*q1 == 2_Field);
+    for _ in 0_u32..1_u32 {
+        for _ in 0_u32..5_u32 {
             if x != y {
-                *(q1) = 1;
-                if x != 20 {
-                    *(q1) = 10;
-                    *(q2) = 2;
-                    assert(*q1 == 2);
+                *q1 = 1_Field;
+                if x != 20_Field {
+                    *q1 = 10_Field;
+                    *q2 = 2_Field;
+                    assert(*q1 == 2_Field);
                 }
             } else {
-                *(q2) = 20;
-                assert(*q1 == 20);
+                *q2 = 20_Field;
+                assert(*q1 == 20_Field);
             }
         }
         if x != y {
-            *(q1) = 1;
-            for _ in 0..5 {
-                if x != 20 {
-                    *(q1) = 10;
-                    *(q2) = 2;
-                    assert(*q1 == 2);
+            *q1 = 1_Field;
+            for _ in 0_u32..5_u32 {
+                if x != 20_Field {
+                    *q1 = 10_Field;
+                    *q2 = 2_Field;
+                    assert(*q1 == 2_Field);
                 }
             }
         } else {
-            *(q2) = 20;
-            assert(*q1 == 20);
+            *q2 = 20_Field;
+            assert(*q1 == 20_Field);
         }
     }
-    assert(*q1 == 2);
+    assert(*q1 == 2_Field);
     if x != y {
-        for _ in 0..5 {
+        for _ in 0_u32..5_u32 {
             if x != y {
-                *(q1) = 1;
-                if x != 20 {
-                    *(q1) = 10;
-                    *(q2) = 2;
-                    assert(*q1 == 2);
+                *q1 = 1_Field;
+                if x != 20_Field {
+                    *q1 = 10_Field;
+                    *q2 = 2_Field;
+                    assert(*q1 == 2_Field);
                 }
             }
         }
     } else {
-        *(q2) = 20;
-        assert(*q1 == 20);
+        *q2 = 20_Field;
+        assert(*q1 == 20_Field);
     };
-    assert(*q1 == 2);
+    assert(*q1 == 2_Field);
 }
 
 fn regression_2560(s_ref: &mut S) {
-    assert(s_ref.get_y() == 7);
+    assert(s_ref.get_y() == 7_Field);
+}
+
+struct MyStruct {
+    a: Field,
+    b: u32,
+}
+
+struct Outer {
+    inner: MyStruct,
+}
+
+fn nested_struct_aliases(x: Field, y: Field) {
+    let mut var: Outer = Outer { inner: MyStruct { a: 0_Field, b: 0_u32 } };
+    let ref_outer: &mut Outer = &mut var;
+    let ref_inner1: &mut MyStruct = &mut ref_outer.inner;
+    let ref_inner2: &mut MyStruct = &mut var.inner;
+    if x != y {
+        (*ref_inner1).a = 5_Field;
+        (*ref_inner1).b = 7_u32;
+        (*ref_inner2).a = 3_Field;
+        (*ref_inner2).b = 10_u32;
+        for _ in 0_u32..3_u32 {
+            (*ref_inner1).a = (*ref_inner1).a + 1_Field;
+            (*ref_inner1).b = (*ref_inner1).b + 2_u32;
+            (*ref_inner2).a = (*ref_inner2).a + 2_Field;
+            (*ref_inner2).b = (*ref_inner2).b + 4_u32;
+        }
+    } else {
+        (*ref_inner2).a = 20_Field;
+        (*ref_inner2).b = 15_u32;
+        (*ref_inner1).a = 25_Field;
+        (*ref_inner1).b = 30_u32;
+        for _ in 0_u32..3_u32 {
+            (*ref_inner2).a = (*ref_inner2).a + 5_Field;
+            (*ref_inner2).b = (*ref_inner2).b + 3_u32;
+            (*ref_inner1).a = (*ref_inner1).a + 4_Field;
+            (*ref_inner1).b = (*ref_inner1).b + 10_u32;
+        }
+    };
+    if x != y {
+        assert(var.inner.a == 12_Field);
+        assert(var.inner.b == 28_u32);
+        assert(ref_inner1.a == 12_Field);
+        assert(ref_inner1.b == 28_u32);
+        assert(ref_inner2.a == 12_Field);
+        assert(ref_inner2.b == 28_u32);
+        assert(ref_outer.inner.a == 12_Field);
+        assert(ref_outer.inner.b == 28_u32);
+    } else {
+        assert(var.inner.a == 52_Field);
+        assert(var.inner.b == 69_u32);
+        assert(ref_inner1.a == 52_Field);
+        assert(ref_inner1.b == 69_u32);
+        assert(ref_inner2.a == 52_Field);
+        assert(ref_inner2.b == 69_u32);
+        assert(ref_outer.inner.a == 52_Field);
+        assert(ref_outer.inner.b == 69_u32);
+    }
 }

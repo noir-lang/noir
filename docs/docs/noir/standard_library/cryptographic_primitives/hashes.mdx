@@ -9,9 +9,27 @@ sidebar_position: 0
 
 import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
 
+Many of the common hash methods have been moved outside of the Noir standard library and exist as independent libraries. 
+You can find the complete list of libraries in the [Hashes section](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#hashes) 
+of the awesome-noir repo, including:
+
+- keccak256
+- MiMC
+- Poseidon
+- RIPEMD160
+- sha256
+- sha512
+
+
 ## sha256 compression
 
 Performs a sha256 compression on an input and initial state, returning the resulting state.
+
+:::warning
+
+This is a different function than sha256. See [this library](https://github.com/noir-lang/sha256) for sha256 hashing.
+
+::: 
 
 #include_code sha256_compression noir_stdlib/src/hash/mod.nr rust
 
@@ -82,13 +100,3 @@ Given an initial `[u64; 25]` state, returns the state resulting from applying a 
 #include_code keccakf1600 noir_stdlib/src/hash/mod.nr rust
 
 <BlackBoxInfo to="../black_box_fns"/>
-
-## hash_to_field
-
-```rust
-fn hash_to_field(_input : [Field]) -> Field {}
-```
-
-Calculates the `blake2s` hash of the inputs and returns the hash modulo the field modulus to return
-a value which can be represented as a `Field`.
-

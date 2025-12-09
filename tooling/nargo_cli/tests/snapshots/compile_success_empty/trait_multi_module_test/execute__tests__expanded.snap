@@ -11,11 +11,11 @@ mod module1 {
 mod module2 {
     pub struct MyStruct {}
 
-    impl super::module1::MyTrait for MyStruct {}
+    impl crate::module1::MyTrait for MyStruct {}
 }
 
 mod module3 {
-    use super::{module1::MyTrait, module2::MyStruct};
+    use crate::{module1::MyTrait, module2::MyStruct};
 
 }
 
@@ -26,7 +26,7 @@ mod module4 {
 mod module5 {
     pub struct MyStruct5 {}
 
-    impl super::module4::MyTrait4 for MyStruct5 {}
+    impl crate::module4::MyTrait4 for MyStruct5 {}
 }
 
 mod module6 {}

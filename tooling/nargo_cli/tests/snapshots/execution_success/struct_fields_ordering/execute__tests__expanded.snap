@@ -8,6 +8,6 @@ struct myStruct {
 }
 
 fn main(y: pub myStruct) {
-    assert(y.foo == 5);
-    assert(y.bar == 7);
+    assert(y.foo == 5_u32);
+    assert(y.bar == 7_Field);
 }

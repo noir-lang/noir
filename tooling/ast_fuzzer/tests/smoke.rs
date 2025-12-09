@@ -8,15 +8,21 @@
 //! ```
 use std::time::Duration;
 
-use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_inputs, arb_program, program_abi};
-use noirc_evaluator::{brillig::BrilligOptions, ssa};
+use noirc_abi::input_parser::Format;
+use noirc_evaluator::{
+    brillig::BrilligOptions,
+    ssa::{
+        self,
+        opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+    },
+};
 
 fn seed_from_env() -> Option<u64> {
-    let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+    let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
     let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
         .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
     Some(seed)
@@ -35,33 +41,45 @@ fn arb_program_can_be_executed() {
             ssa_logging: ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
         };
 
         // Print the AST if something goes wrong, then panic.
         let print_ast_and_panic = |msg: &str| -> ! {
-            eprintln!("{}", DisplayAstAsNoir(&program));
+            if maybe_seed.is_none() {
+                eprintln!("{}", DisplayAstAsNoir(&program));
+            }
             panic!("{msg}")
         };
 
         // If we have a seed to debug and we know it's going to crash, print the AST.
         if maybe_seed.is_some() {
-            // It could be useful to also show the input, but in the smoke test we're mostly interested in compiler crashes,
-            // not the execution. For that we have the actual fuzz targets.
             eprintln!("{}", DisplayAstAsNoir(&program));
         }
 
-        let ssa = ssa::create_program(program.clone(), &options)
+        let ssa = ssa::create_program(program.clone(), &options, None)
             .unwrap_or_else(|e| print_ast_and_panic(&format!("Failed to compile program: {e}")));
 
         let inputs = arb_inputs(u, &ssa.program, &abi)?;
+
+        // It could be useful to also show the input, although in the smoke test we're mostly interested in compiler crashes,
+        // not the execution. For that we have the actual fuzz targets.
+        if maybe_seed.is_some() {
+            eprintln!(
+                "--- Inputs:\n{}",
+                Format::Toml
+                    .serialize(&inputs, &abi)
+                    .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+            );
+        }
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = abi.encode(&inputs, None).unwrap();

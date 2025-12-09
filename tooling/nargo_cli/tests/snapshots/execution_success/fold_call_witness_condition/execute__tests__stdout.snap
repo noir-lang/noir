@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[fold_call_witness_condition] Circuit output: Vec([Field(0), Field(0)])
+[fold_call_witness_condition] Circuit output: [0x00, 0x00]

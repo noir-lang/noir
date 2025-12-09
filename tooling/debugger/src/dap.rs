@@ -495,7 +495,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                     };
                 }
                 let breakpoint_address = self.context.debug_location_to_address(&location);
-                let instruction_reference = format!("{}", breakpoint_address);
+                let instruction_reference = format!("{breakpoint_address}");
                 let breakpoint_id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, breakpoint_id));
                 Breakpoint {
@@ -570,7 +570,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             .clone()
             .into_iter()
             .map(|(witness, value)| Variable {
-                name: format!("_{}", witness.witness_index()),
+                name: witness.to_string(),
                 value: format!("{value:?}"),
                 ..Variable::default()
             })

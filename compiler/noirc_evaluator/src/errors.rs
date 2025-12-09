@@ -13,8 +13,10 @@ use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::types::NumericType;
+use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
 use serde::{Deserialize, Serialize};
+
+pub type RtResult<T> = Result<T, RuntimeError>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -29,6 +31,10 @@ pub enum RuntimeError {
         range: String,
         call_stack: CallStack,
     },
+    #[error(
+        "Attempted to recurse more than {limit} times during inlining function '{function_name}'"
+    )]
+    RecursionLimit { limit: u32, function_name: String, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error(
@@ -58,12 +64,37 @@ pub enum RuntimeError {
     BigIntModulus { call_stack: CallStack },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
-    #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
-    UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
     #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
+    #[error(
+        "Cannot return references from an if or match expression, or assignment within these expressions"
+    )]
+    ReturnedReferenceFromDynamicIf { call_stack: CallStack },
+    #[error(
+        "Cannot return a function from an if or match expression, or assignment within these expressions"
+    )]
+    ReturnedFunctionFromDynamicIf { call_stack: CallStack },
+    /// This case is not an error. It's used during codegen to prevent inserting instructions after
+    /// code when a break or continue is generated.
+    #[error("Break or continue")]
+    BreakOrContinue { call_stack: CallStack },
+
+    #[error(
+        "Only constant indices are supported when indexing an array containing reference values"
+    )]
+    DynamicIndexingWithReference { call_stack: CallStack },
+    #[error(
+        "Calling constrained function '{constrained}' from the unconstrained function '{unconstrained}'"
+    )]
+    UnconstrainedCallingConstrained {
+        call_stack: CallStack,
+        constrained: String,
+        unconstrained: String,
+    },
+    #[error("SSA validation failed: {message}")]
+    SsaValidationError { message: String, call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -81,9 +112,6 @@ impl From<SsaReport> for CustomDiagnostic {
                     InternalWarning::ReturnConstant { call_stack } => {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
-                    InternalWarning::VerifyProof { call_stack } => {
-                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof".to_string(), call_stack)
-                    },
                 };
                 let call_stack = vecmap(call_stack, |location| location);
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
@@ -92,7 +120,7 @@ impl From<SsaReport> for CustomDiagnostic {
                 diagnostic.with_call_stack(call_stack)
             }
             SsaReport::Bug(bug) => {
-                let message = bug.to_string();
+                let mut message = bug.to_string();
                 let (secondary_message, call_stack) = match bug {
                     InternalBug::IndependentSubgraph { call_stack } => {
                         ("There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
@@ -100,7 +128,12 @@ impl From<SsaReport> for CustomDiagnostic {
                     InternalBug::UncheckedBrilligCall { call_stack } => {
                         ("This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
                     }
-                    InternalBug::AssertFailed { call_stack } => ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
+                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } => {
+                        if let Some(assertion_failure_message) = assertion_failure_message {
+                            message.push_str(&format!(": {assertion_failure_message}"));
+                        }
+                        ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
+                    }
                 };
                 let call_stack = vecmap(call_stack, |location| location);
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
@@ -116,8 +149,6 @@ impl From<SsaReport> for CustomDiagnostic {
 pub enum InternalWarning {
     #[error("Return variable contains a constant value")]
     ReturnConstant { call_stack: CallStack },
-    #[error("Calling std::verify_proof(...) does not verify a proof")]
-    VerifyProof { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
@@ -127,7 +158,7 @@ pub enum InternalBug {
     #[error("Brillig function call isn't properly covered by a manual constraint")]
     UncheckedBrilligCall { call_stack: CallStack },
     #[error("Assertion is always false")]
-    AssertFailed { call_stack: CallStack },
+    AssertFailed { call_stack: CallStack, message: Option<String> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -172,8 +203,14 @@ impl RuntimeError {
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
-            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
-            | RuntimeError::UnknownReference { call_stack } => call_stack,
+            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
+            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
+            | RuntimeError::BreakOrContinue { call_stack }
+            | RuntimeError::DynamicIndexingWithReference { call_stack }
+            | RuntimeError::UnknownReference { call_stack }
+            | RuntimeError::RecursionLimit { call_stack, .. }
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
+            | RuntimeError::SsaValidationError { call_stack, .. } => call_stack,
         }
     }
 }
@@ -197,15 +234,38 @@ impl RuntimeError {
                     Location::dummy(),
                 )
             }
+            RuntimeError::SsaValidationError { message, call_stack} => {
+                // At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
+                let location =
+                    call_stack.last().cloned().unwrap_or_else(Location::dummy);
+
+                let mut diagnostic = CustomDiagnostic::simple_error(
+                    format!("SSA validation error: {message}"),
+                    String::new(),
+                    location,
+                );
+
+                if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
+                    diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                }
+
+                if call_stack.is_empty() {
+                    // Clear it otherwise it points to the top of the file.
+                    diagnostic.secondaries.clear();
+                }
+
+                diagnostic
+            }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();
+                // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().expect("Expected RuntimeError to have a location");
+                    self.call_stack().last().cloned().unwrap_or_else(Location::dummy);
 
                 CustomDiagnostic::simple_error(
                     primary_message,
                     "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    *location,
+                    location,
                 )
             }
             _ => {

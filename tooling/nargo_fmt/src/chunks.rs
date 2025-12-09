@@ -122,13 +122,17 @@ impl Display for Chunk {
                 write!(f, "{}", text_chunk.string)
             }
             Chunk::TrailingComma => write!(f, ","),
-            Chunk::Group(chunk_group) => chunk_group.fmt(f),
-            Chunk::SpaceOrLine => write!(f, " "),
-            Chunk::Line { .. }
-            | Chunk::IncreaseIndentation
-            | Chunk::DecreaseIndentation
-            | Chunk::PushIndentation
-            | Chunk::PopIndentation => Ok(()),
+            Chunk::Group(chunk_group) => {
+                write!(f, "`(`")?;
+                chunk_group.fmt(f)?;
+                write!(f, "`)`")
+            }
+            Chunk::SpaceOrLine => write!(f, "`space_or_line`"),
+            Chunk::Line { .. } => write!(f, "`line`"),
+            Chunk::IncreaseIndentation => write!(f, "`+`"),
+            Chunk::DecreaseIndentation => write!(f, "`-`"),
+            Chunk::PushIndentation => write!(f, "`push`"),
+            Chunk::PopIndentation => write!(f, "`pop`"),
         }
     }
 }
@@ -928,6 +932,9 @@ impl<'a> Formatter<'a> {
 
         let mut last_was_space_or_line = false;
 
+        // Indentation increases when a chunk will exceed the max width
+        let mut increased_indentation = 0;
+
         for chunk in chunks.chunks {
             if last_was_space_or_line {
                 if chunks.one_chunk_per_line {
@@ -965,6 +972,7 @@ impl<'a> Formatter<'a> {
                             self.write_line_without_skipping_whitespace_and_comments();
                             self.increase_indentation();
                             self.write_indentation();
+                            increased_indentation += 1;
                         }
                         self.write(&text_chunk.string);
                     }
@@ -1025,6 +1033,10 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::PopIndentation => {
                     self.pop_indentation();
+
+                    // Any increased indentation that we were planning to undo must not be undone
+                    // if we change the current indentation to something completely different.
+                    increased_indentation = 0;
                 }
                 Chunk::TrailingComma => {
                     unreachable!(
@@ -1032,6 +1044,11 @@ impl<'a> Formatter<'a> {
                     )
                 }
             }
+        }
+
+        // Reset indentation back to what it was before we started formatting this group
+        for _ in 0..increased_indentation {
+            self.decrease_indentation();
         }
     }
 

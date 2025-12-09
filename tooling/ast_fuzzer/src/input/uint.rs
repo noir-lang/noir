@@ -2,10 +2,10 @@ use std::collections::BTreeSet;
 
 use acvm::{AcirField, FieldElement};
 use proptest::{
+    prelude::Rng,
     strategy::{NewTree, Strategy},
     test_runner::TestRunner,
 };
-use rand::Rng;
 
 type BinarySearch = proptest::num::u128::BinarySearch;
 
@@ -48,8 +48,8 @@ impl UintStrategy {
     fn generate_edge_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
         // Choose if we want values around 0 or max
-        let is_min = rng.gen_bool(0.5);
-        let offset = rng.gen_range(0..4);
+        let is_min = rng.random_bool(0.5);
+        let offset = rng.random_range(0..4);
         let start = if is_min {
             offset.min(self.type_max())
         } else {
@@ -67,7 +67,7 @@ impl UintStrategy {
         }
 
         // Generate value tree from fixture.
-        let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
+        let fixture = &self.fixtures[runner.rng().random_range(0..self.fixtures.len())];
 
         Ok(BinarySearch::new(fixture.to_u128()))
     }
@@ -75,7 +75,7 @@ impl UintStrategy {
     /// Generate random values between 0 and the MAX with the given bit width.
     fn generate_random_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
-        let start = rng.gen_range(0..=self.type_max());
+        let start = rng.random_range(0..=self.type_max());
 
         Ok(BinarySearch::new(start))
     }
@@ -93,7 +93,7 @@ impl Strategy for UintStrategy {
     /// Pick randomly from the 3 available strategies for generating unsigned integers.
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let total_weight = self.random_weight + self.fixtures_weight + self.edge_weight;
-        let bias = runner.rng().gen_range(0..total_weight);
+        let bias = runner.rng().random_range(0..total_weight);
         // randomly select one of 3 strategies
         match bias {
             x if x < self.edge_weight => self.generate_edge_tree(runner),

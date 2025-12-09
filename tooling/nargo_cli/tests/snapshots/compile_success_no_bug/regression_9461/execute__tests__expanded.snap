@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool, b: bool) -> pub bool {
+    if b {
+        let mut d: [&mut Field] = &[];
+        let mut _f: Field = *d[0_u32] / (a as Field);
+    };
+    true
+}

@@ -1,16 +1,17 @@
 //! The purpose of this pass is to perform function specialization of Brillig functions based upon
 //! a function's entry points. Function specialization is performed through duplication of functions.
+//! Brillig entry points are defined as functions called directly by ACIR functions or are `main`.
 //!
 //! This pass is done due to how globals are initialized for Brillig generation.
-//! We allow multiple Brillig entry points (every call to Brillig from ACIR is an entry point),
-//! and in order to avoid re-initializing globals used in one entry point but not another,
-//! we set the globals initialization code based upon the globals used in a given entry point.
-//! The ultimate goal is to optimize for runtime execution.
+//! We allow multiple Brillig entry points, and in order to avoid re-initializing globals
+//! used in one entry point but not another, we set the globals initialization code based
+//! upon the globals used in a given entry point. The ultimate goal is to optimize for runtime execution.
 //!
 //! However, doing the above on its own is insufficient as we allow entry points to be called from
 //! other entry points and functions can be called across multiple entry points.
-//! As all functions can potentially share entry points and use globals, the global allocations maps
-//! generated for different entry points can conflict.
+//! Without specialization, the following issues arise:
+//! 1. Entry points calling the same function may conflict on global allocations.
+//! 2. Entry points calling other entry points may cause overlapping global usage.
 //!
 //! To provide a more concrete example, let's take this program:
 //! ```noir
@@ -51,22 +52,31 @@
 //!   CONST M32836 = 3
 //!   RETURN
 //! ```
-//! It is then not clear when generating the bytecode for `inner_func` which global allocations map should be used,
-//! and any choice will lead to an incorrect program.
+//! Here, `inner_func` is called by two different entry points. It is then not clear when generating the bytecode
+//! for `inner_func` which global allocations map should be used, and any choice will lead to an incorrect program.
 //! If `inner_func` used the map for `entry_point_one` the bytecode generated would use `M32837` to represent `THREE`.
 //! However, when `inner_func` is called from `entry_point_two`, the address for `THREE` is `M32836`.
 //!
-//! This pass will duplicate `inner_func` so that different functions are called by the different entry points.
+//! This pass duplicates functions like `inner_func` so that each entry point gets its own specialized
+//! version. The result is that bytecode can safely reference the correct globals without conflicts.
+//!
 //! The test module for this pass can be referenced to see how this function duplication looks in SSA.
-
+//!
+//! ## Post-conditions
+//! - Each Brillig entry point has its own specialized set of functions. No non-entry Brillig
+//!   function is reachable from more than one entry point.
+//! - The single entry point restriction could be loosened if globals are not used at all or
+//!   some Brillig functions do not use globals.
+//!   However, Brillig generation attempts to hoist duplicated constants across functions
+//!   to the global memory space so this restriction needs to be enforced.
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     Ssa,
     ir::{
-        call_graph::called_functions_vec,
+        call_graph::CallGraph,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
@@ -75,15 +85,20 @@ use crate::ssa::{
 
 impl Ssa {
     pub(crate) fn brillig_entry_point_analysis(mut self) -> Ssa {
-        if self.main().runtime().is_brillig() {
+        let main = self.main();
+        if main.runtime().is_brillig() {
             return self;
         }
 
-        // Build a call graph based upon the Brillig entry points and set up
+        // Build a call graph from the SSA
+        let call_graph = CallGraph::from_ssa(&self);
+
+        // From the call graph find the Brillig entry points and set up
         // the functions needing specialization before performing the actual call site rewrites.
-        let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
+        let brillig_entry_points =
+            get_brillig_entry_points_with_reachability(&self.functions, self.main_id, &call_graph);
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
-        let (calls_to_update, mut new_functions_map) =
+        let (calls_to_update, new_functions_map) =
             build_calls_to_update(&mut self, functions_to_clone_map, &brillig_entry_points);
 
         // Now we want to actually rewrite the appropriate call sites
@@ -103,9 +118,8 @@ impl Ssa {
                 entry_point
             } else {
                 new_functions_map
-                    .entry(entry_point)
-                    .or_default()
-                    .get(&function_to_update)
+                    .get(&entry_point)
+                    .and_then(|m| m.get(&function_to_update))
                     .copied()
                     .unwrap_or(function_to_update)
             };
@@ -131,6 +145,9 @@ impl Ssa {
             }
         }
 
+        #[cfg(debug_assertions)]
+        brillig_specialization_post_check(&self);
+
         self
     }
 }
@@ -150,17 +167,19 @@ fn resolve_cloned_function_call_sites(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
 
-            let Some(new_func_id) = new_functions_map.get(func_id) else {
+            let Some(new_func_id) = new_functions_map.get(func_id).copied() else {
                 continue;
             };
-            let new_function_value_id = function.dfg.import_function(*new_func_id);
+
+            let arguments = arguments.to_vec();
+            let new_function_value_id = function.dfg.import_function(new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
         }
@@ -279,12 +298,12 @@ fn collect_callsites_to_rewrite(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
 
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
             let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
@@ -296,7 +315,7 @@ fn collect_callsites_to_rewrite(
                 function_to_update: function.id(),
                 instruction: instruction_id,
                 new_func_to_call: *new_id,
-                call_args: arguments,
+                call_args: arguments.to_vec(),
             };
             new_calls_to_update.insert(new_call);
         }
@@ -304,89 +323,83 @@ fn collect_callsites_to_rewrite(
     new_calls_to_update
 }
 
-/// Returns a map of Brillig entry points to all functions called in that entry point.
-/// This includes any nested calls as well, as we want to be able to associate
-/// any Brillig function with the appropriate global allocations.
+/// Returns the set of Brillig entry points
+///
+/// A Brillig entry point is defined as a Brillig function that is directly called
+/// from at least one ACIR function, or is the `main` function itself if it is Brillig.
 pub(crate) fn get_brillig_entry_points(
     functions: &BTreeMap<FunctionId, Function>,
     main_id: FunctionId,
-) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
-    let mut brillig_entry_points = BTreeMap::default();
-    let acir_functions = functions.iter().filter(|(_, func)| func.runtime().is_acir());
-    for (_, function) in acir_functions {
-        for block_id in function.reachable_blocks() {
-            for instruction_id in function.dfg[block_id].instructions() {
-                let instruction = &function.dfg[*instruction_id];
-                let Instruction::Call { func: func_id, arguments: _ } = instruction else {
-                    continue;
-                };
+    call_graph: &CallGraph,
+) -> BTreeSet<FunctionId> {
+    let mut entry_points = BTreeSet::new();
 
-                let func_value = &function.dfg[*func_id];
-                let Value::Function(func_id) = func_value else { continue };
+    // Only ACIR callers can introduce Brillig entry points
+    let acir_callers = call_graph
+        .callees()
+        .into_iter()
+        .filter(|(caller, _)| functions[caller].runtime().is_acir());
 
-                let called_function = &functions[func_id];
-                if called_function.runtime().is_acir() {
-                    continue;
-                }
-
-                // We have now found a Brillig entry point.
-                brillig_entry_points.insert(*func_id, BTreeSet::default());
-                build_entry_points_map_recursive(
-                    functions,
-                    *func_id,
-                    *func_id,
-                    &mut brillig_entry_points,
-                    im::HashSet::new(),
-                );
-            }
-        }
+    for (_, callees) in acir_callers {
+        // Filter only the Brillig callees. These are the Brillig entry points.
+        entry_points
+            .extend(callees.keys().filter(|callee| functions[callee].runtime().is_brillig()));
     }
 
     // If main has been marked as Brillig, it is itself an entry point.
-    // Run the same analysis from above on main.
-    let main_func = &functions[&main_id];
-    if main_func.runtime().is_brillig() {
-        brillig_entry_points.insert(main_id, BTreeSet::default());
-        build_entry_points_map_recursive(
-            functions,
-            main_id,
-            main_id,
-            &mut brillig_entry_points,
-            im::HashSet::new(),
-        );
+    if functions[&main_id].runtime().is_brillig() {
+        entry_points.insert(main_id);
+    }
+
+    entry_points
+}
+
+/// Returns a map of Brillig entry points to all reachable functions from that entry point.
+///
+/// A Brillig entry point is defined as a Brillig function that is directly called
+/// from at least one ACIR function, or is the `main` function itself if it is Brillig.
+///
+/// The value set for each entry point includes all functions reachable
+/// from the entry point (excluding the entry itself if it is non-recursive).
+pub(crate) fn get_brillig_entry_points_with_reachability(
+    functions: &BTreeMap<FunctionId, Function>,
+    main_id: FunctionId,
+    call_graph: &CallGraph,
+) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    let recursive_functions = call_graph.get_recursive_functions();
+    get_brillig_entry_points_with_recursive(functions, main_id, call_graph, &recursive_functions)
+}
+
+/// Like [get_brillig_entry_points_with_reachability], but uses a precomputed set of recursive functions
+/// to avoid recomputing SCCs.
+pub(crate) fn get_brillig_entry_points_with_recursive(
+    functions: &BTreeMap<FunctionId, Function>,
+    main_id: FunctionId,
+    call_graph: &CallGraph,
+    recursive_functions: &HashSet<FunctionId>,
+) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    let mut brillig_entry_points = BTreeMap::default();
+
+    for entry_point in get_brillig_entry_points(functions, main_id, call_graph) {
+        brillig_entry_points
+            .insert(entry_point, brillig_reachable(call_graph, recursive_functions, entry_point));
     }
 
     brillig_entry_points
 }
 
-/// Recursively mark any functions called in an entry point
-fn build_entry_points_map_recursive(
-    functions: &BTreeMap<FunctionId, Function>,
-    entry_point: FunctionId,
-    called_function: FunctionId,
-    brillig_entry_points: &mut BTreeMap<FunctionId, BTreeSet<FunctionId>>,
-    mut explored_functions: im::HashSet<FunctionId>,
-) {
-    if explored_functions.insert(called_function).is_some() {
-        return;
+/// Returns all functions reachable from the given Brillig entry point.
+/// Includes the entry point itself if it is recursive, otherwise excludes it.
+fn brillig_reachable(
+    call_graph: &CallGraph,
+    recursive_functions: &HashSet<FunctionId>,
+    func: FunctionId,
+) -> BTreeSet<FunctionId> {
+    let mut reachable = call_graph.reachable_from([func]);
+    if !recursive_functions.contains(&func) {
+        reachable.remove(&func);
     }
-
-    let inner_calls: HashSet<FunctionId> =
-        called_functions_vec(&functions[&called_function]).into_iter().collect();
-
-    for inner_call in inner_calls {
-        if let Some(inner_calls) = brillig_entry_points.get_mut(&entry_point) {
-            inner_calls.insert(inner_call);
-        }
-
-        build_entry_points_map_recursive(
-            functions,
-            entry_point,
-            inner_call,
-            brillig_entry_points,
-            explored_functions.clone(),
-        );
-    }
+    reachable.into_iter().collect()
 }
 
 /// Builds a mapping from a [`FunctionId`] to the set of [`FunctionId`s][`FunctionId`] of all the brillig entrypoints
@@ -406,6 +419,26 @@ pub(crate) fn build_inner_call_to_entry_points(
     }
 
     inner_call_to_entry_point
+}
+
+/// Check post-execution properties of the Brillig specialization pass:
+/// * No Brillig function should be reachable from more than one entry point
+///   (to prevent global allocation conflicts).
+#[cfg(debug_assertions)]
+fn brillig_specialization_post_check(ssa: &Ssa) {
+    let call_graph = CallGraph::from_ssa(ssa);
+    let brillig_entry_points =
+        get_brillig_entry_points_with_reachability(&ssa.functions, ssa.main_id, &call_graph);
+    let inner_call_to_entry_point = build_inner_call_to_entry_points(&brillig_entry_points);
+
+    for (func_id, entry_points) in inner_call_to_entry_point {
+        if entry_points.len() > 1 {
+            panic!(
+                "Brillig specialization invariant violated: \
+                 function {func_id} is reachable from multiple entry points: {entry_points:?}"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -474,7 +507,7 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f3(v3, v4)
+            call f4(v3, v4)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -482,7 +515,7 @@ mod tests {
             v5 = add Field 2, v3
             v6 = add v5, v4
             constrain v6 == Field 3
-            call f4(v3, v4)
+            call f3(v3, v4)
             return
         }
         brillig(inline) fn inner_func f3 {
@@ -567,7 +600,7 @@ mod tests {
             v4 = add Field 2, v2
             v5 = add v4, v3
             constrain v5 == Field 3
-            call f4(v2, v3)
+            call f5(v2, v3)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -575,37 +608,37 @@ mod tests {
             v4 = add Field 2, v2
             v5 = add v4, v3
             constrain v5 == Field 3
-            call f6(v2, v3)
-            return
-        }
-        brillig(inline) fn nested_inner_func f3 {
-          b0(v2: Field, v3: Field):
-            v4 = add Field 3, v2
-            v5 = add v4, v3
-            constrain v5 == Field 4
-            return
-        }
-        brillig(inline) fn inner_func f4 {
-          b0(v2: Field, v3: Field):
-            v4 = add Field 2, v2
-            v5 = add v4, v3
-            constrain v5 == Field 3
             call f3(v2, v3)
             return
         }
-        brillig(inline) fn nested_inner_func f5 {
+        brillig(inline) fn inner_func f3 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 2, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f4(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f4 {
           b0(v2: Field, v3: Field):
             v4 = add Field 3, v2
             v5 = add v4, v3
             constrain v5 == Field 4
             return
         }
-        brillig(inline) fn inner_func f6 {
+        brillig(inline) fn inner_func f5 {
           b0(v2: Field, v3: Field):
             v4 = add Field 2, v2
             v5 = add v4, v3
             constrain v5 == Field 3
-            call f5(v2, v3)
+            call f6(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f6 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 3, v2
+            v5 = add v4, v3
+            constrain v5 == Field 4
             return
         }
         ");
@@ -699,22 +732,22 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f5(v3, v4)
-            call f6(v4, v3)
+            call f6(v3, v4)
+            call f5(v4, v3)
             return
         }
-        brillig(inline) fn entry_point_one_global f5 {
-          b0(v3: Field, v4: Field):
-            v5 = add Field 2, v3
-            v6 = add v5, v4
-            constrain v6 == Field 3
-            return
-        }
-        brillig(inline) fn entry_point_one_diff_global f6 {
+        brillig(inline) fn entry_point_one_diff_global f5 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn entry_point_one_global f6 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
             return
         }
         ");
@@ -769,7 +802,7 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0():
             v3 = call f1(u1 1, u32 5) -> u1
@@ -786,8 +819,8 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f4(v0, v6) -> u1
-            v10 = call f3(v8, v6) -> u1
+            v8 = call f5(v0, v6) -> u1
+            v10 = call f6(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
@@ -800,13 +833,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f6(v0, v6) -> u1
-            v10 = call f5(v8, v6) -> u1
+            v8 = call f3(v0, v6) -> u1
+            v10 = call f4(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f3 {
+        brillig(inline) fn func_2 f3 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -814,13 +847,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f4(v0, v6) -> u1
-            v10 = call f3(v8, v6) -> u1
+            v8 = call f3(v0, v6) -> u1
+            v10 = call f4(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f4 {
+        brillig(inline) fn func_1 f4 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -828,13 +861,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f4(v0, v6) -> u1
-            v10 = call f3(v8, v6) -> u1
+            v8 = call f3(v0, v6) -> u1
+            v10 = call f4(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f5 {
+        brillig(inline) fn func_2 f5 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -842,13 +875,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f6(v0, v6) -> u1
-            v10 = call f5(v8, v6) -> u1
+            v8 = call f5(v0, v6) -> u1
+            v10 = call f6(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f6 {
+        brillig(inline) fn func_1 f6 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -856,13 +889,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f6(v0, v6) -> u1
-            v10 = call f5(v8, v6) -> u1
+            v8 = call f5(v0, v6) -> u1
+            v10 = call f6(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -895,7 +928,7 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0():
             call f1(Field 1)
@@ -904,37 +937,227 @@ mod tests {
         }
         brillig(inline) impure fn foo f1 {
           b0(v0: Field):
-            call f4(v0)
+            call f5(v0)
             return
         }
         brillig(inline) impure fn bar f2 {
           b0(v0: Field):
-            call f5(Field 1)
-            call f6(Field 1)
-            return
-        }
-        brillig(inline) fn foo f3 {
-          b0(v0: Field):
-            call f4(v0)
-            return
-        }
-        brillig(inline) fn bar f4 {
-          b0(v0: Field):
-            call f3(Field 1)
             call f4(Field 1)
+            call f3(Field 1)
             return
         }
-        brillig(inline) fn foo f5 {
+        brillig(inline) fn bar f3 {
           b0(v0: Field):
-            call f6(v0)
+            call f4(Field 1)
+            call f3(Field 1)
             return
         }
-        brillig(inline) fn bar f6 {
+        brillig(inline) fn foo f4 {
           b0(v0: Field):
-            call f5(Field 1)
+            call f3(v0)
+            return
+        }
+        brillig(inline) fn bar f5 {
+          b0(v0: Field):
             call f6(Field 1)
+            call f5(Field 1)
+            return
+        }
+        brillig(inline) fn foo f6 {
+          b0(v0: Field):
+            call f5(v0)
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn functions_reachable_from_single_entry_point_are_not_duplicated() {
+        let src = "
+        g0 = Field 1
+
+        acir(inline) fn main f0 {
+          b0(v1: Field):
+            call f1(v1)
+            return
+        }
+        brillig(inline) fn entry_point f1 {
+          b0(v1: Field):
+            call f2(v1)
+            return
+        }
+        brillig(inline) fn helper_func f2 {
+          b0(v1: Field):
+            call f3(v1)
+            return
+        }
+        brillig(inline) fn leaf_func f3 {
+          b0(v1: Field):
+            v2 = add g0, v1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+
+        // f2 and f3 are reachable from only one entry point, so they are not duplicated
+        assert_ssa_snapshot!(ssa, @r#"
+        g0 = Field 1
+
+        acir(inline) fn main f0 {
+          b0(v1: Field):
+            call f1(v1)
+            return
+        }
+        brillig(inline) fn entry_point f1 {
+          b0(v1: Field):
+            call f2(v1)
+            return
+        }
+        brillig(inline) fn helper_func f2 {
+          b0(v1: Field):
+            call f3(v1)
+            return
+        }
+        brillig(inline) fn leaf_func f3 {
+          b0(v1: Field):
+            v2 = add Field 1, v1
             return
         }
         "#);
+    }
+
+    #[test]
+    fn idempotency() {
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v3: Field, v4: Field):
+            v5 = add g0, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add g1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn inner_func f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add g2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut first_ssa = ssa.brillig_entry_point_analysis().remove_unreachable_functions();
+
+        // We expect `inner_func` to be duplicated
+        assert_ssa_snapshot!(&mut first_ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f4(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn inner_func f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn inner_func f4 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        ");
+
+        let mut second_ssa =
+            first_ssa.brillig_entry_point_analysis().remove_unreachable_functions();
+
+        // We expect `inner_func` to be duplicated
+        assert_ssa_snapshot!(&mut second_ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f4(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn inner_func f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn inner_func f4 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        ");
     }
 }

@@ -4,4 +4,4 @@ type = "bin"
 authors = [""]
 
 [dependencies]
-poseidon = { git = "https://github.com/noir-lang/poseidon", tag = "v0.1.0" }
+poseidon = { git = "https://github.com/noir-lang/poseidon", tag = "v0.1.1" }

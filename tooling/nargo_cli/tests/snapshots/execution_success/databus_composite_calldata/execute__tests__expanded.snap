@@ -8,8 +8,8 @@ struct Foo {
 }
 
 fn main(foos: [Foo; 2], values: [[[u32; 2]; 2]; 3], zero: u32, one: u32) -> pub u32 {
-    assert((foos[zero].x + 1) == foos[one].x);
-    assert((foos[zero].y[3] + 2) == foos[one].y[4]);
+    assert((foos[zero].x + 1_u32) == foos[one].x);
+    assert((foos[zero].y[3_u32] + 2_u32) == foos[one].y[4_u32]);
     assert(values[zero][one][zero] == values[one][zero][one]);
-    foos[zero].x + foos[one].y[0]
+    foos[zero].x + foos[one].y[0_u32]
 }

@@ -5,23 +5,23 @@ expression: expanded_code
 global N: u32 = 1000;
 
 fn main() {
-    let a: [Field; 2] = id([1, 2]);
-    let b: [Field; 3] = id([1, 2, 3]);
+    let a: [Field; 2] = id([1_Field, 2_Field]);
+    let b: [Field; 3] = id([1_Field, 2_Field, 3_Field]);
     let itWorks1: MyStruct<2> = MyStruct::<2> { data: a };
-    assert(itWorks1.data[1] == 2);
+    assert(itWorks1.data[1_u32] == 2_Field);
     let itWorks2: MyStruct<3> = MyStruct::<3> { data: b };
-    assert(itWorks2.data[1] == 2);
-    let c: [Field; 2] = [1, 2];
+    assert(itWorks2.data[1_u32] == 2_Field);
+    let c: [Field; 2] = [1_Field, 2_Field];
     let itAlsoWorks: MyStruct<2> = MyStruct::<2> { data: c };
-    assert(itAlsoWorks.data[1] == 2);
-    assert(foo(itWorks2).data[0] == (itWorks2.data[0] + 1));
+    assert(itAlsoWorks.data[1_u32] == 2_Field);
+    assert(foo(itWorks2).data[0_u32] == (itWorks2.data[0_u32] + 1_Field));
     double_numeric_generics_test();
     let my_type: MyType = PublicStorage::read::<MyType, 3>();
-    assert(my_type.a == 1);
-    assert(my_type.b == 2);
-    assert(my_type.c == 3);
+    assert(my_type.a == 1_Field);
+    assert(my_type.b == 2_Field);
+    assert(my_type.c == 3_Field);
     let foo: MyStruct<10> = baz::<10>();
-    assert(foo.data == [1; 10]);
+    assert(foo.data == [1_Field; 10]);
 }
 
 fn id<let I: u32>(x: [Field; I]) -> [Field; I] {
@@ -36,30 +36,30 @@ impl<let S: u32> MyStruct<S> {
     fn insert(mut self, index: Field, elem: Field) -> Self {
         assert((index as u32) < S);
         {
-            let i_3802: u32 = index as u32;
-            self.data[i_3802] = elem;
+            let i_4511: u32 = index as u32;
+            self.data[i_4511] = elem;
         };
         self
     }
 }
 
 fn foo(mut s: MyStruct<3>) -> MyStruct<3> {
-    s.data[0] = s.data[0] + 1;
+    s.data[0_u32] = s.data[0_u32] + 1_Field;
     s
 }
 
 fn baz<let N: u32>() -> MyStruct<N> {
-    MyStruct::<N> { data: [1; N] }
+    MyStruct::<N> { data: [1_Field; N] }
 }
 
 fn double<let N: u32>() -> u32 {
-    N * 2
+    N * 2_u32
 }
 
 fn double_numeric_generics_test() {
-    assert(double::<9>() == 18);
-    assert(double::<123>() == 246);
-    assert(double::<15>() == 30);
+    assert(double::<9>() == 18_u32);
+    assert(double::<123>() == 246_u32);
+    assert(double::<15>() == 30_u32);
 }
 
 struct MyType {
@@ -70,7 +70,7 @@ struct MyType {
 
 impl<let N: u32> Deserialize<N> for MyType {
     fn deserialize(fields: [Field; N]) -> Self {
-        Self { a: fields[0], b: fields[1], c: fields[2] }
+        Self { a: fields[0_u32], b: fields[1_u32], c: fields[2_u32] }
     }
 }
 
@@ -85,9 +85,9 @@ impl PublicStorage {
     where
         T: Deserialize<N>,
     {
-        let mut fields: [Field; N] = [0; N];
-        for i in 0..N {
-            fields[i] = (i as Field) + 1;
+        let mut fields: [Field; N] = [0_Field; N];
+        for i in 0_u32..N {
+            fields[i] = (i as Field) + 1_Field;
         }
         T::deserialize(fields)
     }

@@ -46,10 +46,10 @@ pub(super) fn print_source_code_location(
             match line {
                 PrintedLine::Skip => {}
                 PrintedLine::Ellipsis { line_number } => {
-                    print_ellipsis(line_number, raw_source_printing)
+                    print_ellipsis(line_number, raw_source_printing);
                 }
                 PrintedLine::Content { line_number, cursor, content, highlight } => {
-                    print_content(line_number, cursor, content, highlight, raw_source_printing)
+                    print_content(line_number, cursor, content, highlight, raw_source_printing);
                 }
             }
         }
@@ -81,7 +81,7 @@ fn print_content(
 ) {
     if raw_source_printing {
         if cursor == "->" && highlight.is_some() {
-            println!("{}", content);
+            println!("{content}");
         }
         return;
     }
@@ -218,8 +218,7 @@ fn render_location<'a>(
     let context_lines = 5;
 
     // Sub-range of lines that we'll print, which includes location + context lines
-    let first_line_to_print =
-        if location_lines.start < context_lines { 0 } else { location_lines.start - context_lines };
+    let first_line_to_print = location_lines.start.saturating_sub(context_lines);
     let last_line_to_print = std::cmp::min(location_lines.end + context_lines, file_lines.end);
     let printed_lines = Range { start: first_line_to_print, end: last_line_to_print };
 

@@ -3,39 +3,39 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let (first, rest): (Field, [Field; 4 - 1]) = split_first([1, 2, 3, 4]);
-    assert(first == 1);
-    assert(rest == [2, 3, 4]);
-    let _: (Field, [Field; 3 - 1]) = split_first([1, 2, 3]);
-    let _: [Field; 3 + 2] = push_multiple([1, 2, 3]);
+    let (first, rest): (Field, [Field; 4 - 1]) = split_first([1_Field, 2_Field, 3_Field, 4_Field]);
+    assert(first == 1_Field);
+    assert(rest == [2_Field, 3_Field, 4_Field]);
+    let _: (Field, [Field; 3 - 1]) = split_first([1_Field, 2_Field, 3_Field]);
+    let _: [Field; 3 + 2] = push_multiple([1_Field, 2_Field, 3_Field]);
     test_constant_folding::<10>();
     test_non_constant_folding::<10, 20>();
 }
 
 fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
-    std::static_assert(N != 0, "split_first called on empty array");
+    std::static_assert(N != 0_u32, "split_first called on empty array");
     let mut new_array: [T; N - 1] = std::mem::zeroed();
-    for i in 0..N - 1 {
-        new_array[i] = array[i + 1];
+    for i in 0_u32..N - 1_u32 {
+        new_array[i] = array[i + 1_u32];
     }
-    (array[0], new_array)
+    (array[0_u32], new_array)
 }
 
 fn push<let N: u32>(array: [Field; N], element: Field) -> [Field; N + 1] {
     let mut result: [Field; N + 1] = std::mem::zeroed();
     {
-        let i_3801: u32 = array.len();
-        result[i_3801] = element;
+        let i_4513: u32 = array.len();
+        result[i_4513] = element;
     };
-    for i in 0..array.len() {
+    for i in 0_u32..array.len() {
         result[i] = array[i];
     }
     result
 }
 
 fn push_multiple<let N: u32>(array: [Field; N]) -> [Field; N + 2] {
-    let array2: [Field; N + 1] = push(array, 4);
-    let array3: [Field; (N + 1) + 1] = push(array2, 5);
+    let array2: [Field; N + 1] = push(array, 4_Field);
+    let array3: [Field; (N + 1) + 1] = push(array2, 5_Field);
     array3
 }
 

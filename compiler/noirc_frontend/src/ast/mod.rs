@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use noirc_errors::Located;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
@@ -24,7 +25,6 @@ pub use function::*;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::FieldElement;
 pub use docs::*;
 pub use enumeration::*;
 use noirc_errors::Span;
@@ -34,6 +34,8 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
+use crate::signed_field::SignedField;
+use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
@@ -41,7 +43,6 @@ use crate::{
     shared::Signedness,
 };
 
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 use strum::IntoEnumIterator;
@@ -150,7 +151,7 @@ pub enum UnresolvedTypeData {
 
     /// An "as Trait" path leading to an associated type.
     /// E.g. `<Foo as Trait>::Bar`
-    AsTraitPath(Box<crate::ast::AsTraitPath>),
+    AsTraitPath(Box<AsTraitPath>),
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
@@ -160,7 +161,6 @@ pub enum UnresolvedTypeData {
     // The actual UnresolvedTypeData can be retrieved with a NodeInterner.
     Interned(InternedUnresolvedTypeData),
 
-    Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
 
@@ -204,14 +204,6 @@ impl GenericTypeArgs {
     pub fn is_empty(&self) -> bool {
         self.ordered_args.is_empty() && self.named_args.is_empty()
     }
-
-    fn contains_unspecified(&self) -> bool {
-        let ordered_args_contains_unspecified =
-            self.ordered_args.iter().any(|ordered_arg| ordered_arg.contains_unspecified());
-        let named_args_contains_unspecified =
-            self.named_args.iter().any(|(_name, named_arg)| named_arg.contains_unspecified());
-        ordered_args_contains_unspecified || named_args_contains_unspecified
-    }
 }
 
 impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
@@ -233,7 +225,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Location),
+    Constant(SignedField, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -279,7 +271,11 @@ impl std::fmt::Display for UnresolvedTypeData {
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Expression(expression) => expression.fmt(f),
             Function(args, ret, env, unconstrained) => {
@@ -290,10 +286,10 @@ impl std::fmt::Display for UnresolvedTypeData {
                 let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {
-                    UnresolvedTypeData::Unit => {
+                    Unit => {
                         write!(f, "fn({args}) -> {ret}")
                     }
-                    UnresolvedTypeData::Tuple(env_types) => {
+                    Tuple(env_types) => {
                         let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
                         write!(f, "fn[{env_types}]({args}) -> {ret}")
                     }
@@ -304,7 +300,6 @@ impl std::fmt::Display for UnresolvedTypeData {
             Reference(element, true) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
-            Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
             Interned(_) => write!(f, "?Interned"),
@@ -323,7 +318,8 @@ impl std::fmt::Display for UnresolvedTypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             UnresolvedTypeExpression::Variable(name) => name.fmt(f),
-            UnresolvedTypeExpression::Constant(x, _) => x.fmt(f),
+            UnresolvedTypeExpression::Constant(x, None, _) => x.fmt(f),
+            UnresolvedTypeExpression::Constant(x, Some(suffix), _) => write!(f, "{x}_{suffix}"),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
@@ -333,14 +329,6 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
-    pub fn is_synthesized(&self) -> bool {
-        match &self.typ {
-            UnresolvedTypeData::Reference(ty, _) => ty.is_synthesized(),
-            UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
-            _ => false,
-        }
-    }
-
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }
@@ -360,10 +348,6 @@ impl UnresolvedType {
         };
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
         UnresolvedType { typ, location }
-    }
-
-    pub(crate) fn contains_unspecified(&self) -> bool {
-        self.typ.contains_unspecified()
     }
 }
 
@@ -454,36 +438,21 @@ impl UnresolvedTypeData {
         self.with_location(Location::dummy())
     }
 
-    fn contains_unspecified(&self) -> bool {
+    pub(crate) fn try_into_expression(&self) -> Option<UnresolvedTypeExpression> {
         match self {
-            UnresolvedTypeData::Array(typ, length) => {
-                typ.contains_unspecified() || length.contains_unspecified()
+            UnresolvedTypeData::Expression(expr) => Some(expr.clone()),
+            UnresolvedTypeData::Parenthesized(unresolved_type) => {
+                unresolved_type.typ.try_into_expression()
             }
-            UnresolvedTypeData::Slice(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Expression(expr) => expr.contains_unspecified(),
-            UnresolvedTypeData::Parenthesized(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Named(path, args, _is_synthesized) => {
-                // '_' is unspecified
-                let path_is_wildcard = path.is_wildcard();
-                let an_arg_is_unresolved = args.contains_unspecified();
-                path_is_wildcard || an_arg_is_unresolved
+            UnresolvedTypeData::Named(path, generics, _)
+                if path.is_ident() && generics.is_empty() =>
+            {
+                Some(UnresolvedTypeExpression::Variable(path.clone()))
             }
-            UnresolvedTypeData::TraitAsType(_path, args) => args.contains_unspecified(),
-            UnresolvedTypeData::Reference(typ, _) => typ.contains_unspecified(),
-            UnresolvedTypeData::Tuple(args) => args.iter().any(|arg| arg.contains_unspecified()),
-            UnresolvedTypeData::Function(args, ret, env, _unconstrained) => {
-                let args_contains_unspecified = args.iter().any(|arg| arg.contains_unspecified());
-                args_contains_unspecified
-                    || ret.contains_unspecified()
-                    || env.contains_unspecified()
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path.clone()))
             }
-            UnresolvedTypeData::Unspecified => true,
-
-            UnresolvedTypeData::Unit
-            | UnresolvedTypeData::AsTraitPath(_)
-            | UnresolvedTypeData::Resolved(_)
-            | UnresolvedTypeData::Interned(_)
-            | UnresolvedTypeData::Error => false,
+            _ => None,
         }
     }
 }
@@ -504,7 +473,7 @@ impl UnresolvedTypeExpression {
     pub fn location(&self) -> Location {
         match self {
             UnresolvedTypeExpression::Variable(path) => path.location,
-            UnresolvedTypeExpression::Constant(_, location) => *location,
+            UnresolvedTypeExpression::Constant(_, _, location) => *location,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => *location,
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 path.trait_path.location.merge(path.impl_item.location())
@@ -518,14 +487,14 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_unsigned::<u32>() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
-                None => Err(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
+                Ok(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
+            }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
+                    SignedField::zero(),
+                    None,
                     expr.location,
                 ));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
@@ -558,11 +527,28 @@ impl UnresolvedTypeExpression {
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
-            ExpressionKind::AsTraitPath(path) => {
-                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
-            }
+            ExpressionKind::AsTraitPath(path) => Ok(UnresolvedTypeExpression::AsTraitPath(path)),
             ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
+        }
+    }
+
+    pub fn to_expression_kind(&self) -> ExpressionKind {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
+            UnresolvedTypeExpression::Constant(int, suffix, _) => {
+                ExpressionKind::Literal(Literal::Integer(*int, *suffix))
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: Expression { kind: lhs.to_expression_kind(), location: *location },
+                    operator: Located::from(*location, op.operator_to_binary_op_kind_helper()),
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
+                }))
+            }
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                ExpressionKind::AsTraitPath(Box::new(*path.clone()))
+            }
         }
     }
 
@@ -577,16 +563,14 @@ impl UnresolvedTypeExpression {
         )
     }
 
-    fn contains_unspecified(&self) -> bool {
+    pub(crate) fn is_valid_expression(&self) -> bool {
         match self {
-            // '_' is unspecified
-            UnresolvedTypeExpression::Variable(path) => path.is_wildcard(),
-            UnresolvedTypeExpression::BinaryOperation(lhs, _op, rhs, _span) => {
-                lhs.contains_unspecified() || rhs.contains_unspecified()
+            UnresolvedTypeExpression::Variable(path) => path.no_generic(),
+            UnresolvedTypeExpression::Constant(_, _, _) => true,
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                lhs.is_valid_expression() && rhs.is_valid_expression()
             }
-            UnresolvedTypeExpression::Constant(_, _) | UnresolvedTypeExpression::AsTraitPath(_) => {
-                false
-            }
+            UnresolvedTypeExpression::AsTraitPath(_) => true,
         }
     }
 }
@@ -597,6 +581,12 @@ pub enum ItemVisibility {
     Private,
     PublicCrate,
     Public,
+}
+
+impl ItemVisibility {
+    pub(crate) fn is_private(&self) -> bool {
+        matches!(self, ItemVisibility::Private)
+    }
 }
 
 impl std::fmt::Display for ItemVisibility {

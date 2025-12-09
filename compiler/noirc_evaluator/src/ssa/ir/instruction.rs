@@ -1,13 +1,16 @@
 use noirc_errors::call_stack::CallStackId;
+use rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
-use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
-use fxhash::FxHasher64;
+use acvm::{
+    AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
+};
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::pure::Purity;
+use crate::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -37,28 +40,100 @@ pub(crate) type InstructionId = Id<Instruction>;
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
+    /// ArrayLen - returns the length of the input array
+    /// argument: array (value id)
+    /// result: length of the array, panic if the input is not an array
     ArrayLen,
+    /// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+    /// argument: array (value id)
+    /// result: str
     ArrayAsStrUnchecked,
+    /// AsSlice
+    /// argument: value id
+    /// result: a slice containing the elements of the argument. Panic if the value id does not correspond to an `array` type
     AsSlice,
+    /// AssertConstant - Enforce the argument to be a constant value, at compile time.
+    /// argument: value id
+    /// result: (), panic if the argument does not resolve to a constant value
     AssertConstant,
+    /// StaticAssert - Enforce the first argument to be true, at compile time
+    /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
+    /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
+    /// SlicePushBack - Add elements at the end of a slice
+    /// arguments:  slice length, slice contents, ...elements_to_push
+    /// result: a slice containing `slice contents,..elements_to_push`
     SlicePushBack,
+    /// SlicePushFront - Add elements at the start of a slice
+    /// arguments:  slice length, slice contents, ...elements_to_push
+    /// result: a slice containing `..elements_to_push, slice contents`
     SlicePushFront,
+    /// SlicePopBack - Removes the last element of a slice
+    /// arguments: slice length, slice contents
+    /// result: a slice without the last element of `slice contents`
     SlicePopBack,
+    /// SlicePopFront - Removes the first element of a slice
+    /// arguments: slice length, slice contents
+    /// result: a slice without the first element of `slice contents`
     SlicePopFront,
+    /// SliceInsert - Insert elements inside a slice.
+    /// arguments: slice length, slice contents, insert index, ...elements_to_insert
+    /// result: a slice with ...elements_to_insert inserted at the `insert index`
     SliceInsert,
+    /// SliceRemove - Removes an element from a slice
+    /// arguments: slice length, slice contents, remove index
+    /// result: a slice with without the element at `remove index`
     SliceRemove,
+    /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+    /// arguments: value id, bit size (constant)
+    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
     ApplyRangeConstraint,
+    /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+    /// arguments: value id
+    /// result: the argument. Internally a `str` is a byte array.
     StrAsBytes,
+    /// ToBits(Endian) - Computes the bit decomposition of the argument.
+    /// argument: a field element (value id)
+    /// result: an array whose elements are the bit decomposition of the argument, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
     ToBits(Endian),
+    /// ToRadix(Endian) - Decompose the first argument over the `radix` base
+    /// arguments: a field element (value id), the radix to use (constant, a power of 2 between 2 and 256)
+    /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
     ToRadix(Endian),
+    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
     BlackBox(BlackBoxFunc),
+    /// Hint(Hint) - Avoid its arguments to be removed by DIE.
+    /// arguments: ... value id
+    /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
     Hint(Hint),
+    /// AsWitness - Adds a new witness constrained to be equal to the argument
+    /// arguments: value id
+    /// result: the argument
     AsWitness,
+    /// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+    /// argument: ()
+    /// result: true if execution is under unconstrained context, false else.
     IsUnconstrained,
+    /// DerivePedersenGenerators - Computes the Pedersen generators
+    /// arguments: domain_separator_string (constant string), starting_index (constant)
+    /// result: array of elliptic curve points (Grumpkin) containing the generators.
+    /// The type of the result gives the number of generators to compute.
     DerivePedersenGenerators,
+    /// FieldLessThan - Compare the arguments: `lhs` < `rhs`
+    /// arguments: lhs, rhs. Field elements
+    /// result: true if `lhs` mod p < `rhs` mod p (p being the field characteristic), false else
     FieldLessThan,
+    /// ArrayRefCount - Gives the reference count of the array
+    /// argument: array (value id)
+    /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
+    /// in constrained context, it will be 0.
     ArrayRefCount,
+    /// SliceRefCount - Gives the reference count of the slice
+    /// arguments: slice length, slice contents (value id)
+    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
+    /// in constrained context, it will be 0.
     SliceRefCount,
 }
 
@@ -280,14 +355,12 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been shifted by some offset.
-    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
+    ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    /// `offset` determines whether the index has been shifted by some offset.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -378,26 +451,41 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+                // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+                // it is expected that OOB checks are inserted separately. However, it would
+                // not be safe to separate the `ArrayGet` from the OOB constraints that precede it,
+                // because while it could read an array index, the returned data could be invalid,
+                // and fail at runtime if we tried using it in the wrong context.
                 !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
-                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
-                    // which uses the side effects predicate.
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    match intrinsic {
+                        // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                        // which uses the side effects predicate.
+                        Intrinsic::SliceInsert | Intrinsic::SliceRemove => true,
+                        // Technically these don't use the side effects predicate, but they fail on empty slices,
+                        // and by pretending that they require the predicate, we can preserve any current side
+                        // effect variable in the SSA and use it to optimize out memory operations that we know
+                        // would fail, but they shouldn't because they might be disabled.
+                        Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => true,
+                        _ => false,
+                    }
                 }
                 _ => false,
             },
             Instruction::Cast(_, _)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
-            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate
@@ -408,6 +496,101 @@ impl Instruction {
             | Instruction::DecrementRc { .. }
             | Instruction::Noop
             | Instruction::MakeArray { .. } => false,
+        }
+    }
+
+    /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => true,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+                _ => true, // Be conservative and assume other functions can have side effects.
+            },
+
+            // These can fail.
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+            // This should never be side-effectual
+            MakeArray { .. } | Noop => false,
+
+            // Some binary math can overflow or underflow.
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false } => {
+                    let typ = dfg.type_of_value(binary.lhs);
+                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                }
+                BinaryOp::Div | BinaryOp::Mod => {
+                    // If we don't know rhs at compile time, it might be zero or -1
+                    let Some(rhs) = dfg.get_numeric_constant(binary.rhs) else {
+                        return true;
+                    };
+
+                    // Div or mod by zero is a side effect (failure)
+                    if rhs.is_zero() {
+                        return true;
+                    }
+
+                    // For signed types, division or modulo by -1 can overflow.
+                    let typ = dfg.type_of_value(binary.rhs).unwrap_numeric();
+                    let NumericType::Signed { bit_size } = typ else {
+                        return false;
+                    };
+
+                    let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                    if IntegerConstant::from_numeric_constant(rhs, typ) == Some(minus_one) {
+                        return true;
+                    }
+
+                    false
+                }
+                BinaryOp::Shl | BinaryOp::Shr => {
+                    // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| {
+                        let typ = dfg.type_of_value(binary.lhs);
+                        c >= typ.bit_size().into()
+                    })
+                }
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
+                | BinaryOp::Lt
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor => false,
+            },
+
+            // These don't have side effects
+            Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+            // `ArrayGet`s which read from "known good" indices from an array have no side effects
+            // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+            // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+            // it is expected that OOB checks are inserted separately. However, it would not
+            // be safe to separate the `ArrayGet` from its corresponding OOB constraints in Brillig,
+            // as a value read from an array at an invalid index could cause failures when subsequently
+            // used in the wrong context. Since we use this information to decide whether to hoist
+            // instructions during deduplication, we consider unsafe values as potentially having
+            // indirect side effects.
+            ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
+
+            // ArraySet has side effects
+            ArraySet { .. } => true,
         }
     }
 
@@ -479,18 +662,15 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index, offset } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
-                Instruction::ArraySet {
-                    array: f(*array),
-                    index: f(*index),
-                    value: f(*value),
-                    mutable: *mutable,
-                    offset: *offset,
-                }
-            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -508,10 +688,11 @@ impl Instruction {
                     else_value: f(*else_value),
                 }
             }
-            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
-                elements: elements.iter().copied().map(f).collect(),
-                typ: typ.clone(),
-            },
+            Instruction::MakeArray { elements, typ } => {
+                let mut elements = elements.clone();
+                im_vec_map_values_mut(&mut elements, f);
+                Instruction::MakeArray { elements, typ: typ.clone() }
+            }
             Instruction::Noop => Instruction::Noop,
         }
     }
@@ -553,11 +734,11 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 *condition = f(*condition);
             }
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 *array = f(*array);
                 *index = f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
@@ -576,9 +757,7 @@ impl Instruction {
                 *else_value = f(*else_value);
             }
             Instruction::MakeArray { elements, typ: _ } => {
-                for element in elements.iter_mut() {
-                    *element = f(*element);
-                }
+                im_vec_map_values_mut(elements, f);
             }
             Instruction::Noop => (),
         }
@@ -619,11 +798,11 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate => (),
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -693,6 +872,13 @@ impl Binary {
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
+            BinaryOp::Shl | BinaryOp::Shr => {
+                // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                dfg.get_numeric_constant(self.rhs).is_none_or(|c| {
+                    let typ = dfg.type_of_value(self.lhs);
+                    c >= typ.bit_size().into()
+                })
+            }
             BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
@@ -701,9 +887,7 @@ impl Binary {
             | BinaryOp::Lt
             | BinaryOp::And
             | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
+            | BinaryOp::Xor => false,
         }
     }
 }
@@ -715,11 +899,24 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Hash the error type to get a unique selector for it.
     pub fn selector(&self) -> ErrorSelector {
-        let mut hasher = FxHasher64::default();
+        struct U64(pub u64);
+
+        impl FromStableHash for U64 {
+            type Hash = SipHasher128Hash;
+
+            fn from(hash: Self::Hash) -> Self {
+                Self(hash.0[0])
+            }
+        }
+
+        // We explicitly do not use `rustc-hash` here as we require hashes to be stable across 32- and 64-bit architectures.
+        let mut hasher =
+            rustc_stable_hash::StableHasher::<rustc_stable_hash::hashers::SipHasher128>::new();
         self.hash(&mut hasher);
-        let hash = hasher.finish();
-        ErrorSelector::new(hash)
+        let hash = hasher.finish::<U64>();
+        ErrorSelector::new(hash.0)
     }
 }
 
@@ -796,6 +993,10 @@ pub(crate) enum TerminatorInstruction {
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
     Return { return_values: Vec<ValueId>, call_stack: CallStackId },
+
+    /// A terminator that will never be reached because an instruction in its block
+    /// will always produce an assertion failure.
+    Unreachable { call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
@@ -816,6 +1017,7 @@ impl TerminatorInstruction {
                     *return_value = f(*return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -836,6 +1038,7 @@ impl TerminatorInstruction {
                     f(*return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -856,6 +1059,7 @@ impl TerminatorInstruction {
                     f(index, *return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -870,7 +1074,7 @@ impl TerminatorInstruction {
             Jmp { destination, .. } => {
                 *destination = f(*destination);
             }
-            Return { .. } => (),
+            Return { .. } | Unreachable { .. } => (),
         }
     }
 
@@ -878,7 +1082,8 @@ impl TerminatorInstruction {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } => *call_stack,
         }
     }
 
@@ -886,7 +1091,39 @@ impl TerminatorInstruction {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => *call_stack = new_call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } => *call_stack = new_call_stack,
         }
+    }
+}
+
+/// Try to avoid mutation until we know something changed, to take advantage of
+/// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
+/// the content and increases memory use by allocating more pointers on the heap.
+fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+where
+    T: Copy + PartialEq,
+    F: FnMut(T) -> T,
+{
+    // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
+    // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity.
+    // Collecting changes first and then updating only those positions proved to be the
+    // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
+    let mut changes = Vec::new();
+    for (i, x) in xs.iter().enumerate() {
+        let y = f(*x);
+        if *x != y {
+            changes.push((i, y));
+        }
+    }
+    if changes.is_empty() {
+        return;
+    }
+    // Using `Focus` allows us to only make mutable what is needed,
+    // and should be faster for batches than indexing individual items.
+    let mut focus = xs.focus_mut();
+    for (i, y) in changes {
+        focus.set(i, y);
     }
 }

@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool) -> pub str<2> {
+    let (_, d): (str<2>, [str<2>]) = {
+        let b: [str<2>] = if a {
+            &["Aa", "Bb", "Cc"]
+        } else {
+            &["Dd", "Ee"]
+        };
+        b.pop_front()
+    };
+    d[1_u32]
+}

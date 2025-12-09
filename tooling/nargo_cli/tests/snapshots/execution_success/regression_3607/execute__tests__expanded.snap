@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(mut x: u32) {
-    if x == 0 {
-        x = (x + 1) / x;
+    if x == 0_u32 {
+        x = (x + 1_u32) / x;
     } else {
-        x = (x + 1) / x;
+        x = (x + 1_u32) / x;
     };
-    assert(x != 0);
+    assert(x != 0_u32);
 }

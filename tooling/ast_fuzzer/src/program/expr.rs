@@ -6,65 +6,75 @@ use nargo::errors::Location;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
-    monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, FuncId, Ident,
-        IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
+    monomorphization::{
+        ast::{
+            ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId,
+            Ident, IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
+        },
+        visitor::visit_expr,
     },
     signed_field::SignedField,
 };
 
-use super::{Name, VariableId, types, visitor::visit_expr};
+use crate::Config;
+
+use super::{Name, VariableId, types};
+
+/// Boolean literal.
+pub fn lit_bool(value: bool) -> Expression {
+    Expression::Literal(Literal::Bool(value))
+}
 
 /// Generate a literal expression according to a type.
-pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+pub fn gen_literal(
+    u: &mut Unstructured,
+    typ: &Type,
+    config: &Config,
+) -> arbitrary::Result<Expression> {
     use FieldElement as Field;
     use IntegerBitSize::*;
 
     let expr = match typ {
         Type::Unit => Expression::Literal(Literal::Unit),
-        Type::Bool => Expression::Literal(Literal::Bool(bool::arbitrary(u)?)),
+        Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
-            let field = SignedField {
-                field: Field::from(u128::arbitrary(u)?),
-                is_negative: bool::arbitrary(u)?,
-            };
+            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
-            let (field, is_negative) =
-                if signedness.is_signed() {
-                    match integer_bit_size {
-                        One => bool::arbitrary(u).map(|n| (Field::from(n), n))?,
-                        Eight => i8::arbitrary(u)
-                            .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
-                        Sixteen => i16::arbitrary(u)
-                            .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
-                        ThirtyTwo => {
-                            i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
-                        }
-                        SixtyFour => {
-                            i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
-                        }
-                        HundredTwentyEight => {
-                            // `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
-                            // values with 128 bits, so let's stick to the positive range.
-                            i128::arbitrary(u).map(|n| (Field::from(n.abs()), false))?
-                        }
+            let (field, is_negative) = if signedness.is_signed() {
+                match integer_bit_size {
+                    One => bool::arbitrary(u).map(|n| (Field::from(n), n))?,
+                    Eight => i8::arbitrary(u)
+                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
+                    Sixteen => i16::arbitrary(u)
+                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
+                    ThirtyTwo => {
+                        i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
                     }
-                } else {
-                    let f = match integer_bit_size {
-                        One => Field::from(bool::arbitrary(u)?),
-                        Eight => Field::from(u8::arbitrary(u)? as u32),
-                        Sixteen => Field::from(u16::arbitrary(u)? as u32),
-                        ThirtyTwo => Field::from(u32::arbitrary(u)?),
-                        SixtyFour => Field::from(u64::arbitrary(u)?),
-                        HundredTwentyEight => Field::from(u128::arbitrary(u)?),
-                    };
-                    (f, false)
+                    SixtyFour => {
+                        i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                    }
+                    HundredTwentyEight => {
+                        // `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
+                        // values with 128 bits, so let's stick to the positive range.
+                        i128::arbitrary(u).map(|n| (Field::from(n.abs()), false))?
+                    }
+                }
+            } else {
+                let f = match integer_bit_size {
+                    One => Field::from(bool::arbitrary(u)?),
+                    Eight => Field::from(u32::from(u8::arbitrary(u)?)),
+                    Sixteen => Field::from(u32::from(u16::arbitrary(u)?)),
+                    ThirtyTwo => Field::from(u32::arbitrary(u)?),
+                    SixtyFour => Field::from(u64::arbitrary(u)?),
+                    HundredTwentyEight => Field::from(u128::arbitrary(u)?),
                 };
+                (f, false)
+            };
 
             Expression::Literal(Literal::Integer(
-                SignedField { field, is_negative },
+                SignedField::new(field, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -81,16 +91,29 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
         Type::Array(len, item_type) => {
             let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             for _ in 0..*len {
-                arr.contents.push(gen_literal(u, item_type)?);
+                arr.contents.push(gen_literal(u, item_type, config)?);
             }
             Expression::Literal(Literal::Array(arr))
+        }
+        Type::Slice(item_type) => {
+            let len = u.int_in_range(0..=config.max_array_size)?;
+            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+            for _ in 0..len {
+                arr.contents.push(gen_literal(u, item_type, config)?);
+            }
+            Expression::Literal(Literal::Slice(arr))
         }
         Type::Tuple(items) => {
             let mut values = Vec::new();
             for item_type in items {
-                values.push(gen_literal(u, item_type)?);
+                values.push(gen_literal(u, item_type, config)?);
             }
             Expression::Tuple(values)
+        }
+        Type::Reference(typ, mutable) => {
+            // In Noir we can return a reference for a value created in a function.
+            let value = gen_literal(u, typ.as_ref(), config)?;
+            ref_with_mut(value, typ.as_ref().clone(), *mutable)
         }
         _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
@@ -118,15 +141,15 @@ pub fn gen_range(
                 Eight => {
                     let s = i8::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u8);
-                    let s = (Field::from(s.unsigned_abs() as u32), s < 0);
-                    let e = (Field::from(e.unsigned_abs() as u32), e < 0);
+                    let s = (Field::from(u32::from(s.unsigned_abs())), s < 0);
+                    let e = (Field::from(u32::from(e.unsigned_abs())), e < 0);
                     (s, e)
                 }
                 Sixteen => {
                     let s = i16::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u16);
-                    let s = (Field::from(s.unsigned_abs() as u32), s < 0);
-                    let e = (Field::from(e.unsigned_abs() as u32), e < 0);
+                    let s = (Field::from(u32::from(s.unsigned_abs())), s < 0);
+                    let e = (Field::from(u32::from(e.unsigned_abs())), e < 0);
                     (s, e)
                 }
                 ThirtyTwo => {
@@ -150,15 +173,15 @@ pub fn gen_range(
                 Eight => {
                     let s = u8::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u8);
-                    let s = Field::from(s as u32);
-                    let e = Field::from(e as u32);
+                    let s = Field::from(u32::from(s));
+                    let e = Field::from(u32::from(e));
                     (s, e)
                 }
                 Sixteen => {
                     let s = u16::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u16);
-                    let s = Field::from(s as u32);
-                    let e = Field::from(e as u32);
+                    let s = Field::from(u32::from(s));
+                    let e = Field::from(u32::from(e));
                     (s, e)
                 }
                 ThirtyTwo => {
@@ -190,7 +213,7 @@ pub fn gen_range(
 
     let to_lit = |(field, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField { field, is_negative },
+            SignedField::new(field, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -237,7 +260,7 @@ where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative },
+        SignedField::new(value.into(), is_negative),
         typ,
         Location::dummy(),
     ))
@@ -245,7 +268,7 @@ where
 
 /// 8-bit unsigned int literal, used in bit shifts.
 pub fn u8_literal(value: u8) -> Expression {
-    int_literal(value as u32, false, types::U8)
+    int_literal(u32::from(value), false, types::U8)
 }
 
 /// 32-bit unsigned int literal, used in indexing arrays.
@@ -329,7 +352,11 @@ pub fn deref(rhs: Expression, tgt_type: Type) -> Expression {
 
 /// Reference an expression as a target type
 pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
-    unary(UnaryOp::Reference { mutable: true }, rhs, tgt_type)
+    ref_with_mut(rhs, tgt_type, true)
+}
+
+fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
+    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Box::new(tgt_type), mutable))
 }
 
 /// Make a unary expression.
@@ -339,6 +366,7 @@ pub fn unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -> Expression {
         rhs: Box::new(rhs),
         result_type: tgt_type,
         location: Location::dummy(),
+        skip: false,
     })
 }
 
@@ -352,9 +380,25 @@ pub fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expression {
     })
 }
 
-/// Check if an `Expression` contains any `Call` in any of its descendants.
+/// Check if an `Expression` contains any `Call` another function, in any of its descendants.
+/// Calls made to oracles such as `println` don't count.
 pub fn has_call(expr: &Expression) -> bool {
-    exists(expr, |expr| matches!(expr, Expression::Call(_)))
+    exists(expr, |expr| {
+        let Expression::Call(Call { func, .. }) = expr else {
+            return false;
+        };
+        // Check if we are calling an intrinsic or oracle, which don't count as recursion.
+        // If we are calling a function through a reference and not an ident, then it's
+        // not an oracle, so we can just assume it's recursive call.
+        let Expression::Ident(Ident { definition, .. }) = func.as_ref() else {
+            return true;
+        };
+        let is_builtin_or_oracle = matches!(
+            definition,
+            Definition::Builtin(_) | Definition::Oracle(_) | Definition::LowLevel(_)
+        );
+        !is_builtin_or_oracle
+    })
 }
 
 /// Check if an `Expression` or any of its descendants match a predicate.
@@ -368,28 +412,18 @@ pub fn exists(expr: &Expression, pred: impl Fn(&Expression) -> bool) -> bool {
     exists
 }
 
-/// Collect all the functions called in the expression and its descendants.
-pub fn callees(expr: &Expression) -> HashSet<FuncId> {
-    let mut callees = HashSet::default();
+/// Collect all the functions referred to by their ID in the expression and its descendants.
+pub fn reachable_functions(expr: &Expression) -> HashSet<FuncId> {
+    let mut reachable = HashSet::default();
     visit_expr(expr, &mut |expr| {
-        if let Expression::Call(call) = expr {
-            if let Expression::Ident(ident) = call.func.as_ref() {
-                if let Definition::Function(func_id) = ident.definition {
-                    callees.insert(func_id);
-                }
-            }
-            // Consider functions passed as arguments as at least callable.
-            for arg in &call.arguments {
-                if let Expression::Ident(ident) = arg {
-                    if let Definition::Function(func_id) = ident.definition {
-                        callees.insert(func_id);
-                    }
-                }
-            }
+        // Regardless of whether it's in a `Call` or stored in a reference,
+        // it will appear in an identifier at some point.
+        if let Expression::Ident(Ident { definition: Definition::Function(func_id), .. }) = expr {
+            reachable.insert(*func_id);
         }
         true
     });
-    callees
+    reachable
 }
 
 /// Prepend an expression to a destination.
@@ -450,50 +484,21 @@ pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expressi
     Expression::Block(result_statements)
 }
 
-/// The return type of an expression, if it has an obvious one.
-pub fn return_type(expr: &Expression) -> Option<&Type> {
-    match expr {
-        Expression::Ident(ident) => Some(&ident.typ),
-        Expression::Literal(literal) => match literal {
-            Literal::Array(literal) | Literal::Slice(literal) => Some(&literal.typ),
-            Literal::Integer(_, typ, _) => Some(typ),
-            Literal::Bool(_) => Some(&Type::Bool),
-            Literal::Unit => Some(&Type::Unit),
-            Literal::Str(_) => None, // Need to return owned type for this.
-            Literal::FmtStr(_, _, _) => None,
-        },
-        Expression::Block(xs) => xs.last().and_then(return_type),
-        Expression::Unary(unary) => Some(&unary.result_type),
-        Expression::Binary(binary) => {
-            if binary.operator.is_comparator() {
-                Some(&Type::Bool)
-            } else {
-                return_type(&binary.lhs)
-            }
-        }
-        Expression::Index(index) => Some(&index.element_type),
-        Expression::Cast(cast) => Some(&cast.r#type),
-        Expression::If(if_) => Some(&if_.typ),
-        Expression::ExtractTupleField(x, idx) => match x.as_ref() {
-            Expression::Tuple(xs) if xs.len() > *idx => return_type(&xs[*idx]),
-            _ => None, // Maybe something else that returns a tuple.
-        },
-        Expression::Clone(x) => return_type(x),
-        Expression::Call(call) => Some(&call.return_type),
+/// Is the expression an identifier of an immutable variable
+pub(crate) fn is_immutable_ident(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(Ident { mutable: false, .. }))
+}
 
-        Expression::Tuple(_) => None, // Need to return an owned types for this.
+/// Is the expression dereferencing something.
+pub(crate) fn is_deref(expr: &Expression) -> bool {
+    matches!(expr, Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, .. }))
+}
 
-        Expression::Match(_) => None, // TODO #7926
-
-        Expression::For(_)
-        | Expression::Loop(_)
-        | Expression::While(_)
-        | Expression::Let(_)
-        | Expression::Constrain(_, _, _)
-        | Expression::Assign(_)
-        | Expression::Semi(_)
-        | Expression::Drop(_)
-        | Expression::Break
-        | Expression::Continue => None,
+/// Peel back any dereference operators until we get to some other kind of expression.
+pub(crate) fn unref_mut(expr: &mut Expression) -> &mut Expression {
+    if let Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, rhs, .. }) = expr {
+        unref_mut(rhs.as_mut())
+    } else {
+        expr
     }
 }

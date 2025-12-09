@@ -4,5 +4,5 @@ expression: expanded_code
 ---
 fn main(x: u32, y: pub u32) {
     let m: u32 = x ^ y;
-    assert(m != 10);
+    assert(m != 10_u32);
 }

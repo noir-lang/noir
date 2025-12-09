@@ -1,9 +1,29 @@
 #![cfg(test)]
+use crate::tests::assert_no_errors;
+
 use super::get_program_errors;
 use std::collections::HashSet;
 
 #[test]
+fn resolve_shadowing() {
+    let src = r#"
+        fn main(x : Field) {
+            let x = foo(x);
+            let x = x;
+            let (x, _) = (x, x);
+            let _ = x;
+        }
+
+        fn foo(x : Field) -> Field {
+            x
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn test_name_shadowing() {
+    // cSpell:disable
     let src = "
     trait Default {
         fn default() -> Self;
@@ -311,9 +331,10 @@ fn test_name_shadowing() {
         assert(drop_var(PubLiblocal_fn4((0, 1), [], []), true));
         assert(drop_var(PubCrateLiblocal_fn3((0, 1), [], []), true));
     }";
+    // cSpell:enable
 
     // NOTE: these names must be "replacement-unique", i.e.
-    // replacing one in a discinct name should do nothing
+    // replacing one in a distinct name should do nothing
     let names_to_collapse = [
         "DefinedInLocalModule1",
         "IMPORT_GLOBAL_M_1",
@@ -326,14 +347,14 @@ fn test_name_shadowing() {
         "LOCAL_GLOBAL_N",
         "LibDefinedInLocalModule1",
         "LibLocalStruct1",
-        "Liblocal_fn1",
+        "Liblocal_fn1", // cSpell:disable-line
         "LocalStruct",
         "PubCrateLibDefinedInLocalModule2",
         "PubCrateLibLocalStruct2",
-        "PubCrateLiblocal_fn2",
+        "PubCrateLiblocal_fn2", // cSpell:disable-line
         "PubLibDefinedInLocalModule3",
         "PubLibLocalStruct3",
-        "PubLiblocal_fn3",
+        "PubLiblocal_fn3", // cSpell:disable-line
         "ReExportMeFromAnotherLib1",
         "ReExportMeFromAnotherLib2",
         "local_fn4",
@@ -409,8 +430,8 @@ fn test_name_shadowing() {
         for (j, y) in names_to_collapse.iter().enumerate().filter(|(j, _)| i < *j) {
             if !cases_to_skip.contains(&(i, j)) {
                 let modified_src = src.replace(x, y);
-                let errors = get_program_errors(&modified_src, &format!("name_shadowing_{i}_{j}"));
-                assert!(!errors.is_empty(), "Expected errors, got: {:?}", errors);
+                let errors = get_program_errors(&modified_src);
+                assert!(!errors.is_empty(), "Expected errors, got: {errors:?}");
             }
         }
     }

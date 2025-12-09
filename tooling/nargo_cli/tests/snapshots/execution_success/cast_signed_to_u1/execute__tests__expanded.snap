@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(
+    zero: i32,
+    one: i32,
+    two: i32,
+    three: i32,
+    minus_one: i32,
+    minus_two: i32,
+    minus_three: i32,
+) {
+    assert((zero as u1) == 0_u1);
+    assert((one as u1) == 1_u1);
+    assert((two as u1) == 0_u1);
+    assert((three as u1) == 1_u1);
+    assert((minus_one as u1) == 1_u1);
+    assert((minus_two as u1) == 0_u1);
+    assert((minus_three as u1) == 1_u1);
+    let zero: i32 = 0_i32;
+    let one: i32 = 1_i32;
+    let two: i32 = 2_i32;
+    let three: i32 = 3_i32;
+    let minus_one: i32 = -1_i32;
+    let minus_two: i32 = -2_i32;
+    let minus_three: i32 = -3_i32;
+    assert((zero as u1) == 0_u1);
+    assert((one as u1) == 1_u1);
+    assert((two as u1) == 0_u1);
+    assert((three as u1) == 1_u1);
+    assert((minus_one as u1) == 1_u1);
+    assert((minus_two as u1) == 0_u1);
+    assert((minus_three as u1) == 1_u1);
+}

@@ -25,5 +25,5 @@ comptime fn function_attr(_f: FunctionDefinition) -> Quoted {
 }
 
 fn main() {
-    let _: Foo = Default::default();
+    let _: Foo = Foo::default();
 }

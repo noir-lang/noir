@@ -16,7 +16,8 @@ noirc_frontend.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
-fxhash.workspace = true
+rustc-hash.workspace = true
+rustc-stable-hash = "^0.1.2"
 iter-extended.workspace = true
 thiserror.workspace = true
 noirc_printable_type.workspace = true
@@ -24,6 +25,7 @@ num-bigint.workspace = true
 num-integer.workspace = true
 num-traits.workspace = true
 im.workspace = true
+indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_with = "3.2.0"
@@ -34,14 +36,15 @@ cfg-if.workspace = true
 smallvec = { version = "1.13.2", features = ["serde"] }
 vec-collections = "0.4.3"
 petgraph.workspace = true
+fm.workspace = true
 
 [dev-dependencies]
+arbtest.workspace = true
 proptest.workspace = true
 similar-asserts.workspace = true
 tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
-function_name = "0.3.0"
 insta.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
 

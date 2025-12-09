@@ -2,20 +2,25 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{HashSet, VecDeque};
 
+use std::collections::HashSet;
+
+use crate::{
+    errors::RuntimeError,
+    ssa::{opt::inlining::inline_info::compute_bottom_up_order, visit_once_deque::VisitOnceDeque},
+};
 use acvm::acir::AcirField;
 use im::HashMap;
-use iter_extended::{btree_map, vecmap};
-use noirc_errors::call_stack::CallStackId;
+use iter_extended::vecmap;
+use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
         call_graph::CallGraph,
-        dfg::{GlobalsGraph, InsertInstructionResult},
-        function::{Function, FunctionId, RuntimeType},
+        dfg::InsertInstructionResult,
+        function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -24,6 +29,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
+pub use inline_info::MAX_INSTRUCTIONS;
 pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
@@ -50,54 +56,92 @@ impl Ssa {
     ///
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn inline_functions(self, aggressiveness: i64) -> Ssa {
-        let call_graph = CallGraph::from_ssa_weighted(&self);
-        let inline_infos = compute_inline_infos(&self, &call_graph, false, aggressiveness);
-        Self::inline_functions_inner(self, &inline_infos, false)
+    pub(crate) fn inline_functions(
+        self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+    ) -> Result<Ssa, RuntimeError> {
+        self.inline_until_fixed_point(aggressiveness, small_function_max_instructions, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
-    pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
-        let call_graph = CallGraph::from_ssa_weighted(&self);
-        let inline_infos = compute_inline_infos(&self, &call_graph, true, aggressiveness);
-        Self::inline_functions_inner(self, &inline_infos, true)
+    pub(crate) fn inline_functions_with_no_predicates(
+        self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+    ) -> Result<Ssa, RuntimeError> {
+        self.inline_until_fixed_point(aggressiveness, small_function_max_instructions, true)
     }
 
+    /// Inline functions repeatedly until no new functions are inlined.
+    pub(crate) fn inline_until_fixed_point(
+        mut self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+        inline_no_predicates_functions: bool,
+    ) -> Result<Ssa, RuntimeError> {
+        loop {
+            let num_functions_before = self.functions.len();
+
+            let call_graph = CallGraph::from_ssa_weighted(&self);
+
+            let inline_infos = compute_inline_infos(
+                &self,
+                &call_graph,
+                inline_no_predicates_functions,
+                small_function_max_instructions,
+                aggressiveness,
+            );
+
+            // Bottom-up order, starting with the "leaf" functions.
+            let bottom_up = compute_bottom_up_order(&self, &call_graph);
+            let bottom_up = vecmap(bottom_up, |(id, _)| id);
+
+            self = Self::inline_functions_inner(self, &inline_infos, &bottom_up)?;
+
+            let num_functions_after = self.functions.len();
+            if num_functions_after == num_functions_before {
+                break;
+            }
+        }
+
+        Ok(self)
+    }
+
+    /// Inline entry points in the order of appearance in `inline_infos`, assuming it goes in bottom-up order.
     fn inline_functions_inner(
         mut self,
         inline_infos: &InlineInfos,
-        inline_no_predicates_functions: bool,
-    ) -> Ssa {
-        let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
-            let dfg = &self.functions[id].dfg;
-            info.is_inline_target(dfg).then_some(*id)
-        });
+        bottom_up: &[FunctionId],
+    ) -> Result<Ssa, RuntimeError> {
+        let inline_targets = bottom_up
+            .iter()
+            .filter_map(|id| {
+                let info = inline_infos.get(id)?;
+                let dfg = &self.functions[id].dfg;
+                info.is_inline_target(dfg).then_some(*id)
+            })
+            .collect::<Vec<_>>();
 
         let should_inline_call = |callee: &Function| -> bool {
-            match callee.runtime() {
-                RuntimeType::Acir(_) => {
-                    // If we have not already finished the flattening pass, functions marked
-                    // to not have predicates should be preserved.
-                    let preserve_function =
-                        !inline_no_predicates_functions && callee.is_no_predicates();
-                    !preserve_function
-                }
-                RuntimeType::Brillig(_) => {
-                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                    InlineInfo::should_inline(inline_infos, callee.id())
-                }
-            }
+            // We defer to the inline info computation to determine whether a function should be inlined
+            InlineInfo::should_inline(inline_infos, callee.id())
         };
 
-        // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
-        // instead of inlining the "leaf" functions, moving up towards the entry point.
-        self.functions = btree_map(inline_targets, |entry_point| {
+        // We are going bottom up, so hopefully we can inline leaf functions into their callers and retain less memory.
+        let mut new_functions = HashSet::new();
+        for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
-            let new_function = function.inlined(&self, &should_inline_call);
-            (entry_point, new_function)
-        });
+            let inlined = function.inlined(&self, &should_inline_call)?;
+            assert_eq!(inlined.id(), entry_point);
+            self.functions.insert(entry_point, inlined);
+            new_functions.insert(entry_point);
+        }
 
-        self
+        // Drop functions that weren't inline targets.
+        self.functions.retain(|id, _| new_functions.contains(id));
+
+        Ok(self)
     }
 }
 
@@ -107,7 +151,7 @@ impl Function {
         &self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Function {
+    ) -> Result<Function, RuntimeError> {
         InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call)
     }
 }
@@ -159,8 +203,6 @@ struct PerFunctionContext<'function> {
 
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
-
-    globals: &'function GlobalsGraph,
 }
 
 impl InlineContext {
@@ -180,31 +222,19 @@ impl InlineContext {
         mut self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Function {
+    ) -> Result<Function, RuntimeError> {
         let entry_point = &ssa.functions[&self.entry_point];
 
-        let globals = &entry_point.dfg.globals;
-        let mut context = PerFunctionContext::new(&mut self, entry_point, entry_point, globals);
+        let mut context = PerFunctionContext::new(&mut self, entry_point, entry_point);
         context.inlining_entry = true;
-
-        for (_, value) in entry_point.dfg.globals.values_iter() {
-            context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
-        }
 
         // The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
         let entry_block = context.context.builder.current_function.entry_block();
-        let original_parameters = context.source_function.parameters();
-
-        for parameter in original_parameters {
-            let typ = context.source_function.dfg.type_of_value(*parameter);
-            let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(*parameter, new_parameter);
-        }
-
+        context.translate_block_parameters(context.source_function.entry_block(), entry_block);
         context.blocks.insert(context.source_function.entry_block(), entry_block);
-        context.inline_blocks(ssa, should_inline_call);
+        context.inline_blocks(ssa, should_inline_call)?;
         // translate databus values
         let databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
@@ -213,7 +243,7 @@ impl InlineContext {
         assert_eq!(new_ssa.functions.len(), 1);
         let mut new_func = new_ssa.functions.pop_first().unwrap().1;
         new_func.dfg.data_bus = databus;
-        new_func
+        Ok(new_func)
     }
 
     /// Inlines a function into the current function and returns the translated return values
@@ -224,22 +254,20 @@ impl InlineContext {
         id: FunctionId,
         arguments: &[ValueId],
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Vec<ValueId> {
+    ) -> Result<Vec<ValueId>, RuntimeError> {
         self.recursion_level += 1;
 
         let source_function = &ssa.functions[&id];
-
         if self.recursion_level > RECURSION_LIMIT {
-            panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}",
-                source_function.name(),
-                source_function
-            );
+            return Err(RuntimeError::RecursionLimit {
+                function_name: source_function.name().to_string(),
+                limit: RECURSION_LIMIT,
+                call_stack: self.builder.current_function.dfg.get_call_stack(self.call_stack),
+            });
         }
 
         let entry_point = &ssa.functions[&self.entry_point];
-        let globals = &source_function.dfg.globals;
-        let mut context = PerFunctionContext::new(self, entry_point, source_function, globals);
+        let mut context = PerFunctionContext::new(self, entry_point, source_function);
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
@@ -248,9 +276,9 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        let return_values = context.inline_blocks(ssa, should_inline_call);
+        let return_values = context.inline_blocks(ssa, should_inline_call)?;
         self.recursion_level -= 1;
-        return_values
+        Ok(return_values)
     }
 }
 
@@ -263,7 +291,6 @@ impl<'function> PerFunctionContext<'function> {
         context: &'function mut InlineContext,
         entry_function: &'function Function,
         source_function: &'function Function,
-        globals: &'function GlobalsGraph,
     ) -> Self {
         Self {
             context,
@@ -272,7 +299,6 @@ impl<'function> PerFunctionContext<'function> {
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
-            globals,
         }
     }
 
@@ -287,21 +313,9 @@ impl<'function> PerFunctionContext<'function> {
         }
 
         let new_value = match &self.source_function.dfg[id] {
-            value @ Value::Instruction { instruction, .. } => {
+            value @ Value::Instruction { .. } => {
                 if self.source_function.dfg.is_global(id) {
-                    if self.context.builder.current_function.dfg.runtime().is_acir() {
-                        let Instruction::MakeArray { elements, typ } = &self.globals[*instruction]
-                        else {
-                            panic!("Only expect Instruction::MakeArray for a global");
-                        };
-                        let elements = elements
-                            .iter()
-                            .map(|element| self.translate_value(*element))
-                            .collect::<im::Vector<_>>();
-                        return self.context.builder.insert_make_array(elements, typ.clone());
-                    } else {
-                        return id;
-                    }
+                    return id;
                 }
                 unreachable!(
                     "All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}"
@@ -315,10 +329,7 @@ impl<'function> PerFunctionContext<'function> {
             Value::NumericConstant { constant, typ } => {
                 // The dfg indexes a global's inner value directly, so we need to check here
                 // whether we have a global.
-                // We also only keep a global and do not inline it in a Brillig runtime.
-                if self.source_function.dfg.is_global(id)
-                    && self.context.builder.current_function.dfg.runtime().is_brillig()
-                {
+                if self.source_function.dfg.is_global(id) {
                     id
                 } else {
                     self.context.builder.numeric_constant(*constant, *typ)
@@ -347,7 +358,7 @@ impl<'function> PerFunctionContext<'function> {
     fn translate_block(
         &mut self,
         source_block: BasicBlockId,
-        block_queue: &mut VecDeque<BasicBlockId>,
+        block_queue: &mut VisitOnceDeque,
     ) -> BasicBlockId {
         if let Some(block) = self.blocks.get(&source_block) {
             return *block;
@@ -359,16 +370,23 @@ impl<'function> PerFunctionContext<'function> {
         // The block is not already present in the function being inlined into so we must create it.
         // The block's instructions are not copied over as they will be copied later in inlining.
         let new_block = self.context.builder.insert_block();
-        let original_parameters = self.source_function.dfg.block_parameters(source_block);
-
-        for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
-            let new_parameter = self.context.builder.add_block_parameter(new_block, typ);
-            self.values.insert(*parameter, new_parameter);
-        }
-
+        self.translate_block_parameters(source_block, new_block);
         self.blocks.insert(source_block, new_block);
         new_block
+    }
+
+    /// Copy block parameters from `source_block` into `target_block`.
+    fn translate_block_parameters(
+        &mut self,
+        source_block: BasicBlockId,
+        target_block: BasicBlockId,
+    ) {
+        let original_parameters = self.source_function.dfg.block_parameters(source_block);
+        for parameter in original_parameters {
+            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let new_parameter = self.context.builder.add_block_parameter(target_block, typ);
+            self.values.insert(*parameter, new_parameter);
+        }
     }
 
     /// Try to retrieve the function referred to by the given Id.
@@ -392,9 +410,8 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Vec<ValueId> {
-        let mut seen_blocks = HashSet::new();
-        let mut block_queue = VecDeque::new();
+    ) -> Result<Vec<ValueId>, RuntimeError> {
+        let mut block_queue = VisitOnceDeque::default();
         block_queue.push_back(self.source_function.entry_block());
 
         // This Vec will contain each block with a Return instruction along with the
@@ -402,14 +419,10 @@ impl<'function> PerFunctionContext<'function> {
         let mut function_returns = vec![];
 
         while let Some(source_block_id) = block_queue.pop_front() {
-            if seen_blocks.contains(&source_block_id) {
-                continue;
-            }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
 
-            seen_blocks.insert(source_block_id);
-            self.inline_block_instructions(ssa, source_block_id, should_inline_call);
+            self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
 
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
@@ -418,7 +431,7 @@ impl<'function> PerFunctionContext<'function> {
             }
         }
 
-        self.handle_function_returns(function_returns)
+        Ok(self.handle_function_returns(function_returns))
     }
 
     /// Handle inlining a function's possibly multiple return instructions.
@@ -436,17 +449,9 @@ impl<'function> PerFunctionContext<'function> {
                 return_values
             }
             _ => {
-                // If there is more than 1 return instruction we'll need to create a single block we
-                // can return to and continue inserting in afterwards.
-                let return_block = self.context.builder.insert_block();
-
-                for (block, return_values) in returns {
-                    self.context.builder.switch_to_block(block);
-                    self.context.builder.terminate_with_jmp(return_block, return_values);
-                }
-
-                self.context.builder.switch_to_block(return_block);
-                self.context.builder.block_parameters(return_block).to_vec()
+                panic!(
+                    "ICE: found a function with multiple return terminators, but that should not happen"
+                )
             }
         }
     }
@@ -458,7 +463,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         block_id: BasicBlockId,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) {
+    ) -> Result<(), RuntimeError> {
         let mut side_effects_enabled: Option<ValueId> = None;
 
         let block = &self.source_function.dfg[block_id];
@@ -466,29 +471,31 @@ impl<'function> PerFunctionContext<'function> {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
-                        if let Some(callee) = self.should_inline_call(ssa, func_id) {
-                            if should_inline_call(callee) {
-                                self.inline_function(
-                                    ssa,
-                                    *id,
-                                    func_id,
-                                    arguments,
-                                    should_inline_call,
-                                );
+                        let call_stack = self.source_function.dfg.get_instruction_call_stack(*id);
+                        let callee = &ssa.functions[&func_id];
 
-                                // This is only relevant during handling functions with `InlineType::NoPredicates` as these
-                                // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
-                                // resulting in predicates not being applied properly.
-                                //
-                                // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
-                                // within the function being inlined whilst the source function has not encountered one yet.
-                                // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
-                                // function being inlined will be to turn off predicates rather than to create one.
-                                if let Some(condition) = side_effects_enabled {
-                                    self.context.builder.insert_enable_side_effects_if(condition);
-                                }
-                            } else {
-                                self.push_instruction(*id);
+                        // Sanity check to validate runtime compatibility
+                        self.validate_callee(callee, call_stack)?;
+
+                        // Do not inline self-recursive functions on the top level.
+                        // Inlining a self-recursive function works when there is something to inline into
+                        // by importing all the recursive blocks, but for the entry function there is no wrapper.
+                        // We must do this check here as inlining can be can triggered on a non-inline target (e.g., non-entry point).
+                        let inlining_self_recursion_at_top_level =
+                            self.entry_function.id() == func_id;
+                        if !inlining_self_recursion_at_top_level && should_inline_call(callee) {
+                            self.inline_function(ssa, *id, func_id, arguments, should_inline_call)?;
+
+                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                            // resulting in predicates not being applied properly.
+                            //
+                            // Note that this doesn't cover the case in which there exists an `Instruction::EnableSideEffectsIf`
+                            // within the function being inlined whilst the source function has not encountered one yet.
+                            // In practice this isn't an issue as the last `Instruction::EnableSideEffectsIf` in the
+                            // function being inlined will be to turn off predicates rather than to create one.
+                            if let Some(condition) = side_effects_enabled {
+                                self.context.builder.insert_enable_side_effects_if(condition);
                             }
                         } else {
                             self.push_instruction(*id);
@@ -503,38 +510,36 @@ impl<'function> PerFunctionContext<'function> {
                 _ => self.push_instruction(*id),
             }
         }
+        Ok(())
     }
 
-    fn should_inline_call<'a>(
+    /// Extra error check where given a caller's runtime its callee runtime is valid.
+    /// We determine validity as the following (where we have caller -> callee).
+    /// Valid:
+    /// - ACIR -> ACIR
+    /// - ACIR -> Brillig
+    /// - Brillig -> Brillig
+    ///
+    /// Invalid:
+    /// - Brillig -> ACIR
+    ///
+    /// Whether a valid callee should be inlined is determined separately by the inline info computation.
+    fn validate_callee(
         &self,
-        ssa: &'a Ssa,
-        called_func_id: FunctionId,
-    ) -> Option<&'a Function> {
-        // Do not inline self-recursive functions on the top level.
-        // Inlining a self-recursive function works when there is something to inline into
-        // by importing all the recursive blocks, but for the entry function there is no wrapper.
-        if self.entry_function.id() == called_func_id {
-            return None;
+        callee: &Function,
+        call_stack: Vec<Location>,
+    ) -> Result<(), RuntimeError> {
+        if self.entry_function.runtime().is_brillig() && callee.runtime().is_acir() {
+            // If the caller is Brillig and the called function is ACIR,
+            // it cannot be inlined because runtimes do not share the same semantics
+            return Err(RuntimeError::UnconstrainedCallingConstrained {
+                call_stack,
+                constrained: callee.name().to_string(),
+                unconstrained: self.entry_function.name().to_string(),
+            });
         }
 
-        let callee = &ssa.functions[&called_func_id];
-
-        match callee.runtime() {
-            RuntimeType::Acir(inline_type) => {
-                // If the called function is acir, we inline if it's not an entry point
-                if inline_type.is_entry_point() {
-                    return None;
-                }
-            }
-            RuntimeType::Brillig(_) => {
-                if self.entry_function.runtime().is_acir() {
-                    // We never inline a brillig function into an ACIR function.
-                    return None;
-                }
-            }
-        }
-
-        Some(callee)
+        Ok(())
     }
 
     /// Inline a function call and remember the inlined return values in the values map
@@ -545,7 +550,7 @@ impl<'function> PerFunctionContext<'function> {
         function: FunctionId,
         arguments: &[ValueId],
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) {
+    ) -> Result<(), RuntimeError> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
@@ -561,7 +566,7 @@ impl<'function> PerFunctionContext<'function> {
 
         self.context.call_stack = new_call_stack;
         let new_results =
-            self.context.inline_function(ssa, function, &arguments, should_inline_call);
+            self.context.inline_function(ssa, function, &arguments, should_inline_call)?;
         self.context.call_stack = self
             .context
             .builder
@@ -572,6 +577,7 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
+        Ok(())
     }
 
     /// Push the given instruction from the source_function into the current block of the
@@ -608,22 +614,8 @@ impl<'function> PerFunctionContext<'function> {
         new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
-            }
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, new_result);
-                }
-            }
-            InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
+        for i in 0..old_results.len() {
+            values.insert(old_results[i], new_results[i]);
         }
     }
 
@@ -636,26 +628,14 @@ impl<'function> PerFunctionContext<'function> {
     fn handle_terminator_instruction(
         &mut self,
         block_id: BasicBlockId,
-        block_queue: &mut VecDeque<BasicBlockId>,
+        block_queue: &mut VisitOnceDeque,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
         match &self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-
-                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
-                let new_call_stack = self
-                    .context
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .extend_call_stack(self.context.call_stack, &call_stack);
-
-                self.context
-                    .builder
-                    .set_call_stack(new_call_stack)
-                    .terminate_with_jmp(destination, arguments);
+                self.extend_call_stack(*call_stack);
+                self.context.builder.terminate_with_jmp(destination, arguments);
                 None
             }
             TerminatorInstruction::JmpIf {
@@ -665,14 +645,6 @@ impl<'function> PerFunctionContext<'function> {
                 call_stack,
             } => {
                 let condition = self.translate_value(*condition);
-                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
-                let new_call_stack = self
-                    .context
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .extend_call_stack(self.context.call_stack, &call_stack);
 
                 // See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -683,17 +655,15 @@ impl<'function> PerFunctionContext<'function> {
                             if constant.is_zero() { *else_destination } else { *then_destination };
 
                         let next_block = self.translate_block(next_block, block_queue);
-                        self.context
-                            .builder
-                            .set_call_stack(new_call_stack)
-                            .terminate_with_jmp(next_block, vec![]);
+                        self.extend_call_stack(*call_stack);
+                        self.context.builder.terminate_with_jmp(next_block, vec![]);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
+                        self.extend_call_stack(*call_stack);
                         self.context
                             .builder
-                            .set_call_stack(new_call_stack)
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }
@@ -709,25 +679,27 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.context.builder.current_block();
 
                 if self.inlining_entry {
-                    let call_stack =
-                        self.source_function.dfg.call_stack_data.get_call_stack(*call_stack);
-                    let new_call_stack = self
-                        .context
-                        .builder
-                        .current_function
-                        .dfg
-                        .call_stack_data
-                        .extend_call_stack(self.context.call_stack, &call_stack);
-
-                    self.context
-                        .builder
-                        .set_call_stack(new_call_stack)
-                        .terminate_with_return(return_values.clone());
+                    self.extend_call_stack(*call_stack);
+                    self.context.builder.terminate_with_return(return_values.clone());
                 }
 
                 Some((block_id, return_values))
             }
+            TerminatorInstruction::Unreachable { .. } => {
+                // Note: `unreachable` terminators are only added during the `remove_unreachable_instructions`,
+                // which runs near the end of the optimization pipeline, so never before inlining.
+                // If we ever want to run it before inlining we'll have to handle this case.
+                panic!("Unreachable terminator instruction should not exist during inlining.")
+            }
         }
+    }
+
+    fn extend_call_stack(&mut self, call_stack: CallStackId) {
+        let call_stack = self.source_function.dfg.get_call_stack(call_stack);
+        let call_stack_data = &mut self.context.builder.current_function.dfg.call_stack_data;
+        let new_call_stack =
+            call_stack_data.extend_call_stack(self.context.call_stack, &call_stack);
+        self.context.builder.set_call_stack(new_call_stack);
     }
 }
 
@@ -735,8 +707,16 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        errors::RuntimeError,
+        ssa::{
+            Ssa,
+            ir::{instruction::TerminatorInstruction, map::Id},
+            opt::assert_normalized_ssa_equals,
+        },
     };
+
+    // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
+    const MAX_INSTRUCTIONS: usize = 0;
 
     #[test]
     fn basic_inlining() {
@@ -753,13 +733,33 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn foo f0 {
           b0():
             return Field 72
         }
         ");
+    }
+
+    #[test]
+    fn basic_inlining_brillig_not_inlined_into_acir() {
+        // This test matches the `basic_inlining` test exactly except that f1 is marked as a Brillig runtime.
+        // We expect that Brillig entry points (e.g., Brillig functions called from ACIR) should never be inlined.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -792,7 +792,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -807,26 +807,27 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v2 = call f1(Field 5) -> Field
+            v2 = call f1(u32 5) -> u32
             return v2
         }
-
         acir(inline) fn factorial f1 {
-          b0(v1: Field):
-            v2 = lt v1, Field 1
+          b0(v1: u32):
+            v2 = lt v1, u32 1
             jmpif v2 then: b1, else: b2
           b1():
-            return Field 1
+            jmp b3(u32 1)
           b2():
-            v4 = sub v1, Field 1
-            v5 = call f1(v4) -> Field
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
             v6 = mul v1, v5
-            return v6
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
@@ -842,9 +843,74 @@ mod test {
           b5():
             jmp b6()
           b6():
-            return Field 120
+            jmp b7(u32 1)
+          b7(v0: u32):
+            jmp b8(v0)
+          b8(v1: u32):
+            v8 = mul u32 2, v1
+            jmp b9(v8)
+          b9(v2: u32):
+            v10 = mul u32 3, v2
+            jmp b10(v10)
+          b10(v3: u32):
+            v12 = mul u32 4, v3
+            jmp b11(v12)
+          b11(v4: u32):
+            v14 = mul u32 5, v4
+            jmp b12(v14)
+          b12(v5: u32):
+            return v5
         }
         ");
+    }
+
+    /// This test is the same as [recursive_functions] we just want to test that inlining
+    /// does not fail when triggered from the self recursive non-entry point function instead
+    /// of the program entry point.
+    #[test]
+    fn recursive_functions_non_inline_target() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1(u32 5) -> u32
+            return v2
+        }
+        acir(inline) fn factorial f1 {
+          b0(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3(u32 1)
+          b2():
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
+            v6 = mul v1, v5
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let f1 = &ssa.functions[&Id::test_new(1)];
+        let function = f1.inlined(&ssa, &|_| true).unwrap();
+        // The expected string must be formatted this way as to account for newlines and whitespace
+        assert_eq!(
+            function.to_string(),
+            "acir(inline) fn factorial f1 {
+  b0(v0: u32):
+    v3 = eq v0, u32 0
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(u32 1)
+  b2():
+    v5 = sub v0, u32 1
+    v7 = call f1(v5) -> u32
+    v8 = mul v0, v7
+    jmp b3(v8)
+  b3(v4: u32):
+    return v4
+}"
+        );
     }
 
     #[test]
@@ -868,7 +934,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -885,10 +951,9 @@ mod test {
     }
 
     #[test]
-    #[should_panic(
-        expected = "Attempted to recur more than 1000 times during inlining function 'foo':\nacir(inline) fn foo f1 {"
-    )]
     fn unconditional_recursion() {
+        // f1 is calling itself, which results in an infinite recursion
+        // it is expected that inlining this program returns an error.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -904,7 +969,11 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.functions.len(), 2);
 
-        let _ = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS);
+        let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'foo'");
     }
 
     #[test]
@@ -915,14 +984,13 @@ mod test {
             v1 = call f1() -> Field
             return v1
         }
-
         brillig(inline) fn bar f1 {
           b0():
             return Field 72
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN);
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -951,8 +1019,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.inline_functions(0);
+        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened in f0
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
@@ -971,5 +1038,665 @@ mod test {
             return v0
         }
         ");
+    }
+
+    #[test]
+    fn conditional_inlining_const_from_param_and_direct_constant() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            v2 = call f2(u1 1) -> Field
+            v3 = call f2(u1 0) -> Field
+            return v1, v2, v3
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v3: Field):
+            return v3
+        }
+        brillig(inline) fn baz f2 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v3: Field):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        // We expect a block from all calls to f1 and f2 to be pruned and that the constant argument to the f2 call
+        // is propagated to the jmpif conditional in b0.
+        // Field 1 to be returned from the first call to f2 and Field 2 should be returned from the second call to f2.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2(Field 1)
+          b2(v0: Field):
+            jmp b3()
+          b3():
+            jmp b4(Field 1)
+          b4(v1: Field):
+            jmp b5()
+          b5():
+            jmp b6(Field 2)
+          b6(v2: Field):
+            return v0, v1, v2
+        }
+        ");
+    }
+
+    #[test]
+    fn static_assertions_to_always_be_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1(Field 1)
+              return
+        }
+        brillig(inline) fn foo f1 {
+            b0(v0: Field):
+              call assert_constant(v0)
+              return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn no_predicates_flag_inactive() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn no_predicates_flag_active() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_always_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        brillig(inline_always) fn always_inline f1 {
+            b0():
+                return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+
+        // Check that with a minimum inliner aggressiveness we do not inline a function
+        // not marked with `inline_always`
+        let no_inline_always_src = &src.replace("inline_always", "inline");
+        let ssa = Ssa::from_str(no_inline_always_src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, no_inline_always_src);
+    }
+
+    #[test]
+    fn acir_global_arrays_keep_same_value_ids() {
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [Field; 2]
+            return v0
+        }
+        acir(inline) fn create_array f1 {
+          b0():
+            return g2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        acir(inline) fn main f0 {
+          b0():
+            return g2
+        }
+        ");
+    }
+
+    #[test]
+    fn brillig_global_arrays_keep_same_value_ids() {
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [Field; 2]
+            return v0
+        }
+        brillig(inline) fn create_array f1 {
+          b0():
+            return g2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            return g2
+        }
+        ");
+    }
+
+    #[test]
+    fn acir_global_constants_keep_same_value_ids() {
+        let src = "
+        g0 = Field 1
+
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        acir(inline) fn get_constant f1 {
+          b0():
+            return g0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
+        let main = ssa.main();
+        let entry_block = main.entry_block();
+        let terminator = main.dfg[entry_block].unwrap_terminator();
+        let TerminatorInstruction::Return { return_values, .. } = terminator else {
+            panic!("Expected return");
+        };
+        assert_eq!(return_values.len(), 1);
+        assert!(main.dfg.is_global(return_values[0]));
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+
+        acir(inline) fn main f0 {
+          b0():
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    fn brillig_global_constants_keep_same_value_ids() {
+        let src = "
+        g0 = Field 1
+
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn get_constant f1 {
+          b0():
+            return g0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
+        let main = ssa.main();
+        let entry_block = main.entry_block();
+        let terminator = main.dfg[entry_block].unwrap_terminator();
+        let TerminatorInstruction::Return { return_values, .. } = terminator else {
+            panic!("Expected return");
+        };
+        assert_eq!(return_values.len(), 1);
+        assert!(main.dfg.is_global(return_values[0]));
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+
+        brillig(inline) fn main f0 {
+          b0():
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Unreachable terminator instruction should not exist during inlining"
+    )]
+    fn inlining_unreachable_block() {
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        acir(inline) fn bar f1 {
+          b0():
+            unreachable
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+    }
+
+    #[test]
+    // We should not inline an ACIR function called from a Brillig function because ACIR and Brillig semantics are different.
+    fn inlining_acir_into_brillig_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS);
+        if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
+            panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
+        }
+    }
+
+    #[test]
+    fn does_not_inline_acir_fold_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(v0, v1) -> Field
+            v4 = call f1(v0, v1) -> Field
+            v5 = call f1(v0, v1) -> Field
+            v6 = eq v3, v4
+            constrain v3 == v4
+            v7 = eq v4, v5
+            constrain v4 == v5
+            return
+        }
+        acir(fold) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            v3 = not v2
+            constrain v2 == u1 0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+}
+
+/// This test module contains tests specifically for inlining small functions which we always expect to be inlined.
+#[cfg(test)]
+mod simple_functions {
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS},
+        },
+    };
+
+    fn assert_does_not_inline(src: &str) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn inline_functions_with_zero_instructions() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_functions_that_require_multiple_inlines() {
+        // f2 has greater than 10 instructions, which should initially prevent it from being inlined into f0.
+        // However, once f1 is inlined into f2, we should be able to fully inline into f0.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f2(v0) -> Field
+            return v1
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        brillig(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = call f1(v0) -> Field
+            v5 = call f1(v0) -> Field
+            v6 = call f1(v0) -> Field
+            v7 = call f1(v0) -> Field
+            v8 = call f1(v0) -> Field
+            v9 = call f1(v0) -> Field
+            v10 = call f1(v0) -> Field
+            v11 = add v1, v2
+            return v11
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let mut ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(&mut ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_functions_with_one_instruction() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_inline_function_with_one_instruction_that_calls_itself() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_acir_functions_with_no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        acir(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_inline_brillig_functions_with_no_predicates() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_inline_brillig_entry_point_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        acir(inline) fn main f2 {
+          b0():
+            call f1()
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS);
+
+        let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'starter'");
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_function_with_multiple_instructions() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = mul v1, Field 2
+            v3 = mul v2, Field 2
+            v4 = mul v3, Field 2
+            v5 = mul v4, Field 2
+            v6 = mul v5, Field 2
+            v7 = mul v6, Field 2
+            v8 = mul v7, Field 2
+            v9 = mul v8, Field 2
+            v10 = mul v9, Field 2
+            v11 = mul v10, Field 2
+            return v11
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

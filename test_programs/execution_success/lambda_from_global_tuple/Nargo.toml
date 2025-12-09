@@ -1,0 +1,6 @@
+[package]
+name = "lambda_from_global_tuple"
+type = "bin"
+authors = [""]
+
+[dependencies]

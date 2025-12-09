@@ -1,5 +1,6 @@
 ---
 title: Quoted
+description: Token streams produced by `quote { ... }`—parse as expressions, modules, types, and inspect raw tokens.
 ---
 
 `std::meta::quoted` contains methods on the built-in `Quoted` type which represents

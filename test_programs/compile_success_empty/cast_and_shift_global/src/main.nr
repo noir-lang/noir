@@ -1,5 +1,5 @@
 global THREE: u32 = 3;
-global EIGHT: u32 = 1 << THREE as u8;
+global EIGHT: u32 = 1 << THREE;
 global SEVEN: u32 = EIGHT - 1;
 
 fn main() {

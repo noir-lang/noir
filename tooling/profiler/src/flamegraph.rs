@@ -5,12 +5,12 @@ use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 use color_eyre::eyre;
 use fm::codespan_files::Files;
-use fxhash::FxHashMap as HashMap;
 use inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
 use noirc_errors::Location;
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_evaluator::brillig::ProcedureId;
+use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) trait Sample {
     fn count(&self) -> usize;
@@ -112,7 +112,7 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
         let mut options = Options::default();
         options.hash = true;
         options.deterministic = true;
-        options.title = format!("Artifact: {}, Function: {}", artifact_name, function_name);
+        options.title = format!("Artifact: {artifact_name}, Function: {function_name}");
         options.frame_height = 24;
         options.color_diffusion = true;
         options.min_width = 0.0;
@@ -245,7 +245,7 @@ fn location_to_callsite_label<'files>(
 
     let (line, column) = line_and_column_from_span(source.as_ref(), &location.span);
 
-    format!("{}:{}:{}::{}", filename, line, column, code_slice)
+    format!("{filename}:{line}:{column}::{code_slice}")
 }
 
 fn add_locations_to_folded_stack_items(

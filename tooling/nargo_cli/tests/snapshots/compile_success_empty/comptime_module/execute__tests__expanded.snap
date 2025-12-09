@@ -31,7 +31,7 @@ mod yet_another_module {
 comptime mut global counter: u32 = 4;
 
 comptime fn increment_counter() {
-    counter = counter + 1;
+    counter = counter + 1_u32;
 }
 
 comptime fn outer_attribute_func(m: Module) -> Quoted {
@@ -64,9 +64,9 @@ pub struct Foo {}
 mod add_to_me {
     fn add_to_me_function() {}
 
-    pub fn added_function() -> super::Foo {
+    pub fn added_function() -> crate::Foo {
         add_to_me_function();
-        super::Foo {}
+        crate::Foo {}
     }
 }
 
@@ -86,7 +86,7 @@ comptime fn add_function(m: Module) {
 fn main() {
     let _: foo::Struct1 = foo::Struct1 {};
     ();
-    assert(counter == 4);
+    assert(counter == 4_u32);
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
     let _: Foo = add_to_me::added_function();
@@ -101,9 +101,48 @@ fn as_module_test() {
     ()
 }
 
+mod module1 {
+    pub mod module2 {}
+}
+
+#[test]
+fn parent_test() {
+    ()
+}
+
+mod my_module {
+    pub mod child1 {}
+
+    pub mod child2 {}
+
+    pub mod child3 {
+        pub mod nested_child {}
+    }
+}
+
+#[test]
+fn child_modules_test() {
+    ()
+}
+
+/// A longer test using all submodules in this crate. This shows that modules
+/// declaring separate files are currently listed before modules defined in the
+/// same file. This is not desired so the order for `child_modules` is left unspecified
+/// so that this can be fixed in the future.
+#[test]
+fn child_modules_test2() {
+    ()
+}
+
+/// Ensures calling `Module::name` on the top-level module does not panic
+#[test]
+fn top_level_module_name_is_empty() {
+    ()
+}
+
 mod separate_module {
     comptime fn inner_attribute_separate_module(m: Module) {
         assert(m.name() == quote { separate_module });
-        super::increment_counter();
+        crate::increment_counter();
     }
 }

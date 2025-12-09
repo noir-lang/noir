@@ -9,11 +9,14 @@ struct EnumEmulation {
 }
 
 unconstrained fn main() -> pub Field {
-    let mut emulated_enum: EnumEmulation =
-        EnumEmulation { a: Option::some(1), b: Option::none(), c: Option::none() };
-    for _ in 0..1 {
-        assert(emulated_enum.a.unwrap() == 1);
+    let mut emulated_enum: EnumEmulation = EnumEmulation {
+        a: Option::<Field>::some(1_Field),
+        b: Option::<Field>::none(),
+        c: Option::<Field>::none(),
+    };
+    for _ in 0_u32..1_u32 {
+        assert(emulated_enum.a.unwrap() == 1_Field);
     }
-    emulated_enum.a = Option::some(2);
+    emulated_enum.a = Option::<Field>::some(2_Field);
     emulated_enum.a.unwrap()
 }

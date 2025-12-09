@@ -1,5 +1,7 @@
+//! Implementation for the [cast operation][acir::brillig::Opcode::Cast].
 use acir::{
     AcirField,
+    acir_field::truncate_to,
     brillig::{BitSize, IntegerBitSize},
 };
 
@@ -15,7 +17,7 @@ pub(crate) fn cast<F: AcirField>(
     match (source_value, target_bit_size) {
         // Field downcast to arbitrary bit size
         (Field(field), BitSize::Integer(target_bit_size)) => {
-            let as_u128 = field.to_u128();
+            let as_u128 = truncate_to(&field, 128).to_u128();
             match target_bit_size {
                 IntegerBitSize::U1 => U1(as_u128 & 0x01 == 1),
                 IntegerBitSize::U8 => U8(as_u128 as u8),
@@ -38,28 +40,28 @@ pub(crate) fn cast<F: AcirField>(
         (U8(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
         (U8(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
         (U8(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-        (U8(value), BitSize::Field) => Field((value as u128).into()),
+        (U8(value), BitSize::Field) => Field(u128::from(value).into()),
 
         (U16(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
         (U16(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
         (U16(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
         (U16(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
         (U16(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-        (U16(value), BitSize::Field) => Field((value as u128).into()),
+        (U16(value), BitSize::Field) => Field(u128::from(value).into()),
 
         (U32(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
         (U32(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
         (U32(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
         (U32(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
         (U32(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-        (U32(value), BitSize::Field) => Field((value as u128).into()),
+        (U32(value), BitSize::Field) => Field(u128::from(value).into()),
 
         (U64(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
         (U64(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
         (U64(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
         (U64(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value as u32),
         (U64(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-        (U64(value), BitSize::Field) => Field((value as u128).into()),
+        (U64(value), BitSize::Field) => Field(u128::from(value).into()),
 
         (U128(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
         (U128(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),

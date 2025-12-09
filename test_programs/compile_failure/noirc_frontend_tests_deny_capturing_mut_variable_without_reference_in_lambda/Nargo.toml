@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_deny_capturing_mut_variable_without_reference_in_lambda"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

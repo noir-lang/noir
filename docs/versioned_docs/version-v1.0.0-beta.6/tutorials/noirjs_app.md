@@ -23,7 +23,7 @@ Let's go barebones. Doing the bare minimum is not only simple, but also allows y
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
+yarn add @noir-lang/noir_js@1.0.0-beta.6 @aztec/bb.js@0.84.0
 ```
 
 Wait, what are these dependencies?
@@ -33,7 +33,7 @@ Wait, what are these dependencies?
 
 :::info
 
-In this guide, we will install versions pinned to 1.0.0-beta.2. These work with Barretenberg version 0.72.1, so we are using that one version too. Feel free to try with older or later versions, though!
+In this guide, we will install versions pinned to 1.0.0-beta.6. These work with Barretenberg version 0.84.0, so we are using that one version too. Feel free to try with older or later versions, though!
 
 :::
 
@@ -47,7 +47,7 @@ It's not just you. We also enjoy syntax highlighting. [Check out the Language Se
 
 :::
 
-All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.2`, or just create them by hand:
+All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.6`, or just create them by hand:
 
 ```bash
 mkdir -p circuit/src
@@ -158,12 +158,13 @@ At this point in the tutorial, your folder structure should look like this:
 ```tree
 .
 └── circuit
+    └── node_modules
     └── src
            └── main.nr
         Nargo.toml
+    index.html
     index.js
     package.json
-    index.html
     ...etc
 ```
 

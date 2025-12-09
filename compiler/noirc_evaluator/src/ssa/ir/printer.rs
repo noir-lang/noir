@@ -1,12 +1,14 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 use std::fmt::{Display, Formatter, Result};
 
-use acvm::acir::AcirField;
+use acvm::{FieldElement, acir::AcirField};
+use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
+    function_builder::data_bus::DataBus,
     ir::{
         instruction::ArrayOffset,
         types::{NumericType, Type},
@@ -21,21 +23,42 @@ use super::{
     value::{Value, ValueId},
 };
 
-impl Display for Ssa {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+pub struct Printer<'local> {
+    ssa: &'local Ssa,
+    fm: Option<&'local fm::FileManager>,
+}
+
+impl Ssa {
+    pub fn print_without_locations(&self) -> Printer {
+        Printer { ssa: self, fm: None }
+    }
+
+    pub fn print_with<'local>(
+        &'local self,
+        files: Option<&'local fm::FileManager>,
+    ) -> Printer<'local> {
+        Printer { ssa: self, fm: files }
+    }
+}
+
+impl Display for Printer<'_> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let globals = (*self.ssa.functions[&self.ssa.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
 
         for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
-                    writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
+                    writeln!(f, "g{} = {typ} {}", id.to_u32(), number(*constant, typ))?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&globals_dfg, *instruction, true, f)?;
+                    display_instruction(&globals_dfg, *instruction, true, self.fm, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
+                }
+                Value::Function(id) => {
+                    writeln!(f, "{id}")?;
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
             };
@@ -45,8 +68,9 @@ impl Display for Ssa {
             writeln!(f)?;
         }
 
-        for function in self.functions.values() {
-            writeln!(f, "{function}")?;
+        for function in self.ssa.functions.values() {
+            display_function(function, self.fm, f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -54,32 +78,65 @@ impl Display for Ssa {
 
 impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        display_function(self, f)
+        display_function(self, None, f)
     }
 }
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
-fn display_function(function: &Function, f: &mut Formatter) -> Result {
+fn display_function(
+    function: &Function,
+    files: Option<&fm::FileManager>,
+    f: &mut Formatter,
+) -> Result {
     if let Some(purity) = function.dfg.purity_of(function.id()) {
         writeln!(f, "{} {purity} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     } else {
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     }
 
+    display_databus(&function.dfg.data_bus, &function.dfg, f)?;
+
     for block_id in function.reachable_blocks() {
-        display_block(&function.dfg, block_id, f)?;
+        display_block(&function.dfg, block_id, files, f)?;
     }
     write!(f, "}}")
 }
 
+fn display_databus(data_bus: &DataBus, dfg: &DataFlowGraph, f: &mut Formatter) -> Result {
+    for call_data in &data_bus.call_data {
+        write!(
+            f,
+            "  call_data({}): array: {}, indices: [",
+            call_data.call_data_id,
+            value(dfg, call_data.array_id),
+        )?;
+        for (i, (value_id, index)) in call_data.index_map.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", value(dfg, *value_id), index)?;
+        }
+        writeln!(f, "]")?;
+    }
+    if let Some(return_data) = data_bus.return_data {
+        writeln!(f, "  return_data: {}", value(dfg, return_data))?;
+    }
+    Ok(())
+}
+
 /// Display a single block. This will not display the block's successors.
-fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter) -> Result {
+fn display_block(
+    dfg: &DataFlowGraph,
+    block_id: BasicBlockId,
+    fm: Option<&fm::FileManager>,
+    f: &mut Formatter,
+) -> Result {
     let block = &dfg[block_id];
 
     writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
-        display_instruction(dfg, *instruction, false, f)?;
+        display_instruction(dfg, *instruction, false, fm, f)?;
     }
 
     display_terminator(dfg, block.terminator(), f)
@@ -90,7 +147,7 @@ fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter)
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            format!("{typ} {constant}")
+            format!("{typ} {}", number(*constant, typ))
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
@@ -105,6 +162,18 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Global(_) => {
             format!("g{}", id.to_u32())
         }
+    }
+}
+
+/// Formats the given number assuming it has the given type.
+/// Unsigned types and field element types will be formatter as-is,
+/// while signed types will be formatted as positive or negative numbers
+/// depending on where the number falls in the range given by the type's bit size.
+fn number(number: FieldElement, typ: &NumericType) -> String {
+    if let NumericType::Signed { bit_size } = typ {
+        number.to_string_as_signed_integer(*bit_size)
+    } else {
+        number.to_string()
     }
 }
 
@@ -154,6 +223,9 @@ fn display_terminator(
                 writeln!(f, "    return {}", value_list(dfg, return_values))
             }
         }
+        Some(TerminatorInstruction::Unreachable { .. }) => {
+            writeln!(f, "    unreachable")
+        }
         None => writeln!(f, "    (no terminator instruction)"),
     }
 }
@@ -163,11 +235,29 @@ fn display_instruction(
     dfg: &DataFlowGraph,
     instruction: InstructionId,
     in_global_space: bool,
+    fm: Option<&fm::FileManager>,
     f: &mut Formatter,
 ) -> Result {
+    match display_instruction_buffer(dfg, instruction, in_global_space, fm) {
+        Ok(string) => write!(f, "{string}"),
+        Err(_) => Err(std::fmt::Error),
+    }
+}
+
+fn display_instruction_buffer(
+    dfg: &DataFlowGraph,
+    instruction: InstructionId,
+    in_global_space: bool,
+    fm: Option<&fm::FileManager>,
+) -> std::result::Result<String, ()> {
+    // Need to write to a Vec<u8> and later convert that to a String so we can
+    // count how large it is to add padding for the location comment later.
+    let mut buffer: Vec<u8> = Vec::new();
+    use std::io::Write;
+
     if !in_global_space {
         // instructions are always indented within a function
-        write!(f, "    ")?;
+        write!(buffer, "    ").map_err(|_| ())?;
     }
 
     let results = dfg.instruction_results(instruction);
@@ -176,10 +266,57 @@ fn display_instruction(
         if in_global_space {
             value_list = value_list.replace('v', "g");
         }
-        write!(f, "{} = ", value_list)?;
+        write!(buffer, "{value_list} = ").map_err(|_| ())?;
     }
 
-    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, f)
+    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, &mut buffer)
+        .map_err(|_| ())?;
+
+    if let Some(fm) = fm {
+        write_location_information(dfg, instruction, fm, &mut buffer).map_err(|_| ())?;
+    }
+    writeln!(buffer).map_err(|_| ())?;
+    String::from_utf8(buffer).map_err(|_| ())
+}
+
+fn write_location_information(
+    dfg: &DataFlowGraph,
+    instruction: InstructionId,
+    fm: &fm::FileManager,
+    buffer: &mut Vec<u8>,
+) -> std::io::Result<()> {
+    use codespan_files::Files;
+    use std::io::Write;
+    let call_stack = dfg.get_instruction_call_stack(instruction);
+
+    if let Some(location) = call_stack.last() {
+        if let Ok(name) = fm.as_file_map().get_name(location.file) {
+            let files = fm.as_file_map();
+            let start_index = location.span.start() as usize;
+
+            // Add some padding before the comment
+            let arbitrary_padding_size = 50;
+            if buffer.len() < arbitrary_padding_size {
+                buffer.resize(arbitrary_padding_size, b' ');
+            }
+
+            write!(buffer, "\t// {name}")?;
+
+            let Ok(line_index) = files.line_index(location.file, start_index) else {
+                return Ok(());
+            };
+
+            // Offset index by 1 to get the line number
+            write!(buffer, ":{}", line_index + 1)?;
+
+            let Ok(column_number) = files.column_number(location.file, line_index, start_index)
+            else {
+                return Ok(());
+            };
+            write!(buffer, ":{column_number}")?;
+        }
+    }
+    Ok(())
 }
 
 fn display_instruction_inner(
@@ -187,92 +324,89 @@ fn display_instruction_inner(
     instruction: &Instruction,
     results: &[ValueId],
     in_global_space: bool,
-    f: &mut Formatter,
-) -> Result {
+    f: &mut Vec<u8>,
+) -> std::io::Result<()> {
+    use std::io::Write;
     let show = |id| value(dfg, id);
 
     match instruction {
         Instruction::Binary(binary) => {
-            writeln!(f, "{}", display_binary(binary, dfg))
+            write!(f, "{}", display_binary(binary, dfg))
         }
-        Instruction::Cast(lhs, typ) => writeln!(f, "cast {} as {typ}", show(*lhs)),
-        Instruction::Not(rhs) => writeln!(f, "not {}", show(*rhs)),
+        Instruction::Cast(lhs, typ) => write!(f, "cast {} as {typ}", show(*lhs)),
+        Instruction::Not(rhs) => write!(f, "not {}", show(*rhs)),
         Instruction::Truncate { value, bit_size, max_bit_size } => {
             let value = show(*value);
-            writeln!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
+            write!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
         }
         Instruction::Constrain(lhs, rhs, error) => {
             write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;
-            if let Some(error) = error {
-                display_constrain_error(dfg, error, f)
-            } else {
-                writeln!(f)
-            }
+            if let Some(error) = error { display_constrain_error(dfg, error, f) } else { Ok(()) }
         }
         Instruction::ConstrainNotEqual(lhs, rhs, error) => {
             write!(f, "constrain {} != {}", show(*lhs), show(*rhs))?;
-            if let Some(error) = error {
-                display_constrain_error(dfg, error, f)
-            } else {
-                writeln!(f)
-            }
+            if let Some(error) = error { display_constrain_error(dfg, error, f) } else { Ok(()) }
         }
         Instruction::Call { func, arguments } => {
             let arguments = value_list(dfg, arguments);
-            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
+            write!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
         }
         Instruction::Allocate => {
-            writeln!(f, "allocate{}", result_types(dfg, results))
+            write!(f, "allocate{}", result_types(dfg, results))
         }
         Instruction::Load { address } => {
-            writeln!(f, "load {}{}", show(*address), result_types(dfg, results))
+            write!(f, "load {}{}", show(*address), result_types(dfg, results))
         }
         Instruction::Store { address, value } => {
-            writeln!(f, "store {} at {}", show(*value), show(*address))
+            write!(f, "store {} at {}", show(*value), show(*address))
         }
         Instruction::EnableSideEffectsIf { condition } => {
-            writeln!(f, "enable_side_effects {}", show(*condition))
+            write!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index, offset } => {
-            writeln!(
+        Instruction::ArrayGet { array, index } => {
+            let offset = dfg.array_offset(*array, *index);
+            write!(
                 f,
                 "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
-                display_array_offset(offset),
+                display_array_offset(&offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable, offset } => {
+        Instruction::ArraySet { array, index, value, mutable } => {
+            let offset = dfg.array_offset(*array, *index);
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(
+            write!(
                 f,
                 "array_set{} {}, index {}{}, value {}",
                 mutable,
                 array,
                 index,
-                display_array_offset(offset),
+                display_array_offset(&offset),
                 value
             )
         }
         Instruction::IncrementRc { value } => {
-            writeln!(f, "inc_rc {}", show(*value))
+            write!(f, "inc_rc {}", show(*value))
         }
         Instruction::DecrementRc { value } => {
-            writeln!(f, "dec_rc {}", show(*value))
+            write!(f, "dec_rc {}", show(*value))
         }
-        Instruction::RangeCheck { value, max_bit_size, .. } => {
-            writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+        Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+            let message =
+                assert_message.as_ref().map(|message| format!(", {message:?}")).unwrap_or_default();
+            write!(f, "range_check {} to {} bits{}", show(*value), *max_bit_size, message)
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = show(*then_condition);
             let then_value = show(*then_value);
             let else_condition = show(*else_condition);
             let else_value = show(*else_value);
-            writeln!(
+            write!(
                 f,
                 "if {then_condition} then {then_value} else (if {else_condition}) {else_value}"
             )
@@ -293,9 +427,9 @@ fn display_instruction_inner(
             {
                 if let Some(string) = try_byte_array_to_string(elements, dfg) {
                     if is_slice {
-                        return writeln!(f, "make_array &b{:?}", string);
+                        return write!(f, "make_array &b{string:?}");
                     } else {
-                        return writeln!(f, "make_array b{:?}", string);
+                        return write!(f, "make_array b{string:?}");
                     }
                 }
             }
@@ -310,12 +444,12 @@ fn display_instruction_inner(
                 if in_global_space {
                     value = value.replace('v', "g");
                 }
-                write!(f, "{}", value)?;
+                write!(f, "{value}")?;
             }
 
-            writeln!(f, "] : {typ}")
+            write!(f, "] : {typ}")
         }
-        Instruction::Noop => writeln!(f, "nop"),
+        Instruction::Noop => write!(f, "nop"),
     }
 }
 
@@ -338,15 +472,22 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
         if element > 0xFF {
             return None;
         }
-        let byte = element as u8;
-        if byte.is_ascii_alphanumeric() || byte.is_ascii_punctuation() || byte.is_ascii_whitespace()
-        {
+        let byte: u8 = element as u8;
+        if is_printable_byte(byte) {
             string.push(byte as char);
         } else {
             return None;
         }
     }
     Some(string)
+}
+
+pub fn is_printable_byte(byte: u8) -> bool {
+    const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+    byte != FORM_FEED
+        && (byte.is_ascii_alphanumeric()
+            || byte.is_ascii_punctuation()
+            || byte.is_ascii_whitespace())
 }
 
 fn result_types(dfg: &DataFlowGraph, results: &[ValueId]) -> String {
@@ -372,19 +513,20 @@ pub(crate) fn try_to_extract_string_from_error_payload(
 fn display_constrain_error(
     dfg: &DataFlowGraph,
     error: &ConstrainError,
-    f: &mut Formatter,
-) -> Result {
+    f: &mut Vec<u8>,
+) -> std::io::Result<()> {
+    use std::io::Write;
     match error {
         ConstrainError::StaticString(assert_message_string) => {
-            writeln!(f, ", {assert_message_string:?}")
+            write!(f, ", {assert_message_string:?}")
         }
         ConstrainError::Dynamic(_, is_string, values) => {
             if let Some(constant_string) =
                 try_to_extract_string_from_error_payload(*is_string, values, dfg)
             {
-                writeln!(f, ", {constant_string:?}")
+                write!(f, ", {constant_string:?}")
             } else {
-                writeln!(f, ", data {}", value_list(dfg, values))
+                write!(f, ", data {}", value_list(dfg, values))
             }
         }
     }

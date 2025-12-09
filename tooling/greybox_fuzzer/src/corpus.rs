@@ -120,7 +120,7 @@ impl CorpusFileManager {
                 continue;
             }
             let source = std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+                .unwrap_or_else(|_| panic!("could not read file {path:?} into string"));
 
             let parsed_source = parse_json(&source, &self.abi).map_err(|parsing_error| {
                 format!("Error while parsing file {:?}: {:?}", path.as_os_str(), parsing_error)

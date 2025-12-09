@@ -11,22 +11,20 @@ jobs:
   publish-docs:
     name: Publish docs
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - uses: taiki-e/install-action@just
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.100
-
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
+      - name: Install deps
+        run: just install-js-tools
 
       - name: Query active docs versions
         run: yarn workspace docs version::stables
@@ -35,9 +33,9 @@ jobs:
         run: yarn workspaces foreach -Rpt --from docs run build
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
+        uses: nwtgck/actions-netlify@v3.0
         with:
-          publish-dir: './docs/build'
+          publish-dir: "./docs/build"
           production-branch: master
           production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}

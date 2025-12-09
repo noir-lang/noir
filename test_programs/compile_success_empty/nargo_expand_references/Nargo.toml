@@ -1,0 +1,6 @@
+[package]
+name = "nargo_expand_references"
+type = "bin"
+authors = [""]
+
+[dependencies]

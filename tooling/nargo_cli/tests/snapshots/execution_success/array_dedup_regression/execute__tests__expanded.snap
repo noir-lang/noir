@@ -3,21 +3,21 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(x: u32) {
-    let a1: [Field; 5] = [1, 2, 3, 4, 5];
-    for i in 0..5 {
-        let mut a2: [Field; 5] = [1, 2, 3, 4, 5];
+    let a1: [Field; 5] = [1_Field, 2_Field, 3_Field, 4_Field, 5_Field];
+    for i in 0_u32..5_u32 {
+        let mut a2: [Field; 5] = [1_Field, 2_Field, 3_Field, 4_Field, 5_Field];
         {
-            let i_3772: u32 = x + i;
-            a2[i_3772] = 128;
+            let i_4484: u32 = x + i;
+            a2[i_4484] = 128_Field;
         };
         println(a2);
-        if i != 0 {
-            assert(a2[(x + i) - 1] != 128);
+        if i != 0_u32 {
+            assert(a2[(x + i) - 1_u32] != 128_Field);
         }
     }
-    assert(a1[0] == 1);
-    assert(a1[1] == 2);
-    assert(a1[2] == 3);
-    assert(a1[3] == 4);
-    assert(a1[4] == 5);
+    assert(a1[0_u32] == 1_Field);
+    assert(a1[1_u32] == 2_Field);
+    assert(a1[2_u32] == 3_Field);
+    assert(a1[3_u32] == 4_Field);
+    assert(a1[4_u32] == 5_Field);
 }

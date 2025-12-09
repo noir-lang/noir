@@ -14,7 +14,7 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 #[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
-pub(crate) enum Format {
+pub enum Format {
     /// Bincode without format marker.
     /// This does not actually appear in the data.
     BincodeLegacy = 0,
@@ -24,6 +24,7 @@ pub(crate) enum Format {
     Msgpack = 2,
     /// Msgpack with tuple structs.
     MsgpackCompact = 3,
+    /// Protobuf according to the schema.
     Protobuf = 4,
 }
 
@@ -39,8 +40,8 @@ impl Format {
     /// The reason we use an env var is because:
     /// 1. It has to be picked up in methods like `Program::serialize_program_base64` where no config is available.
     /// 2. At the moment this is mostly for testing, to be able to commit code that _can_ produce different formats,
-    ///     but only activate it once a version of `bb` that can handle it is released.
-    pub(crate) fn from_env() -> Result<Option<Self>, String> {
+    ///    but only activate it once a version of `bb` that can handle it is released.
+    pub fn from_env() -> Result<Option<Self>, String> {
         let Ok(format) = std::env::var(FORMAT_ENV_VAR) else {
             return Ok(None);
         };
@@ -54,12 +55,16 @@ impl Format {
 ///
 /// This format is compact, but provides no backwards compatibility.
 pub(crate) fn bincode_serialize<T: Serialize>(value: &T) -> std::io::Result<Vec<u8>> {
-    bincode::serialize(value).map_err(std::io::Error::other)
+    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
+    bincode::serde::encode_to_vec(value, config).map_err(std::io::Error::other)
 }
 
 /// Deserialize a value using `bincode`, based on `serde`.
 pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
-    bincode::deserialize(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
+    bincode::serde::borrow_decode_from_slice(buf, config)
+        .map(|(result, _)| result)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
 /// Serialize a value using MessagePack, based on `serde`.
@@ -180,32 +185,6 @@ where
     let mut res = vec![format.into()];
     res.append(&mut buf);
     Ok(res)
-}
-
-/// Serialize the format with whatever the env indicates.
-/// If the env is empty, but a `default` value is passed, use that.
-/// Otherwise if both are empty, use `bincode`.
-pub(crate) fn serialize_with_format_from_env<F, T, R>(
-    value: &T,
-    default: Option<Format>,
-) -> std::io::Result<Vec<u8>>
-where
-    F: AcirField,
-    T: Serialize,
-    R: prost::Message,
-    ProtoSchema<F>: ProtoCodec<T, R>,
-{
-    match Format::from_env().map(|fopt| fopt.or(default)) {
-        Ok(Some(format)) => {
-            // This will need a new `bb` even if it's the bincode format, because of the format byte.
-            serialize_with_format(value, format)
-        }
-        Ok(None) => {
-            // This is how the currently released `bb` expects the data.
-            bincode_serialize(value)
-        }
-        Err(e) => Err(std::io::Error::other(e)),
-    }
 }
 
 #[cfg(test)]
@@ -362,14 +341,14 @@ mod tests {
     /// Test that an enum where each member wraps a struct serializes as a single item map keyed by the type.
     #[test]
     fn msgpack_repr_enum_of_structs() {
-        use rmpv::Value;
+        use rmpv::Value; // cSpell:disable-line
 
         let value = ValueOrArray::HeapArray(HeapArray {
             pointer: brillig::MemoryAddress::Relative(0),
             size: 3,
         });
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         let Value::Map(fields) = msg else {
             panic!("expected Map: {msg:?}");
@@ -386,7 +365,7 @@ mod tests {
     fn msgpack_repr_enum_of_unit_structs() {
         let value = IntegerBitSize::U1;
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert_eq!(msg.as_str(), Some("U1"));
     }
@@ -396,7 +375,7 @@ mod tests {
     fn msgpack_repr_enum_of_mixed() {
         let value = vec![BitSize::Field, BitSize::Integer(IntegerBitSize::U64)];
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert_eq!(format!("{msg}"), r#"["Field", {"Integer": "U64"}]"#);
     }
@@ -404,11 +383,11 @@ mod tests {
     /// Test that a newtype, just wrapping a value, is serialized as the underlying value.
     #[test]
     fn msgpack_repr_newtype() {
-        use rmpv::Value;
+        use rmpv::Value; // cSpell:disable-line
 
         let value = Witness(1);
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert!(matches!(msg, Value::Integer(_)));
     }
@@ -418,7 +397,7 @@ mod tests {
     /// but the `msgpack-c` library does not.
     #[test]
     fn msgpack_optional() {
-        use rmpv::Value;
+        use rmpv::Value; // cSpell:disable-line
 
         let value: Opcode<FieldElement> = Opcode::BrilligCall {
             id: BrilligFunctionId(1),
@@ -427,7 +406,7 @@ mod tests {
             predicate: None,
         };
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         let fields = msg.as_map().expect("enum is a map");
         let fields = &fields.first().expect("enum is non-empty").1;

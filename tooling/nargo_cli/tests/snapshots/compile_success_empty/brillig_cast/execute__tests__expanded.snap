@@ -5,7 +5,6 @@ expression: expanded_code
 fn main() {
     // Safety: comment added by `nargo expand`
     unsafe {
-        bool_casts();
         field_casts();
         uint_casts();
         int_casts();
@@ -13,33 +12,26 @@ fn main() {
     }
 }
 
-unconstrained fn bool_casts() {
-    assert(false == (0 as bool));
-    assert(true == (1 as bool));
-    assert(true == (3 as bool));
-}
-
 unconstrained fn field_casts() {
-    assert(((5 as u8) as Field) == 5);
-    assert(((256 as u8) as Field) == 0);
+    assert(((5_Field as u8) as Field) == 5_Field);
+    assert(((256_Field as u8) as Field) == 0_Field);
 }
 
 unconstrained fn uint_casts() {
-    let x: u32 = 300;
-    assert((x as u8) == 44);
-    assert((x as u32) == 300);
-    assert((x as u64) == 300);
+    let x: u32 = 300_u32;
+    assert((x as u8) == 44_u8);
+    assert((x as u32) == 300_u32);
+    assert((x as u64) == 300_u64);
 }
 
 unconstrained fn int_casts() {
-    let x: i32 = 456;
-    assert((x as i8) == -(56 as i8));
-    assert((x as i64) == 456);
+    let x: i32 = 456_i32;
+    assert((x as i8) == -(56_Field as i8));
+    assert((x as i64) == 456_i64);
 }
 
 unconstrained fn mixed_casts() {
-    assert((((100 as u32) as i32) as u32) == 100);
-    assert(((257 as u8) as u32) == 1);
-    assert(((1 as u8) as bool) == true);
-    assert((true as i8) == 1);
+    assert((((100_Field as u32) as i32) as u32) == 100_u32);
+    assert(((257_Field as u8) as u32) == 1_u32);
+    assert((true as i8) == 1_i8);
 }

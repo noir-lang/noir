@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: No matching impl found for `i32: Bar`
+   ┌─ src/main.nr:10:10
+   │
+10 │     type E = i32;
+   │          - No impl for `i32: Bar`
+   │
+
+Aborting due to 1 previous error

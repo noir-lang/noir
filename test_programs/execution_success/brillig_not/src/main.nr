@@ -4,8 +4,8 @@
 fn main(x: Field, y: Field) {
     // Safety: testing context
     unsafe {
-        assert(false == not_operator(x as bool));
-        assert(true == not_operator(y as bool));
+        assert(false == not_operator(x != 0));
+        assert(true == not_operator(y != 0));
     }
 }
 

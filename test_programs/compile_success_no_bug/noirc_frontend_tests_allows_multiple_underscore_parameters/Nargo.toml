@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_allows_multiple_underscore_parameters"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

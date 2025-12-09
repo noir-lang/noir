@@ -5,13 +5,13 @@ expression: expanded_code
 use std::mem::array_refcount;
 
 fn main() {
-    let mut array: [Field; 3] = [0, 1, 2];
-    assert_refcount(array, 1, true);
+    let mut array: [Field; 3] = [0_Field, 1_Field, 2_Field];
+    assert_refcount(array, 1_u32, true);
     borrow(array, array_refcount(array));
     borrow_mut(&mut array, array_refcount(array));
     let _: [Field; 3] = copy_mut(array, array_refcount(array));
     borrow_mut_two(&mut array, &mut array, array_refcount(array));
-    let mut u32_array: [u32; 3] = [0, 1, 2];
+    let mut u32_array: [u32; 3] = [0_u32, 1_u32, 2_u32];
     let rc1: u32 = array_refcount(array);
     let rc2: u32 = array_refcount(u32_array);
     borrow_mut_two_separate(&mut array, &mut u32_array, rc1, rc2);
@@ -20,29 +20,29 @@ fn main() {
 
 fn borrow(array: [Field; 3], rc_before_call: u32) {
     assert_refcount(array, rc_before_call, true);
-    println(array[0]);
+    println(array[0_u32]);
 }
 
 fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
     assert_refcount(*array, rc_before_call, true);
-    array[0] = 3;
-    println(array[0]);
+    array[0_u32] = 3_Field;
+    println(array[0_u32]);
 }
 
 fn copy_mut(mut array: [Field; 3], rc_before_call: u32) -> [Field; 3] {
     assert_refcount(array, rc_before_call, true);
-    array[0] = 4;
-    println(array[0]);
+    array[0_u32] = 4_Field;
+    println(array[0_u32]);
     array
 }
 
 fn borrow_mut_two(array1: &mut [Field; 3], array2: &mut [Field; 3], rc_before_call: u32) {
     assert_refcount(*array1, rc_before_call, true);
-    assert_refcount(*array2, rc_before_call + 1, true);
-    array1[0] = 5;
-    array2[0] = 6;
-    println(array1[0]);
-    println(array2[0]);
+    assert_refcount(*array2, rc_before_call + 1_u32, true);
+    array1[0_u32] = 5_Field;
+    array2[0_u32] = 6_Field;
+    println(array1[0_u32]);
+    println(array2[0_u32]);
 }
 
 /// Borrow a different array: we should be able to reason that these types cannot be mutably
@@ -55,45 +55,48 @@ fn borrow_mut_two_separate(
 ) {
     assert_refcount(*array1, rc_before_call1, true);
     assert_refcount(*array2, rc_before_call2, true);
-    array1[0] = 7;
-    array2[0] = 8;
-    println(array1[0]);
-    println(array2[0]);
+    array1[0_u32] = 7_Field;
+    array2[0_u32] = 8_u32;
+    println(array1[0_u32]);
+    println(array2[0_u32]);
 }
 
 fn assert_refcount<T>(array: [T; 3], mut expected: u32, expect_copy: bool) {
     let count: u32 = array_refcount(array);
-    if expect_copy { expected = expected + 1; };
+    if expect_copy { expected = expected + 1_u32; };
     if std::runtime::is_unconstrained() {
         if count != expected {
             println(f"actual = {count}, expected = {expected}");
         };
         assert(count == expected);
     } else {
-        assert(count == 0);
+        assert(count == 0_u32);
     }
 }
 
 fn regression_7297() {
-    let mut array: [Field; 3] = [0, 1, 2];
+    let mut array: [Field; 3] = [0_Field, 1_Field, 2_Field];
     let refcount_0: u32 = array_refcount(array);
     borrow_mut_two(&mut array, &mut array, refcount_0);
     let refcount_1: u32 = array_refcount(array);
-    let array_2: [Field; 3] = copy_mut(array, refcount_1 + 1);
+    let array_2: [Field; 3] = copy_mut(array, refcount_1 + 1_u32);
     let refcount_2: u32 = array_refcount(array);
-    assert(array[0] == 6, "the original should not be mutated by copy_mut, only borrow_mut_two");
-    assert(array_2[0] == 4, "the copy should have the expected content");
+    assert(
+        array[0_u32] == 6_Field,
+        "the original should not be mutated by copy_mut, only borrow_mut_two",
+    );
+    assert(array_2[0_u32] == 4_Field, "the copy should have the expected content");
     if std::runtime::is_unconstrained() {
         assert(
-            refcount_1 != 0,
+            refcount_1 != 0_u32,
             "borrow_mut_two should create a fresh array and not decrease its RC",
         );
         assert(
-            refcount_1 == 5,
+            refcount_1 == 5_u32,
             "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
         );
         assert(
-            refcount_2 == (refcount_1 + 3),
+            refcount_2 == (refcount_1 + 3_u32),
             "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
         );
     }

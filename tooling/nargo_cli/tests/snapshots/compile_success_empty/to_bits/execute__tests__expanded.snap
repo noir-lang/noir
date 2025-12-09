@@ -3,20 +3,20 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let field: Field = 1000;
+    let field: Field = 1000_Field;
     let be_bits: [u1; 16] = field.to_be_bits();
     let le_bits: [u1; 16] = field.to_le_bits();
-    for i in 0..16 {
+    for i in 0_u32..16_u32 {
         let x: u1 = be_bits[i];
-        let y: u1 = le_bits[15 - i];
+        let y: u1 = le_bits[15_u32 - i];
         assert(x == y);
     }
-    let x: Field = 3;
+    let x: Field = 3_Field;
     let be_bits_x: [u1; 4] = x.to_be_bits();
     let le_bits_x: [u1; 4] = x.to_le_bits();
-    for i in 0..4 {
+    for i in 0_u32..4_u32 {
         let be_bit: u1 = be_bits_x[i];
-        let le_bit: u1 = le_bits_x[3 - i];
+        let le_bit: u1 = le_bits_x[3_u32 - i];
         assert(be_bit == le_bit);
     }
 }

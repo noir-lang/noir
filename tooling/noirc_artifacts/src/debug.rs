@@ -39,17 +39,15 @@ impl DebugArtifact {
         let files_with_brillig_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                let brillig_location_maps =
-                    function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                        brillig_location_map.values().flat_map(|call_stack_id| {
-                            function_symbols
-                                .location_tree
-                                .get_call_stack(*call_stack_id)
-                                .into_iter()
-                                .map(|location| location.file)
-                        })
-                    });
-                brillig_location_maps
+                function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                    brillig_location_map.values().flat_map(|call_stack_id| {
+                        function_symbols
+                            .location_tree
+                            .get_call_stack(*call_stack_id)
+                            .into_iter()
+                            .map(|location| location.file)
+                    })
+                })
             })
             .collect();
 

@@ -14,17 +14,11 @@ impl<T> Bar for (T, T)
 where
     T: Bar,
 {
-    fn ok(self) -> Self
-    where
-        T: Bar,
-    {
+    fn ok(self) -> Self {
         self
     }
 
-    fn ref_ok(self) -> Self
-    where
-        T: Bar,
-    {
+    fn ref_ok(self) -> Self {
         self.ok()
     }
 }

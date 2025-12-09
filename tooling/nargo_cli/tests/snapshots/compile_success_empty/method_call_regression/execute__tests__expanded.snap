@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let s: Struct<u32, ()> = Struct::<u32, ()> { a: 0, b: () };
+    let s: Struct<u32, ()> = Struct::<u32, ()> { a: 0_u32, b: () };
     s.foo();
 }
 
