@@ -88,11 +88,11 @@ name = "acvm_blackbox_solver"
 version = "1.0.0-beta.16"
 dependencies = [
  "acir",
- "blake2 0.11.0-rc.2",
+ "blake2 0.11.0-rc.3",
  "blake3",
  "criterion",
  "k256",
- "keccak 0.1.5",
+ "keccak 0.2.0-rc.0",
  "libaes",
  "log",
  "num-prime",
@@ -772,9 +772,9 @@ dependencies = [
 
 [[package]]
 name = "blake2"
-version = "0.11.0-rc.2"
+version = "0.11.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1edac47499deef695d9431bf241c75ea29f4cf3dcb78d39e19b31515e4ad3b08"
+checksum = "679065eb2b85a078ace42411e657bef3a6afe93a40d1b9cb04e39ca303cc3f36"
 dependencies = [
  "digest 0.11.0-rc.4",
 ]

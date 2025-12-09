@@ -1,3 +1,4 @@
+use acir::BlackBoxFunc;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
 use k256::{FieldBytes, elliptic_curve::PrimeField};
 
