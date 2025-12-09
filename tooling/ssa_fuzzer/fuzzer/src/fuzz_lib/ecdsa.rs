@@ -14,7 +14,7 @@ pub(crate) struct SignatureSsaPrepared {
 fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepared {
     use k256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
     use k256::elliptic_curve::scalar::IsHigh;
-    let signing_key = SigningKey::random(&mut rand::rng());
+    let signing_key = SigningKey::generate();
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
     let public_key_bytes = verifying_key.to_encoded_point(/*compress = */ false).to_bytes();
@@ -36,7 +36,7 @@ fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepar
 fn generate_ecdsa_signature_secp256r1_internal(msg: &[u8]) -> SignatureSsaPrepared {
     use p256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
     use p256::elliptic_curve::scalar::IsHigh;
-    let signing_key = SigningKey::random(&mut rand::rng());
+    let signing_key = SigningKey::generate();
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
     let public_key_bytes = verifying_key.to_encoded_point(/*compress = */ false).to_bytes();
