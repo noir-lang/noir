@@ -100,10 +100,7 @@ impl CompilerContext {
         } else {
             ExpressionWidth::Bounded { width: 4 }
         };
-        let compile_options = CompileOptions {
-            expression_width: Some(expression_width),
-            ..CompileOptions::default()
-        };
+        let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_program =
@@ -139,10 +136,7 @@ impl CompilerContext {
         } else {
             ExpressionWidth::Bounded { width: 4 }
         };
-        let compile_options = CompileOptions {
-            expression_width: Some(expression_width),
-            ..CompileOptions::default()
-        };
+        let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
