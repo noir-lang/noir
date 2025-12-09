@@ -299,19 +299,6 @@ impl CompileOptions {
     }
 }
 
-pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        w if w >= 3 => Ok(ExpressionWidth::Bounded { width }),
-        _ => Err(Error::new(ErrorKind::InvalidInput, "has to be 0 or at least 3".to_string())),
-    }
-}
-
 impl CompileOptions {
     pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
