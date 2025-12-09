@@ -287,8 +287,10 @@ impl Context<'_> {
         let mut var_index = new_slice_length;
 
         let slice_type = dfg.type_of_value(slice_contents);
-        let item_size = slice_type.element_size();
-        let item_size = self.acir_context.add_constant(item_size);
+        let item_size = slice_type.element_types();
+        // Must read from the flattened last index of the slice in case the slice contains nested arrays.
+        let flat_item_size: u32 = item_size.iter().map(|typ| typ.flattened_size()).sum();
+        let item_size = self.acir_context.add_constant(flat_item_size);
         var_index = self.acir_context.mul_var(var_index, item_size)?;
 
         let mut popped_elements = Vec::new();
