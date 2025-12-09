@@ -1819,7 +1819,8 @@
 <a href="#1818" id="1818">1818</a>
 <a href="#1819" id="1819">1819</a>
 <a href="#1820" id="1820">1820</a>
-<a href="#1821" id="1821">1821</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -3505,6 +3506,7 @@
         Value::U16(value) =&gt; value <span class="kw">as </span>usize,
         Value::U32(value) =&gt; value <span class="kw">as </span>usize,
         Value::U64(value) =&gt; value <span class="kw">as </span>usize,
+        Value::U128(value) =&gt; value <span class="kw">as </span>usize,
         value =&gt; {
             <span class="kw">let </span>typ = value.get_type().into_owned();
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonIntegerUsedAsIndex { typ, location });
