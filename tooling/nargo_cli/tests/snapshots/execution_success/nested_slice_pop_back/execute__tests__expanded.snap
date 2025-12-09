@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(dummy_val: u32, dummy_arr: [u32; 3], x: u32, y: u32) {
+    let arr: [(u32, [u32; 3]); 0] = [];
+    let s: [(u32, [u32; 3])] = arr.as_slice();
+    let s: [(u32, [u32; 3])] = s.push_back((dummy_val, dummy_arr));
+    let s: [(u32, [u32; 3])] = s.push_back((dummy_val, dummy_arr));
+    let s: [(u32, [u32; 3])] = s.push_back((x, dummy_arr));
+    let (s2, x): ([(u32, [u32; 3])], (u32, [u32; 3])) = s.pop_back();
+    assert(x.0 == y);
+    assert(s2[0_u32].0 == dummy_val);
+    assert(s2[0_u32].1 == dummy_arr);
+    assert(s2[1_u32].0 == dummy_val);
+    assert(s2[1_u32].1 == dummy_arr);
+    assert(s2.len() == 2_u32);
+}
