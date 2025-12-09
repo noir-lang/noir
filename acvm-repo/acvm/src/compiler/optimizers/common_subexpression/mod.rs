@@ -32,7 +32,7 @@ use std::collections::BTreeMap;
 use acir::{
     AcirField,
     circuit::{
-        Circuit, ExpressionWidth, Opcode,
+        Circuit, Opcode,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
@@ -62,12 +62,10 @@ const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 3;
 ///
 /// Pre-Conditions:
 /// - General Optimizer must run before this pass,
-///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
-/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
+///   when `max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES)` is greater than 0
 #[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
 pub(super) fn transform_internal<F: AcirField>(
     mut acir: Circuit<F>,
-    expression_width: ExpressionWidth,
     mut acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
     max_transformer_passes_or_default: Option<usize>,
@@ -90,12 +88,8 @@ pub(super) fn transform_internal<F: AcirField>(
     // don't stabilize unless we also repeat the backend agnostic optimizations.
     for _ in 0..max_transformer_passes {
         info!("Number of opcodes {}", acir.opcodes.len());
-        let (new_acir, new_acir_opcode_positions) = transform_internal_once(
-            acir,
-            expression_width,
-            acir_opcode_positions,
-            brillig_side_effects,
-        );
+        let (new_acir, new_acir_opcode_positions) =
+            transform_internal_once(acir, acir_opcode_positions, brillig_side_effects);
 
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
@@ -125,7 +119,6 @@ pub(super) fn transform_internal<F: AcirField>(
 ///
 /// Pre-Conditions:
 /// - General Optimizer must run before this pass
-/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",
@@ -133,7 +126,6 @@ pub(super) fn transform_internal<F: AcirField>(
 )]
 fn transform_internal_once<F: AcirField>(
     mut acir: Circuit<F>,
-    expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
@@ -141,20 +133,10 @@ fn transform_internal_once<F: AcirField>(
     // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
     // to the required width by creating intermediate variables.
     // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
-
-    // If the expression width is unbounded, we don't need to do anything.
-    let mut transformer = match &expression_width {
-        ExpressionWidth::Unbounded => {
-            return (acir, acir_opcode_positions);
-        }
-        ExpressionWidth::Bounded { width } => {
-            let mut csat = CSatTransformer::new(*width);
-            for value in acir.circuit_arguments() {
-                csat.mark_solvable(value);
-            }
-            csat
-        }
-    };
+    let mut transformer = CSatTransformer::new(4);
+    for value in acir.circuit_arguments() {
+        transformer.mark_solvable(value);
+    }
 
     let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
     // Optimize the assert-zero gates by reducing them into the correct width and
@@ -524,7 +506,7 @@ where
 mod tests {
     use super::transform_internal;
     use crate::compiler::CircuitSimulator;
-    use acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
+    use acir::circuit::{Circuit, brillig::BrilligFunctionId};
     use std::collections::BTreeMap;
 
     #[test]
@@ -601,7 +583,7 @@ mod tests {
 
         let acir = Circuit::from_str(formatted_acir).unwrap();
         assert!(CircuitSimulator::check_circuit(&acir).is_none());
-        let expression_width = ExpressionWidth::Bounded { width: 4 };
+
         let acir_opcode_positions = vec![
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
             24, 25, 26, 27, 28, 29, 29, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
@@ -610,13 +592,8 @@ mod tests {
         let mut brillig_side_effects = BTreeMap::new();
         brillig_side_effects.insert(BrilligFunctionId(0), false);
 
-        let (_, _, opcodes_hash_stabilized) = transform_internal(
-            acir,
-            expression_width,
-            acir_opcode_positions.clone(),
-            &brillig_side_effects,
-            None,
-        );
+        let (_, _, opcodes_hash_stabilized) =
+            transform_internal(acir, acir_opcode_positions.clone(), &brillig_side_effects, None);
         assert!(!opcodes_hash_stabilized);
     }
 }
