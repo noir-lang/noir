@@ -283,16 +283,6 @@ impl Kind {
             _ => None,
         }
     }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Kind::Numeric(typ) => typ.is_field_element(value_level),
-            Kind::IntegerOrField => value_level,
-            _ => false,
-        }
-    }
 }
 
 impl std::fmt::Display for Kind {
@@ -1016,15 +1006,6 @@ impl TypeVariable {
         }
     }
 
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match &*self.borrow() {
-            TypeBinding::Bound(binding) => binding.is_field_element(value_level),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(value_level),
-        }
-    }
-
     /// Check that if bound, it's a signed integer
     pub fn is_signed(&self) -> bool {
         match &*self.borrow() {
@@ -1275,19 +1256,7 @@ impl Type {
     }
 
     pub fn is_field(&self) -> bool {
-        let value_level = true;
-        self.is_field_element(value_level)
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Type::FieldElement => value_level,
-            Type::TypeVariable(var) => var.is_field_element(value_level),
-            Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
-            _ => false,
-        }
+        matches!(self.follow_bindings_shallow().as_ref(), Type::FieldElement)
     }
 
     pub fn is_bool(&self) -> bool {
