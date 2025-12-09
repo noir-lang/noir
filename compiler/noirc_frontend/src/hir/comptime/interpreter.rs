@@ -1684,6 +1684,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
         Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
         Value::U64(value) => value as usize,
+        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
