@@ -1,4 +1,4 @@
-//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -8,6 +8,30 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
+//!
+//! The monomorphized Ast (mAST) has a few notable differences from the Hir:
+//! - It is self-contained without the need for an external context like the NodeInterner.
+//! - All generics are gone, they are specialized away by creating a new copy of each function
+//!   for each combination of generic arguments it is used with.
+//! - All local lambdas are gone and closure environments are explicit. Closures are converted
+//!   into normal tuples of (function, environment) and when the function is called, will forward
+//!   the environment argument to the function as well. All functions are global and local lambdas
+//!   no longer exist.
+//!
+//! At the end of monomorphization, a couple sub-passes are performed:
+//! - [ownership](crate::ownership): infers when values should be cloned or moved for unconstrained code.
+//!   This is only relevant for arrays in unconstrained code which are implemented with copy on
+//!   write semantics. An [ast::Expr::Clone] corresponds to an increment of the reference-count on
+//!   a particular array rather than a deep clone. The deep clone itself will be performed by the
+//!   brillig runtime when mutating an array with a reference count greater than one.
+//! - [proxies]: wraps oracle functions in unconstrained function wrappers automatically.
+//!   This is required in some corner cases when oracles are used as first-class functions.
+//!
+//! Compared to monomorphization passes in other compilers, Noir's is a bit odd in that it may
+//! still fail with an error message. An example of an error caught at this step would be
+//! an unconstrained lambda being passed into and called in constrained code. This is possible
+//! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
+//! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
@@ -148,6 +172,10 @@ pub fn monomorphize(
     monomorphize_debug(main, interner, &DebugInstrumenter::default(), force_unconstrained)
 }
 
+/// A more general entry-point for the monomorphization pass containing an optional
+/// [DebugInstrumenter] which can be set to [DebugInstrumenter::default] in case it
+/// is not desired. If debugging is desired, additional function calls will be inserted
+/// to inspect values via debug functions.
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
