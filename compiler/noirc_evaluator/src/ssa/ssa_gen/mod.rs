@@ -42,6 +42,8 @@ use super::{
     },
 };
 
+pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
 /// Generates SSA for the given monomorphized program.
@@ -132,9 +134,41 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
-    validate_ssa(&ssa);
 
-    Ok(ssa)
+    validate_ssa_or_err(ssa)
+}
+
+/// Run the panicky validation, and try to turn it into a [RuntimeError] if it fails.
+fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+    // Temporarily take the hook, so we don't get the panic printout.
+    let old_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_info| {}));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)));
+    std::panic::set_hook(old_hook);
+
+    if let Err(payload) = result {
+        // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
+        // under the panic message, which makes it difficult to see what went wrong.
+        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+            eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+        }
+
+        // Try to get the panic message and turn this into a RuntimeError
+        let message = if let Some(message) = payload.downcast_ref::<String>() {
+            message.to_owned()
+        } else if let Some(message) = payload.downcast_ref::<&str>() {
+            message.to_string()
+        } else {
+            format!("{payload:?}")
+        };
+        let err = RuntimeError::SsaValidationError {
+            message: message.to_owned(),
+            call_stack: CallStack::default(),
+        };
+        Err(err)
+    } else {
+        Ok(ssa)
+    }
 }
 
 pub fn validate_ssa(ssa: &Ssa) {
@@ -461,9 +495,9 @@ impl FunctionContext<'_> {
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
-        let type_size = Self::convert_type(element_type).size_of_type();
+        let type_size_usize = Self::convert_type(element_type).size_of_type();
         let type_size =
-            self.builder.numeric_constant(type_size as u128, NumericType::length_type());
+            self.builder.numeric_constant(type_size_usize as u128, NumericType::length_type());
 
         let array_type = &self.builder.type_of_value(array);
         let runtime = self.builder.current_function.runtime();
@@ -471,9 +505,10 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-                // We then only need to inject it for brillig functions.
-                if runtime.is_brillig() {
+                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
+                // except when the inner elements have no size, because the array access can be optimized out in that case.
+                // We then only need to inject it for brillig functions or for 'unit' elements.
+                if runtime.is_brillig() || type_size_usize == 0 {
                     let len =
                         self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
                     self.codegen_access_check(index, len);

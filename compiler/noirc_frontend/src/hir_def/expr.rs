@@ -394,6 +394,7 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

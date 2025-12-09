@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type Expr documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">Expr</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -118,200 +124,196 @@
 <h1>Primitive type <span id="primitive" class="primitive">Expr</span></h1>
 <div class="comments">
 <p>A compile-time, quoted, syntactically valid expression.</p>
-<p>An <code>Expr</code> can be obtained using <code>Quoted::as_expr</code>:</p>
-<pre><code>fn main() {
-    comptime {
-        let expr = quote { 1 + 2 }.as_expr().unwrap();
+<p>An <code>Expr</code> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> expr = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
     }
-}
-</code></pre>
-</div>
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code></h3>
 
-<div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <span class="fn">as_array</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+<div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array"><span class="fn">as_array</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an array literal <code>[elem1, ..., elemN]</code>, this returns a slice of each element in the array.</p>
 </div>
-</div><code id="as_assert" class="code-header">pub comptime fn <span class="fn">as_assert</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
+</div><code id="as_assert" class="code-header">pub comptime fn <a href="#as_assert"><span class="fn">as_assert</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an assert, this returns the assert expression and the optional message.</p>
 </div>
-</div><code id="as_assert_eq" class="code-header">pub comptime fn <span class="fn">as_assert_eq</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
+</div><code id="as_assert_eq" class="code-header">pub comptime fn <a href="#as_assert_eq"><span class="fn">as_assert_eq</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an assert_eq, this returns the left-hand-side and right-hand-side
 expressions, together with the optional message.</p>
 </div>
-</div><code id="as_assign" class="code-header">pub comptime fn <span class="fn">as_assign</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+</div><code id="as_assign" class="code-header">pub comptime fn <a href="#as_assign"><span class="fn">as_assign</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an assignment, this returns a tuple with the left hand side
 and right hand side in order.</p>
 </div>
-</div><code id="as_binary_op" class="code-header">pub comptime fn <span class="fn">as_binary_op</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a>, Self)&gt;</code>
+</div><code id="as_binary_op" class="code-header">pub comptime fn <a href="#as_binary_op"><span class="fn">as_binary_op</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a>, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a binary operator operation <code>&lt;lhs&gt; &lt;op&gt; &lt;rhs&gt;</code>,
 return the left-hand side, operator, and the right-hand side of the operation.</p>
 </div>
-</div><code id="as_block" class="code-header">pub comptime fn <span class="fn">as_block</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+</div><code id="as_block" class="code-header">pub comptime fn <a href="#as_block"><span class="fn">as_block</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a block <code>{ stmt1; stmt2; ...; stmtN }</code>, return
 a slice containing each statement.</p>
 </div>
-</div><code id="as_bool" class="code-header">pub comptime fn <span class="fn">as_bool</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.bool.html" class="primitive">bool</a>&gt;</code>
+</div><code id="as_bool" class="code-header">pub comptime fn <a href="#as_bool"><span class="fn">as_bool</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.bool.html" class="primitive">bool</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a boolean literal, return that literal.</p>
 </div>
-</div><code id="as_cast" class="code-header">pub comptime fn <span class="fn">as_cast</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>)&gt;</code>
+</div><code id="as_cast" class="code-header">pub comptime fn <a href="#as_cast"><span class="fn">as_cast</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a cast expression <code>expr as type</code>, returns the casted
 expression and the type to cast to.</p>
 </div>
-</div><code id="as_comptime" class="code-header">pub comptime fn <span class="fn">as_comptime</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+</div><code id="as_comptime" class="code-header">pub comptime fn <a href="#as_comptime"><span class="fn">as_comptime</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a <code>comptime { stmt1; stmt2; ...; stmtN }</code> block,
 return each statement in the block.</p>
 </div>
-</div><code id="as_constructor" class="code-header">pub comptime fn <span class="fn">as_constructor</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>, [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self)])&gt;</code>
+</div><code id="as_constructor" class="code-header">pub comptime fn <a href="#as_constructor"><span class="fn">as_constructor</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>, [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self)])&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a constructor <code>Type { field1: expr1, ..., fieldN: exprN }</code>,
 return the type and the fields.</p>
 </div>
-</div><code id="as_for" class="code-header">pub comptime fn <span class="fn">as_for</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self, Self)&gt;</code>
+</div><code id="as_for" class="code-header">pub comptime fn <a href="#as_for"><span class="fn">as_for</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a for statement over a single expression, return the identifier,
 the expression and the for loop body.</p>
 </div>
-</div><code id="as_for_range" class="code-header">pub comptime fn <span class="fn">as_for_range</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self, Self, Self)&gt;</code>
+</div><code id="as_for_range" class="code-header">pub comptime fn <a href="#as_for_range"><span class="fn">as_for_range</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self, Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a for statement over a range, return the identifier,
 the range start, the range end and the for loop body.</p>
 </div>
-</div><code id="as_function_call" class="code-header">pub comptime fn <span class="fn">as_function_call</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, [Self])&gt;</code>
+</div><code id="as_function_call" class="code-header">pub comptime fn <a href="#as_function_call"><span class="fn">as_function_call</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, [Self])&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a function call <code>foo(arg1, ..., argN)</code>, return
 the function and a slice of each argument.</p>
 </div>
-</div><code id="as_if" class="code-header">pub comptime fn <span class="fn">as_if</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
+</div><code id="as_if" class="code-header">pub comptime fn <a href="#as_if"><span class="fn">as_if</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an <code>if condition { then_branch } else { else_branch }</code>,
 return the condition, then branch, and else branch. If there is no else branch,
 <code>None</code> is returned for that branch instead.</p>
 </div>
-</div><code id="as_index" class="code-header">pub comptime fn <span class="fn">as_index</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+</div><code id="as_index" class="code-header">pub comptime fn <a href="#as_index"><span class="fn">as_index</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an index into an array <code>array[index]</code>, return the
 array and the index.</p>
 </div>
-</div><code id="as_integer" class="code-header">pub comptime fn <span class="fn">as_integer</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Field.html" class="primitive">Field</a>, <a href="../std/primitive.bool.html" class="primitive">bool</a>)&gt;</code>
+</div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer"><span class="fn">as_integer</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Field.html" class="primitive">Field</a>, <a href="../std/primitive.bool.html" class="primitive">bool</a>)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an integer literal, return the integer as a field
 as well as whether the integer is negative (true) or not (false).</p>
 </div>
-</div><code id="as_lambda" class="code-header">pub comptime fn <span class="fn">as_lambda</span>(
+</div><code id="as_lambda" class="code-header">pub comptime fn <a href="#as_lambda"><span class="fn">as_lambda</span></a>(
     self,
 ) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;([(Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;)], <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a lambda, returns the parameters, return type and body.</p>
 </div>
-</div><code id="as_let" class="code-header">pub comptime fn <span class="fn">as_let</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;, Self)&gt;</code>
+</div><code id="as_let" class="code-header">pub comptime fn <a href="#as_let"><span class="fn">as_let</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a let statement, returns the let pattern as an <code>Expr</code>,
 the optional type annotation, and the assigned expression.</p>
 </div>
-</div><code id="as_member_access" class="code-header">pub comptime fn <span class="fn">as_member_access</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)&gt;</code>
+</div><code id="as_member_access" class="code-header">pub comptime fn <a href="#as_member_access"><span class="fn">as_member_access</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a member access <code>foo.bar</code>, return the struct/tuple
 expression and the field. The field will be represented as a quoted value.</p>
 </div>
-</div><code id="as_method_call" class="code-header">pub comptime fn <span class="fn">as_method_call</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, [<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>], [Self])&gt;</code>
+</div><code id="as_method_call" class="code-header">pub comptime fn <a href="#as_method_call"><span class="fn">as_method_call</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, [<a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>], [Self])&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a method call <code>foo.bar::&lt;generic1, ..., genericM&gt;(arg1, ..., argN)</code>, return
 the receiver, method name, a slice of each generic argument, and a slice of each argument.</p>
 </div>
-</div><code id="as_repeated_element_array" class="code-header">pub comptime fn <span class="fn">as_repeated_element_array</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+</div><code id="as_repeated_element_array" class="code-header">pub comptime fn <a href="#as_repeated_element_array"><span class="fn">as_repeated_element_array</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a repeated element array <code>[elem; length]</code>, return
 the repeated element and the length expressions.</p>
 </div>
-</div><code id="as_repeated_element_slice" class="code-header">pub comptime fn <span class="fn">as_repeated_element_slice</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+</div><code id="as_repeated_element_slice" class="code-header">pub comptime fn <a href="#as_repeated_element_slice"><span class="fn">as_repeated_element_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a repeated element slice <code>[elem; length]</code>, return
 the repeated element and the length expressions.</p>
 </div>
-</div><code id="as_slice" class="code-header">pub comptime fn <span class="fn">as_slice</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a slice literal <code>&amp;[elem1, ..., elemN]</code>,
 return each element of the slice.</p>
 </div>
-</div><code id="as_tuple" class="code-header">pub comptime fn <span class="fn">as_tuple</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+</div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple"><span class="fn">as_tuple</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a tuple <code>(field1, ..., fieldN)</code>,
 return each element of the tuple.</p>
 </div>
-</div><code id="as_unary_op" class="code-header">pub comptime fn <span class="fn">as_unary_op</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/meta/op/struct.UnaryOp.html" class="struct">UnaryOp</a>, Self)&gt;</code>
+</div><code id="as_unary_op" class="code-header">pub comptime fn <a href="#as_unary_op"><span class="fn">as_unary_op</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/meta/op/struct.UnaryOp.html" class="struct">UnaryOp</a>, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a unary operation <code>&lt;op&gt; &lt;rhs&gt;</code>,
 return the unary operator as well as the right-hand side expression.</p>
 </div>
-</div><code id="as_unsafe" class="code-header">pub comptime fn <span class="fn">as_unsafe</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+</div><code id="as_unsafe" class="code-header">pub comptime fn <a href="#as_unsafe"><span class="fn">as_unsafe</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an <code>unsafe { stmt1; ...; stmtN }</code> block,
 return each statement inside in a slice.</p>
 </div>
-</div><code id="has_semicolon" class="code-header">pub comptime fn <span class="fn">has_semicolon</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="has_semicolon" class="code-header">pub comptime fn <a href="#has_semicolon"><span class="fn">has_semicolon</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is trailed by a semicolon.</p>
 <p>Example:</p>
-<pre><code class="language-noir">comptime {
-    let expr1 = quote { 1 + 2 }.as_expr().unwrap();
-    let expr2 = quote { 1 + 2; }.as_expr().unwrap();
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> expr1 = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
+    <span class="kw">let</span> expr2 = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span>; }.as_expr().unwrap();
 
-    assert(expr1.as_binary_op().is_some());
-    assert(expr2.as_binary_op().is_some());
+    <span class="kw">assert</span>(expr1.as_binary_op().is_some());
+    <span class="kw">assert</span>(expr2.as_binary_op().is_some());
 
-    assert(!expr1.has_semicolon());
-    assert(expr2.has_semicolon());
-}
-</code></pre>
-</div>
-</div><code id="is_break" class="code-header">pub comptime fn <span class="fn">is_break</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">assert</span>(!expr1.has_semicolon());
+    <span class="kw">assert</span>(expr2.has_semicolon());
+}</code></pre></div>
+</div><code id="is_break" class="code-header">pub comptime fn <a href="#is_break"><span class="fn">is_break</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is <code>break</code>.</p>
 </div>
-</div><code id="is_continue" class="code-header">pub comptime fn <span class="fn">is_continue</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_continue" class="code-header">pub comptime fn <a href="#is_continue"><span class="fn">is_continue</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is <code>continue</code>.</p>
 </div>
-</div><code id="modify" class="code-header">pub comptime fn <span class="fn">modify</span>&lt;Env&gt;(self, f: fn[Env](Self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;) -> Self</code>
+</div><code id="modify" class="code-header">pub comptime fn <a href="#modify"><span class="fn">modify</span></a>&lt;Env&gt;(self, f: fn[Env](Self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Applies a mapping function to this expression and to all of its sub-expressions.
@@ -320,12 +322,12 @@ return each statement inside in a slice.</p>
 <p>For example, calling <code>modify</code> on <code>(&amp;[1], &amp;[2, 3])</code> with an <code>f</code> that returns <code>Option::some</code>
 for expressions that are integers, doubling them, would return <code>(&amp;[2], &amp;[4, 6])</code>.</p>
 </div>
-</div><code id="quoted" class="code-header">pub comptime fn <span class="fn">quoted</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+</div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted"><span class="fn">quoted</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns this expression as a <code>Quoted</code> value. It's the same as <code>quote { $self }</code>.</p>
 </div>
-</div><code id="resolve" class="code-header">pub comptime fn <span class="fn">resolve</span>(self, in_function: <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
+</div><code id="resolve" class="code-header">pub comptime fn <a href="#resolve"><span class="fn">resolve</span></a>(self, in_function: <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Resolves and type-checks this expression and returns the result as a <code>TypedExpr</code>.</p>
@@ -339,5 +341,6 @@ this will give compiler errors as if the expression was written directly into
 the current <code>comptime</code> function.</p>
 </div>
 </div></div></main>
+</span>
 </body>
 </html>

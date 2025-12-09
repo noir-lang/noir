@@ -16,5 +16,7 @@ noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
 markdown = "1.0.0"
+regex.workspace = true
 
 [dev-dependencies]
+insta.workspace = true

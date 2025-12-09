@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type array documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">array</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -108,9 +114,158 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 </ul>
 </div>
 <h2>Implementations</h2>
-<h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+<h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
 
-<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <span class="fn">sort_via</span>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
+<div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <a href="#as_str_unchecked"><span class="fn">as_str_unchecked</span></a>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>Converts a byte array of type <code>[u8; N]</code> to a string. Note that this performs no UTF-8 validation -
+the given array is interpreted as-is as a string.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> hi = [<span class="number">104</span>, <span class="number">105</span>].as_str_unchecked();
+    <span class="kw">assert_eq</span>(hi, <span class="string">"hi"</span>);
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
+<div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the length of this array.</p>
+<pre><code><span class="kw">fn</span> len(self) -&gt; Field</code></pre>
+<p>example</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> array = [<span class="number">42</span>, <span class="number">42</span>];
+    <span class="kw">assert</span>(array.len() == <span class="number">2</span>);
+}</code></pre></div>
+</div><code id="as_slice" class="code-header">pub fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> [T]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns this array as a slice.</p>
+<pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
+<span class="kw">let</span> slice = array.as_slice();
+<span class="kw">assert_eq</span>(slice, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
+</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Applies a function to each element of this array, returning a new array containing the mapped elements.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">let</span> b = a.map(|a| a * <span class="number">2</span>);
+<span class="kw">assert_eq</span>(b, [<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>]);</code></pre></div>
+</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U; N]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Applies a function to each element of this array along with its index,
+returning a new array containing the mapped elements.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">let</span> b = a.mapi(|i, a| i + a * <span class="number">2</span>);
+<span class="kw">assert_eq</span>(b, [<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>]);</code></pre></div>
+</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
+
+<div class="padded-description"><div class="comments">
+<p>Applies a function to each element of this array.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">let</span> <span class="kw">mut</span> b = [<span class="number">0</span>; <span class="number">3</span>];
+<span class="kw">let</span> <span class="kw">mut</span> i = <span class="number">0</span>;
+a.for_each(|x| {
+    b[i] = x;
+    i += <span class="number">1</span>;
+});
+<span class="kw">assert_eq</span>(a, b);</code></pre></div>
+</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+
+<div class="padded-description"><div class="comments">
+<p>Applies a function to each element of this array along with its index.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">let</span> <span class="kw">mut</span> b = [<span class="number">0</span>; <span class="number">3</span>];
+a.for_eachi(|i, x| {
+    b[i] = x;
+});
+<span class="kw">assert_eq</span>(a, b);</code></pre></div>
+</div><code id="fold" class="code-header">pub fn <a href="#fold"><span class="fn">fold</span></a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
+
+<div class="padded-description"><div class="comments">
+<p>Applies a function to each element of the array, returning the final accumulated value. The first
+parameter is the initial value.</p>
+<p>This is a left fold, so the given function will be applied to the accumulator and first element of
+the array, then the second, and so on. For a given call the expected result would be equivalent to:</p>
+<pre><code><span class="kw">let</span> a1 = [<span class="number">1</span>];
+<span class="kw">let</span> a2 = [<span class="number">1</span>, <span class="number">2</span>];
+<span class="kw">let</span> a3 = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+
+<span class="kw">let</span> f = |a, b| a - b;
+a1.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(10, 1)</span>
+a2.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(10, 1), 2)</span>
+a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(10, 1), 2), 3)</span>
+
+<span class="kw">assert_eq</span>(a3.fold(<span class="number">10</span>, f), <span class="number">10</span> - <span class="number">1</span> - <span class="number">2</span> - <span class="number">3</span>);</code></pre></div>
+</div><code id="reduce" class="code-header">pub fn <a href="#reduce"><span class="fn">reduce</span></a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
+
+<div class="padded-description"><div class="comments">
+<p>Same as fold, but uses the first element as the starting element.</p>
+<p>Requires the input array to be non-empty.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>];
+    <span class="kw">let</span> reduced = arr.reduce(|a, b| a + b);
+    <span class="kw">assert</span>(reduced == <span class="number">10</span>);
+}</code></pre></div>
+</div><code id="all" class="code-header">pub fn <a href="#all"><span class="fn">all</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns true if all the elements in this array satisfy the given predicate.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>];
+    <span class="kw">let</span> all = arr.all(|a| a == <span class="number">2</span>);
+    <span class="kw">assert</span>(all);
+}</code></pre></div>
+</div><code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns true if any of the elements in this array satisfy the given predicate.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">5</span>];
+    <span class="kw">let</span> any = arr.any(|a| a == <span class="number">5</span>);
+    <span class="kw">assert</span>(any);
+}</code></pre></div>
+</div><code id="concat" class="code-header">pub fn <a href="#concat"><span class="fn">concat</span></a>&lt;let M: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, array2: [T; M]) -> [T; N + M]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Concatenates this array with another array.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr1 = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>];
+    <span class="kw">let</span> arr2 = [<span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>];
+    <span class="kw">let</span> concatenated_arr = arr1.concat(arr2);
+    <span class="kw">assert</span>(concatenated_arr == [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>]);
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
+<div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort"><span class="fn">sort</span></a>(self) -> Self
+<div class="where-clause">where
+    T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
+    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
+only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
+logic it uses internally is optimized specifically for these values. If you need a sort function to
+sort any type, you should use the <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a> function.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
+    <span class="kw">let</span> sorted = arr.sort();
+    <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
+<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
 <div class="where-clause">where
     T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
 
@@ -120,192 +275,15 @@ The original array remains untouched.
 The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
 <p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
 <p>Example:</p>
-<pre><code class="language-rust">fn main() {
-    let arr = [42, 32]
-    let sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
-    assert(sorted_ascending == [32, 42]); // verifies
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
+    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
+    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
 
-    let sorted_descending = arr.sort_via(|a, b| a &gt;= b);
-    assert(sorted_descending == [32, 42]); // does not verify
-}
-</code></pre>
-</div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
-
-<div class="padded-methods"><code id="len" class="code-header">pub fn <span class="fn">len</span>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns the length of this array.</p>
-<pre><code class="language-noir">fn len(self) -&gt; Field
-</code></pre>
-<p>example</p>
-<pre><code class="language-noir">fn main() {
-    let array = [42, 42];
-    assert(array.len() == 2);
-}
-</code></pre>
-</div>
-</div><code id="as_slice" class="code-header">pub fn <span class="fn">as_slice</span>(self) -> [T]</code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns this array as a slice.</p>
-<pre><code class="language-noir">let array = [1, 2];
-let slice = array.as_slice();
-assert_eq(slice, &amp;[1, 2]);
-</code></pre>
-</div>
-</div><code id="map" class="code-header">pub fn <span class="fn">map</span>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
-
-<div class="padded-description"><div class="comments">
-<p>Applies a function to each element of this array, returning a new array containing the mapped elements.</p>
-<p>Example:</p>
-<pre><code class="language-rust">let a = [1, 2, 3];
-let b = a.map(|a| a * 2);
-assert_eq(b, [2, 4, 6]);
-</code></pre>
-</div>
-</div><code id="mapi" class="code-header">pub fn <span class="fn">mapi</span>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U; N]</code>
-
-<div class="padded-description"><div class="comments">
-<p>Applies a function to each element of this array along with its index,
-returning a new array containing the mapped elements.</p>
-<p>Example:</p>
-<pre><code class="language-rust">let a = [1, 2, 3];
-let b = a.mapi(|i, a| i + a * 2);
-assert_eq(b, [2, 5, 8]);
-</code></pre>
-</div>
-</div><code id="for_each" class="code-header">pub fn <span class="fn">for_each</span>&lt;Env&gt;(self, f: fn[Env](T))</code>
-
-<div class="padded-description"><div class="comments">
-<p>Applies a function to each element of this array.</p>
-<p>Example:</p>
-<pre><code class="language-rust">let a = [1, 2, 3];
-let mut b = [0; 3];
-let mut i = 0;
-a.for_each(|x| {
-    b[i] = x;
-    i += 1;
-});
-assert_eq(a, b);
-</code></pre>
-</div>
-</div><code id="for_eachi" class="code-header">pub fn <span class="fn">for_eachi</span>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
-
-<div class="padded-description"><div class="comments">
-<p>Applies a function to each element of this array along with its index.</p>
-<p>Example:</p>
-<pre><code class="language-rust">let a = [1, 2, 3];
-let mut b = [0; 3];
-a.for_eachi(|i, x| {
-    b[i] = x;
-});
-assert_eq(a, b);
-</code></pre>
-</div>
-</div><code id="fold" class="code-header">pub fn <span class="fn">fold</span>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
-
-<div class="padded-description"><div class="comments">
-<p>Applies a function to each element of the array, returning the final accumulated value. The first
-parameter is the initial value.</p>
-<p>This is a left fold, so the given function will be applied to the accumulator and first element of
-the array, then the second, and so on. For a given call the expected result would be equivalent to:</p>
-<pre><code class="language-rust">let a1 = [1];
-let a2 = [1, 2];
-let a3 = [1, 2, 3];
-
-let f = |a, b| a - b;
-a1.fold(10, f); //=&gt; f(10, 1)
-a2.fold(10, f); //=&gt; f(f(10, 1), 2)
-a3.fold(10, f); //=&gt; f(f(f(10, 1), 2), 3)
-
-assert_eq(a3.fold(10, f), 10 - 1 - 2 - 3);
-</code></pre>
-</div>
-</div><code id="reduce" class="code-header">pub fn <span class="fn">reduce</span>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
-
-<div class="padded-description"><div class="comments">
-<p>Same as fold, but uses the first element as the starting element.</p>
-<p>Requires the input array to be non-empty.</p>
-<p>Example:</p>
-<pre><code class="language-noir">fn main() {
-    let arr = [1, 2, 3, 4];
-    let reduced = arr.reduce(|a, b| a + b);
-    assert(reduced == 10);
-}
-</code></pre>
-</div>
-</div><code id="all" class="code-header">pub fn <span class="fn">all</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns true if all the elements in this array satisfy the given predicate.</p>
-<p>Example:</p>
-<pre><code class="language-noir">fn main() {
-    let arr = [2, 2, 2, 2, 2];
-    let all = arr.all(|a| a == 2);
-    assert(all);
-}
-</code></pre>
-</div>
-</div><code id="any" class="code-header">pub fn <span class="fn">any</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns true if any of the elements in this array satisfy the given predicate.</p>
-<p>Example:</p>
-<pre><code class="language-noir">fn main() {
-    let arr = [2, 2, 2, 2, 5];
-    let any = arr.any(|a| a == 5);
-    assert(any);
-}
-</code></pre>
-</div>
-</div><code id="concat" class="code-header">pub fn <span class="fn">concat</span>&lt;let M: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, array2: [T; M]) -> [T; N + M]</code>
-
-<div class="padded-description"><div class="comments">
-<p>Concatenates this array with another array.</p>
-<p>Example:</p>
-<pre><code class="language-noir">fn main() {
-    let arr1 = [1, 2, 3, 4];
-    let arr2 = [6, 7, 8, 9, 10, 11];
-    let concatenated_arr = arr1.concat(arr2);
-    assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
-}
-</code></pre>
-</div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
-
-<div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <span class="fn">as_str_unchecked</span>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
-
-<div class="padded-description"><div class="comments">
-<p>Converts a byte array of type <code>[u8; N]</code> to a string. Note that this performs no UTF-8 validation -
-the given array is interpreted as-is as a string.</p>
-<p>Example:</p>
-<pre><code class="language-rust">fn main() {
-    let hi = [104, 105].as_str_unchecked();
-    assert_eq(hi, &quot;hi&quot;);
-}
-</code></pre>
-</div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
-
-<div class="padded-methods"><code id="sort" class="code-header">pub fn <span class="fn">sort</span>(self) -> Self
-<div class="where-clause">where
-    T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
-    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
-only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
-logic it uses internally is optimized specifically for these values. If you need a sort function to
-sort any type, you should use the <code>sort_via</code> function.</p>
-<p>Example:</p>
-<pre><code class="language-rust">fn main() {
-    let arr = [42, 32];
-    let sorted = arr.sort();
-    assert(sorted == [32, 42]);
-}
-</code></pre>
-</div>
+    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
+    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
+}</code></pre></div>
 </div></div></main>
+</span>
 </body>
 </html>

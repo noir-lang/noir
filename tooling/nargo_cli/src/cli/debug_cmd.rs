@@ -117,7 +117,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     };
 
     let compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, None, args.compile_options);
+        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
 
     if let Some(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
@@ -142,7 +142,7 @@ fn debug_test_fn(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, package, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {

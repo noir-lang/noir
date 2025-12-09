@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32) {
+    let mut slice: [Field] = &[2_Field, 3_Field];
+    slice[x] = 4_Field;
+    if x == 0_u32 {
+        slice = slice.push_back(5_Field);
+    };
+    assert(slice[x] == 4_Field);
+}

@@ -15,8 +15,8 @@ use std::{
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
-    InlayHintRequest, PrepareRenameRequest, References, Rename, SignatureHelpRequest,
-    WorkspaceSymbolRequest,
+    InlayHintRequest, PrepareRenameRequest, References, Rename, SemanticTokensFullRequest,
+    SignatureHelpRequest, WorkspaceSymbolRequest,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -61,7 +61,7 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
-mod attribute_reference_finder;
+mod doc_comments;
 mod notifications;
 mod requests;
 mod solver;
@@ -70,6 +70,7 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
+mod visitor_reference_finder;
 mod with_file;
 
 #[cfg(test)]
@@ -80,7 +81,10 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
-    requests::{on_expand_request, on_folding_range_request, on_std_source_code_request},
+    requests::{
+        on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
+        on_std_source_code_request,
+    },
     types::request::{NargoExpand, NargoStdSourceCode},
 };
 
@@ -167,6 +171,7 @@ impl NargoLspService {
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<SemanticTokensFullRequest, _>(on_semantic_tokens_full_request)
             .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
             .request::<References, _>(on_references_request)
             .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
@@ -320,7 +325,6 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         entry_path: PathBuf::from(file_path),
         name: crate_name,
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     let workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),

@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acir_field",
@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254 0.5.0",
@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -85,7 +85,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "blake2 0.11.0-rc.2",
@@ -99,7 +99,7 @@ dependencies = [
  "p256",
  "pprof",
  "proptest",
- "sha2 0.11.0-rc.2",
+ "sha2 0.11.0-rc.3",
  "thiserror 1.0.69",
 ]
 
@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -776,7 +776,7 @@ version = "0.11.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1edac47499deef695d9431bf241c75ea29f4cf3dcb78d39e19b31515e4ad3b08"
 dependencies = [
- "digest 0.11.0-rc.1",
+ "digest 0.11.0-rc.4",
 ]
 
 [[package]]
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -863,7 +863,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir_field",
  "proptest",
@@ -873,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1356,13 +1356,13 @@ checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.0-rc.4"
+version = "0.7.0-rc.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c069823f41bdc75e99546bfd59eb1ed27d69dc720e5c949fe502b82926f8448"
+checksum = "6715836b4946e8585016e80b79c7561476aff3b22f7b756778e7b109d86086c6"
 dependencies = [
  "hybrid-array",
  "num-traits",
- "rand_core 0.9.3",
+ "rand_core 0.10.0-rc-2",
  "subtle",
  "zeroize",
 ]
@@ -1379,9 +1379,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.2.0-rc.4"
+version = "0.2.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8235645834fbc6832939736ce2f2d08192652269e11010a6240f61b908a1c6"
+checksum = "919bd05924682a5480aec713596b9e2aabed3a0a6022fab6847f85a99e5f190a"
 dependencies = [
  "hybrid-array",
 ]
@@ -1478,9 +1478,9 @@ dependencies = [
 
 [[package]]
 name = "der"
-version = "0.8.0-rc.8"
+version = "0.8.0-rc.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7050e8041c28720851f7db83183195b6acf375bb7bb28e3b86f0fe6cbd69459d"
+checksum = "02c1d73e9668ea6b6a28172aa55f3ebec38507131ce179051c8033b5c6037653"
 dependencies = [
  "const-oid",
  "pem-rfc7468",
@@ -1538,13 +1538,13 @@ dependencies = [
 
 [[package]]
 name = "digest"
-version = "0.11.0-rc.1"
+version = "0.11.0-rc.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a4aae35a0fcbe22ff1be50fe96df72002d5a4a6fb4aae9193cf2da0daa36da2"
+checksum = "ea390c940e465846d64775e55e3115d5dc934acb953de6f6e6360bc232fe2bf7"
 dependencies = [
  "block-buffer 0.11.0-rc.5",
  "const-oid",
- "crypto-common 0.2.0-rc.4",
+ "crypto-common 0.2.0-rc.5",
  "subtle",
 ]
 
@@ -1630,12 +1630,12 @@ dependencies = [
 
 [[package]]
 name = "ecdsa"
-version = "0.17.0-rc.6"
+version = "0.17.0-rc.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4aa27d88fe1d40a293286027c9306393094d9b36ccd91f2ac4d647870dc0042"
+checksum = "e914ecb8e11a02f42cc05f6b43675d1e5aa4d446cd207f9f818903a1ab34f19f"
 dependencies = [
  "der",
- "digest 0.11.0-rc.1",
+ "digest 0.11.0-rc.4",
  "elliptic-curve",
  "rfc6979",
  "signature",
@@ -1663,19 +1663,21 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "elliptic-curve"
-version = "0.14.0-rc.13"
+version = "0.14.0-rc.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b95fd42abd85018a59f5dbe05551e9eed19edfd1182a415cd98f90ca5af1422"
+checksum = "39ecd2903524729de5d0cba7589121744513feadd56d71980cb480c48caceb11"
 dependencies = [
  "base16ct",
  "crypto-bigint",
- "digest 0.11.0-rc.1",
- "ff 0.14.0-pre.0",
- "group 0.14.0-pre.0",
+ "digest 0.11.0-rc.4",
+ "getrandom 0.3.3",
  "hybrid-array",
+ "once_cell",
  "pem-rfc7468",
  "pkcs8",
- "rand_core 0.9.3",
+ "rand_core 0.10.0-rc-2",
+ "rustcrypto-ff",
+ "rustcrypto-group",
  "sec1",
  "subtle",
  "zeroize",
@@ -1841,16 +1843,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ff"
-version = "0.14.0-pre.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d42dd26f5790eda47c1a2158ea4120e32c35ddc9a7743c98a292accc01b54ef3"
-dependencies = [
- "rand_core 0.9.3",
- "subtle",
-]
-
-[[package]]
 name = "fid-rs"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1925,7 +1917,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2189,17 +2181,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "group"
-version = "0.14.0-pre.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ff6a0b2dd4b981b1ae9e3e6830ab146771f3660d31d57bafd9018805a91b0f1"
-dependencies = [
- "ff 0.14.0-pre.0",
- "rand_core 0.9.3",
- "subtle",
-]
-
-[[package]]
 name = "h2"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2318,11 +2299,11 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hmac"
-version = "0.13.0-rc.1"
+version = "0.13.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49e206bca159aebaaed410f5e78b2fe56bfc0dd5b19ecae922813b8556b8b07e"
+checksum = "f1c597ac7d6cc8143e30e83ef70915e7f883b18d8bec2e2b2bce47f5bbb06d57"
 dependencies = [
- "digest 0.11.0-rc.1",
+ "digest 0.11.0-rc.4",
 ]
 
 [[package]]
@@ -2382,10 +2363,11 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.0"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe39a812f039072707ce38020acbab2f769087952eddd9e2b890f37654b2349"
+checksum = "f471e0a81b2f90ffc0cb2f951ae04da57de8baa46fa99112b062a5173a5088d0"
 dependencies = [
+ "subtle",
  "typenum",
  "zeroize",
 ]
@@ -2810,7 +2792,7 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 
 [[package]]
 name = "itertools"
@@ -3042,15 +3024,14 @@ dependencies = [
 
 [[package]]
 name = "k256"
-version = "0.14.0-pre.10"
+version = "0.14.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3b67ad19d79868e0ff4262b956ffd5ba4da64fbe6dd52c64334f3b9e7c3ba7f"
+checksum = "1527df2d1775d552a836d43dd5eeb5a44ea36429d0752a637a86b3584f107789"
 dependencies = [
  "cfg-if",
  "ecdsa",
  "elliptic-curve",
- "once_cell",
- "sha2 0.11.0-rc.2",
+ "sha2 0.11.0-rc.3",
  "signature",
 ]
 
@@ -3339,7 +3320,7 @@ checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
 name = "nargo"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "brillig",
@@ -3368,7 +3349,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "ark-bn254 0.5.0",
@@ -3414,14 +3395,13 @@ dependencies = [
  "paste",
  "pprof",
  "predicates 2.1.5",
- "prettytable-rs",
  "proptest",
  "rayon",
  "regex",
  "rustc-hash",
  "serde",
  "serde_json",
- "sha2 0.11.0-rc.2",
+ "sha2 0.11.0-rc.3",
  "sha3 0.11.0-rc.3",
  "similar",
  "similar-asserts",
@@ -3441,19 +3421,21 @@ dependencies = [
 
 [[package]]
 name = "nargo_doc"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
+ "insta",
  "iter-extended",
  "markdown",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "regex",
  "serde",
 ]
 
 [[package]]
 name = "nargo_expand"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "nargo_fmt",
  "noirc_driver",
@@ -3462,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "noirc_errors",
  "noirc_frontend",
@@ -3474,7 +3456,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fuzz_target"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "afl",
  "nargo",
@@ -3484,7 +3466,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "dirs",
  "fm",
@@ -3568,7 +3550,7 @@ dependencies = [
 
 [[package]]
 name = "noir_artifact_cli"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm",
@@ -3593,7 +3575,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm",
@@ -3623,7 +3605,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer_fuzz"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "arbitrary",
@@ -3641,7 +3623,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3664,7 +3646,7 @@ dependencies = [
 
 [[package]]
 name = "noir_greybox_fuzzer"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "build-data",
@@ -3684,7 +3666,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "clap",
@@ -3699,7 +3681,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3707,8 +3689,10 @@ dependencies = [
  "convert_case",
  "fm",
  "fuzzy-matcher",
+ "insta",
  "iter-extended",
  "nargo",
+ "nargo_doc",
  "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
@@ -3729,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3757,7 +3741,7 @@ dependencies = [
 
 [[package]]
 name = "noir_protobuf"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "color-eyre",
  "prost",
@@ -3765,7 +3749,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_cli"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "base64",
  "clap",
@@ -3787,7 +3771,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_executor"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "base64",
@@ -3803,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "libfuzzer-sys",
@@ -3820,9 +3804,8 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
- "acvm",
  "build-data",
  "console_error_panic_hook",
  "fm",
@@ -3845,7 +3828,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3864,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "build-data",
@@ -3882,11 +3865,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -3901,7 +3884,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm",
@@ -3916,7 +3899,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "build-data",
@@ -3935,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "base64",
@@ -3952,7 +3935,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "arbtest",
@@ -3989,7 +3972,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "base64",
@@ -4021,7 +4004,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4032,7 +4015,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "codespan",
  "serde",
@@ -4246,12 +4229,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
-name = "option-ext"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
-
-[[package]]
 name = "openssl-sys"
 version = "0.9.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4264,6 +4241,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
 name = "owo-colors"
 version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4271,15 +4254,15 @@ checksum = "48dd4f4a2c8405440fd0462561f0e5806bd0f77e86f51c761481bdd4018b545e"
 
 [[package]]
 name = "p256"
-version = "0.14.0-pre.10"
+version = "0.14.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa93e068b773d56fe26be53accf127d6eb0fde35e4116b7a9276db97b6a50ec9"
+checksum = "cdbe8d6ac92e515ca2179ac331c1e4def09db2217d394683e73dace705c2f0c5"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
  "primefield",
  "primeorder",
- "sha2 0.11.0-rc.2",
+ "sha2 0.11.0-rc.3",
 ]
 
 [[package]]
@@ -4352,9 +4335,9 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pem-rfc7468"
-version = "1.0.0-rc.3"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8e58fab693c712c0d4e88f8eb3087b6521d060bcaf76aeb20cb192d809115ba"
+checksum = "a6305423e0e7738146434843d1694d621cce767262b2a86910beab705e4493d9"
 dependencies = [
  "base64ct",
 ]
@@ -4509,9 +4492,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pkcs8"
-version = "0.11.0-rc.6"
+version = "0.11.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c53e5d0804fa4070b1b2a5b320102f2c1c094920a7533d5d87c2630609bcbd34"
+checksum = "77089aec8290d0b7bb01b671b091095cf1937670725af4fd73d47249f03b12c0"
 dependencies = [
  "der",
  "spki",
@@ -4680,22 +4663,22 @@ dependencies = [
 
 [[package]]
 name = "primefield"
-version = "0.14.0-pre.5"
+version = "0.14.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "049f40103b7e4b0da4e20ed8556805efa740f7104c48991c5f9ab8e09e10ee21"
+checksum = "1c3ad342f52c70a953d95acb09a55450fdc07c2214283b81536c3f83f714568e"
 dependencies = [
  "crypto-bigint",
- "ff 0.14.0-pre.0",
- "rand_core 0.9.3",
+ "rand_core 0.10.0-rc-2",
+ "rustcrypto-ff",
  "subtle",
  "zeroize",
 ]
 
 [[package]]
 name = "primeorder"
-version = "0.14.0-pre.8"
+version = "0.14.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9257332cf7e56fa8183f719977b92f1878cb1447275d0ee280a08bcd6fad158f"
+checksum = "f5e84a5f07d7a7c85f299e17753a98d8a09f10799894a637c9ce08d834b6ca02"
 dependencies = [
  "elliptic-curve",
 ]
@@ -4977,6 +4960,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_core"
+version = "0.10.0-rc-2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "104a23e4e8b77312a823b6b5613edbac78397e2f34320bc7ac4277013ec4478e"
+
+[[package]]
 name = "rand_xorshift"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5189,9 +5178,9 @@ dependencies = [
 
 [[package]]
 name = "rfc6979"
-version = "0.5.0-rc.1"
+version = "0.5.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d369f9c4f79388704648e7bcb92749c0d6cf4397039293a9b747694fa4fb4bae"
+checksum = "63b8e2323084c987a72875b2fd682b7307d5cf14d47e3875bb5e89948e8809d4"
 dependencies = [
  "hmac",
  "subtle",
@@ -5317,6 +5306,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rustcrypto-ff"
+version = "0.14.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa9cd37111549306f79b09aa2618e15b1e8241b7178c286821e3dd71579db4db"
+dependencies = [
+ "rand_core 0.10.0-rc-2",
+ "subtle",
+]
+
+[[package]]
+name = "rustcrypto-group"
+version = "0.14.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e394cd734b5f97dfc3484fa42aad7acd912961c2bcd96c99aa05b3d6cab7cafd"
+dependencies = [
+ "rand_core 0.10.0-rc-2",
+ "rustcrypto-ff",
+ "subtle",
 ]
 
 [[package]]
@@ -5588,9 +5598,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sec1"
-version = "0.8.0-rc.9"
+version = "0.8.0-rc.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5e67a3c9fb9a8f065af9fa30d65812fcc16a66cbf911eff1f6946957ce48f16"
+checksum = "1dff52f6118bc9f0ac974a54a639d499ac26a6cad7a6e39bc0990c19625e793b"
 dependencies = [
  "base16ct",
  "der",
@@ -5801,13 +5811,13 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.11.0-rc.2"
+version = "0.11.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1e3878ab0f98e35b2df35fe53201d088299b41a6bb63e3e34dada2ac4abd924"
+checksum = "19d43dc0354d88b791216bb5c1bfbb60c0814460cc653ae0ebd71f286d0bd927"
 dependencies = [
  "cfg-if",
  "cpufeatures",
- "digest 0.11.0-rc.1",
+ "digest 0.11.0-rc.4",
 ]
 
 [[package]]
@@ -5838,7 +5848,7 @@ version = "0.11.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2103ca0e6f4e9505eae906de5e5883e06fc3b2232fb5d6914890c7bbcb62f478"
 dependencies = [
- "digest 0.11.0-rc.1",
+ "digest 0.11.0-rc.4",
  "keccak 0.2.0-rc.0",
 ]
 
@@ -5865,12 +5875,12 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signature"
-version = "3.0.0-rc.3"
+version = "3.0.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39195ff4c0dc41c93e123825ca1f0d11b856df8b26d5fe140a522355632c4345"
+checksum = "2a0251c9d6468f4ba853b6352b190fb7c1e405087779917c238445eb03993826"
 dependencies = [
- "digest 0.11.0-rc.1",
- "rand_core 0.9.3",
+ "digest 0.11.0-rc.4",
+ "rand_core 0.10.0-rc-2",
 ]
 
 [[package]]
@@ -6042,14 +6052,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sha2 0.11.0-rc.2",
+ "sha2 0.11.0-rc.3",
  "strum",
  "strum_macros",
 ]
 
 [[package]]
 name = "ssa_verification"
-version = "1.0.0-beta.15"
+version = "1.0.0-beta.16"
 dependencies = [
  "acvm",
  "clap",
