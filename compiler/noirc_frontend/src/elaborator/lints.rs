@@ -73,6 +73,21 @@ pub(super) fn inlining_attributes(
     }
 }
 
+/// The `#[no_predicates]` attribute is not allowed on entry point functions
+/// since it's meant to control inlining into the entry point.
+pub(super) fn no_predicates_on_entry_point(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    (func.is_entry_point && attribute.kind.is_no_predicates()).then(|| {
+        ResolverError::NoPredicatesAttributeOnEntryPoint {
+            ident: func_meta_name_ident(func, modifiers),
+            location: attribute.location,
+        }
+    })
+}
+
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
     modifiers: &FunctionModifiers,
@@ -175,27 +190,6 @@ pub(super) fn oracle_returns_multiple_slices(
     }
 }
 
-/// Oracle functions may not be called by constrained functions directly.
-///
-/// In order for a constrained function to call an oracle it must first call through an unconstrained function.
-pub(super) fn oracle_called_from_constrained_function(
-    interner: &NodeInterner,
-    called_func: &FuncId,
-    calling_from_constrained_runtime: bool,
-    location: Location,
-) -> Option<ResolverError> {
-    if !calling_from_constrained_runtime {
-        return None;
-    }
-
-    let function_attributes = interner.function_attributes(called_func);
-    if function_attributes.function()?.kind.is_oracle() {
-        Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
-    } else {
-        None
-    }
-}
-
 /// `pub` is required on return types for entry point functions
 pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
     if func.is_entry_point
@@ -273,6 +267,27 @@ pub(super) fn unnecessary_pub_argument(
             ident: func.name_ident().clone(),
             position: PubPosition::Parameter,
         })
+    } else {
+        None
+    }
+}
+
+/// call_data and return_data visibility modifiers are only allowed on entry point functions.
+pub(super) fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    if !is_entry_point {
+        match visibility {
+            Visibility::CallData(_) | Visibility::ReturnData => {
+                Some(ResolverError::DataBusOnNonEntryPoint {
+                    ident: func.name_ident().clone(),
+                    visibility: visibility.to_string(),
+                })
+            }
+            _ => None,
+        }
     } else {
         None
     }

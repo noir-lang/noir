@@ -221,12 +221,7 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
-                // Arrays loaded from memory might reference an existing array
-                // For instance if the array comes from a load we may potentially be mutating an array
-                // at a reference that is loaded from by other values.
-                Instruction::Load { .. } => {
-                    panic!("Load instruction exists before `array_set_optimization` pass");
-                }
+
                 // Arrays nested in other arrays are a use.
                 Instruction::MakeArray { elements, .. } => {
                     for element in elements {
@@ -235,12 +230,37 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
+
+                // The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
+                // so we assert that such instructions have already been removed by the `remove_if_else` pass.
                 Instruction::IfElse { .. } => {
-                    panic!(
-                        "IfElse instructions are assumed to be removed before array_set optimization"
-                    )
+                    unreachable!("IfElse instruction exists before `array_set_optimization` pass");
                 }
-                _ => (),
+
+                // Arrays loaded from memory might reference an existing array
+                // For instance if the array comes from a load we may potentially be mutating an array
+                // at a reference that is loaded from by other values.
+                Instruction::Load { .. } => {
+                    unreachable!("Load instruction exists before `array_set_optimization` pass");
+                }
+                // We also disallow Store instructions for the same reason.
+                Instruction::Store { .. } => {
+                    unreachable!("Store instruction exists before `array_set_optimization` pass");
+                }
+
+                // These instructions do not interact with arrays, so we do not need to track them.
+                Instruction::Binary(..)
+                | Instruction::Cast(..)
+                | Instruction::Not(..)
+                | Instruction::Truncate { .. }
+                | Instruction::Constrain(..)
+                | Instruction::ConstrainNotEqual(..)
+                | Instruction::RangeCheck { .. }
+                | Instruction::Allocate
+                | Instruction::EnableSideEffectsIf { .. }
+                | Instruction::IncrementRc { .. }
+                | Instruction::DecrementRc { .. }
+                | Instruction::Noop => (),
             }
         }
     }

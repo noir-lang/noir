@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type Type documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">Type</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -115,7 +121,7 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 
-<div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <span class="fn">as_array</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+<div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array"><span class="fn">as_array</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this type is an array, return a pair of (element type, size type).</p>
@@ -127,50 +133,50 @@
     <span class="kw">assert</span>(field_type.is_field());
     <span class="kw">assert_eq</span>(three_type.as_constant().unwrap(), <span class="number">3</span>);
 }</code></pre></div>
-</div><code id="as_constant" class="code-header">pub comptime fn <span class="fn">as_constant</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;</code>
+</div><code id="as_constant" class="code-header">pub comptime fn <a href="#as_constant"><span class="fn">as_constant</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this type is a constant integer (such as the <code>3</code> in the array type <code>[Field; 3]</code>),
 return the numeric constant.</p>
 </div>
-</div><code id="as_integer" class="code-header">pub comptime fn <span class="fn">as_integer</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.bool.html" class="primitive">bool</a>, <a href="../std/primitive.u8.html" class="primitive">u8</a>)&gt;</code>
+</div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer"><span class="fn">as_integer</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.bool.html" class="primitive">bool</a>, <a href="../std/primitive.u8.html" class="primitive">u8</a>)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is an integer type, return a boolean which is <code>true</code>
 if the type is signed, as well as the number of bits of this integer type.</p>
 </div>
-</div><code id="as_mutable_reference" class="code-header">pub comptime fn <span class="fn">as_mutable_reference</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+</div><code id="as_mutable_reference" class="code-header">pub comptime fn <a href="#as_mutable_reference"><span class="fn">as_mutable_reference</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
 </div>
-</div><code id="as_slice" class="code-header">pub comptime fn <span class="fn">as_slice</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a slice type, return the element type of the slice.</p>
 </div>
-</div><code id="as_str" class="code-header">pub comptime fn <span class="fn">as_str</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+</div><code id="as_str" class="code-header">pub comptime fn <a href="#as_str"><span class="fn">as_str</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a <code>str&lt;N&gt;</code> type, returns the length <code>N</code> as a type.</p>
 </div>
-</div><code id="as_struct" class="code-header">pub comptime fn <span class="fn">as_struct</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
+</div><code id="as_struct" class="code-header">pub comptime fn <a href="#as_struct"><span class="fn">as_struct</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
 
 <div class="padded-description"><div class="deprecated">
 <span class="emoji">👎</span>
 Deprecated: This method has been renamed to `as_data_type`
 </div>
-</div><code id="as_data_type" class="code-header">pub comptime fn <span class="fn">as_data_type</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
+</div><code id="as_data_type" class="code-header">pub comptime fn <a href="#as_data_type"><span class="fn">as_data_type</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a struct or enum type, returns the type in addition to any generic arguments on this type.</p>
 </div>
-</div><code id="as_tuple" class="code-header">pub comptime fn <span class="fn">as_tuple</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+</div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple"><span class="fn">as_tuple</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a tuple type, returns each element type of the tuple.</p>
 </div>
-</div><code id="get_trait_impl" class="code-header">pub comptime fn <span class="fn">get_trait_impl</span>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.TraitImpl.html" class="primitive">TraitImpl</a>&gt;</code>
+</div><code id="get_trait_impl" class="code-header">pub comptime fn <a href="#get_trait_impl"><span class="fn">get_trait_impl</span></a>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.TraitImpl.html" class="primitive">TraitImpl</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retrieves the trait implementation that implements the given
@@ -187,7 +193,7 @@ whether a type implements a trait, use <code>implements</code> instead.</p>
     <span class="kw">let</span> the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
     <span class="kw">assert</span>(the_impl.methods().len(), <span class="number">1</span>);
 }</code></pre></div>
-</div><code id="implements" class="code-header">pub comptime fn <span class="fn">implements</span>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="implements" class="code-header">pub comptime fn <a href="#implements"><span class="fn">implements</span></a>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type implements the given trait. Note that unlike
@@ -204,17 +210,17 @@ in scope.</p>
         <span class="kw">assert</span>(t.implements(default));
     }
 }</code></pre></div>
-</div><code id="is_bool" class="code-header">pub comptime fn <span class="fn">is_bool</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_bool" class="code-header">pub comptime fn <a href="#is_bool"><span class="fn">is_bool</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type is <code>bool</code>.</p>
 </div>
-</div><code id="is_field" class="code-header">pub comptime fn <span class="fn">is_field</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_field" class="code-header">pub comptime fn <a href="#is_field"><span class="fn">is_field</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type is <code>Field</code>.</p>
 </div>
-</div><code id="is_unit" class="code-header">pub comptime fn <span class="fn">is_unit</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_unit" class="code-header">pub comptime fn <a href="#is_unit"><span class="fn">is_unit</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type is the unit <code>()</code> type.</p>
@@ -236,5 +242,6 @@ typically have to worry about this distinction.</p>
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>

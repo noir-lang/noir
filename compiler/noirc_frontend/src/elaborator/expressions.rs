@@ -1453,7 +1453,13 @@ impl Elaborator<'_> {
             if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
         let captures = lambda_context.captures;
-        let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
+        let expr = HirExpression::Lambda(HirLambda {
+            parameters,
+            return_type,
+            body,
+            captures,
+            unconstrained,
+        });
         (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 

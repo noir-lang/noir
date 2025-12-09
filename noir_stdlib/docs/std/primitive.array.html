@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type array documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">array</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -110,7 +116,7 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
 
-<div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <span class="fn">as_str_unchecked</span>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
+<div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <a href="#as_str_unchecked"><span class="fn">as_str_unchecked</span></a>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Converts a byte array of type <code>[u8; N]</code> to a string. Note that this performs no UTF-8 validation -
@@ -122,7 +128,7 @@ the given array is interpreted as-is as a string.</p>
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
-<div class="padded-methods"><code id="len" class="code-header">pub fn <span class="fn">len</span>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+<div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the length of this array.</p>
@@ -132,14 +138,14 @@ the given array is interpreted as-is as a string.</p>
     <span class="kw">let</span> array = [<span class="number">42</span>, <span class="number">42</span>];
     <span class="kw">assert</span>(array.len() == <span class="number">2</span>);
 }</code></pre></div>
-</div><code id="as_slice" class="code-header">pub fn <span class="fn">as_slice</span>(self) -> [T]</code>
+</div><code id="as_slice" class="code-header">pub fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> [T]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns this array as a slice.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> slice = array.as_slice();
 <span class="kw">assert_eq</span>(slice, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
-</div><code id="map" class="code-header">pub fn <span class="fn">map</span>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
+</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Applies a function to each element of this array, returning a new array containing the mapped elements.</p>
@@ -147,7 +153,7 @@ the given array is interpreted as-is as a string.</p>
 <pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="kw">let</span> b = a.map(|a| a * <span class="number">2</span>);
 <span class="kw">assert_eq</span>(b, [<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>]);</code></pre></div>
-</div><code id="mapi" class="code-header">pub fn <span class="fn">mapi</span>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U; N]</code>
+</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Applies a function to each element of this array along with its index,
@@ -156,7 +162,7 @@ returning a new array containing the mapped elements.</p>
 <pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="kw">let</span> b = a.mapi(|i, a| i + a * <span class="number">2</span>);
 <span class="kw">assert_eq</span>(b, [<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>]);</code></pre></div>
-</div><code id="for_each" class="code-header">pub fn <span class="fn">for_each</span>&lt;Env&gt;(self, f: fn[Env](T))</code>
+</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Applies a function to each element of this array.</p>
@@ -169,7 +175,7 @@ a.for_each(|x| {
     i += <span class="number">1</span>;
 });
 <span class="kw">assert_eq</span>(a, b);</code></pre></div>
-</div><code id="for_eachi" class="code-header">pub fn <span class="fn">for_eachi</span>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Applies a function to each element of this array along with its index.</p>
@@ -180,7 +186,7 @@ a.for_eachi(|i, x| {
     b[i] = x;
 });
 <span class="kw">assert_eq</span>(a, b);</code></pre></div>
-</div><code id="fold" class="code-header">pub fn <span class="fn">fold</span>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
+</div><code id="fold" class="code-header">pub fn <a href="#fold"><span class="fn">fold</span></a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
 
 <div class="padded-description"><div class="comments">
 <p>Applies a function to each element of the array, returning the final accumulated value. The first
@@ -197,7 +203,7 @@ a2.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(10
 a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(10, 1), 2), 3)</span>
 
 <span class="kw">assert_eq</span>(a3.fold(<span class="number">10</span>, f), <span class="number">10</span> - <span class="number">1</span> - <span class="number">2</span> - <span class="number">3</span>);</code></pre></div>
-</div><code id="reduce" class="code-header">pub fn <span class="fn">reduce</span>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
+</div><code id="reduce" class="code-header">pub fn <a href="#reduce"><span class="fn">reduce</span></a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Same as fold, but uses the first element as the starting element.</p>
@@ -208,7 +214,7 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
     <span class="kw">let</span> reduced = arr.reduce(|a, b| a + b);
     <span class="kw">assert</span>(reduced == <span class="number">10</span>);
 }</code></pre></div>
-</div><code id="all" class="code-header">pub fn <span class="fn">all</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="all" class="code-header">pub fn <a href="#all"><span class="fn">all</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if all the elements in this array satisfy the given predicate.</p>
@@ -218,7 +224,7 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
     <span class="kw">let</span> all = arr.all(|a| a == <span class="number">2</span>);
     <span class="kw">assert</span>(all);
 }</code></pre></div>
-</div><code id="any" class="code-header">pub fn <span class="fn">any</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if any of the elements in this array satisfy the given predicate.</p>
@@ -228,7 +234,7 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
     <span class="kw">let</span> any = arr.any(|a| a == <span class="number">5</span>);
     <span class="kw">assert</span>(any);
 }</code></pre></div>
-</div><code id="concat" class="code-header">pub fn <span class="fn">concat</span>&lt;let M: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, array2: [T; M]) -> [T; N + M]</code>
+</div><code id="concat" class="code-header">pub fn <a href="#concat"><span class="fn">concat</span></a>&lt;let M: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, array2: [T; M]) -> [T; N + M]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Concatenates this array with another array.</p>
@@ -241,7 +247,7 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
-<div class="padded-methods"><code id="sort" class="code-header">pub fn <span class="fn">sort</span>(self) -> Self
+<div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort"><span class="fn">sort</span></a>(self) -> Self
 <div class="where-clause">where
     T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
     T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
@@ -259,7 +265,7 @@ sort any type, you should use the <a href="../std/primitive.array.html#sort_via"
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
-<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <span class="fn">sort_via</span>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
+<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
 <div class="where-clause">where
     T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
 
@@ -278,5 +284,6 @@ The ordering function must return true if the first argument should be sorted to
     <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
 }</code></pre></div>
 </div></div></main>
+</span>
 </body>
 </html>

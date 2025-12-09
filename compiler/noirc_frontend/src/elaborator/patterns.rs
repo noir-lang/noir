@@ -82,7 +82,7 @@ impl Elaborator<'_> {
     /// it created to the scope if necessary.
     ///
     /// - `pattern_names` keeps track of parameter names within this single pattern (or an outer
-    ///    one, when called recursively). If a name is found multiple times, an error is captured.
+    ///   one, when called recursively). If a name is found multiple times, an error is captured.
     /// - `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     ///   patterns in a list. If a name is found multiple times, an error is captured.
     #[allow(clippy::too_many_arguments)]

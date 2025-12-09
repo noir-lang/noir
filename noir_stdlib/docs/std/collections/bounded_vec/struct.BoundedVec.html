@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../../styles.css">
+<script defer src="../../../nargo_doc.js"></script>
 <title>Struct BoundedVec documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">BoundedVec</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
@@ -72,7 +78,7 @@ is a reasonable maximum bound that can be placed on the vector.</p>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let MaxLen: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;</code></h3>
 
-<div class="padded-methods"><code id="new" class="code-header">pub fn <span class="fn">new</span>() -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new"><span class="fn">new</span></a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new, empty vector of length zero.</p>
@@ -102,7 +108,7 @@ via a type signature:</p>
 <p>This defaulting of <code>MaxLen</code> (and numeric generics in general) to zero may change in future noir versions
 but for now make sure to use type annotations when using bounded vectors. Otherwise, you will receive a
 constraint failure at runtime when the vec is pushed to.</p></div>
-</div><code id="get" class="code-header">pub fn <span class="fn">get</span>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
+</div><code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retrieves an element from the vector at the given index, starting from zero.</p>
@@ -114,7 +120,7 @@ will issue a constraint failure.</p>
     <span class="kw">let</span> last = v.get(v.len() - <span class="number">1</span>);
     <span class="kw">assert</span>(first != last);
 }</code></pre></div>
-</div><code id="get_unchecked" class="code-header">pub fn <span class="fn">get_unchecked</span>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
+</div><code id="get_unchecked" class="code-header">pub fn <a href="#get_unchecked"><span class="fn">get_unchecked</span></a>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retrieves an element from the vector at the given index, starting from zero, without
@@ -131,7 +137,7 @@ it is unsafe! Use at your own risk!</p>
     <span class="kw">let</span> third = v.get_unchecked(<span class="number">2</span>);
     first + second + third
 }</code></pre></div>
-</div><code id="set" class="code-header">pub fn <span class="fn">set</span>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, value: T)</code>
+</div><code id="set" class="code-header">pub fn <a href="#set"><span class="fn">set</span></a>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, value: T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Writes an element to the vector at the given index, starting from zero.</p>
@@ -144,7 +150,7 @@ it is unsafe! Use at your own risk!</p>
     <span class="kw">let</span> new_first = v.get(<span class="number">0</span>);
     <span class="kw">assert</span>(new_first == <span class="number">42</span>);
 }</code></pre></div>
-</div><code id="set_unchecked" class="code-header">pub fn <span class="fn">set_unchecked</span>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, value: T)</code>
+</div><code id="set_unchecked" class="code-header">pub fn <a href="#set_unchecked"><span class="fn">set_unchecked</span></a>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, value: T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Writes an element to the vector at the given index, starting from zero, without performing a bounds check.</p>
@@ -173,7 +179,7 @@ it is unsafe! Use at your own risk!</p>
     vec.set_unchecked(<span class="number">5</span>, <span class="number">42</span>);
     println(vec);
 }</code></pre></div>
-</div><code id="push" class="code-header">pub fn <span class="fn">push</span>(&mut self, elem: T)</code>
+</div><code id="push" class="code-header">pub fn <a href="#push"><span class="fn">push</span></a>(&mut self, elem: T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Pushes an element to the end of the vector. This increases the length
@@ -187,7 +193,7 @@ v.push(<span class="number">2</span>);
 
 <span class="comment">// Panics with failed assertion "push out of bounds"</span>
 v.push(<span class="number">3</span>);</code></pre></div>
-</div><code id="len" class="code-header">pub fn <span class="fn">len</span>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the current length of this vector</p>
@@ -206,7 +212,7 @@ v.push(<span class="number">400</span>);
 <span class="kw">let</span> _ = v.pop();
 <span class="kw">let</span> _ = v.pop();
 <span class="kw">assert</span>(v.len() == <span class="number">2</span>);</code></pre></div>
-</div><code id="max_len" class="code-header">pub fn <span class="fn">max_len</span>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="max_len" class="code-header">pub fn <a href="#max_len"><span class="fn">max_len</span></a>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the maximum length of this vector. This is always
@@ -217,7 +223,7 @@ equal to the <code>MaxLen</code> parameter this vector was initialized with.</p>
 <span class="kw">assert</span>(v.max_len() == <span class="number">5</span>);
 v.push(<span class="number">10</span>);
 <span class="kw">assert</span>(v.max_len() == <span class="number">5</span>);</code></pre></div>
-</div><code id="storage" class="code-header">pub fn <span class="fn">storage</span>(self) -> [T; MaxLen]</code>
+</div><code id="storage" class="code-header">pub fn <a href="#storage"><span class="fn">storage</span></a>(self) -> [T; MaxLen]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the internal array within this vector.</p>
@@ -231,7 +237,7 @@ the storage held internally by this vector.</p>
 
 v.push(<span class="number">57</span>);
 <span class="kw">assert</span>(v.storage() == [<span class="number">57</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]);</code></pre></div>
-</div><code id="extend_from_array" class="code-header">pub fn <span class="fn">extend_from_array</span>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self, array: [T; Len])</code>
+</div><code id="extend_from_array" class="code-header">pub fn <a href="#extend_from_array"><span class="fn">extend_from_array</span></a>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self, array: [T; Len])</code>
 
 <div class="padded-description"><div class="comments">
 <p>Pushes each element from the given array to this vector.</p>
@@ -244,7 +250,7 @@ vec.extend_from_array([<span class="number">2</span>, <span class="number">4</sp
 <span class="kw">assert</span>(vec.len == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">1</span>) == <span class="number">4</span>);</code></pre></div>
-</div><code id="extend_from_slice" class="code-header">pub fn <span class="fn">extend_from_slice</span>(&mut self, slice: [T])</code>
+</div><code id="extend_from_slice" class="code-header">pub fn <a href="#extend_from_slice"><span class="fn">extend_from_slice</span></a>(&mut self, slice: [T])</code>
 
 <div class="padded-description"><div class="comments">
 <p>Pushes each element from the given slice to this vector.</p>
@@ -257,7 +263,7 @@ vec.extend_from_slice(&[<span class="number">2</span>, <span class="number">4</s
 <span class="kw">assert</span>(vec.len == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">1</span>) == <span class="number">4</span>);</code></pre></div>
-</div><code id="extend_from_bounded_vec" class="code-header">pub fn <span class="fn">extend_from_bounded_vec</span>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self, vec: <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, Len&gt;)</code>
+</div><code id="extend_from_bounded_vec" class="code-header">pub fn <a href="#extend_from_bounded_vec"><span class="fn">extend_from_bounded_vec</span></a>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self, vec: <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, Len&gt;)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Pushes each element from the other vector to this vector. The length of
@@ -272,14 +278,14 @@ v1.extend_from_bounded_vec(v2);
 
 <span class="kw">assert</span>(v1.storage() == [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">0</span>, <span class="number">0</span>]);
 <span class="kw">assert</span>(v2.storage() == [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]);</code></pre></div>
-</div><code id="from_array" class="code-header">pub fn <span class="fn">from_array</span>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(array: [T; Len]) -> Self</code>
+</div><code id="from_array" class="code-header">pub fn <a href="#from_array"><span class="fn">from_array</span></a>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(array: [T; Len]) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new vector, populating it with values derived from an array input.
 The maximum length of the vector is determined based on the type signature.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> bounded_vec: BoundedVec&lt;Field, <span class="number">10</span>&gt; = BoundedVec::from_array([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>])</code></pre></div>
-</div><code id="pop" class="code-header">pub fn <span class="fn">pop</span>(&mut self) -> T</code>
+</div><code id="pop" class="code-header">pub fn <a href="#pop"><span class="fn">pop</span></a>(&mut self) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Pops the element at the end of the vector. This will decrease the length
@@ -298,7 +304,7 @@ v.push(<span class="number">2</span>);
 
 <span class="comment">// error: cannot pop from an empty vector</span>
 <span class="kw">let</span> _ = v.pop();</code></pre></div>
-</div><code id="any" class="code-header">pub fn <span class="fn">any</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if the given predicate returns true for any element
@@ -309,7 +315,7 @@ v.extend_from_array([<span class="number">2</span>, <span class="number">4</span
 
 <span class="kw">let</span> all_even = !v.any(|elem: u32| elem % <span class="number">2</span> != <span class="number">0</span>);
 <span class="kw">assert</span>(all_even);</code></pre></div>
-</div><code id="map" class="code-header">pub fn <span class="fn">map</span>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
+</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new vector of equal size by calling a closure on each element in this vector.</p>
@@ -319,7 +325,7 @@ v.extend_from_array([<span class="number">2</span>, <span class="number">4</span
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">8</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="mapi" class="code-header">pub fn <span class="fn">mapi</span>&lt;U, Env&gt;(self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
+</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new vector of equal size by calling a closure on each element
@@ -330,7 +336,7 @@ in this vector, along with its index.</p>
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>, <span class="number">11</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="for_each" class="code-header">pub fn <span class="fn">for_each</span>&lt;Env&gt;(self, f: fn[Env](T))</code>
+</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Calls a closure on each element in this vector.</p>
@@ -341,7 +347,7 @@ vec.for_each(|value| result.push(value * <span class="number">2</span>));
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">8</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="for_eachi" class="code-header">pub fn <span class="fn">for_eachi</span>&lt;Env&gt;(self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Calls a closure on each element in this vector, along with its index.</p>
@@ -352,7 +358,7 @@ vec.for_eachi(|i, value| result.push(i + value * <span class="number">2</span>))
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>, <span class="number">11</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="from_parts" class="code-header">pub fn <span class="fn">from_parts</span>(array: [T; MaxLen], len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
+</div><code id="from_parts" class="code-header">pub fn <a href="#from_parts"><span class="fn">from_parts</span></a>(array: [T; MaxLen], len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new BoundedVec from the given array and length.
@@ -363,7 +369,7 @@ zeroed after that index, you can use <a href="../../../std/collections/bounded_v
 <p>Example:</p>
 <pre><code><span class="kw">let</span> vec: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_parts([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">0</span>], <span class="number">3</span>);
 <span class="kw">assert_eq</span>(vec.len(), <span class="number">3</span>);</code></pre></div>
-</div><code id="from_parts_unchecked" class="code-header">pub fn <span class="fn">from_parts_unchecked</span>(array: [T; MaxLen], len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
+</div><code id="from_parts_unchecked" class="code-header">pub fn <a href="#from_parts_unchecked"><span class="fn">from_parts_unchecked</span></a>(array: [T; MaxLen], len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new BoundedVec from the given array and length.
@@ -396,5 +402,6 @@ to give incorrect results since it will check even elements past <code>len</code
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">from</span>(array: [T; Len]) -> Self</code>
 
 </div></main>
+</span>
 </body>
 </html>

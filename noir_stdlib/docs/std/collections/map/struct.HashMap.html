@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../../styles.css">
+<script defer src="../../../nargo_doc.js"></script>
 <title>Struct HashMap documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">HashMap</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
@@ -66,7 +72,7 @@ map.insert(<span class="number">3</span>, <span class="number">4</span>);
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;</code></h3>
 
-<div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <span class="fn">with_hasher</span>(_build_hasher: B) -> Self
+<div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <a href="#with_hasher"><span class="fn">with_hasher</span></a>(_build_hasher: B) -> Self
 <div class="where-clause">where
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
@@ -77,7 +83,7 @@ hashmaps are created with the same hasher instance.</p>
 <pre><code><span class="kw">let</span> my_hasher: BuildHasherDefault&lt;Poseidon2Hasher&gt; = Default::default();
 <span class="kw">let</span> hashmap: HashMap&lt;u8, u32, <span class="number">10</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::with_hasher(my_hasher);
 <span class="kw">assert</span>(hashmap.is_empty());</code></pre></div>
-</div><code id="clear" class="code-header">pub fn <span class="fn">clear</span>(&mut self)</code>
+</div><code id="clear" class="code-header">pub fn <a href="#clear"><span class="fn">clear</span></a>(&mut self)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Clears the hashmap, removing all key-value pairs from it.</p>
@@ -85,7 +91,7 @@ hashmaps are created with the same hasher instance.</p>
 <pre><code><span class="kw">assert</span>(!map.is_empty());
 map.clear();
 <span class="kw">assert</span>(map.is_empty());</code></pre></div>
-</div><code id="contains_key" class="code-header">pub fn <span class="fn">contains_key</span>(self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
+</div><code id="contains_key" class="code-header">pub fn <a href="#contains_key"><span class="fn">contains_key</span></a>(self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
@@ -101,7 +107,7 @@ the value associated with the key.</p>
 } <span class="kw">else</span> {
     println(<span class="string">"No value for key 7!"</span>);
 }</code></pre></div>
-</div><code id="is_empty" class="code-header">pub fn <span class="fn">is_empty</span>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if the length of the hash map is empty.</p>
@@ -113,7 +119,7 @@ map.insert(<span class="number">1</span>, <span class="number">2</span>);
 
 map.remove(<span class="number">1</span>);
 <span class="kw">assert</span>(map.is_empty());</code></pre></div>
-</div><code id="entries" class="code-header">pub fn <span class="fn">entries</span>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;(K, V), N&gt;</code>
+</div><code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;(K, V), N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of each key-value pair present in the hashmap.</p>
@@ -129,7 +135,7 @@ map.remove(<span class="number">1</span>);
         println(<span class="string">f"</span><span class="interpolation">{key}</span><span class="string"> -&gt; </span><span class="interpolation">{value}</span><span class="string">"</span>);
     }
 }</code></pre></div>
-</div><code id="keys" class="code-header">pub fn <span class="fn">keys</span>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;K, N&gt;</code>
+</div><code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;K, N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of each key present in the hashmap.</p>
@@ -144,7 +150,7 @@ map.remove(<span class="number">1</span>);
         println(<span class="string">f"</span><span class="interpolation">{key}</span><span class="string"> -&gt; </span><span class="interpolation">{value}</span><span class="string">"</span>);
     }
 }</code></pre></div>
-</div><code id="values" class="code-header">pub fn <span class="fn">values</span>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;V, N&gt;</code>
+</div><code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;V, N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of each value present in the hashmap.</p>
@@ -158,7 +164,7 @@ map.remove(<span class="number">1</span>);
         println(<span class="string">f"</span><span class="string">Found value </span><span class="interpolation">{value}</span><span class="string">"</span>);
     }
 }</code></pre></div>
-</div><code id="iter_mut" class="code-header">pub fn <span class="fn">iter_mut</span>(&mut self, f: fn(K, V) -> (K, V))
+</div><code id="iter_mut" class="code-header">pub fn <a href="#iter_mut"><span class="fn">iter_mut</span></a>(&mut self, f: fn(K, V) -> (K, V))
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -175,7 +181,7 @@ equal, which of the two values that will be present for the key in the resulting
 <p>Example:</p>
 <pre><code><span class="comment">// Add 1 to each key in the map, and double the value associated with that key.</span>
 map.iter_mut(|k, v| (k + <span class="number">1</span>, v * <span class="number">2</span>));</code></pre></div>
-</div><code id="iter_keys_mut" class="code-header">pub fn <span class="fn">iter_keys_mut</span>(&mut self, f: fn(K) -> K)
+</div><code id="iter_keys_mut" class="code-header">pub fn <a href="#iter_keys_mut"><span class="fn">iter_keys_mut</span></a>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -192,7 +198,7 @@ equal, which of the two values that will be present for the key in the resulting
 <p>Example:</p>
 <pre><code><span class="comment">// Double each key, leaving the value associated with that key untouched</span>
 map.iter_keys_mut(|k| k * <span class="number">2</span>);</code></pre></div>
-</div><code id="iter_values_mut" class="code-header">pub fn <span class="fn">iter_values_mut</span>(&mut self, f: fn(V) -> V)</code>
+</div><code id="iter_values_mut" class="code-header">pub fn <a href="#iter_values_mut"><span class="fn">iter_values_mut</span></a>(&mut self, f: fn(V) -> V)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Iterates through the HashMap, applying the given function to each value and mutating the
@@ -201,14 +207,14 @@ because the keys are untouched and the underlying hashmap thus does not need to 
 <p>Example:</p>
 <pre><code><span class="comment">// Halve each value</span>
 map.iter_values_mut(|v| v / <span class="number">2</span>);</code></pre></div>
-</div><code id="retain" class="code-header">pub fn <span class="fn">retain</span>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
+</div><code id="retain" class="code-header">pub fn <a href="#retain"><span class="fn">retain</span></a>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retains only the key-value pairs for which the given function returns true.
 Any key-value pairs for which the function returns false will be removed from the map.</p>
 <p>Example:</p>
 <pre><code>map.retain(|k, v| (k != <span class="number">0</span>) & (v != <span class="number">0</span>));</code></pre></div>
-</div><code id="len" class="code-header">pub fn <span class="fn">len</span>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the current length of this hash map.</p>
@@ -227,7 +233,7 @@ map.insert(<span class="number">3</span>, <span class="number">7</span>);
 
 map.remove(<span class="number">1</span>);
 <span class="kw">assert</span>(map.len() == <span class="number">2</span>);</code></pre></div>
-</div><code id="capacity" class="code-header">pub fn <span class="fn">capacity</span>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the maximum capacity of this hashmap. This is always equal to the capacity
@@ -241,7 +247,7 @@ element count will be lower than the full capacity.</p>
 <pre><code><span class="kw">let</span> empty_map: HashMap&lt;Field, Field, <span class="number">42</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
 <span class="kw">assert</span>(empty_map.len() == <span class="number">0</span>);
 <span class="kw">assert</span>(empty_map.capacity() == <span class="number">42</span>);</code></pre></div>
-</div><code id="get" class="code-header">pub fn <span class="fn">get</span>(self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
+</div><code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -257,7 +263,7 @@ element count will be lower than the full capacity.</p>
         <span class="kw">assert</span>(x.unwrap() == <span class="number">42</span>);
     }
 }</code></pre></div>
-</div><code id="insert" class="code-header">pub fn <span class="fn">insert</span>(&mut self, key: K, value: V)
+</div><code id="insert" class="code-header">pub fn <a href="#insert"><span class="fn">insert</span></a>(&mut self, key: K, value: V)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -270,7 +276,7 @@ previous value will be overridden with the newly provided one.</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> map: HashMap&lt;Field, Field, <span class="number">5</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
 map.insert(<span class="number">12</span>, <span class="number">42</span>);
 <span class="kw">assert</span>(map.len() == <span class="number">1</span>);</code></pre></div>
-</div><code id="remove" class="code-header">pub fn <span class="fn">remove</span>(&mut self, key: K)
+</div><code id="remove" class="code-header">pub fn <a href="#remove"><span class="fn">remove</span></a>(&mut self, key: K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -326,5 +332,6 @@ map2.insert(<span class="number">1</span>, <span class="number">2</span>);
 
 <span class="kw">assert</span>(map1 == map2);</code></pre></div>
 </div></div></main>
+</span>
 </body>
 </html>

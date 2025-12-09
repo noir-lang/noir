@@ -448,7 +448,7 @@ impl ModCollector<'_> {
             let doc_comments = trait_definition.doc_comments;
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
-            let location = trait_definition.location;
+            let location = trait_definition.name.location();
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
@@ -462,7 +462,7 @@ impl ModCollector<'_> {
                 context,
                 &name,
                 ItemVisibility::Public,
-                name.location(),
+                location,
                 Vec::new(),
                 Vec::new(),
                 false,

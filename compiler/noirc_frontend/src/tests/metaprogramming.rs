@@ -1016,3 +1016,99 @@ fn empty_comptime_block() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn comptime_uhashmap_of_slices() {
+    let src = r#"
+    pub struct Option<T> {
+        _is_some: bool,
+        _value: T,
+    }
+
+    pub struct Slot<K, V> {
+        _key_value: Option<(K, V)>,
+        _is_deleted: bool,
+    }
+
+    pub struct UHashMap<K, V> {
+        _table: [Slot<K, V>],
+        _len: u32,
+    }
+
+    pub fn example_umap<T>() -> UHashMap<u32, T> {
+        let _table = &[];
+        let _len = 0;
+        UHashMap { _table, _len }
+    }
+
+    fn main() {
+        comptime let _ = {
+            let _ = example_umap::<[u32]>();
+        };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_uhashmap_of_slices_attribute() {
+    let src = r#"
+    pub struct Option<T> {
+        _is_some: bool,
+        _value: T,
+    }
+
+    impl<T> Option<T> {
+        pub fn none(zeroed_value: T) -> Self {
+            Self { _is_some: false, _value: zeroed_value }
+        }
+    }
+
+    pub struct Slot<K, V> {
+        _key_value: Option<(K, V)>,
+        _is_deleted: bool,
+    }
+
+    impl<K, V> Slot<K, V> {
+        fn default_slot(zeroed_value: (K, V)) -> Slot<K, V> {
+            Slot { _key_value: Option::none(zeroed_value), _is_deleted: false }
+        }
+    }
+
+    pub struct UHashMap<K, V> {
+        _table: [Slot<K, V>],
+        _len: u32,
+    }
+
+    impl<K, V> UHashMap<K, V> {
+        fn default_umap(zeroed_value: (K, V)) -> UHashMap<K, V>
+        {
+            let _table = &[Slot::default_slot(zeroed_value)];
+            let _len = 0;
+            UHashMap { _table, _len }
+        }
+    }
+
+    comptime fn empty_function_definition_slice() -> [FunctionDefinition] {
+        &[]
+    }
+
+    comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =
+        UHashMap::default_umap((false, empty_function_definition_slice()));
+
+    comptime fn add_to_registry(
+        _registry: &mut UHashMap<bool, [FunctionDefinition]>,
+        _f: FunctionDefinition,
+    ) { }
+
+    #[attr]
+    pub fn foo() {}
+
+    comptime fn attr(function: FunctionDefinition) {
+        add_to_registry(&mut REGISTRY, function);
+    }
+
+    fn main() { }
+    "#;
+    assert_no_errors(src);
+}

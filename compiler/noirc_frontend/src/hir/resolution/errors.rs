@@ -74,8 +74,6 @@ pub enum ResolverError {
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple slices")]
     OracleReturnsMultipleSlices { location: Location },
-    #[error("Oracle functions cannot be called directly from constrained functions")]
-    UnconstrainedOracleReturnToConstrained { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -108,6 +106,8 @@ pub enum ResolverError {
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
     NoPredicatesAttributeOnUnconstrained { ident: Ident, location: Location },
+    #[error("#[no_predicates] attribute is not allowed on entry point functions")]
+    NoPredicatesAttributeOnEntryPoint { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("The unquote operator '$' can only be used within a quote expression")]
@@ -200,6 +200,8 @@ pub enum ResolverError {
     BuiltinWithBody { location: Location },
     #[error("Identifier `{ident}` is bound more than once in the same pattern")]
     PatternBoundMoreThanOnce { ident: Ident },
+    #[error("{visibility} attribute is only allowed on entry point functions")]
+    DataBusOnNonEntryPoint { visibility: String, ident: Ident },
 }
 
 impl ResolverError {
@@ -222,7 +224,6 @@ impl ResolverError {
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedSlices { location }
             | ResolverError::AbiAttributeOutsideContract { location }
-            | ResolverError::UnconstrainedOracleReturnToConstrained { location }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -259,6 +260,7 @@ impl ResolverError {
             | ResolverError::RecursiveTypeAlias { location } => *location,
             ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleSlices { location, .. }
@@ -277,6 +279,7 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
+            | ResolverError::DataBusOnNonEntryPoint { ident, .. }
             | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
@@ -484,11 +487,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::UnconstrainedOracleReturnToConstrained { location } => Diagnostic::simple_error(
-                error.to_string(),
-                "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
-                *location,
-            ),
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
@@ -592,6 +590,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
+                diag
+            }
+            ResolverError::NoPredicatesAttributeOnEntryPoint { ident, location } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("#[no_predicates] attribute is not allowed on entry point function {ident}"),
+                    "#[no_predicates] attribute not allowed on entry points".to_string(),
+                    *location,
+                );
+
+                diag.add_note("The `#[no_predicates]` attribute is used to prevent inlining of a function into the entry point, but applying it to the entry point itself has no effect".to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident, location } => {
@@ -875,6 +883,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     ident.location(),
                 )
             }
+            ResolverError::DataBusOnNonEntryPoint { visibility, ident } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("unnecessary {visibility} attribute for function {ident}"),
+                    format!("unnecessary {visibility}"),
+                    ident.location(),
+                );
+                diag.add_note(
+                    format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
+                diag
+            },
         }
     }
 }
