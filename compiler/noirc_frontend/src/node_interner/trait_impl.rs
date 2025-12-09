@@ -13,6 +13,8 @@ use crate::{
 
 use super::NodeInterner;
 
+// TODO(audit): continue auditing this file?
+
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;

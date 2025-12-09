@@ -261,6 +261,8 @@ pub enum TypeCheckError {
     },
     #[error("Type annotation needed on array literal")]
     TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
+    #[error("Expecting another error: {message}")]
+    ExpectingOtherError { message: String, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -354,8 +356,8 @@ impl TypeCheckError {
             | TypeCheckError::NestedUnsafeBlock { location }
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
-            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
-
+            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
+            | TypeCheckError::ExpectingOtherError { location, .. } => *location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
@@ -795,6 +797,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let array_or_slice = if *is_array { "array" } else { "slice" };
                 let secondary = format!("Could not determine the type of the {array_or_slice}");
                 Diagnostic::simple_error(message, secondary, *location)
+            }
+            TypeCheckError::ExpectingOtherError { message, location } => {
+                let secondary = "".to_string();
+                Diagnostic::simple_error(message.to_string(), secondary, *location)
             }
         }
     }

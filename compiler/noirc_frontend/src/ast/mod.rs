@@ -153,6 +153,7 @@ pub enum UnresolvedTypeData {
     /// E.g. `<Foo as Trait>::Bar`
     AsTraitPath(Box<AsTraitPath>),
 
+    // TODO(audit): rename UnresolvedTypeData::Resolved ?
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
     Resolved(QuotedTypeId),
