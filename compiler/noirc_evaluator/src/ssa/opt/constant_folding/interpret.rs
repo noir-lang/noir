@@ -76,7 +76,7 @@ fn evaluate_const_argument_call(
     let interpreter_args =
         arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
 
-    interpreter.reset_step_counter();
+    interpreter.reset_state();
 
     let Ok(result_values) = interpreter.call_function(*func_id, interpreter_args) else {
         return EvaluationResult::CannotEvaluate;
