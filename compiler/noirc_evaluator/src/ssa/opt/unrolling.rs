@@ -1846,8 +1846,6 @@ mod tests {
             v3 = eq v0, u128 {0}
             jmpif v3 then: b3, else: b2
           b2():
-            v2 = make_array b""
-            call print(u1 1, v0, v2, u1 0)
             v6 = unchecked_add v0, u128 1
             jmp b1(v6)
           b3():

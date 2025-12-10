@@ -330,7 +330,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let old_module = self.elaborator.replace_module(module_scope);
         let old_function = std::mem::replace(&mut self.current_function, function_scope);
 
+        self.elaborator.interpreter_call_stack.push_back(call_location);
+
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
+
+        self.elaborator.interpreter_call_stack.pop_back();
 
         self.current_function = old_function;
         if let Some(old_module) = old_module {
@@ -1692,6 +1696,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
         Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
         Value::U64(value) => value as usize,
+        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });

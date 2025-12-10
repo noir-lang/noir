@@ -20,9 +20,7 @@ A ZK DSL does not just prove computation, but proves that some computation was h
 
 ## Example
 
-An in depth example might help drive the point home. This example comes from the excellent [post](https://discord.com/channels/1113924620781883405/1124022445054111926/1128747641853972590) by Tom in the Noir Discord.
-
-Let's look at how we can optimize a function to turn a `u72` into an array of `u8`s.
+An in depth example might help drive the point home. Let's look at how we can optimize a function to turn a `u72` into an array of `u8`s.
 
 ```rust
 fn main(num: u72) -> pub [u8; 8] {
