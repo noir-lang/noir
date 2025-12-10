@@ -131,12 +131,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.functions
     }
 
-    /// Resets the step counter to 0.
+    /// Resets interpreter state for reuse between top-level calls.
     ///
-    /// This can be used when the interpreter is reused between calls,
-    /// to reset the budget before interpreting the next entry point.
-    pub(crate) fn reset_step_counter(&mut self) {
+    /// This resets the step counter and side_effects_enabled state,
+    /// preparing the interpreter to interpret a new entry point.
+    pub(crate) fn reset_state(&mut self) {
         self.step_counter = 0;
+        self.side_effects_enabled = true;
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
@@ -242,6 +243,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         function_id: FunctionId,
         mut arguments: Vec<Value>,
     ) -> IResults {
+        // Save side_effects_enabled state so it can be restored after the call.
+        // Any changes made by the callee should not affect the caller.
+        let saved_side_effects_enabled = self.side_effects_enabled;
+        self.side_effects_enabled = true;
+
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.functions[&function_id];
@@ -331,6 +337,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
 
         self.call_stack.pop();
+
+        // Restore the caller's side_effects_enabled state
+        self.side_effects_enabled = saved_side_effects_enabled;
 
         if self.options.trace {
             if let Some(context) = self.call_stack.last() {

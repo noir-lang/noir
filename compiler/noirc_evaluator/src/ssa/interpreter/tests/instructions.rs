@@ -1099,6 +1099,35 @@ fn nop() {
     );
 }
 
+// Test that side_effects_enabled state is properly saved and restored across function calls.
+// If a callee function disables side effects, this should not affect the caller function
+// when the call returns.
+#[test]
+fn enable_side_effects_not_leaked_across_calls() {
+    // If side_effects_enabled state is leaked, the constrain_not_equal would be skipped
+    // and the program would succeed even though the values are equal.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            // After returning from f1, side_effects should be enabled again
+            // This constrain should fail because 1 == 1
+            constrain u1 1 != u1 1
+            return
+        }
+
+        // This function disables side effects and doesn't restore them
+        acir(inline) fn disable_side_effects f1 {
+          b0():
+            enable_side_effects u1 0
+            return
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::ConstrainNeFailed { .. }));
+}
+
 #[test]
 fn test_range_and_xor_bb() {
     let src = "
