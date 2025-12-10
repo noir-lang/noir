@@ -399,13 +399,12 @@ mod reflection {
                 matches!(field.value, Format::Unit)
             }
 
-            let non_unit_field_count = fields.iter().filter(|f| !is_unit(*f)).count();
+            let non_unit_field_count = fields.iter().filter(|f| !is_unit(f)).count();
 
             self.msgpack_pack(name, &{
                 let mut body = format!(
                     "
-    packer.pack_map({});",
-                    non_unit_field_count
+    packer.pack_map({non_unit_field_count});",
                 );
                 for field in fields {
                     if is_unit(field) {
