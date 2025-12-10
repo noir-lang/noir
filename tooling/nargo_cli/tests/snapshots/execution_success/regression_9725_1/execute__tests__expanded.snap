@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    let mut b: [bool; 1] = [true];
+    let mut c: [bool; 1] = [false];
+    c = b;
+    b[0_u32] = !c[0_u32];
+    assert(c[0_u32] == true);
+}

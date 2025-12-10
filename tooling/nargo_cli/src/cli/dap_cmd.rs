@@ -1,4 +1,3 @@
-use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use dap::errors::ServerError;
 use dap::events::OutputEventBody;
@@ -33,10 +32,6 @@ use noir_debugger::errors::{DapError, LoadError};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
-    /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    expression_width: ExpressionWidth,
-
     #[clap(long)]
     preflight_check: bool,
 
@@ -65,19 +60,6 @@ pub(crate) struct DapCommand {
     pedantic_solving: bool,
 }
 
-fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        _ => Ok(ExpressionWidth::Bounded { width }),
-    }
-}
-
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
     let Ok(toml_path) = get_package_manifest(Path::new(project_folder)) else {
         eprintln!("ERROR: Failed to get package manifest");
@@ -100,11 +82,10 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
 
 fn workspace_not_found_error_msg(project_folder: &str, package: Option<&str>) -> String {
     match package {
-        Some(pkg) => format!(
-            r#"Noir Debugger could not load program from {}, package {}"#,
-            project_folder, pkg
-        ),
-        None => format!(r#"Noir Debugger could not load program from {}"#, project_folder),
+        Some(pkg) => {
+            format!(r#"Noir Debugger could not load program from {project_folder}, package {pkg}"#)
+        }
+        None => format!(r#"Noir Debugger could not load program from {project_folder}"#),
     }
 }
 
@@ -134,7 +115,7 @@ fn compile_test(
     let test = get_test_function_for_debug(crate_id, &context, &test_name)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
-    let program = compile_test_fn_for_debugging(&test, &mut context, package, compile_options)
+    let program = compile_test_fn_for_debugging(&test, &mut context, compile_options)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
     Ok((program, test))
 }
@@ -188,7 +169,6 @@ fn load_and_compile_project(
 
 fn loop_uninitialized_dap<R: Read, W: Write>(
     mut server: Server<R, W>,
-    expression_width: ExpressionWidth,
     pedantic_solving: bool,
 ) -> Result<(), DapError> {
     while let Some(req) = server.poll_request()? {
@@ -234,14 +214,13 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     .and_then(|v| v.as_str())
                     .map(String::from);
 
-                eprintln!("Project folder: {}", project_folder);
+                eprintln!("Project folder: {project_folder}");
                 eprintln!("Package: {}", package.unwrap_or("(default)"));
-                eprintln!("Prover name: {}", prover_name);
+                eprintln!("Prover name: {prover_name}");
 
                 let compile_options = compile_options_for_debugging(
                     generate_acir,
                     skip_instrumentation,
-                    Some(expression_width),
                     CompileOptions::default(),
                 );
 
@@ -333,10 +312,7 @@ fn analyze_test_result<R: Read, W: Write>(
     }))
 }
 
-fn run_preflight_check(
-    expression_width: ExpressionWidth,
-    args: DapCommand,
-) -> Result<(), DapError> {
+fn run_preflight_check(args: DapCommand) -> Result<(), DapError> {
     let project_folder = if let Some(project_folder) = args.preflight_project_folder {
         project_folder
     } else {
@@ -350,7 +326,6 @@ fn run_preflight_check(
     let compile_options: CompileOptions = compile_options_for_debugging(
         args.preflight_generate_acir,
         args.preflight_skip_instrumentation,
-        Some(expression_width),
         CompileOptions::default(),
     );
 
@@ -379,13 +354,12 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     if args.preflight_check {
-        return run_preflight_check(args.expression_width, args).map_err(CliError::DapError);
+        return run_preflight_check(args).map_err(CliError::DapError);
     }
 
     let output = BufWriter::new(std::io::stdout());
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving)
-        .map_err(CliError::DapError)
+    loop_uninitialized_dap(server, args.pedantic_solving).map_err(CliError::DapError)
 }

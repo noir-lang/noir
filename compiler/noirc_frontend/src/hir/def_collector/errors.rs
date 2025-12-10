@@ -35,7 +35,7 @@ pub enum DefCollectorErrorKind {
     #[error("Cannot re-export {item_name} because it has less visibility than this use statement")]
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-struct type used in impl")]
-    NonStructTypeInImpl { location: Location },
+    NonStructTypeInImpl { location: Location, is_primitive: bool },
     #[error("Cannot implement trait on a reference type")]
     ReferenceInTraitImpl { location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
@@ -101,7 +101,7 @@ impl DefCollectorErrorKind {
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
-            | DefCollectorErrorKind::NonStructTypeInImpl { location }
+            | DefCollectorErrorKind::NonStructTypeInImpl { location, .. }
             | DefCollectorErrorKind::ReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
@@ -120,15 +120,19 @@ impl DefCollectorErrorKind {
 
 impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
     fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
-        let name = error.ident.as_str();
-        let typ = &error.typ;
+        let message = if let Some(name) = &error.name {
+            format!(
+                "{name} has a type of {}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.",
+                error.typ
+            )
+        } else {
+            error.to_string()
+        };
 
         Diagnostic::simple_error(
-            format!(
-                "{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
-            ),
+            message,
             "Unsupported numeric generic type".to_string(),
-            error.ident.location(),
+            error.location,
         )
     }
 }
@@ -189,11 +193,21 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.location())
             }
-            DefCollectorErrorKind::NonStructTypeInImpl { location } => Diagnostic::simple_error(
-                "Non-struct type used in impl".into(),
-                "Only struct types may have implementation methods".into(),
-                *location,
-            ),
+            DefCollectorErrorKind::NonStructTypeInImpl { location, is_primitive } =>{
+                if *is_primitive {
+                    Diagnostic::simple_error(
+                        "Cannot define inherent `impl` for primitive types".into(),
+                        "Primitive types can only have implementation methods defined in the standard library".into(),
+                        *location,
+                    )
+                }else{
+                    Diagnostic::simple_error(
+                        "Non-struct type used in impl".into(),
+                        "Only struct types may have implementation methods".into(),
+                        *location,
+                    )
+                }
+            }
             DefCollectorErrorKind::ReferenceInTraitImpl { location } => Diagnostic::simple_error(
                 "Trait impls are not allowed on reference types".into(),
                 "Try using a struct type here instead".into(),
@@ -260,7 +274,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 *location,
             ),
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } => {
-                let constraint = format!("{}{}", constraint_name, constraint_generics);
+                let constraint = format!("{constraint_name}{constraint_generics}");
 
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),

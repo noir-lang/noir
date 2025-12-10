@@ -1,10 +1,18 @@
+# Default profile for local testing. Other profiles are layered on top.
+[profile.default]
+
 [profile.ci]
 # Do not cancel the test run on the first failure.
 fail-fast = false
 
+[profile.ci-master]
+# Do not cancel the test run on the first failure.
+fail-fast = false
+# Run all tests.
+default-filter = "all()"
+
 [profile.merge-queue]
 # fail fast to kick from merge queue faster.
 fail-fast = true
-
 # Disable fuzzing to avoid flakiness
 default-filter = "not (package(noir_ast_fuzzer_fuzz) or test(arb_program_freqs_in_expected_range))"

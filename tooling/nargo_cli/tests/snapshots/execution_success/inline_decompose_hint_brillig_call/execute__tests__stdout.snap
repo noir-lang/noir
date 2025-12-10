@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[inline_decompose_hint_brillig_call] Circuit output: Field(-5201446015539463454305911014159497107782029740116487985773310470301159650207)
+[inline_decompose_hint_brillig_call] Circuit output: 0x24e4646f58b9fbe7d38e317db8d5636c423fbbdfbe119fc190fe9c64747e0c62

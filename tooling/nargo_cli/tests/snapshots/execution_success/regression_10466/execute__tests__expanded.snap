@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Serialize {
+    let N: u32;
+
+    fn serialize(self);
+}
+
+impl Serialize for Field {
+    let N: u32 = 1;
+
+    fn serialize(self) {}
+}
+
+impl<let M: u32, T> Serialize for [T; M]
+where
+    T: Serialize,
+{
+    let N: u32 = M * <T as Serialize>::N;
+
+    fn serialize(self) {
+        println(N);
+        println(T::N);
+        println(M);
+        assert((T::N * M) == N);
+    }
+}
+
+fn main() {
+    let nested_array: [[Field; 1]; 2] = [[1_Field], [2_Field]];
+    let _: () = nested_array.serialize();
+}

@@ -15,6 +15,7 @@ use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
 use crate::signed_field::SignedField;
+use crate::validity::InvalidType;
 
 /// Rust also only shows 3 maximum, even for short patterns.
 pub const MAX_MISSING_CASES: usize = 3;
@@ -34,9 +35,9 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
+    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: SignedField,
@@ -48,13 +49,22 @@ pub enum TypeCheckError {
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
     OverflowingConstant {
-        value: FieldElement,
+        value: SignedField,
         kind: Kind,
         maximum_size: FieldElement,
         location: Location,
     },
+    #[error(
+        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
+    )]
+    UnderflowingConstant {
+        value: SignedField,
+        kind: Kind,
+        minimum_size: SignedField,
+        location: Location,
+    },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -67,8 +77,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: FieldElement,
-        from_value: FieldElement,
+        to_value: SignedField,
+        from_value: SignedField,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -157,7 +167,9 @@ pub enum TypeCheckError {
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
-    UnusedResultError { expr_type: Type, expr_location: Location },
+    UnusedResultWarning { expr_type: Type, expr_location: Location },
+    #[error("Unused expression result of type {expr_type}")]
+    UnusedResultError { expr_type: Type, expr_location: Location, message: Option<String> },
     #[error("Expected type {expected_typ:?} is not the same as {actual_typ:?}")]
     TraitMethodParameterTypeMismatch {
         method_name: String,
@@ -190,6 +202,8 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { location: Location },
+    #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedFunctionReturnToConstrained { location: Location },
     #[error(
         "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
@@ -199,7 +213,7 @@ pub enum TypeCheckError {
     #[error("Expected a constant, but found `{typ}`")]
     NonConstantEvaluated { typ: Type, location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
-    InvalidTypeForEntryPoint { location: Location },
+    InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     #[error("Mismatched number of parameters in trait implementation")]
     MismatchTraitImplNumParameters {
         actual_num_parameters: usize,
@@ -270,6 +284,7 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
@@ -309,6 +324,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
             | TypeCheckError::MultipleMatchingImpls { location, .. }
             | TypeCheckError::CallDeprecated { location, .. }
+            | TypeCheckError::UnusedResultWarning { expr_location: location, .. }
             | TypeCheckError::UnusedResultError { expr_location: location, .. }
             | TypeCheckError::TraitMethodParameterTypeMismatch {
                 parameter_location: location,
@@ -319,10 +335,11 @@ impl TypeCheckError {
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::InvalidTypeForEntryPoint { location }
+            | TypeCheckError::InvalidTypeForEntryPoint { location, .. }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::MacroReturningNonExpr { location, .. }
@@ -504,12 +521,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
@@ -607,18 +626,36 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic.deprecated = true;
                 diagnostic
             }
-            TypeCheckError::UnusedResultError { expr_type, expr_location } => {
+            TypeCheckError::UnusedResultWarning { expr_type, expr_location } => {
                 let msg = format!("Unused expression result of type {expr_type}");
                 Diagnostic::simple_warning(msg, String::new(), *expr_location)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_location, message } => {
+                let unused_message = format!("Unused expression result of type {expr_type} which must be used");
+                let (primary, secondary) = match message {
+                    Some(message) => (message.clone(), unused_message),
+                    None => (unused_message, format!("`{expr_type}` was declared with `#[must_use]`")),
+                };
+                Diagnostic::simple_error(primary, secondary, *expr_location)
             }
             TypeCheckError::NoMatchingImplFound(error) => error.into(),
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, location } => {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), *location)
             }
-            TypeCheckError::InvalidTypeForEntryPoint { location } => Diagnostic::simple_error(
-                "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), *location),
+            TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location } => {
+                let primary_message = "Invalid type found in the entry point to a program".to_string();
+                let mut diagnostic = Diagnostic::simple_error(primary_message, String::new(), *location);
+                diagnostic.secondaries.clear();
+
+                if matches!(invalid_type, InvalidType::StructField {..} | InvalidType::Alias {..}) {
+                    diagnostic.add_secondary("This type has an invalid entry point type inside it".to_string(), *location);
+                }
+
+                diagnostic.add_note("Note: slices, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                add_invalid_type_to_diagnostic(invalid_type, *location, &mut diagnostic);
+                diagnostic
+            },
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,
@@ -674,35 +711,35 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, location } => {
                 Diagnostic::simple_error(
-                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
+                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"),
                     format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
                     *location,
                 )
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } => {
                 Diagnostic::simple_error(
-                    "Type annotations required before indexing this array or slice".into(), 
+                    "Type annotations required before indexing this array or slice".into(),
                     "Type annotations needed before this point, can't decide if this is an array or slice".into(),
                     *location,
                 )
             },
             TypeCheckError::UnnecessaryUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "".into(),
                     *location,
                 )
             },
             TypeCheckError::NestedUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "Because it's nested inside another `unsafe` block".into(),
                     *location,
                 )
             },
             TypeCheckError::UnreachableCase { location } => {
                 Diagnostic::simple_warning(
-                    "Unreachable match case".into(), 
+                    "Unreachable match case".into(),
                     "This pattern is redundant with one or more prior patterns".into(),
                     *location,
                 )
@@ -803,5 +840,72 @@ impl NoMatchingImplFoundError {
             .collect::<Option<Vec<_>>>()?;
 
         Some(Self { constraints, location })
+    }
+}
+
+fn add_invalid_type_to_diagnostic(
+    invalid_type: &InvalidType,
+    location: Location,
+    diagnostic: &mut Diagnostic,
+) {
+    match invalid_type {
+        InvalidType::Primitive(typ) => match typ {
+            // Use a slightly better message for common types that might be used as entry point types
+            Type::Unit => {
+                diagnostic
+                    .add_secondary("Unit is not a valid entry point type".to_string(), location);
+            }
+            Type::Reference(..) => {
+                diagnostic.add_secondary(
+                    format!("Reference is not a valid entry point type. Found: {typ}"),
+                    location,
+                );
+            }
+            Type::Slice(..) => {
+                diagnostic.add_secondary(
+                    format!("Slice is not a valid entry point type. Found: {typ}"),
+                    location,
+                );
+            }
+            _ => {
+                diagnostic.add_secondary(format!("Invalid entry point type: {typ}"), location);
+            }
+        },
+        InvalidType::Enum(typ) => {
+            diagnostic.add_secondary(
+                format!("Enum is not yet allowed as an entry point type. Found: {typ}"),
+                location,
+            );
+        }
+        InvalidType::EmptyArray(typ) => {
+            diagnostic.add_secondary(
+                format!("Empty array is not a valid entry point type. Found: {typ}"),
+                location,
+            );
+        }
+        InvalidType::EmptyString(typ) => {
+            diagnostic.add_secondary(
+                format!("Empty string is not a valid entry point type. Found: {typ}"),
+                location,
+            );
+        }
+        InvalidType::StructField { struct_name, field_name, invalid_type } => {
+            diagnostic.add_secondary(
+                format!("Struct {struct_name} has an invalid entry point type"),
+                struct_name.location(),
+            );
+            diagnostic.add_secondary(
+                format!("Field {field_name} has an invalid entry point type"),
+                field_name.location(),
+            );
+            add_invalid_type_to_diagnostic(invalid_type, field_name.location(), diagnostic);
+        }
+        InvalidType::Alias { alias_name, invalid_type } => {
+            diagnostic.add_secondary(
+                format!("Alias {alias_name} has an invalid entry point type"),
+                alias_name.location(),
+            );
+            add_invalid_type_to_diagnostic(invalid_type, alias_name.location(), diagnostic);
+        }
     }
 }

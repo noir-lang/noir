@@ -2,7 +2,7 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "1.0.0-beta.8"
+version = "1.0.0-beta.16"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -18,13 +18,16 @@ workspace = true
 [dependencies]
 acir_field.workspace = true
 brillig.workspace = true
+noirc_span.workspace = true
 
 serde.workspace = true
 thiserror.workspace = true
 flate2.workspace = true
 bincode.workspace = true
 base64.workspace = true
+num-bigint.workspace = true
 num_enum.workspace = true
+num-traits.workspace = true
 rmp-serde.workspace = true
 serde-big-array = "0.5.1"
 strum = { workspace = true }
@@ -37,13 +40,13 @@ proptest-derive = { workspace = true, optional = true }
 serde_json = "1.0"
 serde-reflection = "0.3.6"
 serde-generate = "0.25.1"
-fxhash.workspace = true
+rustc-hash.workspace = true
 criterion.workspace = true
 pprof.workspace = true
-num-bigint.workspace = true
 regex.workspace = true
 rmpv.workspace = true
 insta.workspace = true
+similar-asserts.workspace = true
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 

@@ -71,7 +71,7 @@ pub struct AutoImportEntry {
     ///     mod bar {
     ///         pub struct Baz {} // This is the item
     ///     }
-    ///     
+    ///
     ///     pub use bar::Baz; // Here's the visibility
     /// }
     /// ```
@@ -81,7 +81,7 @@ pub struct AutoImportEntry {
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
-            ReferenceId::Module(id) => self.module_attributes(&id).location,
+            ReferenceId::Module(id) => self.module_attributes(id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
             ReferenceId::Type(id) => {
                 let typ = self.get_type(id);
@@ -119,10 +119,6 @@ impl NodeInterner {
         }
     }
 
-    pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
-        self.reference_modules.get(&reference)
-    }
-
     pub(crate) fn add_module_def_id_reference(
         &mut self,
         def_id: ModuleDefId,
@@ -154,10 +150,12 @@ impl NodeInterner {
         };
     }
 
+    /// In LSP mode, take note that a [ModuleId] was referenced at a [Location].
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
 
+    /// In LSP mode, take note that a [TypeId] was referenced at a [Location].
     pub(crate) fn add_type_reference(
         &mut self,
         id: TypeId,
@@ -167,6 +165,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Type(id), location, is_self_type);
     }
 
+    /// In LSP mode, take note that a specific field of a struct was referenced at a [Location].
     pub(crate) fn add_struct_member_reference(
         &mut self,
         id: TypeId,
@@ -176,6 +175,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
     }
 
+    /// In LSP mode, take note that a [TraitId] was referenced at a [Location].
     pub(crate) fn add_trait_reference(
         &mut self,
         id: TraitId,
@@ -185,6 +185,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
     }
 
+    /// In LSP mode, take note that a [TraitAssociatedTypeId] was referenced at a [Location].
     pub(crate) fn add_trait_associated_type_reference(
         &mut self,
         id: TraitAssociatedTypeId,
@@ -193,22 +194,27 @@ impl NodeInterner {
         self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
     }
 
+    /// In LSP mode, take note that a [TypeAliasId] was referenced at a [Location].
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
         self.add_reference(ReferenceId::Alias(id), location, false);
     }
 
+    /// In LSP mode, take note that a [FuncId] was referenced at a [Location].
     pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
         self.add_reference(ReferenceId::Function(id), location, false);
     }
 
+    /// In LSP mode, take note that a [GlobalId] was referenced at a [Location].
     pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
         self.add_reference(ReferenceId::Global(id), location, false);
     }
 
+    /// In LSP mode, take note that a [DefinitionId] was referenced at a [Location].
     pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
         self.add_reference(ReferenceId::Local(id), location, false);
     }
 
+    /// In LSP mode, take note that a [ReferenceId] was referenced at a [Location].
     pub(crate) fn add_reference(
         &mut self,
         referenced: ReferenceId,
@@ -233,7 +239,6 @@ impl NodeInterner {
         &mut self,
         referenced: ReferenceId,
         referenced_location: Location,
-        module_id: Option<ModuleId>,
     ) {
         if !self.lsp_mode {
             return;
@@ -241,9 +246,6 @@ impl NodeInterner {
 
         let referenced_index = self.get_or_insert_reference(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
-        if let Some(module_id) = module_id {
-            self.reference_modules.insert(referenced, module_id);
-        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -350,9 +352,8 @@ impl NodeInterner {
         location: Location,
         visibility: ItemVisibility,
         name: String,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Module(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Module(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 
@@ -362,9 +363,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Global(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Global(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
     }
 
@@ -374,9 +374,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Type(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Type(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 
@@ -386,9 +385,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Trait(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Trait(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
     }
 
@@ -398,9 +396,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Alias(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Alias(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
     }
 

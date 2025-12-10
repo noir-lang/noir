@@ -10,6 +10,7 @@
 #[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
+mod parser;
 mod serialization;
 
 pub use acir_field;
@@ -17,6 +18,7 @@ pub use acir_field::{AcirField, FieldElement};
 pub use brillig;
 pub use circuit::black_box_functions::BlackBoxFunc;
 pub use circuit::opcodes::InvalidInputBitSize;
+pub use parser::parse_opcodes;
 
 #[cfg(test)]
 mod reflection {
@@ -33,6 +35,7 @@ mod reflection {
     use std::{
         collections::BTreeMap,
         fs::File,
+        hash::BuildHasher,
         io::Write,
         path::{Path, PathBuf},
     };
@@ -54,7 +57,7 @@ mod reflection {
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
             brillig::{BrilligInputs, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockType, FunctionInput},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };
@@ -85,7 +88,7 @@ mod reflection {
         tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
-        tracer.trace_simple_type::<ConstantOrWitnessEnum<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
         tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BlackBoxFuncCall<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligInputs<FieldElement>>().unwrap();
@@ -142,7 +145,7 @@ mod reflection {
         let old_hash = if path.is_file() {
             let old_source = std::fs::read(path).expect("failed to read existing code");
             let old_source = String::from_utf8(old_source).expect("old source not UTF-8");
-            Some(fxhash::hash64(&old_source))
+            Some(rustc_hash::FxBuildHasher.hash_one(&old_source))
         } else {
             None
         };
@@ -165,7 +168,7 @@ mod reflection {
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
-                let new_hash = fxhash::hash64(&source);
+                let new_hash = rustc_hash::FxBuildHasher.hash_one(&source);
                 assert_eq!(new_hash, old_hash, "Serialization format has changed",);
             }
         }
@@ -564,7 +567,7 @@ mod reflection {
         #[allow(dead_code)]
         fn msgpack_fields(&mut self, name: &str, fields: impl Iterator<Item = String>) {
             let fields = fields.collect::<Vec<_>>().join(", ");
-            let code = format!("MSGPACK_FIELDS({});", fields);
+            let code = format!("MSGPACK_FIELDS({fields});");
             self.add_code(name, &code);
         }
 

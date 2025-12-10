@@ -1,6 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
-use fxhash::FxHashMap as HashMap;
+use im::HashSet;
+use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -8,8 +9,11 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{IntegerBitSize, ItemVisibility},
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
+    hir::{
+        def_map::ModuleId,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
@@ -26,6 +30,7 @@ use super::traits::NamedType;
 
 mod arithmetic;
 mod unification;
+pub(crate) mod validity;
 
 pub use unification::UnificationError;
 
@@ -122,7 +127,7 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(FieldElement, Kind),
+    Constant(SignedField, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -193,21 +198,6 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_type_level_field_element(&self) -> bool {
-        let type_level = false;
-        self.is_field_element(type_level)
-    }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Kind::Numeric(typ) => typ.is_field_element(value_level),
-            Kind::IntegerOrField => value_level,
-            _ => false,
-        }
-    }
-
     pub(crate) fn u32() -> Self {
         Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
@@ -246,23 +236,42 @@ impl Kind {
         }
     }
 
+    fn integral_minimum_size(&self) -> Option<SignedField> {
+        match self.follow_bindings() {
+            Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
+            Self::Numeric(typ) => typ.integral_minimum_size(),
+        }
+    }
+
     /// Ensure the given value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: FieldElement,
+        value: SignedField,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
-        match self.integral_maximum_size() {
-            None => Ok(value),
-            Some(maximum_size) => (value <= maximum_size).then_some(value).ok_or_else(|| {
-                TypeCheckError::OverflowingConstant {
+    ) -> Result<SignedField, TypeCheckError> {
+        if let Some(maximum_size) = self.integral_maximum_size() {
+            if value > SignedField::positive(maximum_size) {
+                return Err(TypeCheckError::OverflowingConstant {
                     value,
                     kind: self.clone(),
                     maximum_size,
                     location,
-                }
-            }),
+                });
+            }
         }
+
+        if let Some(minimum_size) = self.integral_minimum_size() {
+            if value < minimum_size {
+                return Err(TypeCheckError::UnderflowingConstant {
+                    value,
+                    kind: self.clone(),
+                    minimum_size,
+                    location,
+                });
+            }
+        }
+
+        Ok(value)
     }
 
     /// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
@@ -273,6 +282,10 @@ impl Kind {
             _ => None,
         }
     }
+
+    pub(crate) fn is_normal_or_any(&self) -> bool {
+        matches!(self, Kind::Normal | Kind::Any)
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -282,17 +295,15 @@ impl std::fmt::Display for Kind {
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
             Kind::IntegerOrField => write!(f, "intOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {}", typ),
+            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum QuotedType {
     Expr,
     Quoted,
-    TopLevelItem,
     Type,
     TypedExpr,
     TypeDefinition,
@@ -347,6 +358,16 @@ pub struct DataType {
 
     pub generics: Generics,
     pub location: Location,
+
+    pub must_use: MustUse,
+}
+
+/// Convenience enum to avoid using `Option<Option<String>>` to indicate
+/// whether `#[must_use]` is present (outer option) and the optional message (inner option).
+#[derive(Clone)]
+pub enum MustUse {
+    NoMustUse,
+    MustUse(Option<String>),
 }
 
 enum TypeBody {
@@ -447,7 +468,15 @@ impl DataType {
         generics: Generics,
         visibility: ItemVisibility,
     ) -> DataType {
-        DataType { id, name, location, generics, body: TypeBody::None, visibility }
+        DataType {
+            id,
+            name,
+            location,
+            generics,
+            body: TypeBody::None,
+            visibility,
+            must_use: MustUse::NoMustUse,
+        }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -690,6 +719,9 @@ pub struct TypeAlias {
     pub generics: Generics,
     pub visibility: ItemVisibility,
     pub location: Location,
+    /// Optional expression, used by type aliases to numeric generics
+    pub numeric_expr: Option<UnresolvedTypeExpression>,
+    pub module_id: ModuleId,
 }
 
 impl std::hash::Hash for TypeAlias {
@@ -730,16 +762,26 @@ impl TypeAlias {
         typ: Type,
         generics: Generics,
         visibility: ItemVisibility,
+        module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility }
+        TypeAlias { id, typ, name, location, generics, visibility, module_id, numeric_expr: None }
     }
 
-    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
+    pub fn set_type_and_generics(
+        &mut self,
+        new_typ: Type,
+        new_generics: Generics,
+        num_expr: Option<UnresolvedTypeExpression>,
+    ) {
         assert_eq!(self.typ, Type::Error);
         self.typ = new_typ;
         self.generics = new_generics;
+        self.numeric_expr = num_expr;
     }
 
+    /// Bind the generics of the aliased [Type] to the given generic arguments.
+    ///
+    /// Panics if the number of arguments do not meet expectations.
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
         assert_eq!(self.generics.len(), generic_args.len());
 
@@ -833,6 +875,18 @@ pub enum BinaryTypeOperator {
     Multiplication,
     Division,
     Modulo,
+}
+
+impl BinaryTypeOperator {
+    pub fn operator_to_binary_op_kind_helper(&self) -> BinaryOpKind {
+        match self {
+            BinaryTypeOperator::Addition => BinaryOpKind::Add,
+            BinaryTypeOperator::Subtraction => BinaryOpKind::Subtract,
+            BinaryTypeOperator::Multiplication => BinaryOpKind::Multiply,
+            BinaryTypeOperator::Division => BinaryOpKind::Divide,
+            BinaryTypeOperator::Modulo => BinaryOpKind::Modulo,
+        }
+    }
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -929,7 +983,9 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::Integer
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => matches!(binding.follow_bindings(), Type::Integer(..)),
+            TypeBinding::Bound(binding) => {
+                matches!(binding.follow_bindings(), Type::Integer(..))
+            }
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::Integer)
             }
@@ -968,20 +1024,11 @@ impl TypeVariable {
             _ => false,
         }
     }
-
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match &*self.borrow() {
-            TypeBinding::Bound(binding) => binding.is_field_element(value_level),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.is_field_element(value_level),
-        }
-    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId, Kind),
@@ -1023,7 +1070,7 @@ impl std::fmt::Display for Type {
                         Kind::Numeric(_typ) => write!(f, "_"),
                     },
                     TypeBinding::Bound(binding) => {
-                        write!(f, "{}", binding)
+                        write!(f, "{binding}")
                     }
                 }
             }
@@ -1044,7 +1091,7 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}{}", name, generics)
+                write!(f, "impl {name}{generics}")
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1092,7 +1139,7 @@ impl std::fmt::Display for Type {
             Type::Reference(element, _) => {
                 write!(f, "&{element}")
             }
-            Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::Quoted(quoted) => write!(f, "{quoted}"),
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let this = self.canonicalize_checked();
 
@@ -1130,12 +1177,20 @@ impl std::fmt::Display for TypeBinding {
     }
 }
 
+impl std::fmt::Debug for TypeBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeBinding::Bound(typ) => typ.fmt(f),
+            TypeBinding::Unbound(id, _) => id.fmt(f),
+        }
+    }
+}
+
 impl std::fmt::Display for QuotedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
             QuotedType::Quoted => write!(f, "Quoted"),
-            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypedExpr => write!(f, "TypedExpr"),
             QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
@@ -1207,17 +1262,6 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Integer(_, _))
     }
 
-    /// If value_level, only check for Type::FieldElement,
-    /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
-        match self.follow_bindings() {
-            Type::FieldElement => value_level,
-            Type::TypeVariable(var) => var.is_field_element(value_level),
-            Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
-            _ => false,
-        }
-    }
-
     pub fn is_signed(&self) -> bool {
         match self.follow_bindings_shallow().as_ref() {
             Type::Integer(Signedness::Signed, _) => true,
@@ -1264,7 +1308,8 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Function(..)
-            | Type::Tuple(..) => true,
+            | Type::Tuple(..)
+            | Type::Quoted(..) => true,
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
@@ -1276,7 +1321,6 @@ impl Type {
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
         }
@@ -1294,190 +1338,56 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, true))
     }
 
-    /// True if this type can be used as a parameter to `main` or a contract function.
-    /// This is only false for unsized types like slices or slices that do not make sense
-    /// as a program input such as named generics or mutable references.
+    pub(crate) fn is_ref(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
+    }
+
+    /// Returns `true` if a type is allowed to appear in an assertion message.
     ///
-    /// This function should match the same check done in `create_value_from_type` in acir_gen.
-    /// If this function does not catch a case where a type should be valid, it will later lead to a
-    /// panic in that function instead of a user-facing compiler error message.
-    pub(crate) fn is_valid_for_program_input(&self) -> bool {
+    /// This should try filter out types which would cause a panic in `abi_gen::abi_type_from_hir_type`,
+    /// but it has to be more permissive, as we don't have all information yet; some only become apparent
+    /// after monomorphization.
+    pub(crate) fn is_message_compatible(&self, is_monomorphized: bool) -> bool {
         match self {
-            // Type::Error is allowed as usual since it indicates an error was already issued and
-            // we don't need to issue further errors about this likely unresolved type
-            // TypeVariable and Generic are allowed here too as they can only result from
-            // generics being declared on the function itself, but we produce a different error in that case.
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Constant(_, _)
-            | Type::TypeVariable(_)
-            | Type::NamedGeneric(_)
-            | Type::Error => true,
+            Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
 
-            Type::Unit
-            | Type::FmtString(_, _)
-            | Type::Function(_, _, _, _)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            | Type::Quoted(_)
-            | Type::Slice(_)
-            | Type::TraitAsType(..) => false,
-
-            Type::CheckedCast { to, .. } => to.is_valid_for_program_input(),
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_program_input()
-            }
-
-            Type::Array(length, element) => {
-                self.array_or_string_len_is_not_zero()
-                    && length.is_valid_for_program_input()
-                    && element.is_valid_for_program_input()
-            }
-            Type::String(length) => {
-                self.array_or_string_len_is_not_zero() && length.is_valid_for_program_input()
-            }
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter().all(|(_, field, _)| field.is_valid_for_program_input())
-                } else {
-                    // Arbitrarily disallow enums from program input, though we may support them later
-                    false
+            Type::Array(_, item) => item.is_message_compatible(is_monomorphized),
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
+                TypeBinding::Unbound(_, kind) => {
+                    !is_monomorphized || matches!(kind, Kind::Integer | Kind::IntegerOrField)
                 }
+            },
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args).unwrap_or_default();
+                fields.iter().all(|(_, typ, _)| typ.is_message_compatible(is_monomorphized))
             }
-
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
+            Type::Alias(def, args) => {
+                let alias_type = def.borrow();
+                alias_type.get_type(args).is_message_compatible(is_monomorphized)
             }
-        }
-    }
-
-    /// Empty arrays and strings (which are arrays under the hood) are disallowed
-    /// as input to program entry points.
-    ///
-    /// The point of inputs to entry points is to process input data.
-    /// Thus, passing empty arrays is pointless and adds extra complexity to the compiler
-    /// for handling them.
-    fn array_or_string_len_is_not_zero(&self) -> bool {
-        match self {
-            Type::Array(length, _) | Type::String(length) => {
-                let length = length.evaluate_to_u32(Location::dummy()).unwrap_or(0);
-                length != 0
+            Type::CheckedCast { to, .. } => to.is_message_compatible(is_monomorphized),
+            Type::Tuple(fields) => {
+                fields.iter().all(|typ| typ.is_message_compatible(is_monomorphized))
             }
-            _ => panic!("ICE: Expected an array or string type"),
-        }
-    }
-
-    /// True if this type can be used as a parameter to an ACIR function that is not `main` or a contract function.
-    /// This encapsulates functions for which we may not want to inline during compilation.
-    ///
-    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
-    /// certain types which through compilation we know what their size should be.
-    /// This includes types such as numeric generics.
-    pub(crate) fn is_valid_non_inlined_function_input(&self) -> bool {
-        match self {
-            // Type::Error is allowed as usual since it indicates an error was already issued and
-            // we don't need to issue further errors about this likely unresolved type
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
+            Type::Error
             | Type::Unit
-            | Type::Constant(_, _)
-            | Type::TypeVariable(_)
-            | Type::NamedGeneric(_)
+            | Type::Constant(..)
             | Type::InfixExpr(..)
-            | Type::Error => true,
-
-            Type::FmtString(_, _)
-            // To enable this we would need to determine the size of the closure outputs at compile-time.
-            // This is possible as long as the output size is not dependent upon a witness condition.
-            | Type::Function(_, _, _, _)
-            | Type::Slice(_)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            // TODO: probably can allow code as it is all compile time
-            | Type::Quoted(_)
-            | Type::TraitAsType(..) => false,
-
-            Type::CheckedCast { to, .. } => to.is_valid_non_inlined_function_input(),
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_non_inlined_function_input()
-            }
-
-            Type::Array(length, element) => {
-                length.is_valid_non_inlined_function_input() && element.is_valid_non_inlined_function_input()
-            }
-            Type::String(length) => length.is_valid_non_inlined_function_input(),
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter()
-                    .all(|(_, field, _)| field.is_valid_non_inlined_function_input())
-                } else {
-                    false
-                }
-            }
-        }
-    }
-
-    /// Returns true if a value of this type can safely pass between constrained and
-    /// unconstrained functions (and vice-versa).
-    pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Constant(_, _)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
-            | Type::InfixExpr(..)
-            | Type::Error => true,
+            | Type::Quoted(_)
+            | Type::Reference(..) => false,
 
-            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    typ.is_valid_for_unconstrained_boundary()
-                } else {
-                    true
-                }
-            }
-
-            Type::CheckedCast { to, .. } => to.is_valid_for_unconstrained_boundary(),
-
-            // Quoted objects only exist at compile-time where the only execution
-            // environment is the interpreter. In this environment, they are valid.
-            Type::Quoted(_) => true,
-
-            Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_unconstrained_boundary()
-            }
-
-            Type::Array(length, element) => {
-                length.is_valid_for_unconstrained_boundary()
-                    && element.is_valid_for_unconstrained_boundary()
-            }
-            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
-            Type::Tuple(elements) => {
-                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
-            }
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields
-                        .into_iter()
-                        .all(|(_, field, _)| field.is_valid_for_unconstrained_boundary())
-                } else {
-                    false
-                }
-            }
+            // A generic would cause a panic in ABI generation, but if we don't allow it
+            // here then we reject all functions which are generic over the message type.
+            // Since we don't have a marker trait to show what can be turned into into a message,
+            // we have to delay this check to monomorphization.
+            Type::NamedGeneric(..) => !is_monomorphized,
         }
     }
 
@@ -1553,6 +1463,36 @@ impl Type {
             | Type::Forall(..)
             | Type::Quoted(..) => Kind::Normal,
             Type::Error => Kind::Any,
+        }
+    }
+
+    /// Determines if a type contains a self referring alias by tracking visited TypeAliasId.
+    ///
+    /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
+    /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match self {
+            Type::CheckedCast { to, .. } => to.has_cyclic_alias(aliases),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
+            }
+            Type::TypeVariable(var) => match &*var.borrow() {
+                TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
+                TypeBinding::Unbound(_, _) => false,
+            },
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+            }
+            Type::Alias(def, generics) => {
+                let alias_id = def.borrow().id;
+                if aliases.contains(&alias_id) {
+                    true
+                } else {
+                    aliases.insert(alias_id);
+                    def.borrow().get_type(generics).has_cyclic_alias(aliases)
+                }
+            }
+            _ => false,
         }
     }
 
@@ -1661,18 +1601,66 @@ impl Type {
         }
     }
 
+    /// Check whether this type is an array or slice, and contains a nested slice in its element type.
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
+
             Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            _ => false,
+            Type::FmtString(_size, elem) => elem.as_ref().is_nested_slice(),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.is_nested_slice()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_slice()) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    if typ.is_nested_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_nested_slice(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.is_nested_slice() || to.is_nested_slice(),
+            Type::Reference(element, _) => element.is_nested_slice(),
+            Type::Forall(_, typ) => typ.is_nested_slice(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
         }
     }
 
+    /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1694,7 +1682,175 @@ impl Type {
                 }
                 false
             }
-            _ => false,
+            Type::FmtString(_size, elem) => elem.contains_slice(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_slice(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.contains_slice() || to.contains_slice(),
+            Type::Reference(element, _) => element.contains_slice(),
+            Type::Forall(_, typ) => typ.contains_slice(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
+
+    pub(crate) fn contains_reference(&self) -> bool {
+        match self {
+            Type::Unit
+            | Type::Bool
+            | Type::String(..)
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::Function(..)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Error => false,
+            Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
+            Type::Slice(typ) => typ.contains_reference(),
+            Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_reference()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants
+                        .iter()
+                        .flat_map(|(_, args)| args)
+                        .any(|typ| typ.contains_reference())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_reference(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => to.contains_reference(),
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Reference(..) => true,
+        }
+    }
+
+    pub(crate) fn contains_function(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Quoted(_)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Error => false,
+
+            Type::Function(..) => true,
+
+            Type::Reference(typ, _) => typ.contains_function(),
+            Type::Array(length, typ) => length.contains_function() || typ.contains_function(),
+            Type::Slice(typ) => typ.contains_function(),
+            Type::FmtString(length, typ) => length.contains_function() || typ.contains_function(),
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_function()),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_function()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_function())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_function(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_function(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => to.contains_function(),
+            Type::InfixExpr(lhs, _op, rhs, _) => lhs.contains_function() || rhs.contains_function(),
+        }
+    }
+
+    pub(crate) fn contains_type_variable(&self) -> bool {
+        match self {
+            Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::FieldElement
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::Error => false,
+            Type::Forall(..) => true,
+            Type::Array(length, typ) => {
+                length.contains_type_variable() || typ.contains_type_variable()
+            }
+            Type::Slice(typ) => typ.contains_type_variable(),
+            Type::String(length) => length.contains_type_variable(),
+            Type::FmtString(length, typ) => {
+                length.contains_type_variable() || typ.contains_type_variable()
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter().any(|typ| typ.contains_type_variable())
+            }
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_type_variable(),
+                    TypeBinding::Unbound(_, _) => true,
+                }
+            }
+            Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
+                trait_generics.ordered.iter().any(|typ| typ.contains_type_variable())
+                    || trait_generics
+                        .named
+                        .iter()
+                        .any(|named_type| named_type.typ.contains_type_variable())
+            }
+            Type::CheckedCast { from, to } => {
+                from.contains_type_variable() || to.contains_type_variable()
+            }
+            Type::Function(args, ret, env, _) => {
+                args.iter().any(|typ| typ.contains_type_variable())
+                    || ret.contains_type_variable()
+                    || env.contains_type_variable()
+            }
+            Type::Reference(typ, _) => typ.contains_type_variable(),
+            Type::InfixExpr(lhs, _, rhs, _) => {
+                lhs.contains_type_variable() || rhs.contains_type_variable()
+            }
         }
     }
 
@@ -1836,40 +1992,43 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_field_element(&Kind::u32(), location).map(|field_element| {
-            field_element
-                .try_to_u32()
+        self.evaluate_to_signed_field(&Kind::u32(), location).map(|signed_field| {
+            signed_field
+                .try_to_unsigned::<u32>()
                 .expect("ICE: size should have already been checked by evaluate_to_field_element")
         })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_field_element(
+    pub(crate) fn evaluate_to_signed_field(
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+    ) -> Result<SignedField, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, location, run_simplifications)
+        self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
     }
 
     /// evaluate_to_field_element with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_field_element_helper(
+    pub(crate) fn evaluate_to_signed_field_helper(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+    ) -> Result<SignedField, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
-            if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                if kind.unifies(&binding_kind) {
-                    return binding.evaluate_to_field_element_helper(
-                        &binding_kind,
-                        location,
-                        run_simplifications,
-                    );
+            match &*binding.borrow() {
+                TypeBinding::Bound(binding) => {
+                    if kind.unifies(&binding_kind) {
+                        return binding.evaluate_to_signed_field_helper(
+                            &binding_kind,
+                            location,
+                            run_simplifications,
+                        );
+                    }
                 }
+                TypeBinding::Unbound(..) => (),
             }
         }
 
@@ -1888,12 +2047,12 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_field_element_helper(
+                    let lhs_value = lhs.evaluate_to_signed_field_helper(
                         &infix_kind,
                         location,
                         run_simplifications,
                     )?;
-                    let rhs_value = rhs.evaluate_to_field_element_helper(
+                    let rhs_value = rhs.evaluate_to_signed_field_helper(
                         &infix_kind,
                         location,
                         run_simplifications,
@@ -1908,13 +2067,13 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_field_element(kind, location)?;
+                let to_value = to.evaluate_to_signed_field(kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_signed_field_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -1937,8 +2096,10 @@ impl Type {
         }
     }
 
-    /// Retrieves the type of the given field name
-    /// Panics if the type is not a struct or tuple.
+    /// Retrieves the [Type] and [ItemVisibility] of the given field name:
+    /// * for structs, it finds a member with a matching name
+    /// * for tuples, it find the item by index, treating indexes as names "0", "1", ...
+    /// * otherwise returns `None`
     pub fn get_field_type_and_visibility(
         &self,
         field_name: &str,
@@ -2599,37 +2760,65 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: FieldElement,
-        b: FieldElement,
+        a: SignedField,
+        b: SignedField,
         kind: &Kind,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
+    ) -> Result<SignedField, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
                 BinaryTypeOperator::Subtraction => Ok(a - b),
                 BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (b != FieldElement::zero())
+                BinaryTypeOperator::Division => (!b.is_zero())
                     .then(|| a / b)
                     .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
                 BinaryTypeOperator::Modulo => {
                     Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
                 }
             },
-            Some(_maximum_size) => {
-                let a = a.to_i128();
-                let b = b.to_i128();
+            Some(maximum_size) => {
+                if maximum_size.to_u128() == u128::MAX {
+                    // For u128 operations we need to use u128
+                    let a = a.to_u128();
+                    let b = b.to_u128();
 
-                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
-                let result = match self {
-                    BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                    BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                    BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                    BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                    BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                };
+                    let err = TypeCheckError::FailingBinaryOp {
+                        op: self,
+                        lhs: a.to_string(),
+                        rhs: b.to_string(),
+                        location,
+                    };
+                    let result = match self {
+                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
+                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
+                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
+                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
+                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
+                    };
 
-                Ok(result.into())
+                    Ok(result.into())
+                } else {
+                    // Every other type first in i128, allowing both positive and negative values
+                    let a = a.to_i128();
+                    let b = b.to_i128();
+
+                    let err = TypeCheckError::FailingBinaryOp {
+                        op: self,
+                        lhs: a.to_string(),
+                        rhs: b.to_string(),
+                        location,
+                    };
+                    let result = match self {
+                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
+                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
+                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
+                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
+                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
+                    };
+
+                    Ok(result.into())
+                }
             }
         }
     }
@@ -2708,7 +2897,13 @@ impl From<&Type> for PrintableType {
                     .expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
+            Type::FmtString(size, typ) => {
+                let dummy_location = Location::dummy();
+                let size = size
+                    .evaluate_to_u32(dummy_location)
+                    .expect("Cannot print variable sized strings");
+                PrintableType::FmtString { length: size, typ: Box::new(typ.as_ref().into()) }
+            }
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
@@ -2733,12 +2928,16 @@ impl From<&Type> for PrintableType {
             Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
-                arguments: arguments.iter().map(|arg| arg.into()).collect(),
-                return_type: Box::new(return_type.as_ref().into()),
-                env: Box::new(env.as_ref().into()),
-                unconstrained: *unconstrained,
-            },
+            Type::Function(arguments, return_type, env, _unconstrained) => {
+                // Mimicking `Monomorphizer::convert_type_helper`: functions are represented as a tuple of constrained and unconstrained version.
+                let make_function = |unconstrained| PrintableType::Function {
+                    arguments: arguments.iter().map(|arg| arg.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().into()),
+                    env: Box::new(env.as_ref().into()),
+                    unconstrained,
+                };
+                PrintableType::Tuple { types: vecmap([false, true], make_function) }
+            }
             Type::Reference(typ, mutable) => {
                 PrintableType::Reference { typ: Box::new(typ.as_ref().into()), mutable: *mutable }
             }
@@ -2766,19 +2965,20 @@ impl std::fmt::Debug for Type {
             },
             Type::TypeVariable(var) => {
                 let binding = &var.1;
-                if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
+                let binding = &*binding.borrow();
+                if let TypeBinding::Unbound(_, type_var_kind) = binding {
                     match type_var_kind {
-                        Kind::Any | Kind::Normal => write!(f, "{:?}", var),
-                        Kind::IntegerOrField => write!(f, "IntOrField{:?}", binding),
-                        Kind::Integer => write!(f, "Int{:?}", binding),
-                        Kind::Numeric(typ) => write!(f, "Numeric({:?}: {:?})", binding, typ),
+                        Kind::Any | Kind::Normal => write!(f, "{var:?}"),
+                        Kind::IntegerOrField => write!(f, "IntOrField{binding:?}"),
+                        Kind::Integer => write!(f, "Int{binding:?}"),
+                        Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
-                    write!(f, "{}", binding.borrow())
+                    write!(f, "{binding:?}")
                 }
             }
             Type::DataType(s, args) => {
-                let args = vecmap(args, |arg| format!("{:?}", arg));
+                let args = vecmap(args, |arg| format!("{arg:?}"));
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
                 } else {
@@ -2786,16 +2986,16 @@ impl std::fmt::Debug for Type {
                 }
             }
             Type::Alias(alias, args) => {
-                let args = vecmap(args, |arg| format!("{:?}", arg));
+                let args = vecmap(args, |arg| format!("{arg:?}"));
                 if args.is_empty() {
                     write!(f, "{}", alias.borrow())
                 } else {
                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
+            Type::TraitAsType(_id, name, generics) => write!(f, "impl {name}{generics:?}"),
             Type::Tuple(elements) => {
-                let elements = vecmap(elements, |arg| format!("{:?}", arg));
+                let elements = vecmap(elements, |arg| format!("{arg:?}"));
                 if elements.len() == 1 {
                     write!(f, "({},)", elements[0])
                 } else {
@@ -2809,18 +3009,18 @@ impl std::fmt::Debug for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
+            Type::CheckedCast { to, .. } => write!(f, "{to:?}"),
             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
-                    write!(f, "{}{:?}", name, type_var)
+                    write!(f, "{name}{type_var:?}")
                 }
                 Kind::Numeric(typ) => {
-                    write!(f, "({} : {}){:?}", name, typ, type_var)
+                    write!(f, "({name} : {typ}){type_var:?}")
                 }
             },
-            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
+            Type::Constant(x, kind) => write!(f, "({x}: {kind})"),
             Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, |var| format!("{:?}", var));
+                let typevars = vecmap(typevars, |var| format!("{var:?}"));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, env, unconstrained) => {
@@ -2833,7 +3033,7 @@ impl std::fmt::Debug for Type {
                     _ => format!(" with env {env:?}"),
                 };
 
-                let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
+                let args = vecmap(args.iter(), |arg| format!("{arg:?}"));
 
                 write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
             }
@@ -2843,7 +3043,7 @@ impl std::fmt::Debug for Type {
             Type::Reference(element, true) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::Quoted(quoted) => write!(f, "{quoted}"),
             Type::InfixExpr(lhs, op, rhs, _) => write!(f, "({lhs:?} {op} {rhs:?})"),
         }
     }

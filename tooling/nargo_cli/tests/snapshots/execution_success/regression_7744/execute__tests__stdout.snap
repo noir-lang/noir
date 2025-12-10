@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_7744] Circuit output: Struct({"is_infinite": Field(0), "x": Field(0), "y": Field(5)})
+[regression_7744] Circuit output: std::embedded_curve_ops::EmbeddedCurvePoint { x: 0x00, y: 0x05, is_infinite: false }

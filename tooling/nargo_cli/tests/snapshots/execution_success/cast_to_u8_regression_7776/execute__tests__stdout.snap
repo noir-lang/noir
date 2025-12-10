@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[cast_to_u8_regression_7776] Circuit output: Field(0)
+[cast_to_u8_regression_7776] Circuit output: 0

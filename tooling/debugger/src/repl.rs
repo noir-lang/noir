@@ -357,14 +357,13 @@ impl<'a> AsyncReplDebugger<'a> {
             match &opcode {
                 Opcode::BrilligCall { id, inputs, outputs, .. } => {
                     println!(
-                        "{:>2}:{:>3} {:2} BRILLIG CALL id={} inputs={:?}",
-                        circuit_id, acir_index, marker, id, inputs
+                        "{circuit_id:>2}:{acir_index:>3} {marker:2} BRILLIG CALL id={id} inputs={inputs:?}"
                     );
-                    println!("          |       outputs={:?}", outputs);
+                    println!("          |       outputs={outputs:?}");
                     let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
                     print_brillig_bytecode(acir_index, bytecode, *id);
                 }
-                _ => println!("{:>2}:{:>3} {:2} {:?}", circuit_id, acir_index, marker, opcode),
+                _ => println!("{circuit_id:>2}:{acir_index:>3} {marker:2} {opcode:?}"),
             }
         }
     }
@@ -383,10 +382,10 @@ impl<'a> AsyncReplDebugger<'a> {
         let best_location = context.find_opcode_at_current_file_line(line_number);
         match best_location {
             Some(location) => {
-                println!("Added breakpoint at line {}", line_number);
+                println!("Added breakpoint at line {line_number}");
                 Self::add_breakpoint_at(context, location);
             }
-            None => println!("No opcode at line {}", line_number),
+            None => println!("No opcode at line {line_number}"),
         }
     }
 
@@ -406,10 +405,10 @@ impl<'a> AsyncReplDebugger<'a> {
             }
             DebugCommandResult::Ok => (),
             DebugCommandResult::BreakpointReached(location) => {
-                println!("Stopped at breakpoint in opcode {}", location);
+                println!("Stopped at breakpoint in opcode {location}");
             }
             DebugCommandResult::Error(error) => {
-                println!("ERROR: {}", error);
+                println!("ERROR: {error}");
             }
         }
     }
@@ -425,7 +424,7 @@ impl<'a> AsyncReplDebugger<'a> {
                 false
             }
             DebugCommandResult::Error(ref error) => {
-                println!("ERROR: {}", error);
+                println!("ERROR: {error}");
                 self.show_current_vm_status(context);
                 false
             }
@@ -454,7 +453,7 @@ impl<'a> AsyncReplDebugger<'a> {
 
     fn show_witness(context: &mut Context<'_>, index: u32) {
         if let Some(value) = context.get_witness_map().get_index(index) {
-            println!("_{} = {value}", index);
+            println!("_{index} = {value}");
         }
     }
 
@@ -466,7 +465,7 @@ impl<'a> AsyncReplDebugger<'a> {
 
         let witness = Witness::from(index);
         _ = context.overwrite_witness(witness, field_value);
-        println!("_{} = {value}", index);
+        println!("_{index} = {value}");
     }
 
     fn show_brillig_memory(context: &mut Context<'_>) {
@@ -490,7 +489,7 @@ impl<'a> AsyncReplDebugger<'a> {
                     continue;
                 }
             }
-            println!("{index} = {}", value);
+            println!("{index} = {value}");
         }
     }
     fn write_brillig_memory(context: &mut Context<'_>, index: usize, value: String, bit_size: u32) {
@@ -519,7 +518,7 @@ impl<'a> AsyncReplDebugger<'a> {
             for (var_name, value, var_type) in frame.variables.iter() {
                 let printable_value =
                     PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
-                println!("  {var_name}:{var_type:?} = {}", printable_value);
+                println!("  {var_name}:{var_type:?} = {printable_value}");
             }
         }
     }

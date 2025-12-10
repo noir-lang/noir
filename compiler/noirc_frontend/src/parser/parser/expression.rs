@@ -248,8 +248,10 @@ impl Parser<'_> {
     fn parse_member_access_field_name(&mut self) -> Option<Ident> {
         if let Some(ident) = self.eat_ident() {
             Some(ident)
-        // Using `None` because we don't want to allow integer type suffixes on tuple field names
-        } else if let Some((int, None)) = self.eat_int() {
+        // We allow integer type suffixes on tuple field names since this lets
+        // users unquote typed integers in macros to use as a tuple access expression.
+        // See https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+        } else if let Some((int, _)) = self.eat_int() {
             Some(Ident::new(int.to_string(), self.previous_token_location))
         } else {
             self.push_error(
@@ -596,7 +598,10 @@ impl Parser<'_> {
 
         let expression = self.parse_expression_except_constructor_or_error();
 
-        self.eat_left_brace();
+        if !self.eat_left_brace() {
+            self.expected_token(Token::LeftBrace);
+            return Some(ExpressionKind::Error);
+        }
 
         let rules = self.parse_many(
             "match cases",
@@ -607,7 +612,7 @@ impl Parser<'_> {
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
-    /// MatchRule = Expression '->' (Block ','?) | (Expression ',')
+    /// MatchRule = Expression '=>' (Block ','?) | (Expression ',')
     fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
         let pattern = self.parse_expression()?;
         self.eat_or_error(Token::FatArrow);
@@ -1040,8 +1045,9 @@ mod tests {
     use crate::{
         ast::{
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
-            StatementKind, UnaryOp, UnresolvedTypeData,
+            StatementKind, UnaryOp,
         },
+        parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -2025,7 +2031,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::Unspecified));
+        assert!(lambda.return_type.is_none());
     }
 
     #[test]
@@ -2039,11 +2045,11 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "x");
-        assert!(matches!(typ.typ, UnresolvedTypeData::Unspecified));
+        assert!(typ.is_none());
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
     }
 
     #[test]
@@ -2055,7 +2061,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert_eq!(lambda.return_type.typ.to_string(), "Field");
+        assert_eq!(lambda.return_type.unwrap().to_string(), "Field");
     }
 
     #[test]
@@ -2220,5 +2226,20 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
+    }
+
+    #[test]
+    fn errors_on_match_without_left_brace_after_expression() {
+        let src = "
+        fn main()  {
+            if true {
+                match c _ => {
+                    match d _ => 0,                     
+                }
+            }
+        } } } 
+        ";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }

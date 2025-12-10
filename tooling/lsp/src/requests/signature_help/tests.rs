@@ -47,7 +47,7 @@ mod signature_help_tests {
 
     fn check_label(signature_label: &str, parameter_label: &ParameterLabel, expected_string: &str) {
         let ParameterLabel::LabelOffsets(offsets) = parameter_label else {
-            panic!("Expected label to be LabelOffsets, got {:?}", parameter_label);
+            panic!("Expected label to be LabelOffsets, got {parameter_label:?}");
         };
 
         assert_eq!(&signature_label[offsets[0] as usize..offsets[1] as usize], expected_string);
@@ -257,6 +257,57 @@ mod signature_help_tests {
 
         check_label(&signature.label, &params[0].label, "Field");
         check_label(&signature.label, &params[1].label, "i32");
+
+        assert_eq!(signature.active_parameter, Some(0));
+    }
+
+    #[test]
+    async fn test_signature_help_for_macro_attribute() {
+        let src = r#"
+            comptime fn foo(_: FunctionDefinition, x: i32, y: Field) { }
+
+            #[foo(>|<1, 2)]
+            fn bar() {
+            }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        assert_eq!(signature_help.signatures.len(), 1);
+
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "fn foo(x: i32, y: Field)");
+
+        let params = signature.parameters.as_ref().unwrap();
+        assert_eq!(params.len(), 2);
+
+        check_label(&signature.label, &params[0].label, "x: i32");
+        check_label(&signature.label, &params[1].label, "y: Field");
+
+        assert_eq!(signature.active_parameter, Some(0));
+    }
+
+    #[test]
+    async fn test_signature_help_for_varargs_macro_attribute() {
+        let src = r#"
+            #[varargs]
+            comptime fn foo(_: FunctionDefinition, x: i32, y: [Field]) { }
+
+            #[foo(>|<1, 2)]
+            fn bar() {
+            }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        assert_eq!(signature_help.signatures.len(), 1);
+
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "#[varargs]\nfn foo(x: i32, y: [Field])");
+
+        let params = signature.parameters.as_ref().unwrap();
+        assert_eq!(params.len(), 2);
+
+        check_label(&signature.label, &params[0].label, "x: i32");
+        check_label(&signature.label, &params[1].label, "y: [Field]");
 
         assert_eq!(signature.active_parameter, Some(0));
     }

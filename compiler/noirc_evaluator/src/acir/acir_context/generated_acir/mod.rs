@@ -13,7 +13,7 @@ use acvm::acir::{
     circuit::{
         AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+        opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::{Expression, Witness},
 };
@@ -44,7 +44,7 @@ pub struct GeneratedAcir<F: AcirField> {
     /// This field is private should only ever be accessed through its getter and setter.
     ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    pub current_witness_index: Option<u32>,
+    current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
     pub opcodes: Vec<AcirOpcode<F>>,
@@ -63,7 +63,6 @@ pub struct GeneratedAcir<F: AcirField> {
     pub brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
-    /// None if we do not know the location
     pub(crate) call_stack_id: CallStackId,
 
     /// Correspondence between an opcode index and the error message associated with it.
@@ -108,6 +107,20 @@ impl<F: AcirField> GeneratedAcir<F> {
         if !self.call_stack_id.is_root() {
             self.location_map.insert(self.last_acir_opcode_location(), self.call_stack_id);
         }
+    }
+
+    /// Initializes memory block with given values.
+    pub(crate) fn initialize_memory(
+        &mut self,
+        block_id: BlockId,
+        init: Vec<Witness>,
+        block_type: BlockType,
+    ) {
+        // TODO: enable this check for all block_types
+        if block_type == BlockType::ReturnData {
+            debug_assert!(!init.is_empty(), "Cannot initialize memory with empty init");
+        }
+        self.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
@@ -176,161 +189,152 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        inputs: &[Vec<FunctionInput<F>>],
+        function_inputs: Vec<Vec<FunctionInput<F>>>,
         constant_inputs: Vec<F>,
-        constant_outputs: Vec<F>,
+        num_bits: Option<u32>,
         outputs: Vec<Witness>,
     ) -> Result<(), InternalError> {
-        let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
+        fn expect_into<T, U>(value: T) -> U
+        where
+            T: TryInto<U>,
+            <T as TryInto<U>>::Error: std::fmt::Debug,
+        {
+            value.try_into().expect("Compiler should generate correct size inputs/outputs")
+        }
+
+        let input_count = function_inputs.iter().fold(0usize, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, outputs.len());
-
         let black_box_func_call = match func_name {
-            BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
-                inputs: inputs[0].clone(),
-                iv: inputs[1]
-                    .clone()
-                    .try_into()
-                    .expect("Compiler should generate correct size inputs"),
-                key: inputs[2]
-                    .clone()
-                    .try_into()
-                    .expect("Compiler should generate correct size inputs"),
-                outputs,
-            },
+            BlackBoxFunc::AES128Encrypt => {
+                let [inputs, iv, key] = expect_into(function_inputs);
+                let iv = expect_into(iv);
+                let key = expect_into(key);
+                BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
+            }
             BlackBoxFunc::AND => {
-                BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
+                let [lhs, rhs] = expect_into(function_inputs);
+                let num_bits = num_bits.expect("missing num_bits");
+                BlackBoxFuncCall::AND { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
             }
             BlackBoxFunc::XOR => {
-                BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
+                let [lhs, rhs] = expect_into(function_inputs);
+                let num_bits = num_bits.expect("missing num_bits");
+                BlackBoxFuncCall::XOR { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
             }
-            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
-                inputs: inputs[0].clone(),
-                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
-            },
-            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 {
-                inputs: inputs[0].clone(),
-                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
-            },
+            BlackBoxFunc::RANGE => {
+                let [input] = expect_into(function_inputs);
+                let num_bits = num_bits.expect("missing num_bits");
+                BlackBoxFuncCall::RANGE { input: input[0], num_bits }
+            }
+            BlackBoxFunc::Blake2s => {
+                let [inputs] = expect_into(function_inputs);
+                let outputs = expect_into(outputs);
+                BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
+            }
+            BlackBoxFunc::Blake3 => {
+                let [inputs] = expect_into(function_inputs);
+                let outputs = expect_into(outputs);
+                BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
+            }
             BlackBoxFunc::EcdsaSecp256k1 => {
+                let [public_key_x, public_key_y, signature, hashed_message, predicate] =
+                    expect_into(function_inputs);
+                let [predicate] = expect_into(predicate);
+                let [output] = expect_into(outputs);
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: inputs[0]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
-                    public_key_y: inputs[1]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
+                    public_key_x: expect_into(public_key_x),
+                    public_key_y: expect_into(public_key_y),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: inputs[2]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
-                    hashed_message: inputs[3]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
-                    output: outputs[0],
+                    signature: expect_into(signature),
+                    hashed_message: expect_into(hashed_message),
+                    predicate,
+                    output,
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
+                let [public_key_x, public_key_y, signature, hashed_message, predicate] =
+                    expect_into(function_inputs);
+                let [predicate] = expect_into(predicate);
+                let [output] = expect_into(outputs);
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: inputs[0]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
-                    public_key_y: inputs[1]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
+                    public_key_x: expect_into(public_key_x),
+                    public_key_y: expect_into(public_key_y),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: inputs[2]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
-                    hashed_message: inputs[3]
-                        .clone()
-                        .try_into()
-                        .expect("Compiler should generate correct size inputs"),
-                    output: outputs[0],
+                    signature: expect_into(signature),
+                    hashed_message: expect_into(hashed_message),
+                    predicate,
+                    output,
                 }
             }
-            BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
-                points: inputs[0].clone(),
-                scalars: inputs[1].clone(),
-                outputs: (outputs[0], outputs[1], outputs[2]),
-            },
+            BlackBoxFunc::MultiScalarMul => {
+                let [points, scalars, predicate] = expect_into(function_inputs);
+                let [predicate] = expect_into(predicate);
+                let [output0, output1, output2] = expect_into(outputs);
+                BlackBoxFuncCall::MultiScalarMul {
+                    points,
+                    scalars,
+                    predicate,
+                    outputs: (output0, output1, output2),
+                }
+            }
 
-            BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1: Box::new([inputs[0][0], inputs[1][0], inputs[2][0]]),
-                input2: Box::new([inputs[3][0], inputs[4][0], inputs[5][0]]),
-                outputs: (outputs[0], outputs[1], outputs[2]),
-            },
-            BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
-                inputs: inputs[0]
-                    .clone()
-                    .try_into()
-                    .expect("Compiler should generate correct size inputs"),
-                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
-            },
-            BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
-                verification_key: inputs[0].clone(),
-                proof: inputs[1].clone(),
-                public_inputs: inputs[2].clone(),
-                key_hash: inputs[3][0],
-                proof_type: constant_inputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntSub => BlackBoxFuncCall::BigIntSub {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntMul => BlackBoxFuncCall::BigIntMul {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntDiv => BlackBoxFuncCall::BigIntDiv {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntFromLeBytes => BlackBoxFuncCall::BigIntFromLeBytes {
-                inputs: inputs[0].clone(),
-                modulus: vecmap(constant_inputs, |c| c.to_u128() as u8),
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntToLeBytes => BlackBoxFuncCall::BigIntToLeBytes {
-                input: constant_inputs[0].to_u128() as u32,
-                outputs,
-            },
-            BlackBoxFunc::Poseidon2Permutation => BlackBoxFuncCall::Poseidon2Permutation {
-                inputs: inputs[0].clone(),
-                outputs,
-                len: constant_inputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::Sha256Compression => BlackBoxFuncCall::Sha256Compression {
-                inputs: inputs[0]
-                    .clone()
-                    .try_into()
-                    .expect("Compiler should generate correct size inputs"),
-                hash_values: inputs[1]
-                    .clone()
-                    .try_into()
-                    .expect("Compiler should generate correct size inputs"),
-                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
-            },
+            BlackBoxFunc::EmbeddedCurveAdd => {
+                let [input1_0, input1_1, input1_2, input2_0, input2_1, input2_2, predicate] =
+                    expect_into(function_inputs);
+                let [input1_0] = expect_into(input1_0);
+                let [input1_1] = expect_into(input1_1);
+                let [input1_2] = expect_into(input1_2);
+                let [input2_0] = expect_into(input2_0);
+                let [input2_1] = expect_into(input2_1);
+                let [input2_2] = expect_into(input2_2);
+                let [predicate] = expect_into(predicate);
+                let [output0, output1, output2] = expect_into(outputs);
+                BlackBoxFuncCall::EmbeddedCurveAdd {
+                    input1: Box::new([input1_0, input1_1, input1_2]),
+                    input2: Box::new([input2_0, input2_1, input2_2]),
+                    predicate,
+                    outputs: (output0, output1, output2),
+                }
+            }
+            BlackBoxFunc::Keccakf1600 => {
+                let [inputs] = expect_into(function_inputs);
+                BlackBoxFuncCall::Keccakf1600 {
+                    inputs: expect_into(inputs),
+                    outputs: expect_into(outputs),
+                }
+            }
+            BlackBoxFunc::RecursiveAggregation => {
+                let [verification_key, proof, public_inputs, key_hash, predicate] =
+                    expect_into(function_inputs);
+                let [key_hash] = expect_into(key_hash);
+                let [proof_type] = expect_into(constant_inputs);
+                let [predicate] = expect_into(predicate);
+                BlackBoxFuncCall::RecursiveAggregation {
+                    verification_key,
+                    proof,
+                    public_inputs,
+                    key_hash,
+                    proof_type: proof_type.to_u128() as u32,
+                    predicate,
+                }
+            }
+            BlackBoxFunc::Poseidon2Permutation => {
+                let [inputs] = expect_into(function_inputs);
+                BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
+            }
+            BlackBoxFunc::Sha256Compression => {
+                let [inputs, hash_values] = expect_into(function_inputs);
+                BlackBoxFuncCall::Sha256Compression {
+                    inputs: expect_into(inputs),
+                    hash_values: expect_into(hash_values),
+                    outputs: expect_into(outputs),
+                }
+            }
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -345,15 +349,14 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn radix_le_decompose(
         &mut self,
         input_expr: &Expression<F>,
-        radix: u32,
+        radix: u128,
         limb_count: u32,
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_range = 2..=256;
         assert!(
             radix_range.contains(&radix),
-            "ICE: Radix must be in the range 2..=256, but found: {:?}",
-            radix
+            "ICE: Radix must be in the range 2..=256, but found: {radix:?}"
         );
         let radix_big = BigUint::from(radix);
         assert_eq!(
@@ -397,7 +400,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn brillig_to_radix(
         &mut self,
         expr: &Expression<F>,
-        radix: u32,
+        radix: u128,
         limb_count: u32,
     ) -> Vec<Witness> {
         // Create the witness for the result
@@ -409,12 +412,12 @@ impl<F: AcirField> GeneratedAcir<F> {
         let limbs_nb = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(limb_count as u128),
+            q_c: F::from(u128::from(limb_count)),
         };
         let radix_expr = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(radix as u128),
+            q_c: F::from(radix),
         };
         let inputs = vec![
             BrilligInputs::Single(expr.clone()),
@@ -577,10 +580,14 @@ impl<F: AcirField> GeneratedAcir<F> {
                 call_stack: self.get_call_stack(),
             });
         };
-
-        let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(witness, num_bits),
-        });
+        let constraint = if num_bits == 0 {
+            AcirOpcode::AssertZero(Expression::from(witness))
+        } else {
+            AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(witness),
+                num_bits,
+            })
+        };
         self.push_opcode(constraint);
 
         Ok(())
@@ -595,7 +602,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         brillig_function_index: BrilligFunctionId,
         stdlib_func: Option<BrilligStdlibFunc>,
     ) {
-        // Check whether we have a call to this Brillig function already exists.
+        // Check whether a call to this Brillig function already exists.
         // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
         let inserted_func_before = self.brillig_locations.contains_key(&brillig_function_index);
 
@@ -648,7 +655,10 @@ impl<F: AcirField> GeneratedAcir<F> {
         };
 
         match &mut self.opcodes[acir_index] {
-            AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,
+            AcirOpcode::BrilligCall { id, .. } => {
+                assert!(*id == PLACEHOLDER_BRILLIG_INDEX, "expected placeholder brillig index");
+                *id = brillig_function_index;
+            }
             _ => panic!("expected brillig call opcode"),
         }
     }
@@ -693,9 +703,9 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // witness at a time.
         BlackBoxFunc::RANGE => Some(1),
 
-        // Signature verification algorithms will take in a variable
-        // number of inputs, since the message/hashed-message can vary in size.
-        BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => None,
+        // 64 bytes for the signature, 32 bytes for the hashed message,
+        // and 32 bytes each for the x and y coordinates of the public key, plus a predicate.
+        BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(161),
 
         // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
         BlackBoxFunc::MultiScalarMul => None,
@@ -704,17 +714,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::RecursiveAggregation => None,
 
         // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
-        BlackBoxFunc::EmbeddedCurveAdd => Some(6),
-
-        // Big integer operations take in 0 inputs. They use constants for their inputs.
-        BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::BigIntToLeBytes => Some(0),
-
-        // FromLeBytes takes a variable array of bytes as input
-        BlackBoxFunc::BigIntFromLeBytes => None,
+        // to add, plus a predicate to conditionally perform the addition.
+        BlackBoxFunc::EmbeddedCurveAdd => Some(7),
     }
 }
 
@@ -735,26 +736,14 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         BlackBoxFunc::Sha256Compression => Some(8),
 
-        // Can only apply a range constraint to one
-        // witness at a time.
         BlackBoxFunc::RANGE => Some(0),
 
         // Signature verification algorithms will return a boolean
         BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
 
         // Output of operations over the embedded curve
-        // will be 2 field elements representing the point.
+        // will be 3 field elements representing the point, i.e. (x,y,infinite)
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
-
-        // Big integer operations return a big integer
-        BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::BigIntFromLeBytes => Some(0),
-
-        // ToLeBytes returns a variable array of bytes
-        BlackBoxFunc::BigIntToLeBytes => None,
 
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,

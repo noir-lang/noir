@@ -1,5 +1,6 @@
 ---
 title: CtString
+description: Compile-time, dynamically sized strings for `comptime`—build, append, and emit quoted string literals.
 ---
 
 `std::meta::ctstring` contains methods on the built-in `CtString` type which is

@@ -6,7 +6,6 @@
 
 mod array_set;
 mod as_slice_length;
-mod assert_constant;
 mod basic_conditional;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
@@ -15,11 +14,13 @@ mod checked_to_unchecked;
 mod constant_folding;
 mod defunctionalize;
 mod die;
+mod evaluate_static_assert_and_assert_constant;
 mod expand_signed_checks;
+mod expand_signed_math;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
-pub(crate) mod inlining;
+mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;
@@ -33,9 +34,14 @@ mod remove_if_else;
 mod remove_truncate_after_range_check;
 mod remove_unreachable_functions;
 mod remove_unreachable_instructions;
+mod remove_unused_instructions;
 mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
+
+pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
+pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
+pub(crate) use unrolling::Loops;
 
 /// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't
@@ -54,7 +60,7 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     let mut expected_ssa = match Ssa::from_str(&expected) {
         Ok(ssa) => ssa,
         Err(err) => {
-            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err)
+            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}")
         }
     };
 
@@ -117,4 +123,15 @@ macro_rules! assert_ssa_snapshot {
         let ssa_string = mut_ssa.print_without_locations().to_string();
         insta::assert_snapshot!(ssa_string, $($arg)*)
     };
+}
+
+/// Assert that running a certain pass on the SSA does nothing.
+#[cfg(test)]
+pub(crate) fn assert_ssa_does_not_change(
+    src: &str,
+    pass: impl FnOnce(crate::ssa::Ssa) -> crate::ssa::Ssa,
+) {
+    let ssa = crate::ssa::Ssa::from_str(src).unwrap();
+    let ssa = pass(ssa);
+    assert_normalized_ssa_equals(ssa, src);
 }

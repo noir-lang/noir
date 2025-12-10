@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
+use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_printable_type::format_field_string;
 
 use crate::{
     Type,
@@ -10,7 +10,7 @@ use crate::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
@@ -36,7 +36,7 @@ pub(super) fn display_quoted(
         writeln!(f, "quote {{")?;
         let indent = indent + 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
-        TokensPrettyPrinter { tokens, interner, indent }.fmt(f)?;
+        TokensPrettyPrinter { tokens, interner, indent, preserve_unquote_markers: false }.fmt(f)?;
         writeln!(f)?;
         let indent = indent - 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
@@ -48,11 +48,13 @@ struct TokensPrettyPrinter<'tokens, 'interner> {
     tokens: &'tokens [LocatedToken],
     interner: &'interner NodeInterner,
     indent: usize,
+    preserve_unquote_markers: bool,
 }
 
 impl Display for TokensPrettyPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
+        let mut token_printer =
+            TokenPrettyPrinter::new(self.interner, self.indent, self.preserve_unquote_markers);
         for token in self.tokens {
             token_printer.print(token.token(), f)?;
         }
@@ -65,15 +67,16 @@ impl Display for TokensPrettyPrinter<'_, '_> {
 }
 
 pub fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner) -> String {
-    tokens_to_string_with_indent(tokens, 0, interner)
+    tokens_to_string_with_indent(tokens, 0, false, interner)
 }
 
 pub fn tokens_to_string_with_indent(
     tokens: &[LocatedToken],
     indent: usize,
+    preserve_unquote_markers: bool,
     interner: &NodeInterner,
 ) -> String {
-    TokensPrettyPrinter { tokens, interner, indent }.to_string()
+    TokensPrettyPrinter { tokens, interner, indent, preserve_unquote_markers }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a
@@ -95,6 +98,7 @@ pub fn tokens_to_string_with_indent(
 struct TokenPrettyPrinter<'interner> {
     interner: &'interner NodeInterner,
     indent: usize,
+    preserve_unquote_markers: bool,
     /// Determines whether the last outputted byte was alphanumeric.
     /// This is used to add a space after the last token and before another token
     /// that starts with an alphanumeric byte.
@@ -105,10 +109,15 @@ struct TokenPrettyPrinter<'interner> {
 }
 
 impl<'interner> TokenPrettyPrinter<'interner> {
-    fn new(interner: &'interner NodeInterner, indent: usize) -> Self {
+    fn new(
+        interner: &'interner NodeInterner,
+        indent: usize,
+        preserve_unquote_markers: bool,
+    ) -> Self {
         Self {
             interner,
             indent,
+            preserve_unquote_markers,
             last_was_alphanumeric: false,
             last_was_right_brace: false,
             last_was_semicolon: false,
@@ -208,6 +217,15 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             Token::InternedCrate(_) => write!(f, "$crate"),
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
+                let last_was_alphanumeric = if self.preserve_unquote_markers {
+                    if last_was_alphanumeric {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "$")?;
+                    false
+                } else {
+                    last_was_alphanumeric
+                };
                 self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::Keyword(..) | Token::Ident(..) | Token::Int(..) | Token::Bool(..) => {
@@ -367,7 +385,7 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::Field(value) => {
                 // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", format_field_string(value.to_field_element()))
+                write!(f, "{}", value.to_field_element().to_short_hex())
             }
             Value::I8(value) => write!(f, "{value}"),
             Value::I16(value) => write!(f, "{value}"),
@@ -386,7 +404,8 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.display(self.interner).to_string());
+                let fields =
+                    vecmap(fields, |field| field.borrow().display(self.interner).to_string());
                 if fields.len() == 1 {
                     write!(f, "({},)", fields[0])
                 } else {
@@ -394,13 +413,26 @@ impl Display for ValuePrinter<'_, '_> {
                 }
             }
             Value::Struct(fields, typ) => {
-                let typename = match typ.follow_bindings() {
-                    Type::DataType(def, _) => def.borrow().name.to_string(),
-                    other => other.to_string(),
+                let data_type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def,
+                    other => unreachable!("Expected data type, found {other}"),
                 };
-                let fields = vecmap(fields, |(name, value)| {
-                    format!("{}: {}", name, value.display(self.interner))
-                });
+                let data_type = data_type.borrow();
+                let typename = data_type.name.to_string();
+
+                // Display fields in the order they are defined in the struct.
+                // Some fields might not be there if they were missing in the constructor.
+                let fields = data_type
+                    .fields_raw()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|field| {
+                        let name = field.name.as_string();
+                        fields.get(name).map(|value| {
+                            format!("{}: {}", name, value.borrow().display(self.interner))
+                        })
+                    })
+                    .collect::<Vec<_>>();
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
             Value::Enum(tag, args, typ) => {
@@ -457,7 +489,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let generic_string = if generic_string.is_empty() {
                     generic_string
                 } else {
-                    format!("<{}>", generic_string)
+                    format!("<{generic_string}>")
                 };
 
                 let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
@@ -467,7 +499,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let where_clause = if where_clause.is_empty() {
                     where_clause
                 } else {
-                    format!(" where {}", where_clause)
+                    format!(" where {where_clause}")
                 };
 
                 write!(
@@ -480,18 +512,18 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
             Value::ModuleDefinition(module_id) => {
-                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
                     write!(f, "{}", &attributes.name)
                 } else {
                     write!(f, "(crate root)")
                 }
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{typ}"),
             Value::Expr(expr) => match expr.as_ref() {
                 ExprValue::Expression(expr) => {
                     let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                    write!(f, "{}", expr)
+                    write!(f, "{expr}")
                 }
                 ExprValue::Statement(statement) => {
                     write!(
@@ -786,7 +818,7 @@ fn remove_interned_in_statement_kind(
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
             pattern: remove_interned_in_pattern(interner, let_statement.pattern),
             expression: remove_interned_in_expression(interner, let_statement.expression),
-            r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
+            r#type: remove_interned_in_option_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
         StatementKind::Expression(expr) => {
@@ -812,9 +844,10 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
-        StatementKind::Loop(block, span) => {
-            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
-        }
+        StatementKind::Loop(loop_) => StatementKind::Loop(LoopStatement {
+            body: remove_interned_in_expression(interner, loop_.body),
+            loop_keyword_location: loop_.loop_keyword_location,
+        }),
         StatementKind::While(while_) => StatementKind::While(WhileStatement {
             condition: remove_interned_in_expression(interner, while_.condition),
             body: remove_interned_in_expression(interner, while_.body),
@@ -837,7 +870,7 @@ fn remove_interned_in_statement_kind(
 // Returns a new LValue where all Interned LValues have been turned into LValue.
 fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
-        LValue::Ident(_) => lvalue,
+        LValue::Path(_) => lvalue,
         LValue::MemberAccess { object, field_name, location: span } => LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,
@@ -856,6 +889,13 @@ fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue 
             remove_interned_in_lvalue(interner, lvalue)
         }
     }
+}
+
+fn remove_interned_in_option_unresolved_type(
+    interner: &NodeInterner,
+    typ: Option<UnresolvedType>,
+) -> Option<UnresolvedType> {
+    typ.map(|typ| remove_interned_in_unresolved_type(interner, typ))
 }
 
 fn remove_interned_in_unresolved_type(
@@ -925,7 +965,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Unit
         | UnresolvedTypeData::Resolved(_)
         | UnresolvedTypeData::Expression(_)
-        | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }
 }

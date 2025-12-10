@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_metaprogramming_comptime_type_in_runtime_code"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

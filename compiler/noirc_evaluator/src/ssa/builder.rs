@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::Path;
 use std::{collections::HashMap, path::PathBuf};
 
+use noirc_errors::println_to_stdout;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::errors::RuntimeError;
@@ -184,24 +185,15 @@ impl<'local> SsaBuilder<'local> {
     }
 
     fn print(mut self, msg: &str) -> Self {
+        let print_ssa_pass = self.ssa_logging.matches(msg);
+
         // Always normalize if we are going to print at least one of the passes
         if !matches!(self.ssa_logging, SsaLogging::None) {
             self.ssa.normalize_ids();
         }
 
-        let print_ssa_pass = match &self.ssa_logging {
-            SsaLogging::None => false,
-            SsaLogging::All => true,
-            SsaLogging::Contains(strings) => strings.iter().any(|string| {
-                let string = string.to_lowercase();
-                let string = string.strip_prefix("after ").unwrap_or(&string);
-                let string = string.strip_suffix(':').unwrap_or(string);
-                msg.to_lowercase().contains(string)
-            }),
-        };
-
         if print_ssa_pass {
-            println!("After {msg}:\n{}", self.ssa.print_with(self.files));
+            println_to_stdout!("After {msg}:\n{}", self.ssa.print_with(self.files));
         }
         self
     }
@@ -214,7 +206,7 @@ pub(super) fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) ->
 
     if print_timings {
         let end_time = chrono::Utc::now().time();
-        println!("{name}: {} ms", (end_time - start_time).num_milliseconds());
+        println_to_stdout!("{name}: {} ms", (end_time - start_time).num_milliseconds());
     }
 
     result

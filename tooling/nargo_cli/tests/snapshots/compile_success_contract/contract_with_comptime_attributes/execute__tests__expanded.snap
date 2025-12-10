@@ -16,7 +16,7 @@ comptime fn utility(f: FunctionDefinition) {
 comptime fn add_utility(_: FunctionDefinition) -> Quoted {
     let utility: fn(FunctionDefinition) = utility;
     quote {
-        #[utility]fn fn2() {
+        #[$utility]fn fn2() {
             
         }
     }

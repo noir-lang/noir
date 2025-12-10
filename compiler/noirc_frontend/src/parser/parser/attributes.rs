@@ -110,6 +110,11 @@ impl Parser<'_> {
         let mut contents = String::new();
 
         let mut brackets_count = 1; // 1 because of the starting `#[`
+        // Note: Keep trailing whitespace tokens.
+        // If we skip them, only non-whitespace tokens are parsed.
+        // When converting those tokens into a `String` for the tag attribute,
+        // the result will lose whitespace and no longer match the original content.
+        self.set_lexer_skip_whitespaces_flag(false);
 
         while !self.at_eof() {
             if self.at(Token::LeftBracket) {
@@ -126,6 +131,11 @@ impl Parser<'_> {
             self.bump();
         }
 
+        self.set_lexer_skip_whitespaces_flag(true);
+        while self.at_whitespace() {
+            self.bump();
+        }
+
         let location = self.location_since(start_location);
         let kind = SecondaryAttributeKind::Tag(contents);
         let attr = SecondaryAttribute { kind, location };
@@ -133,15 +143,7 @@ impl Parser<'_> {
     }
 
     fn parse_non_tag_attribute(&mut self, start_location: Location) -> Attribute {
-        if matches!(&self.token.token(), Token::Keyword(..))
-            && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
-        {
-            // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            let path = Path::from_single(self.token.to_string(), self.current_token_location);
-            let name = MetaAttributeName::Path(path);
-            self.bump();
-            self.parse_meta_attribute(name, start_location)
-        } else if let Some(path) = self.parse_path_no_turbofish() {
+        if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.as_str() == "test" {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
@@ -151,6 +153,9 @@ impl Parser<'_> {
                     // The fuzz attribute is a secondary attribute that has `a = b` in its syntax
                     // (`only_fail_with = "..."``) or (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_fuzz_attribute(start_location)
+                } else if ident.as_str() == "must_use" {
+                    // The muse_use attribute is a secondary attribute that has the syntax `must_use = string` in its syntax (to match rust)
+                    self.parse_must_use_attribute(start_location)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
                     self.parse_ident_attribute_other_than_test_and_fuzz(ident, start_location)
@@ -176,7 +181,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
         let location = self.location_since(start_location);
         let kind = SecondaryAttributeKind::Meta(MetaAttribute { name, arguments });
         let attr = SecondaryAttribute { kind, location };
@@ -189,7 +194,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
         let location = self.location_since(start_location);
         match ident.as_str() {
             "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
@@ -353,7 +358,7 @@ impl Parser<'_> {
             Some(TestScope::None)
         };
 
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
 
         let scope = if let Some(scope) = scope {
             scope
@@ -401,7 +406,7 @@ impl Parser<'_> {
             Some(FuzzingScope::None)
         };
 
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
 
         let scope = if let Some(scope) = scope {
             scope
@@ -419,6 +424,34 @@ impl Parser<'_> {
         let kind = FunctionAttributeKind::FuzzingHarness(scope);
         let attr = FunctionAttribute { kind, location };
         Attribute::Function(attr)
+    }
+
+    fn parse_must_use_attribute(&mut self, start_location: Location) -> Attribute {
+        let location_after_name = self.current_token_location;
+
+        let message = if self.eat_assign() {
+            let message = self.eat_str();
+            if message.is_none() {
+                let location = self.location_since(start_location);
+                let error = LexerErrorKind::MalformedMustUseAttribute { location };
+                self.errors.push(error.into());
+            }
+            self.skip_until_right_bracket(false);
+            message
+        } else {
+            if self.at(Token::RightBracket) {
+                self.skip_until_right_bracket(false);
+            } else {
+                let location = self.location_since(location_after_name);
+                let error = LexerErrorKind::MalformedMustUseAttribute { location };
+                self.errors.push(error.into());
+            }
+            None
+        };
+
+        let location = self.location_since(start_location);
+        let kind = SecondaryAttributeKind::MustUse(message);
+        Attribute::Secondary(SecondaryAttribute { kind, location })
     }
 
     fn parse_single_name_attribute<F>(
@@ -484,7 +517,7 @@ impl Parser<'_> {
         attribute
     }
 
-    fn skip_until_right_bracket(&mut self) {
+    fn skip_until_right_bracket(&mut self, mut issue_error: bool) {
         let mut brackets_count = 1; // 1 because of the starting `#[`
 
         while !self.at_eof() {
@@ -498,7 +531,10 @@ impl Parser<'_> {
                 }
             }
 
-            self.expected_token(Token::RightBracket);
+            if issue_error {
+                issue_error = false;
+                self.expected_token(Token::RightBracket);
+            }
             self.bump();
         }
     }
@@ -721,22 +757,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_meta_attribute_single_identifier_as_keyword() {
-        let src = "#[dep]";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
-        expect_no_errors(&parser.errors);
-        let Attribute::Secondary(attribute) = attribute else {
-            panic!("Expected secondary attribute");
-        };
-        let SecondaryAttributeKind::Meta(meta) = attribute.kind else {
-            panic!("Expected meta attribute");
-        };
-        assert_eq!(meta.name.to_string(), "dep");
-        assert!(meta.arguments.is_empty());
-    }
-
-    #[test]
     fn parses_meta_attribute_single_identifier_with_arguments() {
         let src = "#[foo(1, 2, 3)]";
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -789,5 +809,57 @@ mod tests {
             panic!("Expected secondary attribute");
         };
         assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(None)));
+    }
+
+    #[test]
+    fn parses_inner_tag_attribute_with_whitespace() {
+        let src = "#!['hello world]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        else {
+            panic!("Expected inner tag attribute");
+        };
+        expect_no_errors(&parser.errors);
+        assert_eq!(contents, "hello world");
+    }
+
+    #[test]
+    fn parses_inner_tag_attribute_with_multiple_whitespaces() {
+        let src = "#!['x as u32]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        else {
+            panic!("Expected inner tag attribute");
+        };
+        expect_no_errors(&parser.errors);
+        assert_eq!(contents, "x as u32");
+    }
+    #[test]
+    fn parses_tag_attribute_with_multiple_whitespaces() {
+        let src = "#['y as i16]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let (attribute, _span) = parser.parse_attribute().unwrap();
+        expect_no_errors(&parser.errors);
+        let Attribute::Secondary(attribute) = attribute else {
+            panic!("Expected secondary attribute");
+        };
+        let SecondaryAttributeKind::Tag(contents) = attribute.kind else {
+            panic!("Expected meta attribute");
+        };
+        assert_eq!(contents, "y as i16");
+    }
+    #[test]
+    fn parses_tag_attribute_with_whitespace() {
+        let src = "#['foo bar]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let (attribute, _span) = parser.parse_attribute().unwrap();
+        expect_no_errors(&parser.errors);
+        let Attribute::Secondary(attribute) = attribute else {
+            panic!("Expected secondary attribute");
+        };
+        let SecondaryAttributeKind::Tag(contents) = attribute.kind else {
+            panic!("Expected meta attribute");
+        };
+        assert_eq!(contents, "foo bar");
     }
 }

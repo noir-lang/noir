@@ -1,0 +1,7 @@
+[package]
+name = "sha512_100_bytes"
+type = "bin"
+authors = [""]
+
+[dependencies]
+sha512 = { tag = "master", git = "https://github.com/noir-lang/sha512" }

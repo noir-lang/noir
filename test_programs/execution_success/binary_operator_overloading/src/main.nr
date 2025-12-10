@@ -20,8 +20,8 @@ fn main(x: u32, y: u32) {
     assert((wx | wy).inner == (ex | ey));
     assert((wx ^ wy).inner == (ex ^ ey));
 
-    assert((wy << x as u8).inner == (ey << ex as u8));
-    assert((wy >> x as u8).inner == (ey >> ex as u8));
+    assert((wy << wx).inner == (ey << ex));
+    assert((wy >> wx).inner == (ey >> ex));
 
     assert((wx == wy) == (ex == ey));
     assert((wx < wy) == (ex < ey));
@@ -103,14 +103,14 @@ impl BitXor for Wrapper {
 }
 
 impl Shl for Wrapper {
-    fn shl(self, other: u8) -> Self {
-        Wrapper::new(self.inner << other)
+    fn shl(self, other: Self) -> Self {
+        Wrapper::new(self.inner << other.inner)
     }
 }
 
 impl Shr for Wrapper {
-    fn shr(self, other: u8) -> Self {
-        Wrapper::new(self.inner >> other)
+    fn shr(self, other: Self) -> Self {
+        Wrapper::new(self.inner >> other.inner)
     }
 }
 

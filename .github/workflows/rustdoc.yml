@@ -14,9 +14,13 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - uses: taiki-e/install-action@just
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@1.85.0
@@ -32,7 +36,7 @@ jobs:
         run: cargo clean --doc
 
       - name: Build docs
-        run: cargo doc --no-deps --document-private-items --workspace
+        run: just doc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -43,7 +47,7 @@ jobs:
         run: rm target/doc/.lock
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rustdoc
           path: target/doc
@@ -52,8 +56,10 @@ jobs:
     name: Deploy
     runs-on: ubuntu-22.04
     needs: build
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: gh-pages
 
@@ -61,7 +67,7 @@ jobs:
         run: rm -rf ./docs
 
       - name: Download rustdoc output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: rustdoc
           path: ./docs

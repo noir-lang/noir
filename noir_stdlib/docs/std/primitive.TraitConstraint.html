@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
+<title>Primitive type TraitConstraint documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">TraitConstraint</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../index.html">noir_stdlib</a></h1>
+<div><a href="../all.html">All items</a></div>
+<h2 id="crate-name"><a href="index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2><a href="#primitive">Primitive type TraitConstraint</a></h2>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Eq-for-TraitConstraint">Eq</a></li>
+<li><a href="#impl-Hash-for-TraitConstraint">Hash</a></li>
+</ul>
+<h2>In crate std</h2>
+<h3>Modules</h3><ul class="item-list">
+<li><a href="aes128/index.html">aes128</a></div></li>
+<li><a href="append/index.html">append</a></div></li>
+<li><a href="cmp/index.html">cmp</a></div></li>
+<li><a href="collections/index.html">collections</a></div></li>
+<li><a href="compat/index.html">compat</a></div></li>
+<li><a href="convert/index.html">convert</a></div></li>
+<li><a href="default/index.html">default</a></div></li>
+<li><a href="ecdsa_secp256k1/index.html">ecdsa_secp256k1</a></div></li>
+<li><a href="ecdsa_secp256r1/index.html">ecdsa_secp256r1</a></div></li>
+<li><a href="embedded_curve_ops/index.html">embedded_curve_ops</a></div></li>
+<li><a href="field/index.html">field</a></div></li>
+<li><a href="hash/index.html">hash</a></div></li>
+<li><a href="hint/index.html">hint</a></div></li>
+<li><a href="mem/index.html">mem</a></div></li>
+<li><a href="meta/index.html">meta</a></div></li>
+<li><a href="ops/index.html">ops</a></div></li>
+<li><a href="option/index.html">option</a></div></li>
+<li><a href="panic/index.html">panic</a></div></li>
+<li><a href="prelude/index.html">prelude</a></div></li>
+<li><a href="runtime/index.html">runtime</a></div></li>
+<li><a href="test/index.html">test</a></div></li>
+</ul>
+<h3>Primitive types</h3><ul class="item-list">
+<li><a href="primitive.array.html">array</a></div></li>
+<li><a href="primitive.bool.html">bool</a></div></li>
+<li><a href="primitive.CtString.html">CtString</a></div></li>
+<li><a href="primitive.Expr.html">Expr</a></div></li>
+<li><a href="primitive.Field.html">Field</a></div></li>
+<li><a href="primitive.fmtstr.html">fmtstr</a></div></li>
+<li><a href="primitive.FunctionDefinition.html">FunctionDefinition</a></div></li>
+<li><a href="primitive.i16.html">i16</a></div></li>
+<li><a href="primitive.i32.html">i32</a></div></li>
+<li><a href="primitive.i64.html">i64</a></div></li>
+<li><a href="primitive.i8.html">i8</a></div></li>
+<li><a href="primitive.Module.html">Module</a></div></li>
+<li><a href="primitive.Quoted.html">Quoted</a></div></li>
+<li><a href="primitive.slice.html">slice</a></div></li>
+<li><a href="primitive.str.html">str</a></div></li>
+<li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
+<li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
+<li><a href="primitive.TraitImpl.html">TraitImpl</a></div></li>
+<li><a href="primitive.Type.html">Type</a></div></li>
+<li><a href="primitive.TypeDefinition.html">TypeDefinition</a></div></li>
+<li><a href="primitive.TypedExpr.html">TypedExpr</a></div></li>
+<li><a href="primitive.u1.html">u1</a></div></li>
+<li><a href="primitive.u128.html">u128</a></div></li>
+<li><a href="primitive.u16.html">u16</a></div></li>
+<li><a href="primitive.u32.html">u32</a></div></li>
+<li><a href="primitive.u64.html">u64</a></div></li>
+<li><a href="primitive.u8.html">u8</a></div></li>
+<li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.as_witness.html">as_witness</a></div></li>
+<li><a href="fn.assert_constant.html">assert_constant</a></div></li>
+<li><a href="fn.print.html">print</a></div></li>
+<li><a href="fn.println.html">println</a></div></li>
+<li><a href="fn.static_assert.html">static_assert</a></div></li>
+<li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
+<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
+<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
+<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
+<h1>Primitive type <span id="primitive" class="primitive">TraitConstraint</span></h1>
+<div class="comments">
+<p>A compile-time type which represents a trait constraint that can be used to search for a trait implementation.</p>
+<p>This is similar syntactically to just the trait itself, but can also contain generic arguments.
+E.g. <code>Eq</code>, <code>Default</code>, <code>BuildHasher&lt;Poseidon2Hasher&gt;</code>.</p>
+<p>A <code>TraitConstraint</code> can be obtained using <a href="../std/primitive.Quoted.html#as_trait_constraint"><code>Quoted::as_trait_constraint</code></a>:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> constraint = <span class="kw">quote</span> { Eq }.as_trait_constraint();
+        println(constraint); <span class="comment">// outputs "Eq"</span>
+    }
+}</code></pre></div>
+<h2>Trait implementations</h2>
+<h3 id="impl-Eq-for-TraitConstraint"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+</div><h3 id="impl-Hash-for-TraitConstraint"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">where
+    H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
+
+</div></main>
+</span>
+</body>
+</html>

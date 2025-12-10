@@ -125,3 +125,79 @@ fn as_module_test() {
     }
 }
 // docs:end:as_module_example
+
+// docs:start:parent_example
+mod module1 {
+    pub mod module2 {}
+}
+
+#[test]
+fn parent_test() {
+    comptime {
+        let my_module2 = quote [module1::module2].as_module().unwrap();
+        assert_eq(my_module2.name(), quote [module2]);
+
+        let my_module1 = my_module2.parent().unwrap();
+        assert_eq(my_module1.name(), quote [module1]);
+
+        // The top-level module in each crate has no name
+        let top_level_module = my_module1.parent().unwrap();
+        assert_eq(top_level_module.name(), quote []);
+    }
+}
+// docs:end:parent_example
+
+// docs:start:child_modules_example
+mod my_module {
+    pub mod child1 {}
+    pub mod child2 {}
+    pub mod child3 {
+        pub mod nested_child {}
+    }
+}
+
+#[test]
+fn child_modules_test() {
+    comptime {
+        let my_module = quote [my_module].as_module().unwrap();
+        let children = my_module.child_modules().map(Module::name);
+
+        // The order children are returned in is left unspecified.
+        assert_eq(children, &[quote [child1], quote [child2], quote [child3]]);
+    }
+}
+// docs:end:child_modules_example
+
+/// A longer test using all submodules in this crate. This shows that modules
+/// declaring separate files are currently listed before modules defined in the
+/// same file. This is not desired so the order for `child_modules` is left unspecified
+/// so that this can be fixed in the future.
+#[test]
+fn child_modules_test2() {
+    comptime {
+        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        let children = top.child_modules().map(Module::name);
+
+        let expected = &[
+            quote [separate_module],
+            quote [foo],
+            quote [bar],
+            quote [another_module],
+            quote [yet_another_module],
+            quote [add_to_me],
+            quote [baz],
+            quote [module1],
+            quote [my_module],
+        ];
+        assert_eq(children, expected);
+    }
+}
+
+/// Ensures calling `Module::name` on the top-level module does not panic
+#[test]
+fn top_level_module_name_is_empty() {
+    comptime {
+        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        assert_eq(top.name(), quote []);
+    }
+}

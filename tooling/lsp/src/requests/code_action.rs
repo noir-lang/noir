@@ -9,11 +9,11 @@ use async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
-use fm::{FileId, FileMap, PathString};
+use fm::{FileId, FileMap};
 use noirc_errors::Span;
 use noirc_frontend::{
     ParsedModule,
-    modules::module_def_id_is_visible,
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     parser::{Item, ItemKind, ParsedSubModule},
 };
 use noirc_frontend::{
@@ -27,10 +27,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 
-use crate::{
-    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
-    utils,
-};
+use crate::{LspState, use_segment_positions::UseSegmentPositions, utils};
 
 use super::{process_request, to_lsp_location};
 
@@ -52,27 +49,25 @@ pub(crate) fn on_code_action_request(
         TextDocumentPositionParams { text_document: params.text_document, position };
 
     let result = process_request(state, text_document_position_params, |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).and_then(|file_id| {
-            utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
+            let file = args.files.get_file(file_id).unwrap();
+            let source = file.source();
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = CodeActionFinder::new(
-                    uri,
-                    args.files,
-                    file_id,
-                    source,
-                    byte_range,
-                    args.crate_id,
-                    args.def_maps,
-                    args.dependencies(),
-                    args.interner,
-                    args.usage_tracker,
-                );
-                finder.find(&parsed_module)
-            })
+            let mut finder = CodeActionFinder::new(
+                uri,
+                args.files,
+                file_id,
+                source,
+                byte_range,
+                args.crate_id,
+                args.def_maps,
+                args.dependencies(),
+                args.interner,
+                args.usage_tracker,
+            );
+            finder.find(&parsed_module)
         })
     });
     future::ready(result)

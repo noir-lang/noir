@@ -14,16 +14,15 @@ use crate::{Generics, Type};
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
-use crate::ast::{Expression, NoirEnumeration};
+use crate::ast::{Expression, NoirEnumeration, TypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
 };
 
 use crate::ast::{
-    ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnsupportedNumericGenericType,
+    Ident, ItemVisibility, LetStatement, NoirFunction, NoirStruct, NoirTrait, Path, PathSegment,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
 use crate::elaborator::FrontendOptions;
@@ -91,8 +90,8 @@ pub struct UnresolvedTraitImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    pub associated_types: Vec<(Ident, UnresolvedType)>,
-    pub associated_constants: Vec<(Ident, UnresolvedType, Expression)>,
+    pub associated_types: Vec<(Ident, Option<UnresolvedType>)>,
+    pub associated_constants: Vec<(Ident, Option<UnresolvedType>, Expression)>,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
@@ -109,8 +108,9 @@ pub struct UnresolvedTraitImpl {
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
+    pub crate_id: CrateId,
     pub module_id: LocalModuleId,
-    pub type_alias_def: NoirTypeAlias,
+    pub type_alias_def: TypeAlias,
 }
 
 #[derive(Debug, Clone)]
@@ -220,13 +220,13 @@ impl CompilationError {
 impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompilationError::ParseError(error) => write!(f, "{}", error),
-            CompilationError::DefinitionError(error) => write!(f, "{}", error),
-            CompilationError::ResolverError(error) => write!(f, "{}", error),
-            CompilationError::TypeError(error) => write!(f, "{}", error),
-            CompilationError::InterpreterError(error) => write!(f, "{:?}", error),
-            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{:?}", error),
-            CompilationError::ComptimeError(error) => write!(f, "{:?}", error),
+            CompilationError::ParseError(error) => write!(f, "{error}"),
+            CompilationError::DefinitionError(error) => write!(f, "{error}"),
+            CompilationError::ResolverError(error) => write!(f, "{error}"),
+            CompilationError::TypeError(error) => write!(f, "{error}"),
+            CompilationError::InterpreterError(error) => write!(f, "{error:?}"),
+            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{error:?}"),
+            CompilationError::ComptimeError(error) => write!(f, "{error:?}"),
         }
     }
 }
@@ -439,9 +439,7 @@ impl DefCollector {
                                 visibility,
                             );
 
-                            if context.def_interner.is_in_lsp_mode()
-                                && visibility != ItemVisibility::Private
-                            {
+                            if visibility != ItemVisibility::Private {
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,
@@ -497,6 +495,7 @@ impl DefCollector {
             debug_comptime_in_file,
             pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,
+            disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
         let mut more_errors =
@@ -559,12 +558,7 @@ fn inject_prelude(
     if !crate_id.is_stdlib() {
         let segments: Vec<_> = "std::prelude"
             .split("::")
-            .map(|segment| {
-                crate::ast::PathSegment::from(crate::ast::Ident::new(
-                    segment.into(),
-                    Location::dummy(),
-                ))
-            })
+            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
             .collect();
 
         let path = Path::plain(segments.clone(), Location::dummy());
@@ -600,16 +594,4 @@ fn inject_prelude(
             }
         }
     }
-}
-
-/// Separate the globals Vec into two. The first element in the tuple will be the
-/// literal globals, except for arrays, and the second will be all other globals.
-/// We exclude array literals as they can contain complex types
-pub fn filter_literal_globals(
-    globals: Vec<UnresolvedGlobal>,
-) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
-    globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
-        ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
-        _ => false,
-    })
 }

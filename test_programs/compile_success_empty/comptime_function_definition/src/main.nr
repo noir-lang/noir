@@ -22,6 +22,9 @@ pub fn foo(
 #[check_named_attribute]
 fn some_test() {}
 
+#[check_visibility]
+pub(crate) fn pub_crate_fn() {}
+
 comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::parameters
     let parameters = f.parameters();
@@ -48,11 +51,18 @@ comptime fn function_attr(f: FunctionDefinition) {
     assert_eq(f.name(), quote { foo });
 
     assert(f.has_named_attribute("function_attr"));
+
+    assert_eq(f.visibility(), quote { pub })
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
     assert(f.has_named_attribute("test"));
     assert(f.has_named_attribute("deprecated"));
+    assert_eq(f.visibility(), quote { })
+}
+
+comptime fn check_visibility(f: FunctionDefinition) {
+    assert_eq(f.visibility(), quote { pub(crate) })
 }
 
 #[mutate_add_one]
@@ -75,6 +85,7 @@ comptime fn mutate_add_one(f: FunctionDefinition) {
 
 fn main() {
     assert_eq(add_one(41), 42);
+    pub_crate_fn();
 }
 
 contract some_contract {

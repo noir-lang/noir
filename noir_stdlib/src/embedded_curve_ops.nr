@@ -142,13 +142,14 @@ pub fn multi_scalar_mul<let N: u32>(
 ) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
 {
-    multi_scalar_mul_array_return(points, scalars)[0]
+    multi_scalar_mul_array_return(points, scalars, true)[0]
 }
 
 #[foreign(multi_scalar_mul)]
 pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N],
+    predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {}
 
 // docs:start:fixed_base_scalar_mul
@@ -158,8 +159,7 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
     multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])
 }
 
-/// This function only assumes that the points are on the curve
-/// It handles corner cases around the infinity point causing some overhead compared to embedded_curve_add_not_nul and embedded_curve_add_unsafe
+/// This function assumes that the points are on the curve
 // docs:start:embedded_curve_add
 pub fn embedded_curve_add(
     point1: EmbeddedCurvePoint,
@@ -167,66 +167,16 @@ pub fn embedded_curve_add(
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
     if crate::runtime::is_unconstrained() {
-        // `embedded_curve_add_unsafe` requires the inputs not to be the infinity point, so we check it here.
-        // This is because `embedded_curve_add_unsafe` uses the `embedded_curve_add` opcode.
-        // For efficiency, the backend does not check the inputs for the infinity point, but it assumes that they are not the infinity point
-        // so that it can apply the ec addition formula directly.
+        // avoid calling the black box function for trivial cases
         if point1.is_infinite {
             point2
         } else if point2.is_infinite {
             point1
         } else {
-            embedded_curve_add_unsafe(point1, point2)
+            embedded_curve_add_inner(point1, point2)
         }
     } else {
-        // In a constrained context, we also need to check the inputs are not the infinity point because we also use `embedded_curve_add_unsafe`
-        // However we also need to identify the case where the two inputs are the same, because then
-        // the addition formula does not work and we need to use the doubling formula instead.
-        // In unconstrained context, we can check directly if the input values are the same when solving the opcode, so it is not an issue.
-
-        // x_coordinates_match is true if both abscissae are the same
-        let x_coordinates_match = point1.x == point2.x;
-        // y_coordinates_match is true if both ordinates are the same
-        let y_coordinates_match = point1.y == point2.y;
-        // double_predicate is true if both abscissae and ordinates are the same
-        let double_predicate = (x_coordinates_match & y_coordinates_match);
-        // If the abscissae are the same, but not the ordinates, then one point is the opposite of the other
-        let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
-        let point1_1 = EmbeddedCurvePoint {
-            x: point1.x + (x_coordinates_match as Field),
-            y: point1.y,
-            is_infinite: false,
-        };
-        let point2_1 = EmbeddedCurvePoint { x: point2.x, y: point2.y, is_infinite: false };
-        // point1_1 is guaranteed to have a different abscissa than point2:
-        // - if x_coordinates_match is 0, that means point1.x != point2.x, and point1_1.x = point1.x + 0
-        // - if x_coordinates_match is 1, that means point1.x = point2.x, but point1_1.x = point1.x + 1 in this case
-        // Because the abscissa is different, the addition formula is guaranteed to succeed, so we can safely use `embedded_curve_add_unsafe`
-        // Note that this computation may be garbage: if x_coordinates_match is 1, or if one of the input is the point at infinity.
-        let mut result = embedded_curve_add_unsafe(point1_1, point2_1);
-
-        // `embedded_curve_add_unsafe` is doing a doubling if the input is the same variable, because in this case it is guaranteed (at 'compile time') that the input is the same.
-        let double = embedded_curve_add_unsafe(point1, point1);
-        // `embedded_curve_add_unsafe` would not perform doubling, even if the inputs point1 and point2 are the same, because it cannot know this without adding some logic (and some constraints)
-        // However we did this logic when we computed `double_predicate`, so we set the result to 2*point1 if point1 and point2 are the same
-        result = if double_predicate { double } else { result };
-
-        // Same logic as above for unconstrained context, we set the proper result when one of the inputs is the infinity point
-        if point1.is_infinite {
-            result = point2;
-        }
-        if point2.is_infinite {
-            result = point1;
-        }
-
-        // Finally, we set the is_infinity flag of the result:
-        // Opposite points should sum into the infinity point, however, if one of them is point at infinity, their coordinates are not meaningful
-        // so we should not use the fact that the inputs are opposite in this case:
-        let mut result_is_infinity =
-            infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
-        // However, if both of them are at infinity, then the result is also at infinity
-        result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
-        result
+        embedded_curve_add_inner(point1, point2)
     }
 }
 
@@ -234,35 +184,13 @@ pub fn embedded_curve_add(
 fn embedded_curve_add_array_return(
     _point1: EmbeddedCurvePoint,
     _point2: EmbeddedCurvePoint,
+    _predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {}
 
-/// This function assumes that:
-/// The points are on the curve, and
-/// The points don't share an x-coordinate, and
-/// Neither point is the infinity point.
-/// If it is used with correct input, the function ensures the correct non-zero result is returned.
-/// Except for points on the curve, the other assumptions are checked by the function. It will cause assertion failure if they are not respected.
-pub fn embedded_curve_add_not_nul(
+/// EC addition wrapper for the foreign function
+fn embedded_curve_add_inner(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
-    assert(point1.x != point2.x);
-    assert(!point1.is_infinite);
-    assert(!point2.is_infinite);
-    // Ensure is_infinite is comptime
-    let point1_1 = EmbeddedCurvePoint { x: point1.x, y: point1.y, is_infinite: false };
-    let point2_1 = EmbeddedCurvePoint { x: point2.x, y: point2.y, is_infinite: false };
-    embedded_curve_add_unsafe(point1_1, point2_1)
-}
-
-/// Unsafe ec addition
-/// If the inputs are the same, it will perform a doubling, but only if point1 and point2 are the same variable.
-/// If they have the same value but are different variables, the result will be incorrect because in this case
-/// it assumes (but does not check) that the points' x-coordinates are not equal.
-/// It also assumes neither point is the infinity point.
-pub fn embedded_curve_add_unsafe(
-    point1: EmbeddedCurvePoint,
-    point2: EmbeddedCurvePoint,
-) -> EmbeddedCurvePoint {
-    embedded_curve_add_array_return(point1, point2)[0]
+    embedded_curve_add_array_return(point1, point2, true)[0]
 }

@@ -17,12 +17,12 @@ jobs:
     name: cargo clippy
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTFLAGS: -Dwarnings
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -36,8 +36,10 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - uses: taiki-e/install-action@just
+
       - name: Run `cargo clippy`
-        run: ./scripts/clippy.sh
+        run: just clippy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -45,12 +47,12 @@ jobs:
     name: cargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTFLAGS: -Dwarnings
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -64,19 +66,21 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Run `cargo fmt`
-        run: cargo fmt --all --check
+      - uses: taiki-e/install-action@just
+
+      - name: Check formatting
+        run: just format-check
 
   rustdoc:
     name: cargo doc
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTDOCFLAGS: -Dwarnings -Drustdoc::unescaped_backticks
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -90,8 +94,10 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - uses: taiki-e/install-action@just
+
       - name: Run `cargo doc`
-        run: cargo doc --no-deps --document-private-items --workspace
+        run: just doc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -99,24 +105,30 @@ jobs:
     name: eslint
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - uses: taiki-e/install-action@just
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Run `yarn lint`
-        run: yarn lint
+      - name: Run eslint
+        run: just lint
 
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -138,7 +150,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nargo
           path: ./dist/*
@@ -149,10 +161,12 @@ jobs:
     name: Nargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -178,6 +192,8 @@ jobs:
       - rustdoc
       - eslint
       - nargo_fmt
+    permissions:
+      contents: read
 
     steps:
         - name: Report overall success

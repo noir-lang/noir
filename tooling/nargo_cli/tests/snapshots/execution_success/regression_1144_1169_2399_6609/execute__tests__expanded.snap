@@ -36,12 +36,12 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
             if (i as u32) < (length as u32) {
                 let x: u8 = input[i];
                 {
-                    let i_3801: u32 = (2_u32 * i) - 1_u32;
-                    nibble[i_3801] = U4::from_u8(x >> 4_u8);
+                    let i_4508: u32 = (2_u32 * i) - 1_u32;
+                    nibble[i_4508] = U4::from_u8(x >> 4_u8);
                 };
                 {
-                    let i_3802: u32 = 2_u32 * i;
-                    nibble[i_3802] = U4::from_u8(x & 15_u8);
+                    let i_4509: u32 = 2_u32 * i;
+                    nibble[i_4509] = U4::from_u8(x & 15_u8);
                 }
             }
         }
@@ -50,12 +50,12 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
             if (i as u32) < ((length as u32) - 1_u32) {
                 let x: u8 = input[i + 1_u32];
                 {
-                    let i_3805: u32 = 2_u32 * i;
-                    nibble[i_3805] = U4::from_u8(x >> 4_u8);
+                    let i_4512: u32 = 2_u32 * i;
+                    nibble[i_4512] = U4::from_u8(x >> 4_u8);
                 };
                 {
-                    let i_3806: u32 = (2_u32 * i) + 1_u32;
-                    nibble[i_3806] = U4::from_u8(x & 15_u8);
+                    let i_4513: u32 = (2_u32 * i) + 1_u32;
+                    nibble[i_4513] = U4::from_u8(x & 15_u8);
                 }
             }
         }
@@ -85,17 +85,17 @@ fn enc<let N: u32>(value: [u8; N], value_length: Field) -> ([u8; 32], Field) {
 
 fn bitshift_literal_0() -> u64 {
     let mut bits: u64 = 0_u64;
-    bits = bits | (1_u64 << 0_u8);
+    bits = bits | (1_u64 << 0_u64);
     bits
 }
 
 fn bitshift_literal_4() -> u64 {
     let mut bits: u64 = 0_u64;
-    bits = bits | (1_u64 << 4_u8);
+    bits = bits | (1_u64 << 4_u64);
     bits
 }
 
-fn bitshift_variable(idx: u8) -> u64 {
+fn bitshift_variable(idx: u64) -> u64 {
     let mut bits: u64 = 0_u64;
     bits = bits | (1_u64 << idx);
     bits
@@ -134,9 +134,9 @@ fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     assert(result_0 == 1_u64);
     let result_4: u64 = bitshift_literal_4();
     assert(result_4 == 16_u64);
-    let result_0: u64 = bitshift_variable(0_u8);
+    let result_0: u64 = bitshift_variable(0_u64);
     assert(result_0 == 1_u64);
-    let result_4: u64 = bitshift_variable(4_u8);
+    let result_4: u64 = bitshift_variable(4_u64);
     assert(result_4 == 16_u64);
     assert((u % -13_i16) == 0_i16);
     assert((u % v) == 0_i16);

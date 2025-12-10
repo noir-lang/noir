@@ -3,8 +3,8 @@ use noirc_errors::{Located, Location};
 use crate::{
     ast::{
         AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
-        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
-        StatementKind, WhileStatement,
+        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
@@ -138,8 +138,8 @@ impl Parser<'_> {
             return Some(StatementKind::For(for_loop));
         }
 
-        if let Some((block, span)) = self.parse_loop() {
-            return Some(StatementKind::Loop(block, span));
+        if let Some(loop_) = self.parse_loop() {
+            return Some(StatementKind::Loop(loop_));
         }
 
         if let Some(while_) = self.parse_while() {
@@ -298,7 +298,7 @@ impl Parser<'_> {
     }
 
     /// LoopStatement = 'loop' Block
-    fn parse_loop(&mut self) -> Option<(Expression, Location)> {
+    fn parse_loop(&mut self) -> Option<LoopStatement> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
@@ -318,7 +318,7 @@ impl Parser<'_> {
             }
         };
 
-        Some((block, start_location))
+        Some(LoopStatement { body: block, loop_keyword_location: start_location })
     }
 
     /// WhileStatement = 'while' ExpressionExceptConstructor Block
@@ -469,7 +469,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
+        ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -508,7 +508,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -521,7 +521,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert_eq!(let_statement.r#type.to_string(), "Field");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "Field");
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -563,6 +563,27 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_two_mut() {
+        let src = "
+        let mut mut x = 1;
+                ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let statement = parser.parse_statement().unwrap().0;
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "mut x");
+        assert!(let_statement.r#type.is_none());
+        assert_eq!(let_statement.expression.to_string(), "1");
+        assert!(!let_statement.comptime);
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
     }
 
     #[test]
@@ -660,7 +681,7 @@ mod tests {
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
-        let LValue::Ident(ident) = assign.lvalue else {
+        let LValue::Path(ident) = assign.lvalue else {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
@@ -678,16 +699,30 @@ mod tests {
 
     #[test]
     fn parses_assignment_with_unsafe() {
-        let src = "// Safety: test 
+        let src = "// Safety: test
         x = unsafe { 1 }";
         let statement = parse_statement_no_errors(src);
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
-        let LValue::Ident(ident) = assign.lvalue else {
+        let LValue::Path(ident) = assign.lvalue else {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_assignment_with_path() {
+        let src = "x::y = 1";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        let LValue::Path(path) = assign.lvalue else {
+            panic!("Expected path");
+        };
+        assert_eq!(path.to_string(), "x::y");
+        assert_eq!(assign.expression.to_string(), "1");
     }
 
     #[test]
@@ -800,7 +835,9 @@ mod tests {
         let src = "loop { }";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
-        let StatementKind::Loop(block, location) = statement.kind else {
+        let StatementKind::Loop(LoopStatement { body: block, loop_keyword_location: location }) =
+            statement.kind
+        else {
             panic!("Expected loop");
         };
         let ExpressionKind::Block(block) = block.kind else {
@@ -816,7 +853,7 @@ mod tests {
         let src = "loop { 1; 2 }";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
-        let StatementKind::Loop(block, _) = statement.kind else {
+        let StatementKind::Loop(LoopStatement { body: block, .. }) = statement.kind else {
             panic!("Expected loop");
         };
         let ExpressionKind::Block(block) = block.kind else {

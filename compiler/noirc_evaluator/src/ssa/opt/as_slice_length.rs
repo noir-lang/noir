@@ -3,7 +3,6 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -28,7 +27,12 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
-        self.simple_reachable_blocks_optimization(|context| {
+        // If `as_slice` isn't called in this function there's nothing to do
+        let Some(as_slice) = self.dfg.get_intrinsic(Intrinsic::AsSlice).copied() else {
+            return;
+        };
+
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -37,18 +41,18 @@ impl Function {
                 _ => return,
             };
 
-            let Value::Intrinsic(Intrinsic::AsSlice) = context.dfg[*target_func] else {
+            if *target_func != as_slice {
                 return;
-            };
+            }
 
-            let first_argument = arguments.first().unwrap();
+            let first_argument =
+                arguments.first().expect("AsSlice should always have one argument");
             let array_typ = context.dfg.type_of_value(*first_argument);
             let Type::Array(_, length) = array_typ else {
                 unreachable!("AsSlice called with non-array {}", array_typ);
             };
 
-            let call_returns = context.dfg.instruction_results(instruction_id);
-            let original_slice_length = call_returns[0];
+            let [original_slice_length, _] = context.dfg.instruction_result(instruction_id);
             let known_length = context.dfg.make_constant(length.into(), NumericType::length_type());
             context.replace_value(original_slice_length, known_length);
         });
@@ -66,12 +70,12 @@ mod test {
         // In this code we expect `return v2` to be replaced with `return u32 3` because
         // that's the length of the v0 array.
         let src = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 3]):
-                v2, v3 = call as_slice(v0) -> (u32, [Field])
-                return v2
-            }
-            ";
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return v2
+        }
+        ";
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.as_slice_optimization();
@@ -80,6 +84,28 @@ mod test {
           b0(v0: [Field; 3]):
             v2, v3 = call as_slice(v0) -> (u32, [Field])
             return u32 3
+        }
+        ");
+    }
+
+    #[test]
+    fn as_slice_length_multiple_different_arrays() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: [Field; 5]):
+            v3, v4 = call as_slice(v0) -> (u32, [Field])
+            v5, v6 = call as_slice(v1) -> (u32, [Field])
+            return v3, v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.as_slice_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: [Field; 5]):
+            v3, v4 = call as_slice(v0) -> (u32, [Field])
+            v5, v6 = call as_slice(v1) -> (u32, [Field])
+            return u32 3, u32 5
         }
         ");
     }

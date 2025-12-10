@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(x: Field) {
     let x1: &mut Field = &mut 42_Field;
-    let set_x1: fn[(&mut Field,)](Field) = |y: Field| { *(x1) = y; };
+    let set_x1: fn[(&mut Field,)](Field) = |y: Field| { *x1 = y; };
     assert(*x1 == 42_Field);
     set_x1(44_Field);
     assert(*x1 == 44_Field);

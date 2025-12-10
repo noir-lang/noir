@@ -8,6 +8,7 @@ members = [
     "compiler/noirc_errors",
     "compiler/noirc_driver",
     "compiler/noirc_printable_type",
+    "compiler/noirc_span",
     "compiler/fm",
     "compiler/wasm",
     # Crates related to tooling built on top of the Noir compiler
@@ -17,6 +18,7 @@ members = [
     "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
     "tooling/nargo",
+    "tooling/nargo_doc",
     "tooling/nargo_expand",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -42,6 +44,7 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
+    "tooling/ssa_cli",
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
@@ -51,6 +54,7 @@ default-members = [
     "tooling/nargo_cli",
     "tooling/acvm_cli",
     "tooling/artifact_cli",
+    "tooling/ssa_cli",
     "tooling/profiler",
     "tooling/inspector",
 ]
@@ -58,7 +62,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.8"
+version = "1.0.0-beta.16"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
@@ -74,21 +78,24 @@ unused_qualifications = "warn"
 unreachable_pub = "warn"
 unsafe_code = "deny"
 unused_must_use = "warn"
+mismatched_lifetime_syntaxes = "allow"
 
 [workspace.lints.clippy]
+cast_lossless = "warn"
 semicolon_if_nothing_returned = "warn"
 result_large_err = "allow"
+uninlined_format_args = "warn"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.8", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.8", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.8", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.8", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.8", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.8", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.8", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.16", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.16", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.16", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.16", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.16", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.16", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.16", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -98,11 +105,13 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
+noirc_span = { path = "compiler/noirc_span" }
 
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
+nargo_doc = { path = "tooling/nargo_doc" }
 nargo_expand = { path = "tooling/nargo_expand" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
@@ -174,11 +183,12 @@ thiserror = "1.0.21"
 toml = "0.7.2"
 url = "2.5.4"
 base64 = "^0.22.1"
-fxhash = "0.2.1"
+rustc-hash = "2.1.1"
 build-data = "^0.3.3"
-bincode =  { version = "^2.0.1", features = ["serde"] }
+bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
+indexmap = "^2.10.0"
 lazy_static = "1.4"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"

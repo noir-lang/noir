@@ -30,7 +30,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
-fxhash.workspace = true
+rustc-hash.workspace = true
 iter-extended.workspace = true
 # This is the only crate that really needs the RPC feature,
 # but enabling it here implicitly enables it for the whole
@@ -39,6 +39,7 @@ iter-extended.workspace = true
 # and that is a different target, and for that the feature
 # aren't unified with this one.
 nargo = { workspace = true, features = ["rpc"] }
+nargo_doc.workspace = true
 nargo_expand.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
@@ -56,9 +57,7 @@ noir_ast_fuzzer.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-prettytable-rs = "0.10"
 rayon.workspace = true
 thiserror.workspace = true
 tower.workspace = true
@@ -103,6 +102,7 @@ pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
+serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
 sha3.workspace = true

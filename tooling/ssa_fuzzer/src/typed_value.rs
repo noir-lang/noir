@@ -1,11 +1,13 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noirc_evaluator::ssa::ir::types::{NumericType, Type};
+use noirc_evaluator::ssa::ir::types::{NumericType as SsaNumericType, Type as SsaType};
 use noirc_evaluator::ssa::ir::{map::Id, value::Value};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use strum_macros::EnumCount;
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
-pub enum ValueType {
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize, EnumCount)]
+pub enum NumericType {
     Field,
     Boolean,
     U8,
@@ -19,6 +21,132 @@ pub enum ValueType {
     I64,
 }
 
+impl NumericType {
+    pub fn bit_length(&self) -> u32 {
+        match self {
+            NumericType::Field => 254,
+            NumericType::Boolean => 1,
+            NumericType::U8 => 8,
+            NumericType::U16 => 16,
+            NumericType::U32 => 32,
+            NumericType::U64 => 64,
+            NumericType::U128 => 128,
+            NumericType::I8 => 8,
+            NumericType::I16 => 16,
+            NumericType::I32 => 32,
+            NumericType::I64 => 64,
+        }
+    }
+}
+
+impl From<NumericType> for SsaNumericType {
+    fn from(numeric_type: NumericType) -> Self {
+        let bit_size = numeric_type.bit_length();
+        match numeric_type {
+            NumericType::Field => SsaNumericType::NativeField,
+            NumericType::Boolean => SsaNumericType::Unsigned { bit_size },
+            NumericType::U8 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U16 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U32 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U64 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U128 => SsaNumericType::Unsigned { bit_size },
+            NumericType::I8 => SsaNumericType::Signed { bit_size },
+            NumericType::I16 => SsaNumericType::Signed { bit_size },
+            NumericType::I32 => SsaNumericType::Signed { bit_size },
+            NumericType::I64 => SsaNumericType::Signed { bit_size },
+        }
+    }
+}
+
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
+pub enum Type {
+    Numeric(NumericType),
+    Reference(Arc<Type>),
+    Array(Arc<Vec<Type>>, u32),
+    Slice(Arc<Vec<Type>>),
+}
+
+/// Used as default value for mutations
+impl Default for Type {
+    fn default() -> Self {
+        Type::Numeric(NumericType::Field)
+    }
+}
+
+impl Type {
+    pub fn bit_length(&self) -> u32 {
+        match self {
+            Type::Numeric(numeric_type) => numeric_type.bit_length(),
+            Type::Array(_, _) => unreachable!("Array type unexpected"),
+            Type::Slice(_) => unreachable!("Slice type unexpected"),
+            Type::Reference(value_type) => value_type.bit_length(),
+        }
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, Type::Numeric(_))
+    }
+
+    pub fn is_reference(&self) -> bool {
+        matches!(self, Type::Reference(_))
+    }
+
+    pub fn type_contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(_) => true,
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|t| t.type_contains_reference())
+            }
+            Type::Slice(element_types) => element_types.iter().any(|t| t.type_contains_reference()),
+            Type::Numeric(_) => false,
+        }
+    }
+
+    pub fn is_array(&self) -> bool {
+        matches!(self, Type::Array(_, _))
+    }
+
+    pub fn is_slice(&self) -> bool {
+        matches!(self, Type::Slice(_))
+    }
+
+    pub fn is_field(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Field))
+    }
+
+    pub fn is_boolean(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Boolean))
+    }
+
+    pub fn is_array_of_references(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) => element_types.iter().all(|t| t.is_reference()),
+            _ => false,
+        }
+    }
+
+    pub fn unwrap_reference(&self) -> Type {
+        match self {
+            Type::Reference(value_type) => value_type.as_ref().clone(),
+            _ => panic!("Expected Reference, found {self:?}"),
+        }
+    }
+
+    pub fn unwrap_numeric(&self) -> NumericType {
+        match self {
+            Type::Numeric(numeric_type) => *numeric_type,
+            _ => panic!("Expected NumericType, found {self:?}"),
+        }
+    }
+
+    pub fn unwrap_array_element_type(&self) -> Type {
+        match self {
+            Type::Array(element_types, _) => element_types[0].clone(),
+            _ => panic!("Expected Array, found {self:?}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypedValue {
     pub value_id: Id<Value>,
@@ -30,154 +158,139 @@ impl TypedValue {
         Self { value_id, type_of_variable }
     }
 
-    /// Convert from our simple ValueType to the internal SSA Type
-    pub fn from_value_type(value_id: u32, value_type: &ValueType) -> Self {
-        let type_ = match value_type {
-            ValueType::Field => Type::field(),
-            ValueType::Boolean => Type::bool(),
-            ValueType::U8 => Type::unsigned(8),
-            ValueType::U16 => Type::unsigned(16),
-            ValueType::U32 => Type::unsigned(32),
-            ValueType::U64 => Type::unsigned(64),
-            ValueType::U128 => Type::unsigned(128),
-            ValueType::I8 => Type::signed(8),
-            ValueType::I16 => Type::signed(16),
-            ValueType::I32 => Type::signed(32),
-            ValueType::I64 => Type::signed(64),
-        };
-
-        Self { value_id: Id::new(value_id), type_of_variable: type_ }
+    pub fn is_numeric(&self) -> bool {
+        self.type_of_variable.is_numeric()
     }
 
-    /// Convert to our simple ValueType from the internal SSA Type
-    pub fn to_value_type(&self) -> ValueType {
-        match &self.type_of_variable {
-            Type::Numeric(NumericType::NativeField) => ValueType::Field,
-            Type::Numeric(NumericType::Unsigned { bit_size: 1 }) => ValueType::Boolean,
-            Type::Numeric(NumericType::Unsigned { bit_size: 8 }) => ValueType::U8,
-            Type::Numeric(NumericType::Unsigned { bit_size: 16 }) => ValueType::U16,
-            Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => ValueType::U32,
-            Type::Numeric(NumericType::Unsigned { bit_size: 64 }) => ValueType::U64,
-            Type::Numeric(NumericType::Unsigned { bit_size: 128 }) => ValueType::U128,
-            Type::Numeric(NumericType::Signed { bit_size: 8 }) => ValueType::I8,
-            Type::Numeric(NumericType::Signed { bit_size: 16 }) => ValueType::I16,
-            Type::Numeric(NumericType::Signed { bit_size: 32 }) => ValueType::I32,
-            Type::Numeric(NumericType::Signed { bit_size: 64 }) => ValueType::I64,
-            _ => unreachable!("Not numeric type {}", self.type_of_variable),
-        }
+    pub fn is_reference(&self) -> bool {
+        self.type_of_variable.is_reference()
     }
 
-    /// Helper to check if this value has a field type
+    pub fn is_array(&self) -> bool {
+        self.type_of_variable.is_array()
+    }
+
     pub fn is_field(&self) -> bool {
-        matches!(&self.type_of_variable, Type::Numeric(NumericType::NativeField))
+        self.type_of_variable.is_field()
     }
 
-    /// Helper to check if this value has a signed integer type
-    pub fn is_signed(&self) -> bool {
-        matches!(&self.type_of_variable, Type::Numeric(NumericType::Signed { .. }))
+    pub fn is_boolean(&self) -> bool {
+        self.type_of_variable.is_boolean()
     }
 
-    /// Helper to check if this value has an unsigned integer type
-    pub fn is_unsigned(&self) -> bool {
-        matches!(&self.type_of_variable, Type::Numeric(NumericType::Unsigned { .. }))
+    /// Returns the bit length of the type
+    ///
+    /// For field returns 254, for references returns the bit length of the referenced type
+    /// Panics if the type is an array
+    pub fn bit_length(&self) -> u32 {
+        self.type_of_variable.bit_length()
     }
 
-    /// Get the numeric type if this value has one
-    pub fn numeric_type(&self) -> Option<NumericType> {
-        match &self.type_of_variable {
-            Type::Numeric(num_type) => Some(*num_type),
-            _ => None,
+    pub fn same_types(&self, other: &TypedValue) -> bool {
+        self.type_of_variable == other.type_of_variable
+    }
+
+    pub fn unwrap_numeric(&self) -> NumericType {
+        match self.type_of_variable {
+            Type::Numeric(numeric_type) => numeric_type,
+            _ => panic!("Expected NumericType, found {:?}", self.type_of_variable),
         }
-    }
-
-    /// Helper to check if shift operations are supported for this type
-    pub fn supports_shift(&self) -> bool {
-        !self.is_field()
-    }
-
-    /// Helper to check if bitwise operations are supported for this type
-    pub fn supports_bitwise(&self) -> bool {
-        !self.is_field()
-    }
-
-    /// Helper to check if modulo operations are supported for this type
-    pub fn supports_mod(&self) -> bool {
-        !self.is_field()
-    }
-
-    /// Helper to check if not operations are supported for this type
-    pub fn supports_not(&self) -> bool {
-        !self.is_field()
-    }
-
-    /// Helper to check if unchecked operations are supported for this type
-    pub fn supports_unchecked(&self) -> bool {
-        false
     }
 }
 
-impl ValueType {
-    /// Convert to the SSA Type
-    pub fn to_ssa_type(&self) -> Type {
-        match self {
-            ValueType::Field => Type::field(),
-            ValueType::Boolean => Type::bool(),
-            ValueType::U8 => Type::unsigned(8),
-            ValueType::U16 => Type::unsigned(16),
-            ValueType::U32 => Type::unsigned(32),
-            ValueType::U64 => Type::unsigned(64),
-            ValueType::U128 => Type::unsigned(128),
-            ValueType::I8 => Type::signed(8),
-            ValueType::I16 => Type::signed(16),
-            ValueType::I32 => Type::signed(32),
-            ValueType::I64 => Type::signed(64),
+impl From<SsaType> for Type {
+    fn from(type_: SsaType) -> Self {
+        match type_ {
+            SsaType::Numeric(SsaNumericType::NativeField) => Type::Numeric(NumericType::Field),
+            SsaType::Numeric(SsaNumericType::Unsigned { bit_size: 1 }) => {
+                Type::Numeric(NumericType::Boolean)
+            }
+            SsaType::Numeric(SsaNumericType::Unsigned { bit_size: 8 }) => {
+                Type::Numeric(NumericType::U8)
+            }
+            SsaType::Numeric(SsaNumericType::Unsigned { bit_size: 16 }) => {
+                Type::Numeric(NumericType::U16)
+            }
+            SsaType::Numeric(SsaNumericType::Unsigned { bit_size: 32 }) => {
+                Type::Numeric(NumericType::U32)
+            }
+            SsaType::Numeric(SsaNumericType::Unsigned { bit_size: 64 }) => {
+                Type::Numeric(NumericType::U64)
+            }
+            SsaType::Numeric(SsaNumericType::Unsigned { bit_size: 128 }) => {
+                Type::Numeric(NumericType::U128)
+            }
+            SsaType::Numeric(SsaNumericType::Signed { bit_size: 8 }) => {
+                Type::Numeric(NumericType::I8)
+            }
+            SsaType::Numeric(SsaNumericType::Signed { bit_size: 16 }) => {
+                Type::Numeric(NumericType::I16)
+            }
+            SsaType::Numeric(SsaNumericType::Signed { bit_size: 32 }) => {
+                Type::Numeric(NumericType::I32)
+            }
+            SsaType::Numeric(SsaNumericType::Signed { bit_size: 64 }) => {
+                Type::Numeric(NumericType::I64)
+            }
+            SsaType::Array(element_types, length) => Type::Array(
+                Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
+                length,
+            ),
+            SsaType::Reference(element_type) => {
+                Type::Reference(Arc::new((*element_type).clone().into()))
+            }
+            SsaType::Slice(element_types) => {
+                Type::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            }
+            _ => unreachable!("Not supported type: {:?}", type_),
         }
     }
+}
 
-    /// Helper to check if this type could be used for casts into it
-    /// Signed types are not supported right now
-    pub fn can_be_used_for_casts(&self) -> bool {
-        match self {
-            //https://github.com/noir-lang/noir/issues/8089
-            ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 => false,
-            //https://github.com/noir-lang/noir/issues/7555
-            ValueType::U128 => false,
-            //https://github.com/noir-lang/noir/issues/8157
-            ValueType::Boolean => false,
-            _ => true,
+impl From<Type> for SsaType {
+    fn from(typ: Type) -> Self {
+        match typ {
+            Type::Numeric(numeric_type) => SsaType::Numeric(numeric_type.into()),
+            Type::Array(element_types, length) => SsaType::Array(
+                Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
+                length,
+            ),
+            Type::Reference(element_type) => {
+                SsaType::Reference(Arc::new((*element_type).clone().into()))
+            }
+            Type::Slice(element_types) => {
+                SsaType::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            }
         }
     }
+}
 
-    /// Convert to the NumericType
-    pub fn to_numeric_type(&self) -> NumericType {
-        match self {
-            ValueType::Field => NumericType::NativeField,
-            ValueType::Boolean => NumericType::Unsigned { bit_size: 1 },
-            ValueType::U8 => NumericType::Unsigned { bit_size: 8 },
-            ValueType::U16 => NumericType::Unsigned { bit_size: 16 },
-            ValueType::U32 => NumericType::Unsigned { bit_size: 32 },
-            ValueType::U64 => NumericType::Unsigned { bit_size: 64 },
-            ValueType::U128 => NumericType::Unsigned { bit_size: 128 },
-            ValueType::I8 => NumericType::Signed { bit_size: 8 },
-            ValueType::I16 => NumericType::Signed { bit_size: 16 },
-            ValueType::I32 => NumericType::Signed { bit_size: 32 },
-            ValueType::I64 => NumericType::Signed { bit_size: 64 },
-        }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Point {
+    pub x: TypedValue,
+    pub y: TypedValue,
+    pub is_infinite: TypedValue,
+}
+impl Point {
+    pub fn validate(&self) -> bool {
+        self.x.is_field() && self.y.is_field() && self.is_infinite.is_boolean()
     }
+    pub fn to_id_vec(&self) -> Vec<Id<Value>> {
+        vec![self.x.value_id, self.y.value_id, self.is_infinite.value_id]
+    }
+}
 
-    pub fn bit_length(&self) -> u32 {
-        match self {
-            ValueType::Field => 254,
-            ValueType::Boolean => 1,
-            ValueType::U8 => 8,
-            ValueType::U16 => 16,
-            ValueType::U32 => 32,
-            ValueType::U64 => 64,
-            ValueType::U128 => 128,
-            ValueType::I8 => 8,
-            ValueType::I16 => 16,
-            ValueType::I32 => 32,
-            ValueType::I64 => 64,
-        }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scalar {
+    pub lo: TypedValue,
+    pub hi: TypedValue,
+}
+
+impl Scalar {
+    pub fn validate(&self) -> bool {
+        self.lo.is_field() && self.hi.is_field()
+    }
+    pub fn to_id_vec(&self) -> Vec<Id<Value>> {
+        vec![self.lo.value_id, self.hi.value_id]
     }
 }

@@ -27,18 +27,16 @@ use noirc_frontend::{
     signed_field::SignedField,
 };
 
-use crate::Config;
-
 use super::{
-    CallableId, Context, VariableId, expr,
+    CallableId, Config, Context, VariableId, expr,
     freq::Freq,
     make_name,
-    scope::{Scope, ScopeStack, Variable},
+    scope::{Scope, ScopeStack, Stack, Variable},
     types,
 };
 
 /// Use random strings to identify constraints.
-const CONSTRAIN_MSG_TYPE: Type = Type::String(3);
+const CONSTRAIN_MSG_TYPE: Type = Type::String(super::CONSTRAIN_MSG_LENGTH);
 
 /// We need to track whether expressions are coming from dynamic program inputs.
 type TrackedExpression = (Expression, bool);
@@ -226,7 +224,7 @@ pub(super) struct FunctionContext<'a> {
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
     /// Indicate which local variables are derived from function inputs.
-    dynamics: BTreeSet<LocalId>,
+    dynamics: Stack<im::HashMap<LocalId, bool>>,
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
@@ -248,19 +246,21 @@ impl<'a> FunctionContext<'a> {
         let next_local_id = decl.params.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
         let budget = ctx.config.max_function_size;
 
-        let globals = Scope::new(
+        let globals = Scope::from_variables(
             ctx.globals
                 .iter()
                 .map(|(id, (name, typ, _expr))| (*id, false, name.clone(), typ.clone())),
         );
 
-        let locals = ScopeStack::new(
+        // The function parameters are the base layer for local variables.
+        let locals = ScopeStack::from_variables(
             decl.params
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        let dynamics = locals.current().variable_ids().cloned().collect();
+        // Function parameters are by definition considered to be dynamic input.
+        let dynamics = Stack::new(locals.current().variable_ids().map(|id| (*id, true)).collect());
 
         // Collect all the functions we can call from this one.
         let mut call_targets = BTreeMap::new();
@@ -362,11 +362,42 @@ impl<'a> FunctionContext<'a> {
         id
     }
 
+    /// Enter a new local scope.
+    fn enter_scope(&mut self) {
+        self.locals.enter();
+        self.dynamics.enter();
+    }
+
+    /// Exit the current local scope.
+    fn exit_scope(&mut self) {
+        self.locals.exit();
+        self.dynamics.exit();
+    }
+
     /// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
     fn is_dynamic(&self, id: &LocalId) -> bool {
-        self.dynamics.contains(id)
+        self.dynamics.current().get(id).cloned().unwrap_or_default()
+    }
+
+    /// Mark a variable as dynamic or not dynamic.
+    fn set_dynamic(&mut self, id: LocalId, is_dynamic: bool) {
+        // When a dynamic variable is assigned a constant value, only the current
+        // scope and any future lower scopes are affected. After this scope we
+        // will revert to whatever it was before.
+        let is_new = self.dynamics.current_mut().insert(id, is_dynamic).is_none();
+
+        // Becoming dynamic is contagious: if we assign a dynamic value to a mutable
+        // variable in one of the branches of a conditional statement, we have to
+        // consider it dynamic in the outer scopes as well from then on.
+        if !is_new && is_dynamic {
+            for layer in self.dynamics.iter_mut() {
+                if layer.contains_key(&id) {
+                    layer.insert(id, true);
+                }
+            }
+        }
     }
 
     /// Check if a source type can be used inside a dynamic input context to produce some target type.
@@ -633,8 +664,45 @@ impl<'a> FunctionContext<'a> {
         tgt_type: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Option<TrackedExpression>> {
-        // If we found our type, return it without further ado.
+        // If we found our type, we can return it without further ado.
         if src_type == tgt_type {
+            // If we want a slice, we can push onto it.
+            if let Type::Slice(item_type) = src_type {
+                if bool::arbitrary(u)? {
+                    let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
+                    // We can use push_back, push_front, or insert.
+                    if bool::arbitrary(u)? {
+                        let push_expr = self.call_slice_push(
+                            src_type.clone(),
+                            item_type.as_ref().clone(),
+                            src_expr,
+                            bool::arbitrary(u)?,
+                            item,
+                        );
+                        return Ok(Some((push_expr, src_dyn || item_dyn)));
+                    } else {
+                        // Generate a random index and insert the item at it.
+                        return self.gen_slice_access(
+                            u,
+                            (src_expr, src_dyn || item_dyn),
+                            src_type,
+                            src_mutable,
+                            tgt_type,
+                            max_depth,
+                            |this, ident, idx| {
+                                this.call_slice_insert(
+                                    src_type.clone(),
+                                    item_type.as_ref().clone(),
+                                    Expression::Ident(ident),
+                                    idx,
+                                    item,
+                                )
+                            },
+                        );
+                    }
+                }
+            }
+            // Otherwise just return as-is.
             return Ok(Some((src_expr, src_dyn)));
         }
 
@@ -656,6 +724,7 @@ impl<'a> FunctionContext<'a> {
 
         // See how we can produce tgt from src.
         match (src_type, tgt_type) {
+            // Simple numeric conversions.
             (
                 Type::Field,
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
@@ -667,10 +736,12 @@ impl<'a> FunctionContext<'a> {
             {
                 src_as_tgt()
             }
+            // Dereference right into the target type.
             (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
                 let expr = expr::deref(src_expr, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
+            // Mutable reference over the source type.
             (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
                 let expr = if src_mutable {
                     expr::ref_mut(src_expr, typ.as_ref().clone())
@@ -679,7 +750,8 @@ impl<'a> FunctionContext<'a> {
                 };
                 Ok(Some((expr, src_dyn)))
             }
-            (Type::Array(len, item_typ), _) if *len > 0 => {
+            // Index a non-empty array.
+            (Type::Array(len, item_type), _) if *len > 0 => {
                 // Indexing arrays that contains references with dynamic indexes was banned in #8888
                 // If we are already looking for an index where we can't use dynamic inputs,
                 // don't switch to using them again, as the result can indirectly poison the outer array.
@@ -692,7 +764,7 @@ impl<'a> FunctionContext<'a> {
                 // }
                 let (idx_expr, idx_dyn) = {
                     let no_dynamic = self.in_no_dynamic
-                        || !self.unconstrained() && types::contains_reference(item_typ);
+                        || !self.unconstrained() && types::contains_reference(item_type);
                     let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
 
                     // Choose a random index.
@@ -707,124 +779,85 @@ impl<'a> FunctionContext<'a> {
                 let item_expr = Expression::Index(Index {
                     collection: Box::new(src_expr),
                     index: Box::new(idx_expr),
-                    element_type: *item_typ.clone(),
+                    element_type: *item_type.clone(),
                     location: Location::dummy(),
                 });
                 // Produce the target type from the item.
                 self.gen_expr_from_source(
                     u,
                     (item_expr, src_dyn || idx_dyn),
-                    item_typ,
+                    item_type,
                     src_mutable,
                     tgt_type,
                     max_depth,
                 )
             }
-            (Type::Slice(item_typ), _) => {
-                // We don't know the length of the slice at compile time,
-                // so we need to call the builtin function to get it,
-                // and use it for the length modulo.
-
-                // The rules around dynamic indexing is the same as for arrays.
-                let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
-                    // Avoid any stack overflow where we look for an index in the slice itself.
-                    (self.gen_literal(u, &types::U32)?, false)
-                } else {
-                    let no_dynamic = self.in_no_dynamic
-                        || !self.unconstrained() && types::contains_reference(item_typ);
-                    let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
-
-                    // Choose a random index.
-                    let (idx_expr, idx_dyn) =
-                        self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
-                    assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
-
-                    self.in_no_dynamic = was_in_no_dynamic;
-                    (idx_expr, idx_dyn)
-                };
-
-                // Unless the slice is coming from an identifier or literal, we should create a let binding for it
-                // to avoid doubling up any side effects, or double using local variables when it was created.
-                let (let_expr, ident_1) = if let Expression::Ident(ident) = src_expr {
-                    (None, ident)
-                } else {
-                    let (let_expr, let_ident) = self.let_var_and_ident(
-                        false,
+            // Pop from the front of a slice.
+            (Type::Slice(item_type), Type::Tuple(fields))
+                if fields.len() == 2
+                    && &fields[0] == item_type.as_ref()
+                    && &fields[1] == src_type =>
+            {
+                let pop_front = self.call_slice_pop(
+                    src_type.clone(),
+                    item_type.as_ref().clone(),
+                    src_expr,
+                    true,
+                );
+                Ok(Some((pop_front, src_dyn)))
+            }
+            // Pop from the back of a slice, or remove an item.
+            (Type::Slice(item_type), Type::Tuple(fields))
+                if fields.len() == 2
+                    && &fields[0] == src_type
+                    && &fields[1] == item_type.as_ref() =>
+            {
+                if bool::arbitrary(u)? {
+                    let pop_back = self.call_slice_pop(
                         src_type.clone(),
+                        item_type.as_ref().clone(),
                         src_expr,
                         false,
-                        src_dyn,
-                        local_name,
                     );
-                    (Some(let_expr), let_ident)
-                };
-
-                // We'll need the ident again to access the item.
-                let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
-
-                // Get the runtime length.
-                let len_expr = {
-                    let array_len_ident = Ident {
-                        location: None,
-                        definition: Definition::Builtin("array_len".to_string()),
-                        mutable: false,
-                        name: "len".to_string(),
-                        typ: Type::Function(
-                            vec![src_type.clone()],
-                            Box::new(types::U32),
-                            Box::new(Type::Unit),
-                            false,
-                        ),
-                        id: self.next_ident_id(),
-                    };
-                    Expression::Call(Call {
-                        func: Box::new(Expression::Ident(array_len_ident)),
-                        arguments: vec![Expression::Ident(ident_1)],
-                        return_type: types::U32,
+                    Ok(Some((pop_back, src_dyn)))
+                } else {
+                    self.gen_slice_access(
+                        u,
+                        (src_expr, src_dyn),
+                        src_type,
+                        src_mutable,
+                        tgt_type,
+                        max_depth,
+                        |this, ident, idx| {
+                            this.call_slice_remove(
+                                src_type.clone(),
+                                item_type.as_ref().clone(),
+                                Expression::Ident(ident),
+                                idx,
+                            )
+                        },
+                    )
+                }
+            }
+            // Index a slice (might fail at runtime if empty).
+            (Type::Slice(item_type), _) => self.gen_slice_access(
+                u,
+                (src_expr, src_dyn),
+                src_type,
+                src_mutable,
+                tgt_type,
+                max_depth,
+                |_, ident, idx| {
+                    // Index the slice, represented by a variable, using the generated index.
+                    Expression::Index(Index {
+                        collection: Box::new(Expression::Ident(ident)),
+                        index: Box::new(idx),
+                        element_type: *item_type.clone(),
                         location: Location::dummy(),
                     })
-                };
-
-                // Take the modulo.
-                let idx_expr = expr::modulo(idx_expr, len_expr);
-
-                // Access the item.
-                let item_expr = Expression::Index(Index {
-                    collection: Box::new(Expression::Ident(ident_2)),
-                    index: Box::new(idx_expr),
-                    element_type: *item_typ.clone(),
-                    location: Location::dummy(),
-                });
-
-                // Produce the target type from the item.
-                let Some((expr, is_dyn)) = self.gen_expr_from_source(
-                    u,
-                    (item_expr, src_dyn || idx_dyn),
-                    item_typ,
-                    src_mutable,
-                    tgt_type,
-                    max_depth,
-                )?
-                else {
-                    return Ok(None);
-                };
-
-                // Append the let and the final expression if we needed a block,
-                // so we avoid suffixing a block with e.g. indexing, which would
-                // not be parsable by the frontend. Another way to do this would
-                // be to surround the block with parentheses.
-                // So either of this should work:
-                // * { let s = todo!(); s[123 % s.len()][456] }
-                // * ( { let s = todo!(); s[123 % s.len()] } )[456]
-                // But not this:
-                // * { let s = todo!(); s[123 % s.len()] }[123]
-                let expr = if let Some(let_expr) = let_expr {
-                    Expression::Block(vec![let_expr, expr])
-                } else {
-                    expr
-                };
-                Ok(Some((expr, is_dyn)))
-            }
+                },
+            ),
+            // Extract a tuple field.
             (Type::Tuple(items), _) => {
                 // Any of the items might be able to produce the target type.
                 let mut opts = Vec::new();
@@ -855,6 +888,109 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Generate code to index an arbitrary item in a slice.
+    ///
+    /// Since we don't know the length of the slice at compile time,
+    /// this can involve creating a temporary variable, getting the length at runtime,
+    /// and using modulo to limit some random index to the runtime length.
+    #[allow(clippy::too_many_arguments)]
+    fn gen_slice_access<F>(
+        &mut self,
+        u: &mut Unstructured,
+        (src_expr, src_dyn): TrackedExpression,
+        src_type: &Type,
+        src_mutable: bool,
+        tgt_type: &Type,
+        max_depth: usize,
+        access_item: F,
+    ) -> arbitrary::Result<Option<TrackedExpression>>
+    where
+        F: FnOnce(&mut Self, Ident, Expression) -> Expression,
+    {
+        let Type::Slice(item_type) = src_type else {
+            unreachable!("only expected to be called with Slice");
+        };
+
+        // Unless the slice is coming from an identifier or literal, we should create a let binding for it
+        // to avoid doubling up any side effects, or double using local variables when it was created.
+        let (let_expr, ident_1) = if let Expression::Ident(ident) = src_expr {
+            (None, ident)
+        } else {
+            let (let_expr, let_ident) = self.let_var_and_ident(
+                false,
+                src_type.clone(),
+                src_expr,
+                false,
+                src_dyn,
+                local_name,
+            );
+            (Some(let_expr), let_ident)
+        };
+
+        // We'll need the ident again to access the item.
+        let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
+
+        // Get the runtime length.
+        let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
+
+        // The rules around dynamic indexing is the same as for arrays.
+        let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
+            // Avoid any stack overflow where we look for an index in the slice itself.
+            (self.gen_literal(u, &types::U32)?, false)
+        } else {
+            let no_dynamic =
+                self.in_no_dynamic || !self.unconstrained() && types::contains_reference(item_type);
+            let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
+            // Choose a random index.
+            let (mut idx_expr, idx_dyn) =
+                self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
+
+            assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
+
+            // Take the modulo, but leave a small chance for index OOB.
+            if self.avoid_index_out_of_bounds(u)? {
+                idx_expr = expr::modulo(idx_expr, len_expr);
+            }
+
+            self.in_no_dynamic = was_in_no_dynamic;
+            (idx_expr, idx_dyn)
+        };
+
+        // Access the item by index
+        let item_expr = access_item(self, ident_2, idx_expr);
+
+        // Produce the target type from the item.
+        let Some((expr, is_dyn)) = self.gen_expr_from_source(
+            u,
+            (item_expr, src_dyn || idx_dyn),
+            item_type,
+            src_mutable,
+            tgt_type,
+            max_depth,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        // Append the let and the final expression if we needed a block,
+        // so we avoid suffixing a block with e.g. indexing, which would
+        // not be parsable by the frontend. Another way to do this would
+        // be to surround the block with parentheses.
+        // So either of this should work:
+        // * { let s = todo!(); s[123 % s.len()][456] }
+        // * ( { let s = todo!(); s[123 % s.len()] } )[456]
+        // But not this:
+        // * { let s = todo!(); s[123 % s.len()] }[123]
+        let expr = if let Some(let_expr) = let_expr {
+            Expression::Block(vec![let_expr, expr])
+        } else {
+            expr
+        };
+
+        Ok(Some((expr, is_dyn)))
+    }
+
     /// Generate an arbitrary index for an array.
     ///
     /// This can be either a random int literal, or a complex expression that produces an int.
@@ -866,9 +1002,15 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<TrackedExpression> {
         assert!(len > 0, "cannot index empty array");
         if max_depth > 0 && u.ratio(1, 3)? {
-            let (idx, idx_dyn) =
+            let (mut idx, idx_dyn) =
                 self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
-            Ok((expr::index_modulo(idx, len), idx_dyn))
+
+            // Limit the index to be in the valid range for the array length, with a small chance of index OOB.
+            if self.avoid_index_out_of_bounds(u)? {
+                idx = expr::index_modulo(idx, len);
+            }
+
+            Ok((idx, idx_dyn))
         } else {
             let idx = u.choose_index(len as usize)?;
             Ok((expr::u32_literal(idx as u32), false))
@@ -931,7 +1073,6 @@ impl<'a> FunctionContext<'a> {
         // Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
         fn collect_input_types<'a, K: Ord>(
-            this: &FunctionContext,
             op: BinaryOp,
             type_out: &Type,
             scope: &'a Scope<K>,
@@ -939,16 +1080,15 @@ impl<'a> FunctionContext<'a> {
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
-                .filter(|type_in| !this.ctx.should_avoid_literals(type_in))
                 .collect::<Vec<_>>()
         }
 
         // Try local variables first.
-        let mut lhs_opts = collect_input_types(self, op, typ, self.locals.current());
+        let mut lhs_opts = collect_input_types(op, typ, self.locals.current());
 
         // If the locals don't have any type compatible with `op`, try the globals.
         if lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(self, op, typ, &self.globals);
+            lhs_opts = collect_input_types(op, typ, &self.globals);
         }
 
         // We might not have any input that works for this operation.
@@ -959,16 +1099,12 @@ impl<'a> FunctionContext<'a> {
 
         // Choose a type for the LHS and RHS.
         let lhs_type = u.choose_iter(lhs_opts)?.clone();
-        let rhs_type = match op {
-            BinaryOp::ShiftLeft | BinaryOp::ShiftRight => &types::U8,
-            _ => &lhs_type,
-        };
 
         // Generate expressions for LHS and RHS.
         let (lhs_expr, lhs_dyn) =
             self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
         let (rhs_expr, rhs_dyn) =
-            self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+            self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
 
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
@@ -1014,7 +1150,7 @@ impl<'a> FunctionContext<'a> {
         // Only the last statement counts into whether the block is dynamic.
         let mut is_dyn = false;
 
-        self.locals.enter();
+        self.enter_scope();
         self.decrease_budget(1);
         for _ in 0..size - 1 {
             if self.budget == 0 {
@@ -1032,7 +1168,7 @@ impl<'a> FunctionContext<'a> {
             is_dyn = expr_dyn;
             stmts.push(expr);
         }
-        self.locals.exit();
+        self.exit_scope();
 
         Ok((Expression::Block(stmts), is_dyn))
     }
@@ -1118,7 +1254,22 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.config().comptime_friendly;
-        let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly, true)?;
+        let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
+
+        // If we picked the target type to be a slice, we can consider popping from it.
+        if let Type::Slice(ref item_type) = typ {
+            if bool::arbitrary(u)? {
+                let fields = if bool::arbitrary(u)? {
+                    // ([T], T) <- pop_back or remove
+                    vec![typ.clone(), item_type.as_ref().clone()]
+                } else {
+                    // (T, [T]) <- pop_front
+                    vec![item_type.as_ref().clone(), typ.clone()]
+                };
+                typ = Type::Tuple(fields);
+            }
+        }
+
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true, is_dyn, local_name))
@@ -1144,9 +1295,7 @@ impl<'a> FunctionContext<'a> {
             self.locals.add(id, mutable, name.clone(), typ.clone());
         }
 
-        if is_dynamic {
-            self.dynamics.insert(id);
-        }
+        self.set_dynamic(id, is_dynamic);
 
         expr::let_var(id, mutable, name, expr)
     }
@@ -1202,12 +1351,12 @@ impl<'a> FunctionContext<'a> {
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
-        if lvalue.is_dyn || expr_dyn {
-            self.dynamics.insert(id);
+        if lvalue.is_dyn || expr_dyn || self.in_dynamic {
+            self.set_dynamic(id, true);
         } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
             // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
             // in which case we don't know if other members have dynamic properties.
-            self.dynamics.remove(&id);
+            self.set_dynamic(id, false);
         }
 
         let assign =
@@ -1303,6 +1452,9 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((id, typ)))
+            // TODO(#10499): comptime function representations are at the moment just "(function)"
+            // (disable printing functions if comptime_friendly is on)
+            .filter(|(_, typ)| !types::is_function(typ) || !self.config().comptime_friendly)
             .collect::<Vec<_>>();
 
         if opts.is_empty() {
@@ -1311,17 +1463,30 @@ impl<'a> FunctionContext<'a> {
 
         // Print one of the variables as-is.
         let (id, typ) = u.choose_iter(opts)?;
+        let id = *id;
 
         // The print oracle takes 2 parameters: the newline marker and the value,
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
         let hir_type = types::to_hir_type(typ);
-        let ident = self.local_ident(*id);
+        let ident = self.local_ident(id);
+
+        // Functions need to be passed as a tuple.
+        let arg = if types::is_function(&ident.typ) {
+            Expression::Tuple(vec![
+                Expression::Ident(ident),
+                Expression::Ident(self.local_ident(id)),
+            ])
+        } else {
+            Expression::Ident(ident)
+        };
+
         let mut args = vec![
             expr::lit_bool(true), // include newline,
-            Expression::Ident(ident),
+            arg,
         ];
+
         append_printable_type_info_for_type(hir_type, &mut args);
 
         let print_oracle_ident = Ident {
@@ -1458,7 +1623,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = index_name(idx_id);
 
         // Add a scope which will hold the index variable.
-        self.locals.enter();
+        self.enter_scope();
         self.locals.add(idx_id, false, idx_name.clone(), idx_type.clone());
 
         // Decrease budget so we don't nest for loops endlessly.
@@ -1480,7 +1645,7 @@ impl<'a> FunctionContext<'a> {
         });
 
         // Remove the loop scope.
-        self.locals.exit();
+        self.exit_scope();
 
         Ok(expr)
     }
@@ -1677,8 +1842,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `match` expression, returning a given type.
     ///
-    /// Match needs a variable; if we don't have one to produce the target type from,
-    /// it returns `None`.
+    /// Match needs a variable; if we don't have one to produce the target type from, it returns `None`.
     fn gen_match(
         &mut self,
         u: &mut Unstructured,
@@ -1708,17 +1872,24 @@ impl<'a> FunctionContext<'a> {
 
         // If we picked a global variable, we need to create a local binding first,
         // because the match only works with local variable IDs.
+        // We also need to create a secondary local binding for a local variable,
+        // because of how the ownership analysis works: it only tracks the use of
+        // identifiers, but the `Match::variable_to_match` only contains a `LocalId`.
+        // We could change it to an `Ident`, but that's not enough: when the ownership
+        // inserts `Clone` expressions for all but the last use of an ident, it could
+        // not do so with the `Match`, because it would need match on an `Expression`.
         let (src_id, src_name, src_typ, src_dyn, src_expr) = match id {
-            VariableId::Local(id) => {
-                let (_, name, typ) = self.locals.current().get_variable(&id);
-                let is_dyn = self.is_dynamic(&id);
-                (id, name.clone(), typ.clone(), is_dyn, None)
-            }
             VariableId::Global(id) => {
                 let typ = self.globals.get_variable(&id).2.clone();
                 // The source is a technical variable that we don't want to access in the match rows.
                 let (id, name, let_expr) = self.indirect_global(id, false, false);
-                (id, name, typ, false, Some(let_expr))
+                (id, name, typ, false, let_expr)
+            }
+            VariableId::Local(id) => {
+                let typ = self.local_type(id).clone();
+                let (id, name, let_expr) = self.indirect_local(id, false, false);
+                let is_dyn = self.is_dynamic(&id);
+                (id, name, typ, is_dyn, let_expr)
             }
         };
 
@@ -1726,6 +1897,10 @@ impl<'a> FunctionContext<'a> {
         if !types::can_be_matched(&src_typ) {
             return Ok(None);
         }
+
+        // Similar to an `if` statement, if the source variable is dynamic, we can't do certain things in the body.
+        let in_dynamic = self.in_dynamic || src_dyn;
+        let was_in_dynamic = std::mem::replace(&mut self.in_dynamic, in_dynamic);
 
         let mut match_expr = Match {
             variable_to_match: (src_id, src_name),
@@ -1735,6 +1910,8 @@ impl<'a> FunctionContext<'a> {
         };
 
         let num_cases = u.int_in_range(0..=self.ctx.config.max_match_cases)?;
+
+        // The dynamic nature of the final expression depends on the source and the rules.
         let mut is_dyn = src_dyn;
 
         // Generate a number of rows, depending on what we can do with the source type.
@@ -1775,11 +1952,12 @@ impl<'a> FunctionContext<'a> {
                 // matches on individual fields. We don't do that here, just make the fields available.
                 let constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
                 let mut arguments = Vec::new();
-                self.locals.enter();
+                self.enter_scope();
                 for item_type in item_types {
                     let item_id = self.next_local_id();
                     let item_name = format!("item_{}", local_name(item_id));
                     self.locals.add(item_id, false, item_name.clone(), item_type.clone());
+                    self.set_dynamic(item_id, src_dyn);
                     arguments.push((item_id, item_name));
                 }
                 // Generate the original expression we wanted with the new arguments in scope.
@@ -1787,7 +1965,7 @@ impl<'a> FunctionContext<'a> {
                 is_dyn |= branch_dyn;
                 let case = MatchCase { constructor, arguments, branch };
                 match_expr.cases.push(case);
-                self.locals.exit();
+                self.exit_scope();
                 // We must not generate a default, or the compiler will panic.
                 false
             }
@@ -1803,12 +1981,9 @@ impl<'a> FunctionContext<'a> {
             match_expr.default_case = Some(Box::new(default_expr));
         }
 
+        self.in_dynamic = was_in_dynamic;
         let match_expr = Expression::Match(match_expr);
-        let expr = if let Some(src_expr) = src_expr {
-            Expression::Block(vec![src_expr, match_expr])
-        } else {
-            match_expr
-        };
+        let expr = Expression::Block(vec![src_expr, match_expr]);
 
         Ok(Some((expr, is_dyn)))
     }
@@ -2015,6 +2190,166 @@ impl<'a> FunctionContext<'a> {
             unreachable!("expected Let; got {let_expr:?}");
         };
         (*id, name.clone(), let_expr)
+    }
+
+    /// Create a local let binding over a local variable.
+    ///
+    /// Returns the local ID and the `Let` expression.
+    fn indirect_local(
+        &mut self,
+        id: LocalId,
+        mutable: bool,
+        add_to_scope: bool,
+    ) -> (LocalId, String, Expression) {
+        let ident = self.local_ident(id);
+        let is_dynamic = self.is_dynamic(&id);
+        let let_expr = self.let_var(
+            mutable,
+            ident.typ.clone(),
+            Expression::Ident(ident),
+            add_to_scope,
+            is_dynamic,
+            local_name,
+        );
+        let Expression::Let(Let { id, name, .. }) = &let_expr else {
+            unreachable!("expected Let; got {let_expr:?}");
+        };
+        (*id, name.clone(), let_expr)
+    }
+
+    /// Construct a `Call` to the `array_len` builtin function, calling it with the
+    /// identifier of a slice or an array.
+    fn call_array_len(&mut self, array_or_slice: Expression, typ: Type) -> Expression {
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin("array_len".to_string()),
+            mutable: false,
+            name: "len".to_string(),
+            typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),
+            id: self.next_ident_id(),
+        };
+        Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: vec![array_or_slice],
+            return_type: types::U32,
+            location: Location::dummy(),
+        })
+    }
+
+    /// Construct a `Call` to one of the `slice_*` builtin functions.
+    fn call_slice_builtin(
+        &mut self,
+        name: &str,
+        return_type: Type,
+        arg_types: Vec<Type>,
+        args: Vec<Expression>,
+    ) -> Expression {
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin(format!("slice_{name}")),
+            mutable: false,
+            name: name.to_string(),
+            typ: Type::Function(
+                arg_types,
+                Box::new(return_type.clone()),
+                Box::new(Type::Unit),
+                false,
+            ),
+            id: self.next_ident_id(),
+        };
+        Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: args,
+            return_type,
+            location: Location::dummy(),
+        })
+    }
+
+    /// Construct a `Call` to the `slice_push_front` or `slice_push_back` builtin function.
+    fn call_slice_push(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        is_front: bool,
+        item: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            if is_front { "push_front" } else { "push_back" },
+            slice_type.clone(),
+            vec![slice_type, item_type],
+            vec![slice, item],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_pop_front` or `slice_pop_back` builtin function.
+    fn call_slice_pop(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        is_front: bool,
+    ) -> Expression {
+        let return_fields = if is_front {
+            vec![item_type, slice_type.clone()]
+        } else {
+            vec![slice_type.clone(), item_type]
+        };
+        self.call_slice_builtin(
+            if is_front { "pop_front" } else { "pop_back" },
+            Type::Tuple(return_fields),
+            vec![slice_type],
+            vec![slice],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_remove` builtin function.
+    fn call_slice_remove(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        idx: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            "remove",
+            Type::Tuple(vec![slice_type.clone(), item_type]),
+            vec![slice_type, types::U32],
+            vec![slice, idx],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_insert` builtin function.
+    fn call_slice_insert(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        idx: Expression,
+        item: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            "insert",
+            Type::Tuple(vec![slice_type.clone()]),
+            vec![slice_type, types::U32, item_type],
+            vec![slice, idx, item],
+        )
+    }
+
+    /// Random decision whether to allow "Index out of bounds" errors to happen
+    /// on a specific array or slice access operation.
+    ///
+    /// If [Config::avoid_index_out_of_bounds] is turned on, then this is always `true`.
+    ///
+    /// It also returns `true` when `in_no_dynamic` mode is on, because an overflowing
+    /// index might not be simplified out of the SSA in ACIR, and end up being considered
+    /// a dynamic index, and leave reference allocations until ACIR gen, where they fail.
+    fn avoid_index_out_of_bounds(&self, u: &mut Unstructured) -> arbitrary::Result<bool> {
+        if self.config().avoid_index_out_of_bounds || self.in_no_dynamic {
+            return Ok(true);
+        }
+        // Avoid OOB with 90% chance.
+        u.ratio(9, 10)
     }
 }
 

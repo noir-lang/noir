@@ -64,4 +64,10 @@ artifact_size() {
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
 }
 
-jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(execution_time)$(artifact_size)"
+num_opcodes() {
+  num_opcodes=$(noir-inspector info --json "$INPUT_DIR/artifact.json" | jq ".programs[0].functions[0].opcodes")
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"num_opcodes\", value: \""$num_opcodes"\" | tonumber, unit: \"opcodes\"}" --null-input
+}
+
+jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(execution_time)$(artifact_size)$(num_opcodes)"

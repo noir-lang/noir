@@ -8,9 +8,11 @@ jobs:
   algolia_recrawl:
     name: Algolia Recrawl
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Algolia crawler creation and crawl
-        uses: algolia/algoliasearch-crawler-github-actions@v1.1.0
+        uses: algolia/algoliasearch-crawler-github-actions@v1.1.13
         id: algolia_crawler
         with:
           crawler-user-id: ${{ secrets.CRAWLER_USER_ID }}

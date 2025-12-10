@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

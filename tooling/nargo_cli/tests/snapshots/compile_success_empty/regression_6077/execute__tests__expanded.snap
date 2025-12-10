@@ -16,7 +16,7 @@ pub fn my_fn() -> WeirdStruct<Field, [u8; 3]> {
 comptime fn mangle_fn(f: FunctionDefinition) {
     let return_type: Type = f.return_type();
     let generics: Quoted = f"Field,{return_type}".quoted_contents();
-    let new_return_type: Type = quote { WeirdStruct < generics >  }.as_type();
+    let new_return_type: Type = quote { WeirdStruct < $generics >  }.as_type();
     let new_body: Expr = quote {
         {
             WeirdStruct {

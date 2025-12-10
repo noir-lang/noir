@@ -11,7 +11,7 @@ fn assert_ssa_roundtrip(src: &str) {
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
     if ssa != src {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", src, ssa);
+        println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{ssa}\n~~~");
         similar_asserts::assert_eq!(ssa, src);
     }
 }
@@ -51,6 +51,17 @@ fn test_return_integer() {
         );
         assert_ssa_roundtrip(&src);
     }
+}
+
+#[test]
+fn test_return_negative_integer() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return i8 -53
+        }
+        ";
+    assert_ssa_roundtrip(src);
 }
 
 #[test]
@@ -97,6 +108,18 @@ fn test_make_composite_slice() {
             v2 = make_array [Field 2, Field 3] : [Field; 2]
             v4 = make_array [Field 1, v2] : [(Field, [Field; 2])]
             return v4
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_make_empty_composite_array() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            return v0
         }
         ";
     assert_ssa_roundtrip(src);
@@ -167,20 +190,8 @@ fn test_multiple_blocks_and_jmp() {
 fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u1):
             jmpif v0 then: b1, else: b2
-          b1():
-            jmp b2()
-          b2():
-            return
-        }
-        ";
-    assert_ssa_roundtrip(src);
-
-    let src = "
-        acir(inline) fn main f0 {
-          b0(v0: Field):
-            jmpif v0 then: b2, else: b1
           b1():
             jmp b2()
           b2():
@@ -194,7 +205,7 @@ fn test_jmpif() {
 fn test_multiple_jmpif() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field):
+          b0(v0: u1, v1: u1):
             jmpif v0 then: b1, else: b2
           b1():
             jmp b4()
@@ -383,7 +394,7 @@ fn test_array_get() {
 #[test]
 fn test_array_get_with_index_minus_1() {
     let src: &'static str = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 3 minus 1 -> Field
             return
@@ -395,8 +406,8 @@ fn test_array_get_with_index_minus_1() {
 #[test]
 fn test_array_get_with_index_minus_3() {
     let src: &'static str = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
             v2 = array_get v0, index u32 6 minus 3 -> Field
             return
         }
@@ -431,7 +442,7 @@ fn test_mutable_array_set() {
 #[test]
 fn test_array_set_with_index_minus_1() {
     let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v3 = array_set v0, index u32 2 minus 1, value Field 1
             return
@@ -443,8 +454,8 @@ fn test_array_set_with_index_minus_1() {
 #[test]
 fn test_array_set_with_index_minus_3() {
     let src = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
             v3 = array_set v0, index u32 4 minus 3, value Field 1
             return
         }
@@ -498,7 +509,7 @@ fn test_binary() {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: u32, v1: u8):
+              b0(v0: u32, v1: u32):
                 v2 = {op} v0, v1
                 return
             }}
@@ -584,7 +595,7 @@ fn test_load() {
 fn test_store() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: &mut Field):
             store Field 1 at v0
             return
         }
@@ -798,6 +809,18 @@ fn test_parses_print() {
 }
 
 #[test]
+fn test_parses_oracle() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call oracle_call()
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
         acir(inline) impure fn main f0 {
@@ -882,4 +905,98 @@ fn unknown_function_global_function_pointer() {
     }
     ";
     let _ = Ssa::from_str_no_validation(src).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Illegal use of offset")]
+fn illegal_offset_in_acir_function() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v3 = array_set v0, index u32 2 minus 1, value Field 1
+        return
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
+}
+
+#[test]
+fn call_data_and_return_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      call_data(0): array: v18, indices: [v2: 1]
+      call_data(1): array: v22, indices: [v3: 1, v4: 3]
+      call_data(2): array: v22, indices: []
+      return_data: v22
+      b0(v0: u32, v1: u32, v2: [u32; 4], v3: [Field; 4], v4: [Field; 4]):
+        v5 = cast v1 as Field
+        v7 = array_get v2, index u32 0 -> u32
+        v8 = cast v7 as Field
+        v10 = array_get v2, index u32 1 -> u32
+        v11 = cast v10 as Field
+        v13 = array_get v2, index u32 2 -> u32
+        v14 = cast v13 as Field
+        v16 = array_get v2, index u32 3 -> u32
+        v17 = cast v16 as Field
+        v18 = make_array [v5, v8, v11, v14, v17] : [Field; 5]
+        v19 = array_get v2, index v0 -> u32
+        v20 = add v19, u32 1
+        v21 = cast v20 as Field
+        v22 = make_array [v21] : [Field; 1]
+        return v22
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn call_data_without_return_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      call_data(0): array: v16, indices: [v2: 1]
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn return_data_without_call_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      return_data: v20
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
 }

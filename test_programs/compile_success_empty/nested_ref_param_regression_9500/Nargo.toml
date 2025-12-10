@@ -1,0 +1,6 @@
+[package]
+name = "nested_ref_param_regression_9500"
+type = "bin"
+authors = [""]
+
+[dependencies]

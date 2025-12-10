@@ -15,6 +15,14 @@ fn main() {
 
     // Mainly test fmtstr::quoted_contents
     call!(glue(quote { hello }, quote { world }));
+
+    // docs:start:as_quoted_str_test
+    comptime {
+        let x = 1;
+        let f: str<_> = f"x = {x}".as_quoted_str!();
+        assert_eq(f, "x = 0x01");
+    }
+    // docs:end:as_quoted_str_test
 }
 
 comptime fn glue(x: Quoted, y: Quoted) -> Quoted {

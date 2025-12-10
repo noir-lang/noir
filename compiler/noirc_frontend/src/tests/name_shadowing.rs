@@ -1,6 +1,25 @@
 #![cfg(test)]
+use crate::tests::assert_no_errors;
+
 use super::get_program_errors;
 use std::collections::HashSet;
+
+#[test]
+fn resolve_shadowing() {
+    let src = r#"
+        fn main(x : Field) {
+            let x = foo(x);
+            let x = x;
+            let (x, _) = (x, x);
+            let _ = x;
+        }
+
+        fn foo(x : Field) -> Field {
+            x
+        }
+    "#;
+    assert_no_errors(src);
+}
 
 #[test]
 fn test_name_shadowing() {
@@ -411,8 +430,8 @@ fn test_name_shadowing() {
         for (j, y) in names_to_collapse.iter().enumerate().filter(|(j, _)| i < *j) {
             if !cases_to_skip.contains(&(i, j)) {
                 let modified_src = src.replace(x, y);
-                let errors = get_program_errors(&modified_src, &format!("name_shadowing_{i}_{j}"));
-                assert!(!errors.is_empty(), "Expected errors, got: {:?}", errors);
+                let errors = get_program_errors(&modified_src);
+                assert!(!errors.is_empty(), "Expected errors, got: {errors:?}");
             }
         }
     }

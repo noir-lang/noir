@@ -5,6 +5,10 @@ expression: expanded_code
 global HELLO_WORLD: str<11> = "hello world";
 
 fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Field) {
+    assert(hex_as_string == "0x41");
+    assert(hex_as_field == 65_Field);
+    assert(hex_as_field == 65_Field);
+    assert(hex_as_field != 1_Field);
     let mut bad_message: str<11> = "hello world";
     assert(message == "hello world");
     assert(message == HELLO_WORLD);
@@ -27,10 +31,6 @@ fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Fie
     let hash: std::embedded_curve_ops::EmbeddedCurvePoint = std::hash::pedersen_commitment([x]);
     println(hash);
     print(hash);
-    assert(hex_as_string == "0x41");
-    assert(hex_as_field == 65_Field);
-    assert(hex_as_field == 65_Field);
-    assert(hex_as_field != 1_Field);
 }
 
 #[test]

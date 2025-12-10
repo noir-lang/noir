@@ -14,10 +14,10 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-reporting.workspace = true
-codespan.workspace = true
 fm.workspace = true
-fxhash.workspace = true
+rustc-hash.workspace = true
 noirc_printable_type.workspace = true
+noirc_span.workspace = true
 serde.workspace = true
 tracing.workspace = true
 flate2.workspace = true

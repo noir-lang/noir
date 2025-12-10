@@ -102,7 +102,7 @@ where
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.find_mock_by_id_mut(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .unwrap_or_else(|| panic!("Unknown mock id {id}"))
                     .params = Some(params.to_vec());
 
                 Ok(ForeignCallResult::default())
@@ -110,7 +110,7 @@ where
             Some(ForeignCall::GetMockLastParams) => {
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 let mock =
-                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {}", id));
+                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {id}"));
 
                 let last_called_params = mock
                     .last_called_params
@@ -122,7 +122,7 @@ where
             Some(ForeignCall::SetMockReturns) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.find_mock_by_id_mut(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .unwrap_or_else(|| panic!("Unknown mock id {id}"))
                     .result = ForeignCallResult { values: params.to_vec() };
 
                 Ok(ForeignCallResult::default())
@@ -133,7 +133,7 @@ where
                     params[0].unwrap_field().try_to_u64().expect("Invalid bit size of times");
 
                 self.find_mock_by_id_mut(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .unwrap_or_else(|| panic!("Unknown mock id {id}"))
                     .times_left = Some(times);
 
                 Ok(ForeignCallResult::default())
@@ -146,7 +146,7 @@ where
             Some(ForeignCall::GetTimesCalled) => {
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 let mock =
-                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {}", id));
+                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {id}"));
                 let times_called = mock.times_called;
                 Ok(ForeignCallResult::from(F::from(times_called)))
             }

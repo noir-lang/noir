@@ -2,23 +2,28 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: u64, y: u8, z: i16, u: i64) {
-    assert((64_u32 << y) == 128_u32);
-    assert((64_u32 >> y) == 32_u32);
+fn main(x: u64, y: u64, z: i16, u: i64) {
+    assert((64_u64 << y) == 128_u64);
+    assert((64_u64 >> y) == 32_u64);
     assert((x << y) == 128_u64);
     assert((x >> y) == 32_u64);
-    assert((u >> (x as u8)) == -1_i64);
-    assert((z >> (x as u8)) == -1_i16);
+    assert((u >> ((x as i64) - 2_i64)) == -1_i64);
     let mut a: i8 = y as i8;
     let mut b: i8 = x as i8;
-    assert((b << 1_u8) == -128_i8);
-    assert((b >> 2_u8) == 16_i8);
-    assert((b >> y) == 32_i8);
+    assert((b << 1_i8) == -128_i8);
+    assert((b >> 2_i8) == 16_i8);
+    assert((b >> a) == 32_i8);
     a = -a;
-    assert((a << 7_u8) == -128_i8);
-    assert((a << y) == -2_i8);
-    assert((x >> (x as u8)) == 0_u64);
-    assert((z >> 3_u8) == -97_i16);
-    assert((z >> 16_u8) == -1_i16);
-    assert((-z >> (x as u8)) == 0_i16);
+    assert((a << 6_i8) == -64_i8);
+    assert((a << -a) == -2_i8);
+    assert((x >> (x - 1_u64)) == 0_u64);
+    assert((z >> 3_i16) == -97_i16);
+    assert((z >> 14_i16) == -1_i16);
+    let rhs: i16 = if (x as i16) > 14_i16 {
+        14_i16
+    } else {
+        x as i16
+    };
+    assert((z >> rhs) == -1_i16);
+    assert((-z >> rhs) == 0_i16);
 }

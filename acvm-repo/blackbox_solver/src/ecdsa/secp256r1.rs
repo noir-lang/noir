@@ -1,3 +1,4 @@
+use acir::BlackBoxFunc;
 use p256::elliptic_curve::PrimeField;
 use p256::elliptic_curve::sec1::FromEncodedPoint;
 
@@ -11,17 +12,44 @@ use p256::{
 };
 use p256::{Scalar, ecdsa::Signature};
 
+use crate::BlackBoxResolutionError;
+
+/// Verifies an ECDSA signature over the Secp256r1 elliptic curve.
+///
+/// This function implements ECDSA signature verification on the Secp256r1 curve
+///
+/// # Parameters:
+///
+/// * `hashed_msg` - The 32-byte hash of the message that was signed
+/// * `public_key_x_bytes` - The x-coordinate of the public key (32 bytes, big-endian)
+/// * `public_key_y_bytes` - The y-coordinate of the public key (32 bytes, big-endian)
+/// * `signature` - The 64-byte signature in (r, s) format, where r and s are 32 bytes each
+///
+/// Returns `true` if the signature is valid, `false` otherwise.
+///
+/// The function returns an error if the following is not true:
+/// - The signature components `r` and `s` must be non-zero
+/// - The public key point must lie on the Secp256r1 curve
+///
+/// The function do not validate a signature if:
+/// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
+///
+/// The function will panic if `hashed_msg >= p256::NistP256::ORDER`.
+/// According to ECDSA specification, the message hash leftmost bits should be truncated
+/// up to the curve order length, and then reduced modulo the curve order.
 pub(super) fn verify_signature(
     hashed_msg: &[u8],
     public_key_x_bytes: &[u8; 32],
     public_key_y_bytes: &[u8; 32],
     signature: &[u8; 64],
-) -> bool {
+) -> Result<bool, BlackBoxResolutionError> {
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
-        log::warn!("Signature provided for ECDSA verification is zero");
-        return false;
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256r1,
+            "Signature provided for ECDSA verification is zero".to_string(),
+        ));
     };
 
     let point = EncodedPoint::from_affine_coordinates(
@@ -31,15 +59,16 @@ pub(super) fn verify_signature(
     );
 
     let pubkey = PublicKey::from_encoded_point(&point);
-    let pubkey = if pubkey.is_some().into() {
-        pubkey.unwrap()
-    } else {
+    if pubkey.is_none().into() {
         // Public key must sit on the Secp256r1 curve.
-        log::warn!("Invalid public key provided for ECDSA verification");
-        return false;
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256k1,
+            "Invalid public key provided for ECDSA verification".to_string(),
+        ));
     };
+    let pubkey = pubkey.unwrap();
 
-    // Note: This is incorrect as it will panic if `hashed_msg >= p256::NistP256::ORDER`.
+    // Note: This will panic if `hashed_msg >= p256::NistP256::ORDER`.
     // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
     let z = Scalar::from_repr(*GenericArray::from_slice(hashed_msg)).unwrap();
 
@@ -53,7 +82,7 @@ pub(super) fn verify_signature(
         log::warn!(
             "Signature provided for ECDSA verification is not properly normalized (high S value)"
         );
-        return false;
+        return Ok(false);
     }
 
     let s_inv = s.invert().unwrap();
@@ -66,7 +95,7 @@ pub(super) fn verify_signature(
         .to_affine();
 
     match R.to_encoded_point(false).coordinates() {
-        Coordinates::Uncompressed { x, y: _ } => Scalar::from_repr(*x).unwrap().eq(&r),
+        Coordinates::Uncompressed { x, y: _ } => Ok(Scalar::from_repr(*x).unwrap().eq(&r)),
         _ => unreachable!("Point is uncompressed"),
     }
 }
@@ -100,38 +129,34 @@ mod secp256r1_tests {
 
     #[test]
     fn verifies_valid_signature_with_low_s_value() {
-        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
 
         assert!(valid);
     }
 
     #[test]
-    fn rejects_signature_that_doesnt_have_the_full_y_coordinate() {
+    #[should_panic]
+    fn rejects_signature_that_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
-        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE);
-
-        assert!(!valid);
+        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
     }
 
     #[test]
+    #[should_panic]
     fn rejects_invalid_signature() {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
-
-        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature);
-        assert!(!valid);
+        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
     }
 
     #[test]
+    #[should_panic]
     fn rejects_invalid_public_key() {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
-
-        let valid =
-            verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE);
-
-        assert!(!valid);
+        verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
+            .unwrap();
     }
 
     #[test]
@@ -140,7 +165,8 @@ mod secp256r1_tests {
         let mut long_hashed_message = HASHED_MESSAGE.to_vec();
         long_hashed_message.push(0xff);
 
-        let valid = verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        let valid =
+            verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
 
         assert!(valid);
     }

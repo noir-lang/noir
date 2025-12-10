@@ -58,12 +58,12 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let dummy_package = Package {
         version: None,
         compiler_required_version: None,
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from("."),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from("main.nr"),
         name: "stdlib".parse().unwrap(),
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
 
     let (mut context, dummy_crate_id) =
@@ -151,7 +151,7 @@ fn display_test_report(
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        &[diag.clone()],
+                        std::slice::from_ref(diag),
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
                     );
@@ -166,7 +166,7 @@ fn display_test_report(
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[err.clone()],
+                    std::slice::from_ref(err),
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );

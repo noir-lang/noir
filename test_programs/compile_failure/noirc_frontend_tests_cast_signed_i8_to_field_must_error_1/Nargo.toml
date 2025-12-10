@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cast_signed_i8_to_field_must_error_1"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

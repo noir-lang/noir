@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[simple_bitwise] Circuit output: Field(24)
+[simple_bitwise] Circuit output: 24

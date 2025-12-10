@@ -1,13 +1,25 @@
 use std::future::{self, Future};
 
-use async_lsp::{ErrorCode, ResponseError};
+use async_lsp::{
+    ResponseError,
+    lsp_types::{Position, TextDocumentPositionParams},
+};
 
+use fm::{FileId, FileMap, PathString};
 use nargo::{package::Package, workspace::Workspace};
-use noirc_driver::check_crate;
-use noirc_frontend::hir::{FunctionNameMatch, def_map::ModuleId};
+use noirc_driver::CrateId;
+use noirc_frontend::{
+    hir::{
+        FunctionNameMatch,
+        def_map::{DefMaps, ModuleId},
+        get_all_test_functions_in_crate_matching,
+    },
+    node_interner::NodeInterner,
+};
 
 use crate::{
-    LspState, byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
+    LspState, byte_span_to_range,
+    requests::process_request,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
 };
 
@@ -50,192 +62,182 @@ fn on_code_lens_request_inner(
     state: &mut LspState,
     params: CodeLensParams,
 ) -> Result<CodeLensResult, ResponseError> {
-    let file_path = params.text_document.uri.to_file_path().map_err(|_| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-    })?;
+    let Ok(file_path) = params.text_document.uri.to_file_path() else {
+        return Ok(None);
+    };
 
-    if let Some(collected_lenses) = state.cached_lenses.get(&params.text_document.uri.to_string()) {
-        return Ok(Some(collected_lenses.clone()));
-    }
-
-    let source_string = std::fs::read_to_string(&file_path).map_err(|_| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not read file from disk")
-    })?;
-
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-
-    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
-    })?;
-
-    let (mut context, crate_id) = prepare_source(source_string, state);
-    // We ignore the warnings and errors produced by compilation for producing code lenses
-    // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, crate_id, &Default::default());
-
-    let collected_lenses =
-        collect_lenses_for_package(&context, crate_id, &workspace, package, None);
-
-    if collected_lenses.is_empty() {
-        state.cached_lenses.remove(&params.text_document.uri.to_string());
-        Ok(None)
-    } else {
-        state
-            .cached_lenses
-            .insert(params.text_document.uri.to_string().clone(), collected_lenses.clone());
-        Ok(Some(collected_lenses))
-    }
+    let text_document_position_params = TextDocumentPositionParams {
+        text_document: params.text_document,
+        position: Position::new(0, 0),
+    };
+    process_request(state, text_document_position_params, |args| {
+        let file_id = args.files.get_file_id(&PathString::from_path(file_path))?;
+        let collected_lenses = collect_lenses_for_file(
+            file_id,
+            args.workspace,
+            args.package,
+            args.crate_id,
+            args.interner,
+            args.def_maps,
+            args.files,
+        );
+        if collected_lenses.is_empty() { None } else { Some(collected_lenses) }
+    })
 }
 
-pub(crate) fn collect_lenses_for_package(
-    context: &noirc_frontend::hir::Context,
-    crate_id: noirc_frontend::graph::CrateId,
+pub(crate) fn collect_lenses_for_file(
+    current_file: FileId,
     workspace: &Workspace,
     package: &Package,
-    file_path: Option<&std::path::PathBuf>,
+    crate_id: CrateId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+    files: &FileMap,
 ) -> Vec<CodeLens> {
     let mut lenses: Vec<CodeLens> = vec![];
-    let fm = &context.file_manager;
-    let files = fm.as_file_map();
-    let tests =
-        context.get_all_test_functions_in_crate_matching(&crate_id, &FunctionNameMatch::Anything);
-    for (func_name, test_function) in tests {
-        let location = context.function_meta(&test_function.id).name.location;
-        let file_id = location.file;
 
-        // Ignore diagnostics for any file that wasn't the file we saved
-        // TODO: In the future, we could create "related" diagnostics for these files
-        if let Some(file_path) = file_path {
-            if fm.path(file_id).expect("file must exist to contain tests") != *file_path {
-                continue;
-            }
+    let tests = get_all_test_functions_in_crate_matching(
+        crate_id,
+        &FunctionNameMatch::Anything,
+        interner,
+        def_maps,
+    );
+    for (func_name, test_function) in tests {
+        let location = interner.function_meta(&test_function.id).name.location;
+        let file_id = location.file;
+        if file_id != current_file {
+            continue;
         }
 
         let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-        let test_command = Command {
-            title: with_arrow(TEST_CODELENS_TITLE),
-            command: TEST_COMMAND.into(),
-            arguments: Some(
-                [
-                    package_selection_args(workspace, package),
-                    vec!["--exact".into(), "--show-output".into(), func_name.clone().into()],
-                ]
-                .concat(),
-            ),
-        };
-
-        let test_lens = CodeLens { range, command: Some(test_command), data: None };
-
-        lenses.push(test_lens);
-
-        let debug_test_command = Command {
-            title: format!("{GEAR} {DEBUG_TEST_CODELENS_TITLE}"),
-            command: DEBUG_TEST_COMMAND.into(),
-            arguments: Some(
-                [
-                    package_selection_args(workspace, package),
-                    vec!["--exact".into(), func_name.into()],
-                ]
-                .concat(),
-            ),
-        };
-
-        let debug_test_lens = CodeLens { range, command: Some(debug_test_command), data: None };
-
-        lenses.push(debug_test_lens);
+        lenses.push(test_lens(workspace, package, &func_name, range));
+        lenses.push(debug_test_lens(workspace, package, func_name, range));
     }
 
     if package.is_binary() {
-        if let Some(main_func_id) = context.get_main_function(&crate_id) {
-            let location = context.function_meta(&main_func_id).name.location;
+        if let Some(main_func_id) = def_maps[&crate_id].main_function() {
+            let location = interner.function_meta(&main_func_id).name.location;
             let file_id = location.file;
-
-            // Ignore diagnostics for any file that wasn't the file we saved
-            // TODO: In the future, we could create "related" diagnostics for these files
-            if let Some(file_path) = file_path {
-                if fm.path(file_id).expect("file must exist to contain `main` function")
-                    != *file_path
-                {
-                    return lenses;
-                }
+            if file_id == current_file {
+                let range =
+                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+                lenses.push(compile_lens(workspace, package, range));
+                lenses.push(info_lens(workspace, package, range));
+                lenses.push(execute_lens(workspace, package, range));
+                lenses.push(debug_lens(workspace, package, range));
             }
-
-            let range =
-                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-            let compile_command = Command {
-                title: with_arrow(COMPILE_CODELENS_TITLE),
-                command: COMPILE_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
-
-            let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
-
-            lenses.push(compile_lens);
-
-            let internal_command_lenses = [
-                (INFO_CODELENS_TITLE, INFO_COMMAND),
-                (EXECUTE_CODELENS_TITLE, EXECUTE_COMMAND),
-                (DEBUG_CODELENS_TITLE, DEBUG_COMMAND),
-            ]
-            .map(|(title, command)| {
-                let command = Command {
-                    title: title.to_string(),
-                    command: command.into(),
-                    arguments: Some(package_selection_args(workspace, package)),
-                };
-                CodeLens { range, command: Some(command), data: None }
-            });
-
-            lenses.append(&mut Vec::from(internal_command_lenses));
         }
     }
 
     if package.is_contract() {
         // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-        let def_map =
-            context.def_map(&crate_id).expect("The local crate should be analyzed already");
+        let def_map = def_maps.get(&crate_id).expect("The local crate should be analyzed already");
 
         for contract in def_map
             .get_all_contracts()
-            .map(|(local_id, _)| context.module(ModuleId { krate: crate_id, local_id }))
+            .map(|(local_id, _)| ModuleId { krate: crate_id, local_id }.module(def_maps))
         {
             let location = contract.location;
             let file_id = location.file;
-
-            // Ignore diagnostics for any file that wasn't the file we saved
-            // TODO: In the future, we could create "related" diagnostics for these files
-            if let Some(file_path) = file_path {
-                if fm.path(file_id).expect("file must exist to contain a contract") != *file_path {
-                    continue;
-                }
+            if file_id != current_file {
+                continue;
             }
 
             let range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-            let compile_command = Command {
-                title: with_arrow(COMPILE_CODELENS_TITLE),
-                command: COMPILE_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
-
-            let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
-
-            lenses.push(compile_lens);
-
-            let info_command = Command {
-                title: INFO_CODELENS_TITLE.to_string(),
-                command: INFO_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
-
-            let info_lens = CodeLens { range, command: Some(info_command), data: None };
-
-            lenses.push(info_lens);
+            lenses.push(compile_lens(workspace, package, range));
+            lenses.push(info_lens(workspace, package, range));
         }
     }
 
     lenses
+}
+
+fn info_lens(
+    workspace: &Workspace,
+    package: &Package,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let info_command = Command {
+        title: INFO_CODELENS_TITLE.to_string(),
+        command: INFO_COMMAND.into(),
+        arguments: Some(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: Some(info_command), data: None }
+}
+
+fn execute_lens(
+    workspace: &Workspace,
+    package: &Package,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let info_command = Command {
+        title: EXECUTE_CODELENS_TITLE.to_string(),
+        command: EXECUTE_COMMAND.into(),
+        arguments: Some(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: Some(info_command), data: None }
+}
+
+fn debug_lens(
+    workspace: &Workspace,
+    package: &Package,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let info_command = Command {
+        title: DEBUG_CODELENS_TITLE.to_string(),
+        command: DEBUG_COMMAND.into(),
+        arguments: Some(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: Some(info_command), data: None }
+}
+
+fn compile_lens(
+    workspace: &Workspace,
+    package: &Package,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let compile_command = Command {
+        title: with_arrow(COMPILE_CODELENS_TITLE),
+        command: COMPILE_COMMAND.into(),
+        arguments: Some(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: Some(compile_command), data: None }
+}
+
+fn test_lens(
+    workspace: &Workspace,
+    package: &Package,
+    func_name: &str,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let test_command = Command {
+        title: with_arrow(TEST_CODELENS_TITLE),
+        command: TEST_COMMAND.into(),
+        arguments: Some(
+            [
+                package_selection_args(workspace, package),
+                vec!["--exact".into(), "--show-output".into(), func_name.into()],
+            ]
+            .concat(),
+        ),
+    };
+    CodeLens { range, command: Some(test_command), data: None }
+}
+
+fn debug_test_lens(
+    workspace: &Workspace,
+    package: &Package,
+    func_name: String,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let debug_test_command = Command {
+        title: format!("{GEAR} {DEBUG_TEST_CODELENS_TITLE}"),
+        command: DEBUG_TEST_COMMAND.into(),
+        arguments: Some(
+            [package_selection_args(workspace, package), vec!["--exact".into(), func_name.into()]]
+                .concat(),
+        ),
+    };
+    CodeLens { range, command: Some(debug_test_command), data: None }
 }

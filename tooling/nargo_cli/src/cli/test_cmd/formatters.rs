@@ -132,7 +132,7 @@ impl Formatter for PrettyFormatter {
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        &[diag.clone()],
+                        std::slice::from_ref(diag),
                         deny_warnings,
                         silence_warnings,
                     );
@@ -148,7 +148,7 @@ impl Formatter for PrettyFormatter {
             TestStatus::CompileError(file_diagnostic) => {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[file_diagnostic.clone()],
+                    std::slice::from_ref(file_diagnostic),
                     deny_warnings,
                     silence_warnings,
                 );
@@ -184,14 +184,14 @@ impl Formatter for PrettyFormatter {
 
         if !failed_tests.is_empty() {
             writeln!(writer)?;
-            writeln!(writer, "[{}] Failures:", package_name)?;
+            writeln!(writer, "[{package_name}] Failures:")?;
             for failed_test in failed_tests {
-                writeln!(writer, "     {}", failed_test)?;
+                writeln!(writer, "     {failed_test}")?;
             }
             writeln!(writer)?;
         }
 
-        write!(writer, "[{}] ", package_name)?;
+        write!(writer, "[{package_name}] ")?;
 
         let count_all = test_results.len();
         let count_failed =
@@ -284,7 +284,7 @@ impl Formatter for TerseFormatter {
         const MAX_TESTS_PER_LINE: usize = 88;
 
         if current_test_count % MAX_TESTS_PER_LINE == 0 && current_test_count < total_test_count {
-            writeln!(writer, " {}/{}", current_test_count, total_test_count)?;
+            writeln!(writer, " {current_test_count}/{total_test_count}")?;
         }
 
         Ok(())
@@ -322,7 +322,7 @@ impl Formatter for TerseFormatter {
                         if let Some(diag) = error_diagnostic {
                             noirc_errors::reporter::report_all(
                                 file_manager.as_file_map(),
-                                &[diag.clone()],
+                                std::slice::from_ref(diag),
                                 deny_warnings,
                                 silence_warnings,
                             );
@@ -331,7 +331,7 @@ impl Formatter for TerseFormatter {
                     TestStatus::CompileError(file_diagnostic) => {
                         noirc_errors::reporter::report_all(
                             file_manager.as_file_map(),
-                            &[file_diagnostic.clone()],
+                            std::slice::from_ref(file_diagnostic),
                             deny_warnings,
                             silence_warnings,
                         );
@@ -350,14 +350,14 @@ impl Formatter for TerseFormatter {
 
         if !failed_tests.is_empty() {
             writeln!(writer)?;
-            writeln!(writer, "[{}] Failures:", package_name)?;
+            writeln!(writer, "[{package_name}] Failures:")?;
             for failed_test in failed_tests {
-                writeln!(writer, "     {}", failed_test)?;
+                writeln!(writer, "     {failed_test}")?;
             }
             writeln!(writer)?;
         }
 
-        write!(writer, "[{}] ", package_name)?;
+        write!(writer, "[{package_name}] ")?;
 
         let count_all = test_results.len();
         let count_failed =

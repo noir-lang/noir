@@ -1,5 +1,6 @@
 ---
 title: FunctionDefinition
+description: Inspect and mutate function definitions in `comptime`—read signatures, body, attributes, and adjust parameters or return types.
 ---
 
 `std::meta::function_def` contains methods on the built-in `FunctionDefinition` type representing
@@ -112,6 +113,15 @@ This means any functions called at compile-time are invalid targets for this met
 Mutates the function to be unconstrained (if `true` is given) or not (if `false` is given).
 This is only valid on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
+
+### visibility
+
+#include_code visibility noir_stdlib/src/meta/function_def.nr rust
+
+Returns the function's visibility as a `Quoted` value, which will be one of:
+- `quote { }`: the function is private
+- `quote { pub }`: the function is `pub`
+- `quote { pub(crate) }`: the function is `pub(crate)`
 
 ## Trait Implementations
 

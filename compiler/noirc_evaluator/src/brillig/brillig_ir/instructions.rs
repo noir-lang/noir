@@ -9,7 +9,7 @@ use acvm::{
     },
 };
 
-use crate::ssa::ir::function::FunctionId;
+use crate::{brillig::brillig_ir::registers::Allocated, ssa::ir::function::FunctionId};
 
 use super::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
@@ -72,6 +72,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 Self::binary_result_bit_size(op, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ),
             op,
+        );
+    }
+
+    /// Increase the value at a pointer in place by 1.
+    pub(crate) fn memory_op_inc_by_usize_one(&mut self, address: MemoryAddress) {
+        self.memory_op_instruction(
+            address,
+            ReservedRegisters::usize_one(),
+            address,
+            BrilligBinaryOp::Add,
         );
     }
 
@@ -158,20 +168,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let bit_size = left.bit_size;
         assert!(bit_size != BitSize::Field.to_u32::<F>(), "Attempt to modulo fields");
 
-        let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
+        let scratch_var_i = self.allocate_single_addr(bit_size);
+        let scratch_var_j = self.allocate_single_addr(bit_size);
 
         // i = left / right
-        self.binary(left, right, scratch_var_i, BrilligBinaryOp::UnsignedDiv);
+        self.binary(left, right, *scratch_var_i, BrilligBinaryOp::UnsignedDiv);
 
         // j = i * right
-        self.binary(scratch_var_i, right, scratch_var_j, BrilligBinaryOp::Mul);
+        self.binary(*scratch_var_i, right, *scratch_var_j, BrilligBinaryOp::Mul);
 
         // result_register = left - j
-        self.binary(left, scratch_var_j, result, BrilligBinaryOp::Sub);
-        // Free scratch registers
-        self.deallocate_single_addr(scratch_var_i);
-        self.deallocate_single_addr(scratch_var_j);
+        self.binary(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
     }
 
     fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {
@@ -183,7 +190,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    /// Processes a foreign call instruction.
+    /// Push an opcode to processes a foreign call instruction.
     ///
     /// Note: the function being called is external and will
     /// not be linked during brillig generation.
@@ -251,19 +258,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.add_unresolved_jump(jmp_instruction, destination);
     }
 
-    /// Adds a label to the next opcode
+    /// Adds a context and a section label to the next opcode.
+    ///
+    /// Entering a context resets the current section to 0 and the next section to 1.
     pub(crate) fn enter_context(&mut self, label: Label) {
+        debug_assert!(label.section.is_none(), "new context should have no section");
         self.debug_show.enter_context(label.to_string());
         self.context_label = label.clone();
-        self.current_section = 0;
         // Add a context label to the next opcode
         self.obj.add_label_at_position(label, self.obj.index_of_next_opcode());
-        // Add a section label to the next opcode
-        self.obj
-            .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+        self.enter_section(0);
+        self.next_section = 1;
     }
 
-    /// Enter the given section within a basic block
+    /// Enter the given section within a basic block.
     pub(super) fn enter_section(&mut self, section: usize) {
         self.current_section = section;
         self.obj
@@ -279,7 +287,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Internal function used to compute the section labels
     fn compute_section_label(&self, section: usize) -> Label {
-        self.context_label.add_section(section)
+        self.context_label.with_section(section)
     }
 
     /// Returns the current section label
@@ -305,6 +313,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 
+    /// Push an opcode to load the current value of the _free memory pointer_ into the `pointer_register`.
     pub(crate) fn load_free_memory_pointer_instruction(&mut self, pointer_register: MemoryAddress) {
         self.debug_show.mov_instruction(pointer_register, ReservedRegisters::free_memory_pointer());
         self.push_opcode(BrilligOpcode::Mov {
@@ -313,6 +322,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
+    /// Push an opcode to increase the _free memory pointer_ by the value stored in `size_register`.
     pub(crate) fn increase_free_memory_pointer_instruction(
         &mut self,
         size_register: MemoryAddress,
@@ -325,7 +335,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// Emits a store instruction
+    /// Push an opcode to store the value at `source` address into the address under `destination_pointer`.
     pub(crate) fn store_instruction(
         &mut self,
         destination_pointer: MemoryAddress,
@@ -335,7 +345,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
-    /// Emits a load instruction
+    /// Push an opcode to load a value from the address under `source_pointer` into the `destination` address.
     pub(crate) fn load_instruction(
         &mut self,
         destination: MemoryAddress,
@@ -371,13 +381,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the `result` register.
     pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: F) {
         self.debug_show.const_instruction(result.address, constant);
         self.constant(result.address, result.bit_size, constant, false);
     }
 
-    /// Stores the value of `constant` in the result_pointer
+    /// Stores the value of `constant` in the register pointed at by `result_pointer`.
     pub(crate) fn indirect_const_instruction(
         &mut self,
         result_pointer: MemoryAddress,
@@ -388,12 +398,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.constant(result_pointer, bit_size, constant, true);
     }
 
+    /// Pushes a [IndirectConst][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
-            "Constant {} does not fit in bit size {}",
-            constant,
-            bit_size
+            "Constant {constant} does not fit in bit size {bit_size}"
         );
         if indirect {
             self.push_opcode(BrilligOpcode::IndirectConst {
@@ -410,47 +419,52 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
+    /// Stores the value of `constant` at the `result` address.
     pub(crate) fn usize_const_instruction(&mut self, result: MemoryAddress, constant: F) {
         self.const_instruction(SingleAddrVariable::new_usize(result), constant);
     }
 
-    /// Returns a register which holds the value of a constant
+    /// Returns a register which holds the value of a constant.
     pub(crate) fn make_constant_instruction(
         &mut self,
         constant: F,
         bit_size: u32,
-    ) -> SingleAddrVariable {
-        let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        self.const_instruction(var, constant);
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        let var = self.allocate_single_addr(bit_size);
+        self.const_instruction(*var, constant);
         var
     }
 
-    /// Returns a register which holds the value of an usize constant
-    pub(crate) fn make_usize_constant_instruction(&mut self, constant: F) -> SingleAddrVariable {
+    /// Returns a register which holds the value of an `usize` constant.
+    pub(crate) fn make_usize_constant_instruction(
+        &mut self,
+        constant: F,
+    ) -> Allocated<SingleAddrVariable, Registers> {
         let register = self.allocate_register();
-        self.usize_const_instruction(register, constant);
-        SingleAddrVariable::new_usize(register)
+        self.usize_const_instruction(*register, constant);
+        register.map(SingleAddrVariable::new_usize)
     }
 
+    /// Pushes a [CalldataCopy][BrilligOpcode::CalldataCopy] opcode to copy the calldata
+    /// at a specific offset with and size to the `destination` address.
     pub(super) fn calldata_copy_instruction(
         &mut self,
         destination: MemoryAddress,
         calldata_size: usize,
-        offset: usize,
+        calldata_offset: usize,
     ) {
-        self.debug_show.calldata_copy_instruction(destination, calldata_size, offset);
+        self.debug_show.calldata_copy_instruction(destination, calldata_size, calldata_offset);
 
         let size_var = self.make_usize_constant_instruction(calldata_size.into());
-        let offset_var = self.make_usize_constant_instruction(offset.into());
+        let offset_var = self.make_usize_constant_instruction(calldata_offset.into());
         self.push_opcode(BrilligOpcode::CalldataCopy {
             destination_address: destination,
             size_address: size_var.address,
             offset_address: offset_var.address,
         });
-        self.deallocate_single_addr(size_var);
-        self.deallocate_single_addr(offset_var);
     }
 
+    /// Pushes a [Trap][BrilligOpcode::Trap] opcode.
     pub(super) fn trap_instruction(&mut self, revert_data: HeapVector) {
         self.debug_show.trap_instruction(revert_data);
 
@@ -489,7 +503,7 @@ impl From<BrilligBinaryOp> for BinaryFieldOp {
             BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
-            _ => panic!("Unsupported operation: {:?} on a field", operation),
+            _ => panic!("Unsupported operation: {operation:?} on a field"),
         }
     }
 }
@@ -509,7 +523,7 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Xor => BinaryIntOp::Xor,
             BrilligBinaryOp::Shl => BinaryIntOp::Shl,
             BrilligBinaryOp::Shr => BinaryIntOp::Shr,
-            _ => panic!("Unsupported operation: {:?} on an integer", operation),
+            _ => panic!("Unsupported operation: {operation:?} on an integer"),
         }
     }
 }

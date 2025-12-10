@@ -1,0 +1,6 @@
+[package]
+name = "assign_to_nested_global"
+type = "bin"
+authors = [""]
+
+[dependencies]

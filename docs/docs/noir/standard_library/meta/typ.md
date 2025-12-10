@@ -1,5 +1,6 @@
 ---
 title: Type
+description: Represent and analyze types at compile time—query structure, check trait bounds, and resolve trait impls.
 ---
 
 `std::meta::typ` contains methods on the built-in `Type` type used for representing

@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use acvm::{
     FieldElement,
     acir::{AcirField, brillig::BitSize},
@@ -5,7 +7,10 @@ use acvm::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::ssa::ir::types::Type;
+use crate::{
+    brillig::brillig_ir::registers::{Allocated, RegisterAllocator},
+    ssa::ir::types::Type,
+};
 
 use super::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
 
@@ -29,10 +34,14 @@ impl SingleAddrVariable {
     }
 }
 
-/// The representation of a noir array in the Brillig IR
+/// The representation of a Noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
     pub(crate) pointer: MemoryAddress,
+    /// The number of memory slots the array occupies.
+    ///
+    /// This is the flattened size of the array, where complex types
+    /// take up more than one slot.
     pub(crate) size: usize,
 }
 
@@ -51,13 +60,19 @@ pub(crate) enum BrilligVariable {
 }
 
 impl BrilligVariable {
+    /// Extract a [SingleAddrVariable].
+    ///
+    /// Panics if the variable is an array or vector.
     pub(crate) fn extract_single_addr(self) -> SingleAddrVariable {
         match self {
             BrilligVariable::SingleAddr(single_addr) => single_addr,
-            _ => unreachable!("ICE: Expected register, got {self:?}"),
+            _ => unreachable!("ICE: Expected single address, got {self:?}"),
         }
     }
 
+    /// Extract a [BrilligArray].
+    ///
+    /// Panics if it's a single address variable or a vector.
     pub(crate) fn extract_array(self) -> BrilligArray {
         match self {
             BrilligVariable::BrilligArray(array) => array,
@@ -65,6 +80,9 @@ impl BrilligVariable {
         }
     }
 
+    /// Extract a [BrilligVector].
+    ///
+    /// Panics if it's a single address variable or an array.
     pub(crate) fn extract_vector(self) -> BrilligVector {
         match self {
             BrilligVariable::BrilligVector(vector) => vector,
@@ -72,6 +90,11 @@ impl BrilligVariable {
         }
     }
 
+    /// Extract the [MemoryAddress] out of any [BrilligVariable].
+    ///
+    /// This can be deallocated to make the memory available for reuse.
+    ///
+    /// Note that this is a single address even for vectors, because this is a `BrilligVector`, not a `HeapVector`.
     pub(crate) fn extract_register(self) -> MemoryAddress {
         match self {
             BrilligVariable::SingleAddr(single_addr) => single_addr.address,
@@ -81,6 +104,48 @@ impl BrilligVariable {
     }
 }
 
+impl From<SingleAddrVariable> for BrilligVariable {
+    fn from(value: SingleAddrVariable) -> Self {
+        Self::SingleAddr(value)
+    }
+}
+
+impl From<BrilligArray> for BrilligVariable {
+    fn from(value: BrilligArray) -> Self {
+        Self::BrilligArray(value)
+    }
+}
+
+impl From<BrilligVector> for BrilligVariable {
+    fn from(value: BrilligVector) -> Self {
+        Self::BrilligVector(value)
+    }
+}
+
+impl<T, R: RegisterAllocator> From<&Allocated<T, R>> for BrilligVariable
+where
+    BrilligVariable: From<T>,
+    T: Copy,
+{
+    fn from(value: &Allocated<T, R>) -> Self {
+        Self::from(*value.deref())
+    }
+}
+
+/// Convenience method to convert e.g. an `Allocated<BrilligArray, _>` to a `BrilligVariable`.
+#[cfg(test)]
+impl<T, R: RegisterAllocator> Allocated<T, R>
+where
+    BrilligVariable: From<T>,
+    T: Copy,
+{
+    /// Convert the allocated value into a [BrilligVariable].
+    pub(crate) fn to_var(&self) -> BrilligVariable {
+        BrilligVariable::from(**self)
+    }
+}
+
+/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(

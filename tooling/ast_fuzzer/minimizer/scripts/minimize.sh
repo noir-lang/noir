@@ -2,7 +2,7 @@
 
 function usage {
     echo $1
-    echo "usage: ./minimize.sh 'error message' (compile|execute) path/to/main.nr [path/to/Prover.toml]"
+    echo "usage: ./minimize.sh 'error message' (compile|execute) [compile options...] path/to/main.nr [path/to/Prover.toml]"
     exit 1
 }
 
@@ -16,7 +16,25 @@ if [ -z "$CMD" ]; then
     usage "missing command"
 fi
 
-MAIN_PATH=$1; shift
+# Grab everything until we hit a .nr file. These are our compile options.
+OPTIONS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        *.nr)
+            MAIN_PATH=$1
+            shift
+            break
+            ;;
+        *)
+            OPTIONS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Build a string from the array of options
+OPTIONS="${OPTIONS[*]}"
+
 if [ -z "$MAIN_PATH" ]; then
     usage "missing path to main.nr"
 fi
@@ -47,4 +65,5 @@ exec docker run --init -it --rm \
     -v "$PROVER_PATH":/noir/Prover.toml \
     -e MSG="$MSG" \
     -e CMD="$CMD" \
+    -e OPTIONS="$OPTIONS" \
     noir-minimizer

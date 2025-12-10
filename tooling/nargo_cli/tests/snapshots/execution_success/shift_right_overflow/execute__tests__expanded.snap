@@ -3,6 +3,6 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u8) {
-    let value: u32 = 1_u32 >> x;
+    let value: u32 = 1_u32 >> 7_u32;
     assert(value == 0_u32);
 }

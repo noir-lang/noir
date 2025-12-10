@@ -1,0 +1,1023 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Trait1a {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 7892_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        43278_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct1a {
+    vl: Field,
+}
+
+impl Trait1a for Struct1a {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 7892_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        43278_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait1b {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 2832_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        9323_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct1b {
+    vl: Field,
+}
+
+impl Trait1b for Struct1b {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 2832_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        2394_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait1c {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 7635_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field;
+
+    fn vl(self) -> Field;
+}
+
+struct Struct1c {
+    vl: Field,
+}
+
+impl Trait1c for Struct1c {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 7635_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        5485_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait1d {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 2825_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        29341_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct1d {
+    vl: Field,
+}
+
+impl Trait1d for Struct1d {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 9342_Field) - self.vl
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        29341_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait1e {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 85465_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        2381_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct1e {
+    vl: Field,
+}
+
+impl Trait1e for Struct1e {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 47324_Field) - self.vl
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        58945_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait1f {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 43257_Field) - self.vl()
+    }
+
+    fn trait_method2(self) -> Field;
+
+    fn vl(self) -> Field;
+}
+
+struct Struct1f {
+    vl: Field,
+}
+
+impl Trait1f for Struct1f {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 34875_Field) - self.vl
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        5748_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait1g {
+    fn trait_method1(self) -> Field;
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        37845_Field
+    }
+}
+
+struct Struct1g {
+    vl: Field,
+}
+
+impl Trait1g for Struct1g {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 7854_Field) - self.vl
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        37845_Field
+    }
+}
+
+trait Trait1h {
+    fn trait_method1(self) -> Field;
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        7823_Field
+    }
+}
+
+struct Struct1h {
+    vl: Field,
+}
+
+impl Trait1h for Struct1h {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 3482_Field) - self.vl
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        8542_Field
+    }
+}
+
+trait Trait1i {
+    fn trait_method1(self) -> Field;
+
+    fn trait_method2(self) -> Field;
+}
+
+struct Struct1i {
+    vl: Field,
+}
+
+impl Trait1i for Struct1i {
+    fn trait_method1(self) -> Field {
+        (self.trait_method2() * 23478_Field) - self.vl
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        98543_Field
+    }
+}
+
+trait Trait2a {
+    fn trait_method1(self) -> Field {
+        (Trait2a::trait_function2() * 2385_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        7843_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct2a {
+    vl: Field,
+}
+
+impl Trait2a for Struct2a {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 2385_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        7843_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait2b {
+    fn trait_method1(self) -> Field {
+        (Trait2b::trait_function2() * 6583_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        3752_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct2b {
+    vl: Field,
+}
+
+impl Trait2b for Struct2b {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 6583_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        8477_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait2c {
+    fn trait_method1(self) -> Field {
+        (Trait2c::trait_function2() * 2831_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field;
+
+    fn vl(self) -> Field;
+}
+
+struct Struct2c {
+    vl: Field,
+}
+
+impl Trait2c for Struct2c {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 2831_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        8342_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait2d {
+    fn trait_method1(self) -> Field {
+        (Trait2d::trait_function2() * 924_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        384_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct2d {
+    vl: Field,
+}
+
+impl Trait2d for Struct2d {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 3984_Field) - self.vl
+    }
+
+    fn trait_function2() -> Field {
+        384_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait2e {
+    fn trait_method1(self) -> Field {
+        (Trait2e::trait_function2() * 3642_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field {
+        97342_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct2e {
+    vl: Field,
+}
+
+impl Trait2e for Struct2e {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 7363_Field) - self.vl
+    }
+
+    fn trait_function2() -> Field {
+        39400_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait2f {
+    fn trait_method1(self) -> Field {
+        (Trait2f::trait_function2() * 2783_Field) - self.vl()
+    }
+
+    fn trait_function2() -> Field;
+
+    fn vl(self) -> Field;
+}
+
+struct Struct2f {
+    vl: Field,
+}
+
+impl Trait2f for Struct2f {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 6362_Field) - self.vl
+    }
+
+    fn trait_function2() -> Field {
+        72311_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait2g {
+    fn trait_method1(self) -> Field;
+
+    fn trait_function2() -> Field {
+        19273_Field
+    }
+}
+
+struct Struct2g {
+    vl: Field,
+}
+
+impl Trait2g for Struct2g {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 9123_Field) - self.vl
+    }
+
+    fn trait_function2() -> Field {
+        19273_Field
+    }
+}
+
+trait Trait2h {
+    fn trait_method1(self) -> Field;
+
+    fn trait_function2() -> Field {
+        1281_Field
+    }
+}
+
+struct Struct2h {
+    vl: Field,
+}
+
+impl Trait2h for Struct2h {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 4833_Field) - self.vl
+    }
+
+    fn trait_function2() -> Field {
+        5335_Field
+    }
+}
+
+trait Trait2i {
+    fn trait_method1(self) -> Field;
+
+    fn trait_function2() -> Field;
+}
+
+struct Struct2i {
+    vl: Field,
+}
+
+impl Trait2i for Struct2i {
+    fn trait_method1(self) -> Field {
+        (Self::trait_function2() * 2291_Field) - self.vl
+    }
+
+    fn trait_function2() -> Field {
+        3322_Field
+    }
+}
+
+trait Trait3a {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 8344_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        19212_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct3a {
+    vl: Field,
+}
+
+impl Trait3a for Struct3a {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 8344_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        19212_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait3b {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 9233_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        9111_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct3b {
+    vl: Field,
+}
+
+impl Trait3b for Struct3b {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 9233_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        2392_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait3c {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 2822_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field;
+
+    fn vl(self) -> Field;
+}
+
+struct Struct3c {
+    vl: Field,
+}
+
+impl Trait3c for Struct3c {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 2822_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        7743_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait3d {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 291_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        3328_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct3d {
+    vl: Field,
+}
+
+impl Trait3d for Struct3d {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 4933_Field) - b.vl) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        3328_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait3e {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 71231_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        373_Field
+    }
+
+    fn vl(self) -> Field;
+}
+
+struct Struct3e {
+    vl: Field,
+}
+
+impl Trait3e for Struct3e {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 81232_Field) - b.vl) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        80002_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait3f {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 28223_Field) - b.vl()) + a
+    }
+
+    fn trait_method2(self) -> Field;
+
+    fn vl(self) -> Field;
+}
+
+struct Struct3f {
+    vl: Field,
+}
+
+impl Trait3f for Struct3f {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 29223_Field) - b.vl) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        63532_Field
+    }
+
+    fn vl(self) -> Field {
+        self.vl
+    }
+}
+
+trait Trait3g {
+    fn trait_function1(a: Field, b: Self) -> Field;
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        8887_Field
+    }
+}
+
+struct Struct3g {
+    vl: Field,
+}
+
+impl Trait3g for Struct3g {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 31337_Field) - b.vl) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        8887_Field
+    }
+}
+
+trait Trait3h {
+    fn trait_function1(a: Field, b: Self) -> Field;
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        293_Field
+    }
+}
+
+struct Struct3h {
+    vl: Field,
+}
+
+impl Trait3h for Struct3h {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 74747_Field) - b.vl) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        6283_Field
+    }
+}
+
+trait Trait3i {
+    fn trait_function1(a: Field, b: Self) -> Field;
+
+    fn trait_method2(self) -> Field;
+}
+
+struct Struct3i {
+    vl: Field,
+}
+
+impl Trait3i for Struct3i {
+    fn trait_function1(a: Field, b: Self) -> Field {
+        ((b.trait_method2() * 1237_Field) - b.vl) + a
+    }
+
+    fn trait_method2(self) -> Field {
+        let _: Self = self;
+        84352_Field
+    }
+}
+
+trait Trait4a {
+    fn trait_function1() -> Field {
+        Trait4a::trait_function2() * 3842_Field
+    }
+
+    fn trait_function2() -> Field {
+        2932_Field
+    }
+}
+
+pub struct Struct4a {
+    vl: Field,
+}
+
+impl Trait4a for Struct4a {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 3842_Field
+    }
+
+    fn trait_function2() -> Field {
+        2932_Field
+    }
+}
+
+trait Trait4b {
+    fn trait_function1() -> Field {
+        Trait4b::trait_function2() * 3842_Field
+    }
+
+    fn trait_function2() -> Field {
+        2932_Field
+    }
+}
+
+pub struct Struct4b {
+    vl: Field,
+}
+
+impl Trait4b for Struct4b {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 3842_Field
+    }
+
+    fn trait_function2() -> Field {
+        9353_Field
+    }
+}
+
+trait Trait4c {
+    fn trait_function1() -> Field {
+        Trait4c::trait_function2() * 7832_Field
+    }
+
+    fn trait_function2() -> Field;
+}
+
+pub struct Struct4c {
+    vl: Field,
+}
+
+impl Trait4c for Struct4c {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 7832_Field
+    }
+
+    fn trait_function2() -> Field {
+        2928_Field
+    }
+}
+
+trait Trait4d {
+    fn trait_function1() -> Field {
+        Trait4d::trait_function2() * 2283_Field
+    }
+
+    fn trait_function2() -> Field {
+        9332_Field
+    }
+}
+
+pub struct Struct4d {
+    vl: Field,
+}
+
+impl Trait4d for Struct4d {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 8374_Field
+    }
+
+    fn trait_function2() -> Field {
+        9332_Field
+    }
+}
+
+trait Trait4e {
+    fn trait_function1() -> Field {
+        Trait4e::trait_function2() * 94329_Field
+    }
+
+    fn trait_function2() -> Field {
+        28328_Field
+    }
+}
+
+pub struct Struct4e {
+    vl: Field,
+}
+
+impl Trait4e for Struct4e {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 12323_Field
+    }
+
+    fn trait_function2() -> Field {
+        38434_Field
+    }
+}
+
+trait Trait4f {
+    fn trait_function1() -> Field {
+        Trait4f::trait_function2() * 23723_Field
+    }
+
+    fn trait_function2() -> Field;
+}
+
+pub struct Struct4f {
+    vl: Field,
+}
+
+impl Trait4f for Struct4f {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 21392_Field
+    }
+
+    fn trait_function2() -> Field {
+        4394_Field
+    }
+}
+
+trait Trait4g {
+    fn trait_function1() -> Field;
+
+    fn trait_function2() -> Field {
+        2932_Field
+    }
+}
+
+pub struct Struct4g {
+    vl: Field,
+}
+
+impl Trait4g for Struct4g {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 3345_Field
+    }
+
+    fn trait_function2() -> Field {
+        2932_Field
+    }
+}
+
+trait Trait4h {
+    fn trait_function1() -> Field;
+
+    fn trait_function2() -> Field {
+        5756_Field
+    }
+}
+
+pub struct Struct4h {
+    vl: Field,
+}
+
+impl Trait4h for Struct4h {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 6478_Field
+    }
+
+    fn trait_function2() -> Field {
+        5435_Field
+    }
+}
+
+trait Trait4i {
+    fn trait_function1() -> Field;
+
+    fn trait_function2() -> Field;
+}
+
+pub struct Struct4i {
+    vl: Field,
+}
+
+impl Trait4i for Struct4i {
+    fn trait_function1() -> Field {
+        Self::trait_function2() * 8239_Field
+    }
+
+    fn trait_function2() -> Field {
+        2032_Field
+    }
+}
+
+fn main() {
+    let t1a: Struct1a = Struct1a { vl: 1234_Field };
+    assert(t1a.trait_method1() == 341548742_Field);
+    let t1b: Struct1b = Struct1b { vl: 4444_Field };
+    assert(t1b.trait_method1() == 6775364_Field);
+    let t1c: Struct1c = Struct1c { vl: 3946_Field };
+    assert(t1c.trait_method1() == 41874029_Field);
+    let t1d: Struct1d = Struct1d { vl: 9234_Field };
+    assert(t1d.trait_method1() == 274094388_Field);
+    let t1e: Struct1e = Struct1e { vl: 5438_Field };
+    assert(t1e.trait_method1() == 2789507742_Field);
+    let t1f: Struct1f = Struct1f { vl: 6237_Field };
+    assert(t1f.trait_method1() == 200455263_Field);
+    let t1g: Struct1g = Struct1g { vl: 43587_Field };
+    assert(t1g.trait_method1() == 297191043_Field);
+    let t1h: Struct1h = Struct1h { vl: 3984_Field };
+    assert(t1h.trait_method1() == 29739260_Field);
+    let t1i: Struct1i = Struct1i { vl: 9234_Field };
+    assert(t1i.trait_method1() == 2313583320_Field);
+    let t2a: Struct2a = Struct2a { vl: 4362_Field };
+    assert(t2a.trait_method1() == 18701193_Field);
+    let t2b: Struct2b = Struct2b { vl: 8347_Field };
+    assert(t2b.trait_method1() == 55795744_Field);
+    let t2c: Struct2c = Struct2c { vl: 1923_Field };
+    assert(t2c.trait_method1() == 23614279_Field);
+    let t2d: Struct2d = Struct2d { vl: 92384_Field };
+    assert(t2d.trait_method1() == 1437472_Field);
+    let t2e: Struct2e = Struct2e { vl: 83943_Field };
+    assert(t2e.trait_method1() == 290018257_Field);
+    let t2f: Struct2f = Struct2f { vl: 8237_Field };
+    assert(t2f.trait_method1() == 460034345_Field);
+    let t2g: Struct2g = Struct2g { vl: 1232_Field };
+    assert(t2g.trait_method1() == 175826347_Field);
+    let t2h: Struct2h = Struct2h { vl: 7222_Field };
+    assert(t2h.trait_method1() == 25776833_Field);
+    let t2i: Struct2i = Struct2i { vl: 1821_Field };
+    assert(t2i.trait_method1() == 7608881_Field);
+    let t3a: Struct3a = Struct3a { vl: 93248_Field };
+    assert(Struct3a::trait_function1(5_Field, t3a) == 160211685_Field);
+    let t3b: Struct3b = Struct3b { vl: 76763_Field };
+    assert(Struct3b::trait_function1(62_Field, t3b) == 22008635_Field);
+    let t3c: Struct3c = Struct3c { vl: 3833_Field };
+    assert(Struct3c::trait_function1(25_Field, t3c) == 21846938_Field);
+    let t3d: Struct3d = Struct3d { vl: 5645_Field };
+    assert(Struct3d::trait_function1(73_Field, t3d) == 16411452_Field);
+    let t3e: Struct3e = Struct3e { vl: 22912_Field };
+    assert(Struct3e::trait_function1(92_Field, t3e) == 6498699644_Field);
+    let t3f: Struct3f = Struct3f { vl: 3256_Field };
+    assert(Struct3f::trait_function1(77_Field, t3f) == 1856592457_Field);
+    let t3g: Struct3g = Struct3g { vl: 22832_Field };
+    assert(Struct3g::trait_function1(23_Field, t3g) == 278469110_Field);
+    let t3h: Struct3h = Struct3h { vl: 4933_Field };
+    assert(Struct3h::trait_function1(17_Field, t3h) == 469630485_Field);
+    let t3i: Struct3i = Struct3i { vl: 39432_Field };
+    assert(Struct3i::trait_function1(54_Field, t3i) == 104304046_Field);
+    assert(Struct4a::trait_function1() == 11264744_Field);
+    assert(Struct4b::trait_function1() == 35934226_Field);
+    assert(Struct4c::trait_function1() == 22932096_Field);
+    assert(Struct4d::trait_function1() == 78146168_Field);
+    assert(Struct4e::trait_function1() == 473622182_Field);
+    assert(Struct4f::trait_function1() == 93996448_Field);
+    assert(Struct4g::trait_function1() == 9807540_Field);
+    assert(Struct4h::trait_function1() == 35207930_Field);
+    assert(Struct4i::trait_function1() == 16741648_Field);
+}

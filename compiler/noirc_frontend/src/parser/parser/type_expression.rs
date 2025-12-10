@@ -2,10 +2,10 @@ use crate::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserError, labels::ParsingRuleLabel},
+    signed_field::SignedField,
     token::Token,
 };
 
-use acvm::acir::{AcirField, FieldElement};
 use noirc_errors::Location;
 
 use super::{Parser, parse_many::separated_by_comma_until_right_paren};
@@ -117,7 +117,7 @@ impl Parser<'_> {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
+                        SignedField::zero(),
                         None,
                         start_location,
                     );
@@ -143,6 +143,7 @@ impl Parser<'_> {
     /// AtomTypeExpression
     ///     = ConstantTypeExpression
     ///     | VariableTypeExpression
+    ///     | AsTraitPathTypeExpression
     ///     | ParenthesizedTypeExpression
     fn parse_atom_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         if let Some(type_expr) = self.parse_constant_type_expression() {
@@ -151,6 +152,10 @@ impl Parser<'_> {
 
         if let Some(type_expr) = self.parse_variable_type_expression() {
             return Some(type_expr);
+        }
+
+        if let Some(as_trait_path) = self.parse_as_trait_path() {
+            return Some(UnresolvedTypeExpression::AsTraitPath(Box::new(as_trait_path)));
         }
 
         if let Some(type_expr) = self.parse_parenthesized_type_expression() {
@@ -163,7 +168,8 @@ impl Parser<'_> {
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let (int, suffix) = self.eat_int()?;
-        Some(UnresolvedTypeExpression::Constant(int, suffix, self.previous_token_location))
+        let signed_field = SignedField::positive(int);
+        Some(UnresolvedTypeExpression::Constant(signed_field, suffix, self.previous_token_location))
     }
 
     /// VariableTypeExpression = Path
@@ -252,7 +258,7 @@ impl Parser<'_> {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
+                        SignedField::zero(),
                         None,
                         start_location,
                     );
@@ -472,6 +478,18 @@ mod tests {
         let src = "-N";
         let expr = parse_type_expression_no_errors(src);
         assert_eq!(expr.to_string(), "(0 - N)");
+    }
+
+    #[test]
+    fn parses_as_trait_path_type_expression() {
+        let src = "<Type as Trait>::AssociatedType";
+        let typ = parse_type_expression_no_errors(src);
+        let UnresolvedTypeExpression::AsTraitPath(as_trait_path) = typ else {
+            panic!("Expected AsTraitPath");
+        };
+        assert_eq!(as_trait_path.typ.to_string(), "Type");
+        assert_eq!(as_trait_path.trait_path.to_string(), "Trait");
+        assert_eq!(as_trait_path.impl_item.to_string(), "AssociatedType");
     }
 
     #[test]

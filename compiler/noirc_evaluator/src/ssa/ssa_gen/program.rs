@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::btree_map;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -99,9 +99,8 @@ impl Ssa {
         function == self.main_id || self.functions[&function].runtime().is_entry_point()
     }
 
-    pub(crate) fn used_globals_in_brillig_functions(
-        &self,
-    ) -> HashMap<FunctionId, HashSet<ValueId>> {
+    /// Collect all the global value IDs used per function.
+    pub(crate) fn used_globals_in_functions(&self) -> HashMap<FunctionId, HashSet<ValueId>> {
         fn add_value_to_globals_if_global(
             function: &Function,
             value_id: ValueId,
@@ -128,10 +127,6 @@ impl Ssa {
         let mut used_globals = HashMap::default();
 
         for (function_id, function) in &self.functions {
-            if !function.runtime().is_brillig() {
-                continue;
-            }
-
             let mut used_globals_in_function = HashSet::default();
 
             for call_data in &function.dfg.data_bus.call_data {
@@ -168,6 +163,12 @@ impl Ssa {
         }
 
         used_globals
+    }
+}
+
+impl std::fmt::Display for Ssa {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.print_without_locations().fmt(f)
     }
 }
 

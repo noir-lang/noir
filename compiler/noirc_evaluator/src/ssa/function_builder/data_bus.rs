@@ -2,14 +2,13 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{
     function::RuntimeType,
-    instruction::ArrayOffset,
     types::{NumericType, Type},
     value::{ValueId, ValueMapping},
 };
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
@@ -64,7 +63,18 @@ impl DataBusBuilder {
 pub(crate) struct CallData {
     /// The id to this calldata assigned by the user
     pub(crate) call_data_id: u32,
+    /// The array to read from, when reading from a value in `index_map`
     pub(crate) array_id: ValueId,
+    /// When reading from a value in `index_map`, read it instead fom `array_id` at the offset
+    /// given by the value in the map.
+    ///
+    /// For example, if the call data is:
+    ///
+    /// ```ssa
+    /// call_data(0): array: v16, indexes: [v2: 1]
+    /// ```
+    ///
+    /// then when reading from `v2`, read from `v16` but with an offset of 1.
     pub(crate) index_map: HashMap<ValueId, usize>,
 }
 
@@ -167,9 +177,7 @@ impl FunctionBuilder {
                         if let Type::Array(_, 0) = subitem_typ {
                             continue;
                         }
-                        let offset = ArrayOffset::None;
-                        let element =
-                            self.insert_array_get(value, index_var, offset, subitem_typ.clone());
+                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
                             Type::Numeric(_) => 1,
@@ -252,6 +260,11 @@ impl FunctionBuilder {
             result.push(call_databus);
         }
         result
+    }
+
+    /// Forcefully sets the databus of the current function.
+    pub(crate) fn set_data_bus(&mut self, data_bus: DataBus) {
+        self.current_function.dfg.data_bus = data_bus;
     }
 
     /// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter

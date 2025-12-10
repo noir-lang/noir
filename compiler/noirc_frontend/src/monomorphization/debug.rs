@@ -4,9 +4,11 @@ use noirc_errors::Location;
 use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::PrintableType;
 
+use crate::ast::IntegerBitSize;
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
 use crate::node_interner::ExprId;
+use crate::shared::Signedness;
 use crate::signed_field::SignedField;
 
 use super::ast::{Expression, Ident};
@@ -40,10 +42,10 @@ impl Monomorphizer<'_> {
     pub(super) fn patch_debug_instrumentation_call(
         &mut self,
         call: &HirCallExpression,
+        function: &Expression,
         arguments: &mut [Expression],
     ) -> Result<(), MonomorphizationError> {
-        let original_func = Box::new(self.expr(call.func)?);
-        if let Expression::Ident(Ident { name, .. }) = original_func.as_ref() {
+        if let Expression::Ident(Ident { name, .. }) = function {
             if name == "__debug_var_assign" {
                 self.patch_debug_var_assign(call, arguments)?;
             } else if name == "__debug_var_drop" {
@@ -154,9 +156,11 @@ impl Monomorphizer<'_> {
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
                     let integer = HirLiteral::Integer(SignedField::positive(field_index));
-                    let index_id = self.interner.push_expr(HirExpression::Literal(integer));
-                    self.interner.push_expr_type(index_id, crate::Type::FieldElement);
-                    self.interner.push_expr_location(index_id, call.location);
+                    let index_id = self.interner.push_expr_full(
+                        HirExpression::Literal(integer),
+                        call.location,
+                        crate::Type::FieldElement,
+                    );
                     arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id)?;
                 } else {
                     // array/string element using constant index
@@ -180,10 +184,8 @@ impl Monomorphizer<'_> {
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
         let value = SignedField::positive(var_id.0);
         let var_id_literal = HirLiteral::Integer(value);
-        let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
-        self.interner.push_expr_type(expr_id, crate::Type::FieldElement);
-        self.interner.push_expr_location(expr_id, *location);
-        expr_id
+        let u32 = crate::Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        self.interner.push_expr_full(HirExpression::Literal(var_id_literal), *location, u32)
     }
 }
 

@@ -79,12 +79,12 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Ident(ident) => write!(f, "{}", ident),
-            Token::Int(int) => write!(f, "{}", int),
+            Token::Ident(ident) => write!(f, "{ident}"),
+            Token::Int(int) => write!(f, "{int}"),
             Token::Str(string) => write!(f, "{string:?}"),
             Token::ByteStr(string) => write!(f, "{string:?}"),
-            Token::Keyword(keyword) => write!(f, "{}", keyword),
-            Token::IntType(int_type) => write!(f, "{}", int_type),
+            Token::Keyword(keyword) => write!(f, "{keyword}"),
+            Token::IntType(int_type) => write!(f, "{int_type}"),
             Token::Assign => write!(f, "="),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
@@ -107,16 +107,17 @@ impl Display for Token {
 
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Keyword {
     Acir,
     Add,
     Allocate,
     And,
+    Array,
     ArrayGet,
     ArraySet,
     As,
@@ -125,6 +126,7 @@ pub(crate) enum Keyword {
     Bool,
     Brillig,
     Call,
+    CallData,
     Cast,
     Constrain,
     Data,
@@ -143,6 +145,7 @@ pub(crate) enum Keyword {
     Impure,
     IncRc,
     Index,
+    Indices,
     Jmp,
     Jmpif,
     Load,
@@ -162,6 +165,7 @@ pub(crate) enum Keyword {
     Pure,
     RangeCheck,
     Return,
+    ReturnData,
     Shl,
     Shr,
     Store,
@@ -184,6 +188,7 @@ impl Keyword {
             "add" => Keyword::Add,
             "allocate" => Keyword::Allocate,
             "and" => Keyword::And,
+            "array" => Keyword::Array,
             "array_get" => Keyword::ArrayGet,
             "array_set" => Keyword::ArraySet,
             "as" => Keyword::As,
@@ -192,6 +197,7 @@ impl Keyword {
             "bool" => Keyword::Bool,
             "brillig" => Keyword::Brillig,
             "call" => Keyword::Call,
+            "call_data" => Keyword::CallData,
             "cast" => Keyword::Cast,
             "constrain" => Keyword::Constrain,
             "data" => Keyword::Data,
@@ -210,6 +216,7 @@ impl Keyword {
             "function" => Keyword::Function,
             "inc_rc" => Keyword::IncRc,
             "index" => Keyword::Index,
+            "indices" => Keyword::Indices,
             "jmp" => Keyword::Jmp,
             "jmpif" => Keyword::Jmpif,
             "load" => Keyword::Load,
@@ -229,6 +236,7 @@ impl Keyword {
             "pure" => Keyword::Pure,
             "range_check" => Keyword::RangeCheck,
             "return" => Keyword::Return,
+            "return_data" => Keyword::ReturnData,
             "shl" => Keyword::Shl,
             "shr" => Keyword::Shr,
             "store" => Keyword::Store,
@@ -255,6 +263,7 @@ impl Display for Keyword {
             Keyword::Add => write!(f, "add"),
             Keyword::Allocate => write!(f, "allocate"),
             Keyword::And => write!(f, "and"),
+            Keyword::Array => write!(f, "array"),
             Keyword::ArrayGet => write!(f, "array_get"),
             Keyword::ArraySet => write!(f, "array_set"),
             Keyword::As => write!(f, "as"),
@@ -263,6 +272,7 @@ impl Display for Keyword {
             Keyword::Bool => write!(f, "bool"),
             Keyword::Brillig => write!(f, "brillig"),
             Keyword::Call => write!(f, "call"),
+            Keyword::CallData => write!(f, "call_data"),
             Keyword::Cast => write!(f, "cast"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Data => write!(f, "data"),
@@ -279,6 +289,7 @@ impl Display for Keyword {
             Keyword::Impure => write!(f, "impure"),
             Keyword::IncRc => write!(f, "inc_rc"),
             Keyword::Index => write!(f, "index"),
+            Keyword::Indices => write!(f, "indices"),
             Keyword::Inline => write!(f, "inline"),
             Keyword::InlineAlways => write!(f, "inline_always"),
             Keyword::Jmp => write!(f, "jmp"),
@@ -300,6 +311,7 @@ impl Display for Keyword {
             Keyword::Pure => write!(f, "pure"),
             Keyword::RangeCheck => write!(f, "range_check"),
             Keyword::Return => write!(f, "return"),
+            Keyword::ReturnData => write!(f, "return_data"),
             Keyword::Shl => write!(f, "shl"),
             Keyword::Shr => write!(f, "shr"),
             Keyword::Store => write!(f, "store"),

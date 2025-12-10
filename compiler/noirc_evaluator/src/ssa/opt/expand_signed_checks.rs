@@ -1,3 +1,9 @@
+/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+/// into unchecked operations followed by explicit overflow checks.
+///
+/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+/// operations, while also allowing further optimizations to be done during subsequent
+/// SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
@@ -29,10 +35,10 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions, decomposing any checked signed arithmetic to have explicit
     /// overflow checks.
-    pub(crate) fn expand_signed_checks(&mut self) {
+    fn expand_signed_checks(&mut self) {
         // TODO: consider whether we can implement this more efficiently in brillig.
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -61,7 +67,7 @@ impl Function {
             // We remove the current instruction, as we will need to replace it with multiple new instructions.
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut expansion_context = Context { context };
             let new_result = match operator {
@@ -95,6 +101,7 @@ impl Context<'_, '_, '_> {
             lhs,
             rhs,
             BinaryOp::Add { unchecked: false },
+            "add",
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -111,6 +118,7 @@ impl Context<'_, '_, '_> {
             lhs,
             rhs,
             BinaryOp::Sub { unchecked: false },
+            "subtract",
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -128,6 +136,7 @@ impl Context<'_, '_, '_> {
             lhs,
             rhs,
             BinaryOp::Mul { unchecked: false },
+            "multiply",
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -151,9 +160,9 @@ impl Context<'_, '_, '_> {
         lhs: ValueId,
         rhs: ValueId,
         operator: BinaryOp,
+        operation: &str,
         bit_size: u32,
     ) {
-        let is_sub = matches!(operator, BinaryOp::Sub { .. });
         let half_width = self.numeric_constant(
             FieldElement::from(2_i128.pow(bit_size - 1)),
             NumericType::unsigned(bit_size),
@@ -163,13 +172,13 @@ impl Context<'_, '_, '_> {
         let rhs_as_unsigned = self.insert_safe_cast(rhs, NumericType::unsigned(bit_size));
         let lhs_sign = self.insert_binary(lhs_as_unsigned, BinaryOp::Lt, half_width);
         let mut rhs_sign = self.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
-        let message = if is_sub {
+        if matches!(operator, BinaryOp::Sub { .. }) {
             // lhs - rhs = lhs + (-rhs)
             rhs_sign = self.insert_not(rhs_sign);
-            "attempt to subtract with overflow".to_string()
-        } else {
-            "attempt to add with overflow".to_string()
-        };
+        }
+
+        let message = format!("attempt to {operation} with overflow");
+
         // same_sign is true if both operands have the same sign
         let same_sign = self.insert_binary(lhs_sign, BinaryOp::Eq, rhs_sign);
         match operator {
@@ -196,11 +205,7 @@ impl Context<'_, '_, '_> {
                 let product_field =
                     self.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: true }, rhs_abs);
                 // It must not already overflow the bit_size
-                self.insert_range_check(
-                    product_field,
-                    bit_size,
-                    Some("attempt to multiply with overflow".to_string()),
-                );
+                self.insert_range_check(product_field, bit_size, Some(message.clone()));
                 let product = self.insert_safe_cast(product_field, NumericType::unsigned(bit_size));
 
                 // Then we check the signed product fits in a signed integer of bit_size-bits
@@ -471,7 +476,7 @@ fn expand_signed_checks_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -500,8 +505,7 @@ mod tests {
             v12 = eq v11, v8
             v13 = unchecked_mul v12, v10
             constrain v13 == v10, "attempt to add with overflow"
-            v14 = cast v3 as i32
-            return v14
+            return v3
         }
         "#);
     }
@@ -533,8 +537,7 @@ mod tests {
             v13 = eq v12, v8
             v14 = unchecked_mul v13, v11
             constrain v14 == v11, "attempt to subtract with overflow"
-            v15 = cast v3 as i32
-            return v15
+            return v3
         }
         "#);
     }
@@ -585,7 +588,7 @@ mod tests {
             v32 = cast v31 as u32
             v33 = unchecked_add u32 2147483648, v32
             v34 = lt v30, v33
-            constrain v34 == u1 1, "attempt to add with overflow"
+            constrain v34 == u1 1, "attempt to multiply with overflow"
             v36 = cast v4 as i32
             return v36
         }
@@ -601,9 +604,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     #[test]
@@ -615,9 +616,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     #[test]
@@ -629,8 +628,6 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 }

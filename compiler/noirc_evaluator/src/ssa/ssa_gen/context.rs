@@ -16,14 +16,14 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
+use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
 use super::GlobalsGraph;
 use super::value::{Tree, Value, Values};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -312,90 +312,6 @@ impl<'a> FunctionContext<'a> {
         Ok(self.builder.numeric_constant(value, numeric_type))
     }
 
-    /// Insert constraints ensuring that the operation does not overflow the bit size of the result
-    ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
-    /// bit-shifts, because we will convert them to field multiplication
-    ///
-    /// If the result is signed, overflow will be checked during SSA optimization.
-    fn check_overflow(
-        &mut self,
-        result: ValueId,
-        lhs: ValueId,
-        rhs: ValueId,
-        operator: BinaryOpKind,
-        location: Location,
-    ) -> ValueId {
-        let result_type = self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
-        match result_type {
-            NumericType::Signed { bit_size } => {
-                match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to ssa pass
-                        result
-                    }
-                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location)
-                    }
-                    _ => unreachable!("operator {} should not overflow", operator),
-                }
-            }
-            NumericType::Unsigned { bit_size } => {
-                let dfg = &self.builder.current_function.dfg;
-                let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
-
-                match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to acir-gen
-                        result
-                    }
-                    BinaryOpKind::ShiftLeft => {
-                        if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            let bit_shift_size = rhs_const.to_u128() as u32;
-
-                            if max_lhs_bits + bit_shift_size <= bit_size {
-                                // `lhs` has been casted up from a smaller type such that shifting it by a constant
-                                // `rhs` is known not to exceed the maximum bit size.
-                                return result;
-                            }
-                        }
-
-                        self.check_shift_overflow(result, rhs, bit_size, location);
-                        result
-                    }
-
-                    _ => unreachable!("operator {} should not overflow", operator),
-                }
-            }
-            NumericType::NativeField => result,
-        }
-    }
-
-    /// Overflow checks for bit-shift
-    /// We use Rust behavior for bit-shift:
-    /// If rhs is more or equal than the bit size, then we overflow
-    /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
-    fn check_shift_overflow(
-        &mut self,
-        result: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-        location: Location,
-    ) -> ValueId {
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
-
-        let bit_size_field = FieldElement::from(bit_size as i128);
-        let max = self.builder.numeric_constant(bit_size_field, NumericType::unsigned(8));
-        let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
-        self.builder.set_location(location).insert_constrain(
-            overflow,
-            one,
-            Some("attempt to bit-shift with overflow".to_owned().into()),
-        );
-        self.builder.insert_truncate(result, bit_size, bit_size + 1)
-    }
-
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -412,22 +328,14 @@ impl<'a> FunctionContext<'a> {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
+        self.builder.set_location(location);
 
-        // Check for integer overflow
-        if matches!(
-            operator,
-            BinaryOpKind::Add
-                | BinaryOpKind::Subtract
-                | BinaryOpKind::Multiply
-                | BinaryOpKind::ShiftLeft
-        ) {
-            result = self.check_overflow(result, lhs, rhs, operator, location);
-        }
+        let mut result = self.builder.insert_binary(lhs, op, rhs);
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
         }
+
         result.into()
     }
 
@@ -463,7 +371,7 @@ impl<'a> FunctionContext<'a> {
     /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(
         &mut self,
-        mut value: ValueId,
+        value: ValueId,
         typ: NumericType,
         location: Location,
     ) -> ValueId {
@@ -484,68 +392,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     std::cmp::Ordering::Equal => value,
                     std::cmp::Ordering::Greater => {
-                        // If target size is bigger, we do a sign extension:
-                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
-                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
-                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
-                        // Casting s-bits signed v0 to t-bits will add the following instructions:
-                        // v1 = cast v0 to 's-bits unsigned'
-                        // v2 = lt v1, 2**(s-1)
-                        // v3 = not(v1)
-                        // v4 = cast v3 to 't-bits unsigned'
-                        // v5 = v3 * (2**t - 2**s)
-                        // v6 = cast v1 to 't-bits unsigned'
-                        // return v6 + v5
-                        let value_as_unsigned = self.insert_safe_cast(
-                            value,
-                            NumericType::unsigned(*incoming_type_size),
-                            location,
-                        );
-                        let half_width = self.builder.numeric_constant(
-                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
-                            NumericType::unsigned(*incoming_type_size),
-                        );
-                        // value_sign is 1 if the value is positive, 0 otherwise
-                        let value_sign =
-                            self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
-                        let max_for_incoming_type_size = if *incoming_type_size == 128 {
-                            u128::MAX
-                        } else {
-                            2_u128.pow(*incoming_type_size) - 1
-                        };
-                        let max_for_target_type_size = if target_type_size == 128 {
-                            u128::MAX
-                        } else {
-                            2_u128.pow(target_type_size) - 1
-                        };
-                        let patch = self.builder.numeric_constant(
-                            FieldElement::from(
-                                max_for_target_type_size - max_for_incoming_type_size,
-                            ),
-                            NumericType::unsigned(target_type_size),
-                        );
-                        let mut is_negative_predicate = self.builder.insert_not(value_sign);
-                        is_negative_predicate = self.insert_safe_cast(
-                            is_negative_predicate,
-                            NumericType::unsigned(target_type_size),
-                            location,
-                        );
-                        // multiplication by a boolean cannot overflow
-                        let patch_with_sign_predicate = self.builder.insert_binary(
-                            patch,
-                            BinaryOp::Mul { unchecked: true },
-                            is_negative_predicate,
-                        );
-                        let value_as_unsigned = self.builder.insert_cast(
-                            value_as_unsigned,
-                            NumericType::unsigned(target_type_size),
-                        );
-                        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
-                        self.builder.insert_binary(
-                            patch_with_sign_predicate,
-                            BinaryOp::Add { unchecked: true },
-                            value_as_unsigned,
-                        )
+                        self.sign_extend(value, *incoming_type_size, target_type_size, location)
                     }
                 }
             }
@@ -555,45 +402,55 @@ impl<'a> FunctionContext<'a> {
             ) => {
                 // If target size is smaller, we do a truncation
                 if target_type_size < *incoming_type_size {
-                    value =
-                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size);
+                    self.builder.insert_truncate(value, target_type_size, *incoming_type_size)
+                } else {
+                    value
                 }
-                value
             }
             // When casting a signed value to u1 we can truncate then cast
             (
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: 1 },
             ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
-            // For mixed sign to unsigned or unsigned to sign;
-            // 1. we cast to the required type using the same signedness
-            // 2. then we switch the signedness
+
+            // For mixed signed to unsigned:
             (
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
             ) => {
-                if *incoming_type_size != target_type_size {
-                    value = self.insert_safe_cast(
-                        value,
-                        NumericType::signed(target_type_size),
-                        location,
-                    );
+                // when going from lower to higher bit size:
+                // 1. we sign-extend to the target bits
+                // 2. we are already in the target signedness
+                if *incoming_type_size < target_type_size {
+                    // By not the casting to a signed type with the target bit size, we avoid potentially going
+                    // through i128, which is not a type we support in the frontend, and would be strange in SSA.
+                    self.sign_extend(value, *incoming_type_size, target_type_size, location)
                 }
-                value
+                // when the target bit size is not higher than the source:
+                // 1. we cast to the required type using the same signedness
+                // 2. then we switch the signedness
+                else if *incoming_type_size != target_type_size {
+                    self.insert_safe_cast(value, NumericType::signed(target_type_size), location)
+                } else {
+                    value
+                }
             }
+
+            // For mixed unsigned to signed:
+            // 1. we cast to the required type using the same signedness
+            // 2. then we switch the signedness
             (
                 Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
                 NumericType::Signed { bit_size: target_type_size },
             ) => {
                 if *incoming_type_size != target_type_size {
-                    value = self.insert_safe_cast(
-                        value,
-                        NumericType::unsigned(target_type_size),
-                        location,
-                    );
+                    self.insert_safe_cast(value, NumericType::unsigned(target_type_size), location)
+                } else {
+                    value
                 }
-                value
             }
+
+            // Field to signed/unsigned:
             (
                 Type::Numeric(NumericType::NativeField),
                 NumericType::Unsigned { bit_size: target_type_size },
@@ -609,13 +466,81 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_cast(result, typ)
     }
 
+    /// During casting signed values, if target size is bigger, we do a sign extension:
+    ///
+    /// When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value.
+    /// Sign extension in this case will give `2^t-v`, where `t` is the target bit size.
+    /// So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+    ///
+    /// Casting s-bits signed v0 to t-bits will add the following instructions:
+    /// ```ssa
+    /// v1 = cast v0 to 's-bits unsigned'
+    /// v2 = lt v1, 2**(s-1)
+    /// v3 = not(v1)
+    /// v4 = cast v3 to 't-bits unsigned'
+    /// v5 = v3 * (2**t - 2**s)
+    /// v6 = cast v1 to 't-bits unsigned'
+    /// return v6 + v5
+    /// ```
+    ///
+    /// Return an unsigned value that we can cast back to the signed type if we want,
+    /// or keep it as it is, if we did the sign extension as part of casting e.g. `i8` to `u64`.
+    fn sign_extend(
+        &mut self,
+        value: ValueId,
+        incoming_type_size: u32,
+        target_type_size: u32,
+        location: Location,
+    ) -> ValueId {
+        let value_as_unsigned =
+            self.insert_safe_cast(value, NumericType::unsigned(incoming_type_size), location);
+        let half_width = self.builder.numeric_constant(
+            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
+            NumericType::unsigned(incoming_type_size),
+        );
+        // value_sign is 1 if the value is positive, 0 otherwise
+        let value_sign = self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+        let max_for_incoming_type_size =
+            if incoming_type_size == 128 { u128::MAX } else { 2_u128.pow(incoming_type_size) - 1 };
+        let max_for_target_type_size =
+            if target_type_size == 128 { u128::MAX } else { 2_u128.pow(target_type_size) - 1 };
+        let patch = self.builder.numeric_constant(
+            FieldElement::from(max_for_target_type_size - max_for_incoming_type_size),
+            NumericType::unsigned(target_type_size),
+        );
+        let mut is_negative_predicate = self.builder.insert_not(value_sign);
+        is_negative_predicate = self.insert_safe_cast(
+            is_negative_predicate,
+            NumericType::unsigned(target_type_size),
+            location,
+        );
+        // multiplication by a boolean cannot overflow
+        let patch_with_sign_predicate = self.builder.insert_binary(
+            patch,
+            BinaryOp::Mul { unchecked: true },
+            is_negative_predicate,
+        );
+        let value_as_unsigned =
+            self.builder.insert_cast(value_as_unsigned, NumericType::unsigned(target_type_size));
+        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+        self.builder.insert_binary(
+            patch_with_sign_predicate,
+            BinaryOp::Add { unchecked: true },
+            value_as_unsigned,
+        )
+    }
+
     /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+    pub(super) fn make_offset(
+        &mut self,
+        mut address: ValueId,
+        offset: u128,
+        unchecked: bool,
+    ) -> ValueId {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
             let offset = self.builder.numeric_constant(offset, typ);
-            address =
-                self.builder.insert_binary(address, BinaryOp::Add { unchecked: true }, offset);
+            address = self.builder.insert_binary(address, BinaryOp::Add { unchecked }, offset);
         }
         address
     }
@@ -744,6 +669,7 @@ impl<'a> FunctionContext<'a> {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
+            ast::LValue::Clone(lvalue) => self.extract_current_value(lvalue)?,
         })
     }
 
@@ -835,6 +761,14 @@ impl<'a> FunctionContext<'a> {
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
                 Ok((dereferenced, LValue::Dereference { reference }))
             }
+            ast::LValue::Clone(lvalue) => {
+                let (values, lvalue) = self.extract_current_value_recursive(lvalue)?;
+                values.clone().for_each(|value| {
+                    let value = value.eval(self);
+                    self.builder.increment_array_reference_count(value);
+                });
+                Ok((values, lvalue))
+            }
         }
     }
 
@@ -852,9 +786,14 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
-                        let len =
-                            self.builder.numeric_constant(*len as u128, NumericType::length_type());
-                        self.codegen_access_check(index, len);
+                        // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
+                        // We then only need to inject it for brillig functions.
+                        if self.builder.current_function.runtime().is_brillig() {
+                            let len = self
+                                .builder
+                                .numeric_constant(u128::from(*len), NumericType::length_type());
+                            self.codegen_access_check(index, len);
+                        }
                     }
                     _ => unreachable!("must have array or slice but got {array_type}"),
                 }
@@ -916,8 +855,7 @@ impl<'a> FunctionContext<'a> {
         new_value.for_each(|value| {
             let value = value.eval(self);
             let mutable = false;
-            let offset = ArrayOffset::None;
-            array = self.builder.insert_array_set(array, index, value, mutable, offset);
+            array = self.builder.insert_array_set(array, index, value, mutable);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });

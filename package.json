@@ -9,10 +9,12 @@
     "tooling/noir_js",
     "tooling/noir_codegen",
     "acvm-repo/acvm_js",
-    "docs"
+    "docs",
+    "examples/browser"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",
+    "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{docs,@noir-lang/root,browser_example}\" run build",
+    "build:js:only": "yarn workspaces foreach -A -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,docs,@noir-lang/root,browser_example}\" run build",
     "test": "yarn workspaces foreach -A -vp run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach -A --exclude @noir-lang/root run clean",
@@ -21,22 +23,21 @@
     "lint": "yarn workspaces foreach -A -vp run lint",
     "spellcheck": "cspell '**/*.{md,rs}' -c ./cspell.json",
     "prepare:publish": "yarn clean && yarn build",
-    "build:js:only": "yarn workspaces foreach -A -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,docs,@noir-lang/root}\" run build",
     "nightly:version": "yarn workspaces foreach -A run nightly:version",
     "publish:all": "yarn install && yarn workspaces foreach -A run publish"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.24.0",
-    "@typescript-eslint/eslint-plugin": "^8.26.1",
-    "@typescript-eslint/parser": "^8.26.1",
-    "chai": "^4.4.1",
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/eslint-plugin": "^8.48.1",
+    "@typescript-eslint/parser": "^8.48.1",
+    "chai": "^4.5.0",
     "cspell": "^8.19.4",
-    "eslint": "^9.28.0",
-    "eslint-plugin-prettier": "^5.4.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.2.0",
     "mocha": "^11.5.0",
-    "prettier": "3.5.3",
+    "prettier": "3.7.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
@@ -44,5 +45,5 @@
     "@types/estree": "1.0.6",
     "@types/mocha": "10.0.10"
   },
-  "packageManager": "yarn@4.5.2"
+  "packageManager": "yarn@4.10.3"
 }

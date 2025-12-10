@@ -283,6 +283,11 @@ pub struct Unary {
     pub rhs: Box<Expression>,
     pub result_type: Type,
     pub location: Location,
+
+    /// Carried over from `HirPrefixExpression::skip`. This also flags whether we should directly
+    /// return `rhs` and skip performing this operation. Compared to replacing this node with rhs
+    /// directly, keeping this flag keeps `--show-monomorphized` output the same.
+    pub skip: bool,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -384,9 +389,22 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
-    MemberAccess { object: Box<LValue>, field_index: usize },
-    Dereference { reference: Box<LValue>, element_type: Type },
+    Index {
+        array: Box<LValue>,
+        index: Box<Expression>,
+        element_type: Type,
+        location: Location,
+    },
+    MemberAccess {
+        object: Box<LValue>,
+        field_index: usize,
+    },
+    Dereference {
+        reference: Box<LValue>,
+        element_type: Type,
+    },
+    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    Clone(Box<LValue>),
 }
 
 pub type Parameters =
@@ -444,9 +462,31 @@ impl InlineType {
             InlineType::NoPredicates => false,
         }
     }
+
+    /// Produce an `InlineType` which we can use with an unconstrained version of a function.
+    pub fn into_unconstrained(self) -> Self {
+        match self {
+            InlineType::Inline | InlineType::InlineAlways => self,
+            InlineType::Fold => {
+                // The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                Self::default()
+            }
+            InlineType::NoPredicates => {
+                // The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                // We can keep these, or try inlining more aggressively, since we don't
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                self
+            }
+        }
+    }
 }
 
-impl std::fmt::Display for InlineType {
+impl Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
@@ -489,6 +529,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -596,13 +637,13 @@ impl std::ops::IndexMut<FuncId> for Program {
     }
 }
 
-impl std::fmt::Display for Program {
+impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
-impl std::fmt::Display for Function {
+impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_function(
             self,
@@ -612,13 +653,13 @@ impl std::fmt::Display for Function {
     }
 }
 
-impl std::fmt::Display for Expression {
+impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_expr(self, f)
     }
 }
 
-impl std::fmt::Display for Type {
+impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),

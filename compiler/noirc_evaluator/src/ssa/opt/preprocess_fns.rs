@@ -2,37 +2,33 @@
 
 use crate::ssa::{
     RuntimeError, Ssa,
-    ir::{
-        call_graph::CallGraph,
-        function::{Function, RuntimeType},
-    },
+    ir::{call_graph::CallGraph, function::Function},
 };
 
 use super::inlining::{self, InlineInfo};
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
-    pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Result<Ssa, RuntimeError> {
+    pub(crate) fn preprocess_functions(
+        mut self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+    ) -> Result<Ssa, RuntimeError> {
         let call_graph = CallGraph::from_ssa_weighted(&self);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
-        let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
+        let inline_infos = inlining::inline_info::compute_inline_infos(
+            &self,
+            &call_graph,
+            false,
+            small_function_max_instructions,
+            aggressiveness,
+        );
 
-        let should_inline_call = |callee: &Function| -> bool {
-            match callee.runtime() {
-                RuntimeType::Acir(_) => {
-                    // Functions marked to not have predicates should be preserved.
-                    !callee.is_no_predicates()
-                }
-                RuntimeType::Brillig(_) => {
-                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                    InlineInfo::should_inline(&inline_infos, callee.id())
-                }
-            }
-        };
+        let should_inline_call =
+            |callee: &Function| -> bool { InlineInfo::should_inline(&inline_infos, callee.id()) };
 
         for (id, (own_weight, transitive_weight)) in bottom_up {
             let function = &self.functions[&id];
@@ -79,7 +75,10 @@ impl Ssa {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+    };
 
     #[test]
     fn dead_block_params() {
@@ -93,35 +92,37 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0():
-            call f0()
+            call f0(u32 1, Field 2)
             return
         }
         acir(inline) fn foo f0 {
           b0(v0: u32, v1: Field):
-            jmpif v0 then: b1, else: b2
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1, else: b2
           b1():
             v6 = add v0, u32 1
             jmp b3(v6, v1)
           b2():
             v5 = sub v0, u32 1
             jmp b3(v5, v1)
-          b3(v2: u32, v3: Field):
+          b3(v3: u32, v4: Field):
             return
         }
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.preprocess_functions(i64::MAX).unwrap();
+        let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            call f1()
+            call f1(u32 1)
             return
         }
         acir(inline) fn foo f1 {
-          b0(v0: u32, v1: Field):
-            jmpif v0 then: b1, else: b2
+          b0(v0: u32):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1, else: b2
           b1():
             v4 = add v0, u32 1
             jmp b3()
@@ -131,6 +132,6 @@ mod tests {
           b3():
             return
         }
-        "#);
+        ");
     }
 }

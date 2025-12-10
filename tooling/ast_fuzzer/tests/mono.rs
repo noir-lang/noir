@@ -43,6 +43,11 @@ fn arb_ast_roundtrip() {
             // and also rationalizes removes branches that can never be matched,
             // (like repeated patterns, superfluous defaults). For now ignore these.
             avoid_match: true,
+            // Since #9484 the monomorphizer represents function values as a pair of
+            // `(constrained, unconstrained)` where each element is a different runtime of the same
+            // function. The fuzzer has not yet been updated to mimic this so first-class functions
+            // are avoided for now.
+            avoid_lambdas: true,
             // The formatting of `unsafe { ` becomes `{ unsafe {` with extra line breaks.
             // Let's stick to just Brillig so there is no need for `unsafe` at all.
             force_brillig: true,
@@ -80,10 +85,11 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
     let mut context = Context::new(file_manager, parsed_files);
     let crate_id = prepare_crate(&mut context, file_name);
 
-    context.disable_comptime_printing();
-
-    let options =
-        CompileOptions { unstable_features: vec![UnstableFeature::Enums], ..Default::default() };
+    let options = CompileOptions {
+        unstable_features: vec![UnstableFeature::Enums],
+        disable_comptime_printing: true,
+        ..Default::default()
+    };
 
     let _ = noirc_driver::check_crate(&mut context, crate_id, &options)?;
 
@@ -94,9 +100,18 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
     Ok(program)
 }
 
+/// Get rid of superficial differences.
 fn sanitize(src: &str) -> String {
-    // Sometimes `;` is removed, or duplicated.
-    src.replace(";", "").replace("{}", "()").replace("--", "")
+    src
+        // Sometimes `;` is removed, or duplicated.
+        .replace(";", "")
+        // Sometimes a unit value is printed as () other times as {}
+        .replace("{}", "()")
+        // Double negation is removed during parsing
+        .replace("--", "")
+        // Negative zero is parsed as zero
+        // (NB we don't want to avoid generating -0, because there were bugs related to it).
+        .replace("-0", "0")
 }
 
 fn split_functions(src: &str) -> Vec<String> {

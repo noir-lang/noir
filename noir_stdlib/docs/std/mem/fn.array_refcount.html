@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<script defer src="../../nargo_doc.js"></script>
+<title>Function array_refcount documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">array_refcount</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2>In module mem</h2>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.array_refcount.html">array_refcount</a></div></li>
+<li><a href="fn.checked_transmute.html">checked_transmute</a></div></li>
+<li><a href="fn.slice_refcount.html">slice_refcount</a></div></li>
+<li><a href="fn.zeroed.html">zeroed</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">mem</a></div>
+<h1>Function <span class="fn">array_refcount</span></h1>
+<pre><code>pub fn array_refcount&lt;T, let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt;(array: [T; N]) -> <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></pre>
+
+<div class="comments">
+<p>Returns the internal reference count of an array value in unconstrained code.</p>
+<p>Arrays only have reference count in unconstrained code - using this anywhere
+else will return zero.</p>
+</div>
+</main>
+</span>
+</body>
+</html>

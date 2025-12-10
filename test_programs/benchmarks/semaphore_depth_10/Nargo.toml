@@ -4,5 +4,5 @@ type = "bin"
 authors = [""]
 
 [dependencies]
-ec = { git = "https://github.com/noir-lang/noir-edwards", tag = "v0.2.3" }
+ec = { git = "https://github.com/noir-lang/noir-edwards", tag = "v0.2.5" }
 poseidon = { git = "https://github.com/noir-lang/poseidon", tag = "v0.1.1" }

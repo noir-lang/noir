@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     Type,
-    ast::TraitBound,
+    ast::{Ident, TraitBound},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
@@ -23,7 +23,7 @@ pub enum InterpreterError {
         location: Location,
     },
     TypeMismatch {
-        expected: Type,
+        expected: String,
         actual: Type,
         location: Location,
     },
@@ -261,7 +261,20 @@ pub enum InterpreterError {
     GlobalsDependencyCycle {
         location: Location,
     },
+    GlobalCouldNotBeResolved {
+        location: Location,
+    },
     LoopHaltedForUiResponsiveness {
+        location: Location,
+    },
+    DuplicateStructFieldInSetFields {
+        name: Ident,
+        index: usize,
+        previous_index: usize,
+    },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
         location: Location,
     },
 
@@ -272,7 +285,7 @@ pub enum InterpreterError {
 }
 
 #[allow(unused)]
-pub(super) type IResult<T> = std::result::Result<T, InterpreterError>;
+pub(super) type IResult<T> = Result<T, InterpreterError>;
 
 impl From<InterpreterError> for CompilationError {
     fn from(error: InterpreterError) -> Self {
@@ -341,10 +354,12 @@ impl InterpreterError {
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
-            | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
-
+            | InterpreterError::LoopHaltedForUiResponsiveness { location }
+            | InterpreterError::GlobalCouldNotBeResolved { location }
+            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
+            InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
@@ -352,14 +367,14 @@ impl InterpreterError {
     }
 
     pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
-        let mut formatted_result = format!("{}", expr);
+        let mut formatted_result = format!("{expr}");
         // if multi-line, display on a separate line from the message
         if formatted_result.contains('\n') {
             formatted_result.insert(0, '\n');
         }
         let diagnostic = CustomDiagnostic::simple_info(
             "`comptime` expression ran:".to_string(),
-            format!("After evaluation: {}", formatted_result),
+            format!("After evaluation: {formatted_result}"),
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
@@ -510,23 +525,25 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
+                let msg = if *operator == "/" {
+                    "Attempt to divide by zero".to_string()
+                } else if *operator == "%" {
+                    "Attempt to calculate the remainder with a divisor of zero".to_string()
+                } else {
+                    format!("No implementation for `{lhs}` {operator} `{rhs}`")
+                };
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::BinaryOperationOverflow { operator, location } => {
-                let msg = if *operator == "/" {
-                    "Attempt to divide by zero".to_string()
-                } else {
-                    let operator = match *operator {
-                        "+" => "add",
-                        "-" => "subtract",
-                        "*" => "multiply",
-                        ">>" => "shift right",
-                        "<<" => "shift left",
-                        _ => operator,
-                    };
-                    format!("Attempt to {operator} with overflow")
+                let operator = match *operator {
+                    "+" => "add",
+                    "-" => "subtract",
+                    "*" => "multiply",
+                    ">>" | "<<" => "bit-shift",
+                    _ => operator,
                 };
+                let msg = format!("Attempt to {operator} with overflow");
+
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NegateWithOverflow { location } => {
@@ -682,8 +699,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
                 let msg =
-                    "Generic name needs to be a valid identifier (one word beginning with a letter)"
-                        .to_string();
+                            "Generic name needs to be a valid identifier (one word beginning with a letter)"
+                                .to_string();
                 let secondary = format!("`{name}` is not a valid identifier");
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
@@ -725,12 +742,31 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
+            InterpreterError::GlobalCouldNotBeResolved { location } => {
+                let msg = "Failed to resolve this global".to_string();
+                let secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
-                    .to_string();
+                            .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
+            }
+            InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
+                let msg = "Duplicate field name in call to `set_fields`".to_string();
+                let secondary = format!(
+                    "`{name}` first used as field {} then again as field {}",
+                    previous_index + 1,
+                    index + 1
+                );
+                CustomDiagnostic::simple_error(msg, secondary, name.location())
+            }
+            InterpreterError::CheckedTransmuteFailed { actual, expected, location } => {
+                let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");
+                let secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
         }
     }

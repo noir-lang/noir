@@ -17,10 +17,15 @@ jobs:
     name: Build test artifacts
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Delete android SDK
+        run: sudo rm -rf /usr/local/lib/android/sdk
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -39,12 +44,12 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Build and archive tests
-        run: cargo nextest archive --workspace --features noirc_frontend/nextest --archive-file nextest-archive.tar.zst
+        run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload archive to workflow
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nextest-archive
           path: nextest-archive.tar.zst
@@ -54,12 +59,14 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4]
+        partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -72,7 +79,7 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Download archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: nextest-archive
       - name: Run tests
@@ -80,10 +87,27 @@ jobs:
           echo "Running with profile: $NEXTEST_PROFILE"
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
-            --partition count:${{ matrix.partition }}/4 \
+            --partition count:${{ matrix.partition }}/8 \
             --profile $NEXTEST_PROFILE
         env:
-          NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || 'ci' }}
+          NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || (github.ref == 'refs/heads/master' && 'ci-master') || 'ci' }}
+
+  check-pending-snapshots:
+    name: Check for pending snapshots
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Check for pending snapshots
+        run: just check-pending-snapshots
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -94,6 +118,9 @@ jobs:
     if: ${{ always() }}
     needs:
       - run-tests
+      - check-pending-snapshots
+    permissions:
+      contents: read
 
     steps:
       - name: Report overall success

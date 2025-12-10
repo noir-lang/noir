@@ -4,6 +4,7 @@
 use std::{
     collections::BTreeMap,
     path::{Component, Path, PathBuf},
+    str::FromStr,
 };
 
 use errors::SemverError;
@@ -12,8 +13,7 @@ use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
-use noirc_driver::parse_expression_width;
-use noirc_frontend::graph::CrateName;
+use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
 mod errors;
@@ -231,25 +231,22 @@ impl PackageConfig {
             })?;
         }
 
-        let expression_width = self
-            .package
-            .expression_width
-            .as_ref()
-            .map(|expression_width| {
-                parse_expression_width(expression_width)
-                    .map_err(|err| ManifestError::ParseExpressionWidth(err.to_string()))
-            })
-            .map_or(Ok(None), |res| res.map(Some))?;
+        // Collect any unstable features the package needs to compile.
+        // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
+        let compiler_required_unstable_features =
+            self.package.compiler_unstable_features.as_ref().map_or(Vec::new(), |feats| {
+                feats.iter().flat_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
+            });
 
         Ok(Package {
             version: self.package.version.clone(),
             compiler_required_version: self.package.compiler_version.clone(),
+            compiler_required_unstable_features,
             root_dir: root_dir.to_path_buf(),
             entry_path,
             package_type,
             name,
             dependencies,
-            expression_width,
         })
     }
 }
@@ -257,6 +254,7 @@ impl PackageConfig {
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
     Package {
@@ -317,6 +315,9 @@ pub struct PackageMetadata {
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
     pub compiler_version: Option<String>,
+    /// List of unstable features we want the compiler to enable to compile this package.
+    /// This is most useful with the LSP, so it can figure out what is allowed without CLI args.
+    pub compiler_unstable_features: Option<Vec<String>>,
     pub license: Option<String>,
     pub expression_width: Option<String>,
 }
@@ -491,7 +492,7 @@ fn resolve_package_from_toml(
         for toml in processed {
             cycle = cycle || toml == str_path;
             if cycle {
-                message += &format!("{} referencing ", toml);
+                message += &format!("{toml} referencing ");
             }
         }
         message += str_path;
@@ -677,11 +678,12 @@ mod tests {
                     );
 
                     // Go into the last created directory
-                    if indent > current_indent && last_item.is_some() {
-                        let last_item = last_item.unwrap();
-                        assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
-                        current_dir.push(last_item);
-                        current_indent += 1;
+                    if let Some(last_item) = last_item {
+                        if indent > current_indent {
+                            assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
+                            current_dir.push(last_item);
+                            current_indent += 1;
+                        }
                     }
                     // Go back into an ancestor directory
                     while indent < current_indent {

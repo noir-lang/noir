@@ -9,9 +9,27 @@ sidebar_position: 0
 
 import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
 
+Many of the common hash methods have been moved outside of the Noir standard library and exist as independent libraries. 
+You can find the complete list of libraries in the [Hashes section](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#hashes) 
+of the awesome-noir repo, including:
+
+- keccak256
+- MiMC
+- Poseidon
+- RIPEMD160
+- sha256
+- sha512
+
+
 ## sha256 compression
 
 Performs a sha256 compression on an input and initial state, returning the resulting state.
+
+:::warning
+
+This is a different function than sha256. See [this library](https://github.com/noir-lang/sha256) for sha256 hashing.
+
+::: 
 
 ```rust title="sha256_compression" showLineNumbers 
 pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}

@@ -113,3 +113,226 @@ fn can_move_within_loop() {
     }
     ");
 }
+
+#[test]
+fn borrows_on_nested_index() {
+    let src = "
+    unconstrained fn main(x: Field, y: pub Field) {
+        let EXPONENTIATE: [[[Field; 2]; 2]; 2] = [[[1, 1], [0, 0]], [[1, 1], [0, 0]]];
+        let mut acc: Field = 0;
+        for i in 0..2 {
+            for j in 0..2 {
+                acc += EXPONENTIATE[i][j][i];
+            }
+        }
+        assert(acc != 0);
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    // We expect no clones
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(x$l0: Field, y$l1: pub Field) -> () {
+        let EXPONENTIATE$l2 = [[[1, 1], [0, 0]], [[1, 1], [0, 0]]];
+        let mut acc$l3 = 0;
+        for i$l4 in 0 .. 2 {
+            for j$l5 in 0 .. 2 {
+                acc$l3 = (acc$l3 + EXPONENTIATE$l2[i$l4][j$l5][i$l4])
+            }
+        };
+        assert((acc$l3 != 0));
+    }
+    ");
+}
+
+#[test]
+fn clone_call_array_result() {
+    let src = "
+    unconstrained fn main(i: u32) -> pub u32 {
+        let _a = foo()[1][0][1];
+        let _s = foo()[1][0][1];
+        i
+    }
+    unconstrained fn foo() -> [[[[u128; 0]; 2]; 1]; 2] {
+        [[[[], []]], [[[], []]]]
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    // We expect no clones
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32) -> pub u32 {
+        let _a$l1 = foo$f1()[1][0][1].clone();
+        let _s$l2 = foo$f1()[1][0][1].clone();
+        i$l0
+    }
+    unconstrained fn foo$f1() -> [[[[u128; 0]; 2]; 1]; 2] {
+        [[[[], []]], [[[], []]]]
+    }
+    ");
+}
+
+#[test]
+fn considers_lvalue_index_identifier_in_last_use() {
+    let src = "
+    unconstrained fn main() {
+        let mut b = [true];
+        let mut c = [false];
+        c = b;
+        b[0] = !c[0];
+        assert_eq(c[0], true);
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut b$l0 = [true];
+        let mut c$l1 = [false];
+        c$l1 = b$l0.clone();
+        b$l0[0] = (!c$l1[0]);
+        assert((c$l1[0] == true));
+    }
+    ");
+}
+
+#[test]
+fn analyzes_expression_before_lvalue_in_assignment() {
+    let src = "
+    unconstrained fn main() {
+        let mut b = [true];
+        let mut c = [false];
+        b[0] = {
+          c = b;
+          !c[0]
+        };
+        assert_eq(c[0], true);
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut b$l0 = [true];
+        let mut c$l1 = [false];
+        b$l0[0] = {
+            c$l1 = b$l0.clone();
+            (!c$l1[0])
+        };
+        assert((c$l1[0] == true));
+    }
+    ");
+}
+
+#[test]
+fn clone_nested_array_used_as_call_arg() {
+    let src = "
+    unconstrained fn main(i: u32) -> pub bool {
+        let G_A: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
+        let result = mutate_array(G_A[i])[1];
+        if i != 0 {
+            G_A[0][1]
+        } else {
+            result
+        }
+    }
+    unconstrained fn mutate_array(mut a: [bool; 3]) -> [bool; 3] {
+        a[1] = true;
+        a
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32) -> pub bool {
+        let G_A$l1 = [[false, false, false], [false, false, false]];
+        let result$l2 = mutate_array$f1(G_A$l1[i$l0].clone())[1];
+        if (i$l0 != 0) {
+            G_A$l1[0][1]
+        } else {
+            result$l2
+        }
+    }
+    unconstrained fn mutate_array$f1(mut a$l3: [bool; 3]) -> [bool; 3] {
+        a$l3[1] = true;
+        a$l3
+    }
+    ");
+}
+
+#[test]
+fn clone_global_nested_array_used_as_call_arg() {
+    let src = "
+    global G_A: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
+    unconstrained fn main(i: u32) -> pub bool {
+        let result = mutate_array(G_A[i])[1];
+        if i != 0 {
+            result
+        } else {
+            G_A[0][1]
+        }
+    }
+    unconstrained fn mutate_array(mut a: [bool; 3]) -> [bool; 3] {
+        a[1] = true;
+        a
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global G_A$g0: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
+    unconstrained fn main$f0(i$l0: u32) -> pub bool {
+        let result$l1 = mutate_array$f1(G_A$g0[i$l0].clone())[1];
+        if (i$l0 != 0) {
+            result$l1
+        } else {
+            G_A$g0[0][1]
+        }
+    }
+    unconstrained fn mutate_array$f1(mut a$l2: [bool; 3]) -> [bool; 3] {
+        a$l2[1] = true;
+        a$l2
+    }
+    ");
+}
+
+// Regression for issue https://github.com/noir-lang/noir/issues/9907
+#[test]
+fn regression_9907() {
+    let src = "
+   unconstrained fn main() -> pub [[Field; 1]; 1] {
+        foo([[0xcafebabe]])
+    }
+    unconstrained fn foo(mut a: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        let mut b = bar(a)[0];
+
+        let mut x = 0;
+        while (x != 0) {}
+
+        b[0] = 0xdeadbeef;
+        a
+    }
+    unconstrained fn bar(mut a: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        a
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    // There are clones on both bar input and output
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [[Field; 1]; 1] {
+        foo$f1([[3405691582]])
+    }
+    unconstrained fn foo$f1(mut a$l0: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        let mut b$l1 = bar$f2(a$l0.clone())[0].clone();
+        let mut x$l2 = 0;
+        while (x$l2 != 0) {
+        };
+        b$l1[0] = 3735928559;
+        a$l0
+    }
+    unconstrained fn bar$f2(mut a$l3: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        a$l3
+    }
+    ");
+}

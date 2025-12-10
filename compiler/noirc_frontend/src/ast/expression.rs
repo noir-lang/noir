@@ -67,24 +67,45 @@ pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedGeneric {
-    Variable(Ident, Vec<TraitBound>),
-    Numeric {
-        ident: Ident,
-        typ: UnresolvedType,
-    },
+    Variable(IdentOrQuotedType, Vec<TraitBound>),
+    Numeric { ident: IdentOrQuotedType, typ: UnresolvedType },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum IdentOrQuotedType {
+    Ident(Ident),
 
     /// Already-resolved generics can be parsed as generics when a macro
     /// splices existing types into a generic list. In this case we have
     /// to validate the type refers to a named generic and treat that
     /// as a ResolvedGeneric when this is resolved.
-    Resolved(QuotedTypeId, Location),
+    Quoted(QuotedTypeId, Location),
+}
+
+impl IdentOrQuotedType {
+    pub fn location(&self) -> Location {
+        match self {
+            IdentOrQuotedType::Ident(ident) => ident.location(),
+            IdentOrQuotedType::Quoted(_, location) => *location,
+        }
+    }
+
+    pub fn ident(&self) -> Option<&Ident> {
+        match self {
+            IdentOrQuotedType::Ident(ident) => Some(ident),
+            IdentOrQuotedType::Quoted(_, _) => None,
+        }
+    }
 }
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error("The only supported types of numeric generics are integers, fields, and booleans")]
+#[error(
+    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers, fields, and booleans"
+)]
 pub struct UnsupportedNumericGenericType {
-    pub ident: Ident,
-    pub typ: UnresolvedTypeData,
+    pub name: Option<String>,
+    pub typ: String,
+    pub location: Location,
 }
 
 impl UnresolvedGeneric {
@@ -92,7 +113,6 @@ impl UnresolvedGeneric {
         match self {
             UnresolvedGeneric::Variable(ident, _) => ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
-            UnresolvedGeneric::Resolved(_, location) => *location,
         }
     }
 
@@ -106,9 +126,6 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
                 Ok(Kind::numeric(typ))
-            }
-            UnresolvedGeneric::Resolved(..) => {
-                panic!("Don't know the kind of a resolved generic here")
             }
         }
     }
@@ -134,15 +151,16 @@ impl UnresolvedGeneric {
         }
 
         // Only fields and integers are supported for numeric kinds
-        Err(UnsupportedNumericGenericType { ident: self.ident().clone(), typ: typ.typ.clone() })
+        let name = self.ident().ident().map(|name| name.to_string());
+        let type_string = typ.typ.to_string();
+        Err(UnsupportedNumericGenericType { name, typ: type_string, location: typ.location })
     }
 
-    pub(crate) fn ident(&self) -> &Ident {
+    pub fn ident(&self) -> &IdentOrQuotedType {
         match self {
             UnresolvedGeneric::Variable(ident, _) | UnresolvedGeneric::Numeric { ident, .. } => {
                 ident
             }
-            UnresolvedGeneric::Resolved(..) => panic!("UnresolvedGeneric::Resolved no ident"),
         }
     }
 }
@@ -164,14 +182,22 @@ impl Display for UnresolvedGeneric {
                 Ok(())
             }
             UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
-            UnresolvedGeneric::Resolved(..) => write!(f, "(resolved)"),
+        }
+    }
+}
+
+impl Display for IdentOrQuotedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IdentOrQuotedType::Ident(ident) => write!(f, "{ident}"),
+            IdentOrQuotedType::Quoted(..) => write!(f, "(quoted)"),
         }
     }
 }
 
 impl From<Ident> for UnresolvedGeneric {
     fn from(value: Ident) -> Self {
-        UnresolvedGeneric::Variable(value, Vec::new())
+        UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(value), Vec::new())
     }
 }
 
@@ -344,6 +370,27 @@ impl BinaryOpKind {
                 | BinaryOpKind::NotEqual
         )
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinaryOpKind::Add => "+",
+            BinaryOpKind::Subtract => "-",
+            BinaryOpKind::Multiply => "*",
+            BinaryOpKind::Divide => "/",
+            BinaryOpKind::Equal => "==",
+            BinaryOpKind::NotEqual => "!=",
+            BinaryOpKind::Less => "<",
+            BinaryOpKind::LessEqual => "<=",
+            BinaryOpKind::Greater => ">",
+            BinaryOpKind::GreaterEqual => ">=",
+            BinaryOpKind::And => "&",
+            BinaryOpKind::Or => "|",
+            BinaryOpKind::Xor => "^",
+            BinaryOpKind::ShiftRight => ">>",
+            BinaryOpKind::ShiftLeft => "<<",
+            BinaryOpKind::Modulo => "%",
+        }
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -354,10 +401,10 @@ pub enum UnaryOp {
         mutable: bool,
     },
 
-    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// If `implicitly_added` is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
     /// the reference later turns out to be needed (e.g. passing a field by reference to a function
-    /// requiring an &mut parameter).
+    /// requiring an `&mut` parameter).
     Dereference {
         implicitly_added: bool,
     },
@@ -421,9 +468,10 @@ pub struct MatchExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Lambda {
-    pub parameters: Vec<(Pattern, UnresolvedType)>,
-    pub return_type: UnresolvedType,
+    pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
+    pub return_type: Option<UnresolvedType>,
     pub body: Expression,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -551,6 +599,8 @@ pub enum ConstrainKind {
 }
 
 impl ConstrainKind {
+    /// The number of arguments expected by the constraint,
+    /// not counting the optional assertion message.
     pub fn required_arguments_count(&self) -> usize {
         match self {
             ConstrainKind::Assert | ConstrainKind::Constrain => 1,
@@ -737,24 +787,7 @@ impl Display for InfixExpression {
 
 impl Display for BinaryOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOpKind::Add => write!(f, "+"),
-            BinaryOpKind::Subtract => write!(f, "-"),
-            BinaryOpKind::Multiply => write!(f, "*"),
-            BinaryOpKind::Divide => write!(f, "/"),
-            BinaryOpKind::Equal => write!(f, "=="),
-            BinaryOpKind::NotEqual => write!(f, "!="),
-            BinaryOpKind::Less => write!(f, "<"),
-            BinaryOpKind::LessEqual => write!(f, "<="),
-            BinaryOpKind::Greater => write!(f, ">"),
-            BinaryOpKind::GreaterEqual => write!(f, ">="),
-            BinaryOpKind::And => write!(f, "&"),
-            BinaryOpKind::Or => write!(f, "|"),
-            BinaryOpKind::Xor => write!(f, "^"),
-            BinaryOpKind::ShiftLeft => write!(f, "<<"),
-            BinaryOpKind::ShiftRight => write!(f, ">>"),
-            BinaryOpKind::Modulo => write!(f, "%"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -772,7 +805,7 @@ impl Display for MatchExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "match {} {{", self.expression)?;
         for (pattern, branch) in &self.rules {
-            writeln!(f, "    {pattern} -> {branch},")?;
+            writeln!(f, "    {pattern} => {branch},")?;
         }
         write!(f, "}}")
     }
@@ -780,9 +813,17 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
+        let unconstrained = if self.unconstrained { "unconstrained " } else { "" };
+        let parameters = vecmap(&self.parameters, |(name, r#type)| {
+            if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
+        });
 
-        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
+        let parameters = parameters.join(", ");
+        if let Some(return_type) = &self.return_type {
+            write!(f, "{unconstrained}|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+        } else {
+            write!(f, "{unconstrained}|{}| {{ {} }}", parameters, self.body)
+        }
     }
 }
 
@@ -796,7 +837,7 @@ impl Display for TypePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.typ, self.item)?;
         if let Some(turbofish) = &self.turbofish {
-            write!(f, "::{}", turbofish)?;
+            write!(f, "::{turbofish}")?;
         }
         Ok(())
     }

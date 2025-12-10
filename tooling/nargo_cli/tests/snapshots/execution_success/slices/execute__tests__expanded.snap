@@ -57,6 +57,7 @@ fn main(x: Field, y: pub Field) {
     regression_4418(x);
     regression_slice_call_result(x, y);
     regression_4506();
+    regression_slice_to_brillig((x as u32) % 3_u32);
 }
 
 fn regression_2083() {
@@ -297,4 +298,34 @@ fn regression_slice_call_result(x: Field, y: Field) {
 fn regression_4506() {
     let slice: [Field] = &[1_Field, 2_Field, 3_Field];
     assert(slice == slice);
+}
+
+struct foo {
+    a: u32,
+    b: u32,
+    c: [Field; 3],
+}
+
+fn regression_slice_to_brillig(x: u32) {
+    let mut slice: [foo] = &[
+        foo { a: 0_u32, b: 0_u32, c: [0_Field, 0_Field, 0_Field] },
+        foo { a: 1_u32, b: 1_u32, c: [0_Field, 0_Field, 0_Field] },
+    ];
+    let mut foo1: foo = foo { a: 10_u32, b: 10_u32, c: [0_Field, 0_Field, 0_Field] };
+    foo1.c[x] = 7_Field;
+    slice = slice.push_back(foo1);
+    slice = slice.push_back(foo { a: 0_u32, b: 0_u32, c: [0_Field, 0_Field, 0_Field] });
+    let (new_slice, _): ([foo], foo) = slice.pop_back();
+    slice = new_slice;
+    // Safety: comment added by `nargo expand`
+    let ok: bool = unsafe { bar(slice) };
+    assert(ok);
+}
+
+unconstrained fn bar(slice: [foo]) -> bool {
+    if slice.len() != 0_u32 {
+        slice[0_u32].a == 0_u32
+    } else {
+        false
+    }
 }

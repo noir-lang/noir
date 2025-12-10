@@ -1,0 +1,2 @@
+{"suite":"noir_base64","name":"oracle_test::test_oracle_standard_encoding"}
+{"suite":"noir_base64","name":"oracle_test::test_oracle_url_safe_encoding"}

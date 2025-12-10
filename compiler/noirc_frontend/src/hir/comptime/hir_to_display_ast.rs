@@ -6,9 +6,9 @@ use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
-    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, LoopStatement,
+    MatchExpression, MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -17,7 +17,6 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
-use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -31,7 +30,7 @@ impl HirStatement {
         let kind = match self {
             HirStatement::Let(let_stmt) => {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
-                let r#type = interner.id_type(let_stmt.expression).to_display_ast();
+                let r#type = Some(interner.id_type(let_stmt.expression).to_display_ast());
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
@@ -48,9 +47,10 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 location,
             }),
-            HirStatement::Loop(block) => {
-                StatementKind::Loop(block.to_display_ast(interner), location)
-            }
+            HirStatement::Loop(block) => StatementKind::Loop(LoopStatement {
+                body: block.to_display_ast(interner),
+                loop_keyword_location: location,
+            }),
             HirStatement::While(condition, block) => StatementKind::While(WhileStatement {
                 condition: condition.to_display_ast(interner),
                 body: block.to_display_ast(interner),
@@ -181,11 +181,17 @@ impl HirExpression {
             }
             HirExpression::Lambda(lambda) => {
                 let parameters = vecmap(lambda.parameters.clone(), |(pattern, typ)| {
-                    (pattern.to_display_ast(interner), typ.to_display_ast())
+                    (pattern.to_display_ast(interner), Some(typ.to_display_ast()))
                 });
-                let return_type = lambda.return_type.to_display_ast();
+                let return_type = Some(lambda.return_type.to_display_ast());
                 let body = lambda.body.to_display_ast(interner);
-                ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
+                let unconstrained = lambda.unconstrained;
+                ExpressionKind::Lambda(Box::new(Lambda {
+                    parameters,
+                    return_type,
+                    body,
+                    unconstrained,
+                }))
             }
             HirExpression::Error => ExpressionKind::Error,
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
@@ -427,7 +433,7 @@ impl Type {
             Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
                 TypeBinding::Unbound(id, type_var_kind) => {
-                    let name = format!("var_{:?}_{}", type_var_kind, id);
+                    let name = format!("var_{type_var_kind:?}_{id}");
                     let path =
                         Path::from_single(name, Location::new(Span::empty(0), FileId::dummy()));
                     let expression = UnresolvedTypeExpression::Variable(path);
@@ -463,7 +469,13 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
+            Type::Constant(value, kind) => {
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
+                    *value,
+                    kind.as_integer_type_suffix(),
+                    Location::dummy(),
+                ))
+            }
             Type::Quoted(quoted_type) => {
                 UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
             }
@@ -502,7 +514,9 @@ impl HirLValue {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
-            HirLValue::Ident(ident, _) => LValue::Ident(ident.to_display_ast(interner)),
+            HirLValue::Ident(path, _) => {
+                LValue::Path(Path::from_ident(path.to_display_ast(interner)))
+            }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location } => {
                 let object = Box::new(object.to_display_ast(interner));
                 LValue::MemberAccess { object, field_name: field_name.clone(), location: *location }
@@ -532,7 +546,7 @@ impl HirArrayLiteral {
                 let length = match length {
                     Type::Constant(length, kind) => {
                         let suffix = kind.as_integer_type_suffix();
-                        let literal = Literal::Integer(SignedField::positive(*length), suffix);
+                        let literal = Literal::Integer(*length, suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

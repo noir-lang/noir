@@ -62,16 +62,16 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[0_u32] as u64) << 56_u8) + ((bytes[1_u32] as u64) << 48_u8))
-                                + ((bytes[2_u32] as u64) << 40_u8)
+                            (((bytes[0_u32] as u64) << 56_u64) + ((bytes[1_u32] as u64) << 48_u64))
+                                + ((bytes[2_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[3_u32] as u64) << 32_u8)
+                            + ((bytes[3_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[4_u32] as u64) << 24_u8)
+                        + ((bytes[4_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[5_u32] as u64) << 16_u8)
+                    + ((bytes[5_u32] as u64) << 16_u64)
             )
-                + ((bytes[6_u32] as u64) << 8_u8)
+                + ((bytes[6_u32] as u64) << 8_u64)
         )
             + (bytes[7_u32] as u64);
         let high_1: u64 = (
@@ -79,16 +79,16 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[8_u32] as u64) << 56_u8) + ((bytes[9_u32] as u64) << 48_u8))
-                                + ((bytes[10_u32] as u64) << 40_u8)
+                            (((bytes[8_u32] as u64) << 56_u64) + ((bytes[9_u32] as u64) << 48_u64))
+                                + ((bytes[10_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[11_u32] as u64) << 32_u8)
+                            + ((bytes[11_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[12_u32] as u64) << 24_u8)
+                        + ((bytes[12_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[13_u32] as u64) << 16_u8)
+                    + ((bytes[13_u32] as u64) << 16_u64)
             )
-                + ((bytes[14_u32] as u64) << 8_u8)
+                + ((bytes[14_u32] as u64) << 8_u64)
         )
             + (bytes[15_u32] as u64);
         let low_0: u64 = (
@@ -96,16 +96,19 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[16_u32] as u64) << 56_u8) + ((bytes[17_u32] as u64) << 48_u8))
-                                + ((bytes[18_u32] as u64) << 40_u8)
+                            (
+                                ((bytes[16_u32] as u64) << 56_u64)
+                                    + ((bytes[17_u32] as u64) << 48_u64)
+                            )
+                                + ((bytes[18_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[19_u32] as u64) << 32_u8)
+                            + ((bytes[19_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[20_u32] as u64) << 24_u8)
+                        + ((bytes[20_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[21_u32] as u64) << 16_u8)
+                    + ((bytes[21_u32] as u64) << 16_u64)
             )
-                + ((bytes[22_u32] as u64) << 8_u8)
+                + ((bytes[22_u32] as u64) << 8_u64)
         )
             + (bytes[23_u32] as u64);
         let low_1: u64 = (
@@ -113,16 +116,19 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[24_u32] as u64) << 56_u8) + ((bytes[25_u32] as u64) << 48_u8))
-                                + ((bytes[26_u32] as u64) << 40_u8)
+                            (
+                                ((bytes[24_u32] as u64) << 56_u64)
+                                    + ((bytes[25_u32] as u64) << 48_u64)
+                            )
+                                + ((bytes[26_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[27_u32] as u64) << 32_u8)
+                            + ((bytes[27_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[28_u32] as u64) << 24_u8)
+                        + ((bytes[28_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[29_u32] as u64) << 16_u8)
+                    + ((bytes[29_u32] as u64) << 16_u64)
             )
-                + ((bytes[30_u32] as u64) << 8_u8)
+                + ((bytes[30_u32] as u64) << 8_u64)
         )
             + (bytes[31_u32] as u64);
         Self { inner: [high_0, high_1, low_0, low_1] }
@@ -149,33 +155,33 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     let mut offset: u32 = 0_u32;
     for j in 0_u32..MAX_NOTE_HASHES_PER_TX {
         {
-            let i_3800: u32 = offset + j;
-            tx_effects_hash_inputs[i_3800] = new_note_hashes[j];
+            let i_4507: u32 = offset + j;
+            tx_effects_hash_inputs[i_4507] = new_note_hashes[j];
         }
     }
     offset = offset + MAX_NOTE_HASHES_PER_TX;
     for j in 0_u32..MAX_NULLIFIERS_PER_TX {
         {
-            let i_3802: u32 = offset + j;
-            tx_effects_hash_inputs[i_3802] = new_nullifiers[j];
+            let i_4509: u32 = offset + j;
+            tx_effects_hash_inputs[i_4509] = new_nullifiers[j];
         }
     }
     offset = offset + MAX_NULLIFIERS_PER_TX;
     for j in 0_u32..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
         {
-            let i_3804: u32 = offset + (j * 2_u32);
-            tx_effects_hash_inputs[i_3804] = public_data_update_requests[j].leaf_slot;
+            let i_4511: u32 = offset + (j * 2_u32);
+            tx_effects_hash_inputs[i_4511] = public_data_update_requests[j].leaf_slot;
         };
         {
-            let i_3805: u32 = (offset + (j * 2_u32)) + 1_u32;
-            tx_effects_hash_inputs[i_3805] = public_data_update_requests[j].new_value;
+            let i_4512: u32 = (offset + (j * 2_u32)) + 1_u32;
+            tx_effects_hash_inputs[i_4512] = public_data_update_requests[j].new_value;
         }
     }
     offset = offset + (MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2_u32);
     for j in 0_u32..MAX_L2_TO_L1_MSGS_PER_TX {
         {
-            let i_3807: u32 = offset + j;
-            tx_effects_hash_inputs[i_3807] = l2ToL1Msgs[j];
+            let i_4514: u32 = offset + j;
+            tx_effects_hash_inputs[i_4514] = l2ToL1Msgs[j];
         }
     }
     offset = offset + MAX_L2_TO_L1_MSGS_PER_TX;
@@ -185,21 +191,21 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     let new_contracts: [NewContractData; 1] = kernel_data.new_contracts;
     tx_effects_hash_inputs[offset] = new_contracts[0_u32].contract_address;
     {
-        let i_3810: u32 = offset + 1_u32;
-        tx_effects_hash_inputs[i_3810] = new_contracts[0_u32].portal_contract_address;
+        let i_4517: u32 = offset + 1_u32;
+        tx_effects_hash_inputs[i_4517] = new_contracts[0_u32].portal_contract_address;
     };
     offset = offset + (MAX_NEW_CONTRACTS_PER_TX * 2_u32);
     for j in 0_u32..NUM_FIELDS_PER_SHA256 {
         {
-            let i_3812: u32 = offset + j;
-            tx_effects_hash_inputs[i_3812] = encryptedLogsHash[j];
+            let i_4519: u32 = offset + j;
+            tx_effects_hash_inputs[i_4519] = encryptedLogsHash[j];
         }
     }
     offset = offset + (NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256);
     for j in 0_u32..NUM_FIELDS_PER_SHA256 {
         {
-            let i_3814: u32 = offset + j;
-            tx_effects_hash_inputs[i_3814] = unencryptedLogsHash[j];
+            let i_4521: u32 = offset + j;
+            tx_effects_hash_inputs[i_4521] = unencryptedLogsHash[j];
         }
     }
     offset = offset + (NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256);
@@ -209,8 +215,8 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
         let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0_u32..32_u32 {
             {
-                let i_3819: u32 = (offset * 32_u32) + byte_index;
-                hash_input_flattened[i_3819] = input_as_bytes[byte_index];
+                let i_4526: u32 = (offset * 32_u32) + byte_index;
+                hash_input_flattened[i_4526] = input_as_bytes[byte_index];
             }
         }
     }
@@ -219,11 +225,11 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
             tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0_u32..16_u32 {
             {
-                let i_3823: u32 = (
+                let i_4530: u32 = (
                     (TX_EFFECT_HASH_FULL_FIELDS * 32_u32) + (log_field_index * 16_u32)
                 )
                     + byte_index;
-                hash_input_flattened[i_3823] = input_as_bytes[byte_index];
+                hash_input_flattened[i_4530] = input_as_bytes[byte_index];
             }
         }
     }

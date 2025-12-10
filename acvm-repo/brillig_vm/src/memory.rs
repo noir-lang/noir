@@ -1,4 +1,4 @@
-//! Implementation of the VM's memory
+//! Implementation of the VM's memory.
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
@@ -8,6 +8,79 @@ use acir::{
 ///
 /// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
+
+/// The current stack pointer is always in slot 0.
+///
+/// It gets manipulated by opcodes laid down for calls by codegen.
+pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
+
+/// The _free memory pointer_ is always in slot 1.
+///
+/// We added it here to be able to implement a workaround for wrapping around
+/// the free memory, ie. to detect "out of memory" events, but the AVM is not,
+/// and does not want to be aware of the _free memory pointer_, so we cannot,
+/// in general, build much functionality in the VM around it.
+pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
+
+/// Offset constants for arrays and vectors:
+/// * Arrays are `[ref-count, ...items]`
+/// * Vectors are `[ref-count, size, capacity, ...items]`
+pub mod offsets {
+    /// Number of prefix fields in an array: RC.
+    pub const ARRAY_META_COUNT: usize = 1;
+    pub const ARRAY_ITEMS: usize = 1;
+
+    /// Number of prefix fields in a vector: RC, size, capacity.
+    pub const VECTOR_META_COUNT: usize = 3;
+    pub const VECTOR_SIZE: usize = 1;
+    pub const VECTOR_CAPACITY: usize = 2;
+    pub const VECTOR_ITEMS: usize = 3;
+}
+
+/// Wrapper for array addresses, with convenience methods for various offsets.
+///
+/// The array consists of a ref-count followed by a number of items according
+/// the size indicated by the type.
+pub(crate) struct ArrayAddress(MemoryAddress);
+
+impl ArrayAddress {
+    /// The start of the items, after the meta-data.
+    pub(crate) fn items_start(&self) -> MemoryAddress {
+        self.0.offset(offsets::ARRAY_ITEMS)
+    }
+}
+
+impl From<MemoryAddress> for ArrayAddress {
+    fn from(value: MemoryAddress) -> Self {
+        Self(value)
+    }
+}
+
+/// Wrapper for vector addresses, with convenience methods for various offsets.
+///
+/// A vector is prefixed by 3 meta-data fields: the ref-count, the size, and the capacity,
+/// which are followed by a number of items indicated by its capacity, with the items
+/// its size being placeholders to accommodate future growth.
+///
+/// The semantic length of the vector is maintained at a separate address.
+pub(crate) struct VectorAddress(MemoryAddress);
+
+impl VectorAddress {
+    /// Size of the vector.
+    pub(crate) fn size_addr(&self) -> MemoryAddress {
+        self.0.offset(offsets::VECTOR_SIZE)
+    }
+    /// The start of the items, after the meta-data.
+    pub(crate) fn items_start(&self) -> MemoryAddress {
+        self.0.offset(offsets::VECTOR_ITEMS)
+    }
+}
+
+impl From<MemoryAddress> for VectorAddress {
+    fn from(value: MemoryAddress) -> Self {
+        Self(value)
+    }
+}
 
 /// A single typed value in the Brillig VM's memory.
 ///
@@ -69,16 +142,21 @@ impl<F: std::fmt::Display> MemoryValue<F> {
         }
     }
 
+    /// Expects a `U32` value and converts it into `usize`, otherwise panics.
+    ///
+    /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
     pub fn to_usize(&self) -> usize {
         match self {
             MemoryValue::U32(value) => (*value).try_into().unwrap(),
-            other => panic!("value is not typed as brillig usize: {other}"),
+            other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
 }
 
 impl<F: AcirField> MemoryValue<F> {
-    /// Builds a memory value from a field element.
+    /// Builds a memory value from a field element, either field or integer type.
+    ///
+    /// If the bit size indicates an integer type, the value is downcast to fit into the specified size.
     pub fn new_from_field(value: F, bit_size: BitSize) -> Self {
         if let BitSize::Integer(bit_size) = bit_size {
             MemoryValue::new_integer(value.to_u128(), bit_size)
@@ -87,7 +165,8 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    /// Builds a memory value from a field element, checking that the value is within the bit size.
+    /// Builds a memory value from a field element, checking that the value is within the bit size,
+    /// otherwise returns `None`.
     pub fn new_checked(value: F, bit_size: BitSize) -> Option<Self> {
         if let BitSize::Integer(bit_size) = bit_size {
             if value.num_bits() > bit_size.into() {
@@ -103,10 +182,10 @@ impl<F: AcirField> MemoryValue<F> {
         match self {
             MemoryValue::Field(value) => *value,
             MemoryValue::U1(value) => F::from(*value),
-            MemoryValue::U8(value) => F::from(*value as u128),
-            MemoryValue::U16(value) => F::from(*value as u128),
-            MemoryValue::U32(value) => F::from(*value as u128),
-            MemoryValue::U64(value) => F::from(*value as u128),
+            MemoryValue::U8(value) => F::from(u128::from(*value)),
+            MemoryValue::U16(value) => F::from(u128::from(*value)),
+            MemoryValue::U32(value) => F::from(u128::from(*value)),
+            MemoryValue::U64(value) => F::from(u128::from(*value)),
             MemoryValue::U128(value) => F::from(*value),
         }
     }
@@ -115,11 +194,11 @@ impl<F: AcirField> MemoryValue<F> {
     pub fn to_u128(&self) -> Result<u128, MemoryTypeError> {
         match self {
             MemoryValue::Field(..) => Err(MemoryTypeError::NotAnInteger),
-            MemoryValue::U1(value) => Ok(*value as u8 as u128),
-            MemoryValue::U8(value) => Ok(*value as u128),
-            MemoryValue::U16(value) => Ok(*value as u128),
-            MemoryValue::U32(value) => Ok(*value as u128),
-            MemoryValue::U64(value) => Ok(*value as u128),
+            MemoryValue::U1(value) => Ok(u128::from(*value)),
+            MemoryValue::U8(value) => Ok(u128::from(*value)),
+            MemoryValue::U16(value) => Ok(u128::from(*value)),
+            MemoryValue::U32(value) => Ok(u128::from(*value)),
+            MemoryValue::U64(value) => Ok(u128::from(*value)),
             MemoryValue::U128(value) => Ok(*value),
         }
     }
@@ -205,13 +284,13 @@ impl<F: AcirField> MemoryValue<F> {
 impl<F: std::fmt::Display> std::fmt::Display for MemoryValue<F> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            MemoryValue::Field(value) => write!(f, "{}: field", value),
-            MemoryValue::U1(value) => write!(f, "{}: u1", value),
-            MemoryValue::U8(value) => write!(f, "{}: u8", value),
-            MemoryValue::U16(value) => write!(f, "{}: u16", value),
-            MemoryValue::U32(value) => write!(f, "{}: u32", value),
-            MemoryValue::U64(value) => write!(f, "{}: u64", value),
-            MemoryValue::U128(value) => write!(f, "{}: u128", value),
+            MemoryValue::Field(value) => write!(f, "{value}: field"),
+            MemoryValue::U1(value) => write!(f, "{value}: u1"),
+            MemoryValue::U8(value) => write!(f, "{value}: u8"),
+            MemoryValue::U16(value) => write!(f, "{value}: u16"),
+            MemoryValue::U32(value) => write!(f, "{value}: u32"),
+            MemoryValue::U64(value) => write!(f, "{value}: u64"),
+            MemoryValue::U128(value) => write!(f, "{value}: u128"),
         }
     }
 }
@@ -307,10 +386,18 @@ pub struct Memory<F> {
 }
 
 impl<F: AcirField> Memory<F> {
+    /// Read the value from slot 0.
+    ///
+    /// Panics if it's not a `U32`.
     fn get_stack_pointer(&self) -> usize {
-        self.read(MemoryAddress::Direct(0)).to_usize()
+        self.read(STACK_POINTER_ADDRESS).to_usize()
     }
 
+    /// Resolve an address to either:
+    /// * itself, if it's a direct address, or
+    /// * the current stack pointer plus the offset, if it's relative.
+    ///
+    /// Returns a memory slot index.
     fn resolve(&self, address: MemoryAddress) -> usize {
         match address {
             MemoryAddress::Direct(address) => address,
@@ -318,34 +405,47 @@ impl<F: AcirField> Memory<F> {
         }
     }
 
-    /// Gets the value at address
+    /// Reads the numeric value at the address.
+    ///
+    /// If the address is beyond the size of memory, a default value is returned.
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
         let resolved_addr = self.resolve(address);
         self.inner.get(resolved_addr).copied().unwrap_or_default()
     }
 
+    /// Reads the value at the address and returns it as a direct memory address,
+    /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
         MemoryAddress::direct(self.read(ptr).to_usize())
     }
 
-    pub fn read_slice(&self, addr: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
+    /// Sets `ptr` to point at `address`.
+    pub fn write_ref(&mut self, ptr: MemoryAddress, address: MemoryAddress) {
+        self.write(ptr, MemoryValue::from(address.to_usize()));
+    }
+
+    /// Read a contiguous slice of memory starting at `address`, up to `len` slots.
+    ///
+    /// Panics if the end index is beyond the size of the memory.
+    pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
         // Allows to read a slice of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
         // but that's not possible if we want to return a slice instead of owned data.
         if len == 0 {
             return &[];
         }
-        let resolved_addr = self.resolve(addr);
+        let resolved_addr = self.resolve(address);
         &self.inner[resolved_addr..(resolved_addr + len)]
     }
 
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
-        let resolved_ptr = self.resolve(address);
-        self.resize_to_fit(resolved_ptr + 1);
-        self.inner[resolved_ptr] = value;
+        let resolved_addr = self.resolve(address);
+        self.resize_to_fit(resolved_addr + 1);
+        self.inner[resolved_addr] = value;
     }
 
+    /// Increase the size of memory fit `size` elements, or the current length, whichever is bigger.
     fn resize_to_fit(&mut self, size: usize) {
         // Calculate new memory size
         let new_size = std::cmp::max(self.inner.len(), size);
@@ -355,13 +455,155 @@ impl<F: AcirField> Memory<F> {
 
     /// Sets the values after `address` to `values`
     pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
-        let resolved_address = self.resolve(address);
-        self.resize_to_fit(resolved_address + values.len());
-        self.inner[resolved_address..(resolved_address + values.len())].copy_from_slice(values);
+        let resolved_addr = self.resolve(address);
+        let end_addr = resolved_addr + values.len();
+        self.resize_to_fit(end_addr);
+        self.inner[resolved_addr..end_addr].copy_from_slice(values);
     }
 
     /// Returns the values of the memory
     pub fn values(&self) -> &[MemoryValue<F>] {
         &self.inner
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir::FieldElement;
+
+    #[test]
+    fn direct_write_and_read() {
+        let mut memory = Memory::<FieldElement>::default();
+        let addr = MemoryAddress::direct(5);
+
+        memory.write(addr, MemoryValue::U32(42));
+        assert_eq!(memory.read(addr).to_u128().unwrap(), 42);
+    }
+
+    #[test]
+    fn relative_write_and_read() {
+        let mut memory = Memory::<FieldElement>::default();
+        // Stack pointer = 10
+        memory.write(MemoryAddress::direct(0), MemoryValue::U32(10));
+
+        let addr = MemoryAddress::Relative(5);
+        memory.write(addr, MemoryValue::U32(42));
+        assert_eq!(memory.read(addr).to_u128().unwrap(), 42);
+
+        let resolved_addr = memory.resolve(addr);
+        // Stack pointer + offset
+        // 10 + 5 = 15
+        assert_eq!(resolved_addr, 15);
+        assert_eq!(memory.values()[resolved_addr].to_u128().unwrap(), 42);
+    }
+
+    #[test]
+    fn memory_growth() {
+        let mut memory = Memory::<FieldElement>::default();
+        let addr = MemoryAddress::direct(10);
+
+        memory.write(addr, MemoryValue::U32(123));
+
+        let mut expected = vec![MemoryValue::default(); 10];
+        expected.push(MemoryValue::U32(123));
+
+        assert_eq!(memory.values(), &expected);
+    }
+
+    #[test]
+    fn resize_to_fit_grows_memory() {
+        let mut memory = Memory::<FieldElement>::default();
+        memory.resize_to_fit(15);
+
+        assert_eq!(memory.values().len(), 15);
+        assert!(memory.values().iter().all(|v| *v == MemoryValue::default()));
+    }
+
+    #[test]
+    fn write_and_read_slice() {
+        let mut memory = Memory::<FieldElement>::default();
+        // [1, 2, 3, 4, 5]
+        let values: Vec<_> = (1..=5).map(MemoryValue::U32).collect();
+
+        // Write at an address > 0 to show resizing
+        memory.write_slice(MemoryAddress::direct(2), &values);
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(2), 3)
+                .iter()
+                .map(|v| v.to_u128().unwrap())
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(5), 2)
+                .iter()
+                .map(|v| v.to_u128().unwrap())
+                .collect::<Vec<_>>(),
+            vec![4, 5]
+        );
+        let zero_field = FieldElement::zero();
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(0), 2)
+                .iter()
+                .map(|v| v.to_field())
+                .collect::<Vec<_>>(),
+            vec![zero_field, zero_field]
+        );
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(2), 5)
+                .iter()
+                .map(|v| v.to_u128().unwrap())
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3, 4, 5]
+        );
+    }
+
+    #[test]
+    fn read_ref_returns_expected_address_and_reads_slice() {
+        let mut memory = Memory::<FieldElement>::default();
+
+        // Imagine we have a heap array starting at address 10
+        let heap_start = MemoryAddress::direct(10);
+        // [1, 2, 3]
+        let values: Vec<_> = (1..=3).map(MemoryValue::U32).collect();
+        memory.write_slice(heap_start, &values);
+
+        let array_pointer = MemoryAddress::direct(1);
+        // Store a pointer to that array at address 1 (after the stack pointer)
+        memory.write(array_pointer, MemoryValue::U32(10));
+
+        // `read_ref` should read that pointer and returns MemoryAddress::direct(10)
+        let array_start = memory.read_ref(array_pointer);
+        assert_eq!(array_start, MemoryAddress::direct(10));
+
+        // Use that reference to read the 3 element array
+        let got_slice = memory.read_slice(array_start, 3);
+        assert_eq!(got_slice, values);
+    }
+
+    #[test]
+    fn zero_length_slice() {
+        let memory = Memory::<FieldElement>::default();
+        assert_eq!(memory.read_slice(MemoryAddress::direct(20), 0), &[]);
+    }
+
+    #[test]
+    fn read_from_non_existent_memory() {
+        let memory = Memory::<FieldElement>::default();
+        let result = memory.read(MemoryAddress::direct(20));
+        // `Memory::read` returns zero at out of bounds indices
+        assert!(result.to_field().is_zero());
+    }
+
+    #[test]
+    #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
+    fn read_slice_from_non_existent_memory() {
+        let memory = Memory::<FieldElement>::default();
+        let _ = memory.read_slice(MemoryAddress::direct(20), 10);
     }
 }

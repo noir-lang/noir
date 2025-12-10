@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[simple_array_param] Circuit output: Field(1)
+[simple_array_param] Circuit output: 0x01

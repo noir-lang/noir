@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, Path,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     shared::Signedness,
@@ -52,20 +52,13 @@ impl Parser<'_> {
             return Some(generic);
         }
 
-        if let Some(generic) = self.parse_numeric_generic() {
-            return Some(generic);
-        }
-
-        if let Some(generic) = self.parse_resolved_generic() {
-            return Some(generic);
-        }
-
-        None
+        self.parse_numeric_generic()
     }
 
     /// VariableGeneric = identifier ( ':' TraitBounds ) ?
     fn parse_variable_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
-        let ident = self.eat_ident()?;
+        let ident = self.parse_ident_or_quoted()?;
+
         let trait_bounds = if self.eat_colon() {
             if !allow_trait_bounds {
                 self.push_error(
@@ -81,13 +74,27 @@ impl Parser<'_> {
         Some(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
+    fn parse_ident_or_quoted(&mut self) -> Option<IdentOrQuotedType> {
+        if let Some(ident) = self.eat_ident() {
+            return Some(IdentOrQuotedType::Ident(ident));
+        }
+
+        let token = self.eat_kind(TokenKind::QuotedType)?;
+        match token.into_token() {
+            Token::QuotedType(id) => {
+                Some(IdentOrQuotedType::Quoted(id, self.previous_token_location))
+            }
+            _ => unreachable!(),
+        }
+    }
+
     /// NumericGeneric = 'let' identifier ':' Type
     fn parse_numeric_generic(&mut self) -> Option<UnresolvedGeneric> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
         }
 
-        let ident = self.eat_ident()?;
+        let ident = self.parse_ident_or_quoted()?;
 
         if !self.eat_colon() {
             // If we didn't get a type after the colon, error and assume it's u32
@@ -107,20 +114,16 @@ impl Parser<'_> {
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
-        let typ = self.parse_type_or_error();
+        let mut typ = self.parse_type_or_error();
+
+        // If we failed to parse a type, default to u32 instead of Type::Error
+        // to prevent more type errors down the line
+        if typ.typ == UnresolvedTypeData::Error {
+            let path = Path::from_single("u32".to_string(), self.location_at_previous_token_end());
+            typ.typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
+        }
 
         Some(UnresolvedGeneric::Numeric { ident, typ })
-    }
-
-    /// ResolvedGeneric = quoted_type
-    fn parse_resolved_generic(&mut self) -> Option<UnresolvedGeneric> {
-        let token = self.eat_kind(TokenKind::QuotedType)?;
-        match token.into_token() {
-            Token::QuotedType(id) => {
-                Some(UnresolvedGeneric::Resolved(id, self.previous_token_location))
-            }
-            _ => unreachable!(),
-        }
     }
 
     /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )

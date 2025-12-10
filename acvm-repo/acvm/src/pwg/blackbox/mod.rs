@@ -1,20 +1,16 @@
 use acir::{
     AcirField,
-    circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+    circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
 
-use self::{
-    aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
-    hash::solve_poseidon2_permutation_opcode,
-};
+use self::{aes128::solve_aes128_encryption_opcode, hash::solve_poseidon2_permutation_opcode};
 
 use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
 
 mod aes128;
-pub(crate) mod bigint;
 mod embedded_curve_ops;
 mod hash;
 mod logic;
@@ -37,7 +33,7 @@ fn first_missing_assignment<F>(
     inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(witness) = input.input_ref() {
+        if let FunctionInput::Witness(witness) = input {
             if witness_assignments.contains_key(witness) { None } else { Some(*witness) }
         } else {
             None
@@ -70,7 +66,6 @@ pub(crate) fn solve<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
     bb_func: &BlackBoxFuncCall<F>,
-    bigint_solver: &mut AcvmBigIntSolver,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
@@ -85,33 +80,33 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => {
-            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => {
+            and(initial_witness, lhs, rhs, *num_bits, output)
         }
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
-            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
+            xor(initial_witness, lhs, rhs, *num_bits, output)
         }
-        BlackBoxFuncCall::RANGE { input } => {
-            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
+        BlackBoxFuncCall::RANGE { input, num_bits } => {
+            solve_range_opcode(initial_witness, input, *num_bits)
         }
-        BlackBoxFuncCall::Blake2s { inputs, outputs } => {
-            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
+        BlackBoxFuncCall::Blake2s { outputs, .. } => {
+            let inputs = bb_func.get_inputs_vec();
+            solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake2s)
         }
-        BlackBoxFuncCall::Blake3 { inputs, outputs } => {
-            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake3)
+        BlackBoxFuncCall::Blake3 { outputs, .. } => {
+            let inputs = bb_func.get_inputs_vec();
+            solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake3)
         }
         BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
             let mut state = [0; 25];
             for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
-                let num_bits = input.num_bits() as usize;
-                assert_eq!(num_bits, 64);
-                let witness_assignment = input_to_value(initial_witness, *input, false)?;
+                let witness_assignment = input_to_value(initial_witness, *input)?;
                 let lane = witness_assignment.try_to_u64();
                 *it = lane.unwrap();
             }
             let output_state = keccakf1600(state)?;
             for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
-                insert_value(output_witness, F::from(value as u128), initial_witness)?;
+                insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
             }
             Ok(())
         }
@@ -121,12 +116,14 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
+            predicate,
         } => secp256k1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
         BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -135,39 +132,29 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
+            predicate,
         } => secp256r1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
-        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
-            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
+        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, predicate } => {
+            multi_scalar_mul(backend, initial_witness, points, scalars, *predicate, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
-            embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, predicate } => {
+            embedded_curve_add(backend, initial_witness, **input1, **input2, *predicate, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
-        BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
-            bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())
-        }
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
-            bigint_solver.bigint_from_bytes(inputs, modulus, *output, initial_witness)
-        }
-        BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
-            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
-        }
         BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
             solve_sha_256_permutation_opcode(initial_witness, inputs, hash_values, outputs)
         }
-        BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
-            solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
+        BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
+            solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs)
         }
     }
 }

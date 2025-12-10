@@ -46,20 +46,16 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     let mut program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
-    let acir_names = std::mem::take(&mut program.names);
-    let brillig_names = std::mem::take(&mut program.brillig_names);
-
     let bytecode = std::mem::take(&mut program.bytecode);
-
     let debug_artifact: DebugArtifact = program.into();
 
     for (func_idx, circuit) in bytecode.functions.iter().enumerate() {
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         let function_name = if bytecode.functions.len() > 1 {
-            format!("{}_{}", acir_names[func_idx].as_str(), func_idx)
+            format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            acir_names[func_idx].to_owned()
+            circuit.function_name.to_owned()
         };
 
         println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
@@ -102,7 +98,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         let function_name =
-            format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
+            format!("{}_{}", brillig_bytecode.function_name.as_str(), brillig_fn_index);
 
         println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
 
@@ -128,7 +124,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             artifact_path.to_str().unwrap(),
             &function_name,
             &Path::new(&output_path)
-                .join(Path::new(&format!("{}_brillig_opcodes.svg", function_name))),
+                .join(Path::new(&format!("{function_name}_brillig_opcodes.svg"))),
         )?;
     }
 
@@ -157,7 +153,7 @@ mod tests {
     use acir::{
         FieldElement,
         circuit::{
-            Circuit, Opcode, Program,
+            Circuit, ExpressionWidth, Opcode, Program,
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
     };
@@ -200,11 +196,16 @@ mod tests {
             noir_version: "0.0.0".to_string(),
             hash: 27,
             abi: noirc_abi::Abi::default(),
-            bytecode: Program { functions: vec![Circuit::default()], ..Program::default() },
+            bytecode: Program {
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
+                ..Program::default()
+            },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: Vec::new(),
+            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file
@@ -253,17 +254,23 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit { opcodes: acir, ..Circuit::default() }],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    opcodes: acir,
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: vec![
-                    BrilligBytecode::default(),
-                    BrilligBytecode::default(),
-                    BrilligBytecode::default(),
+                    BrilligBytecode { function_name: "main".to_string(), bytecode: Vec::default() },
+                    BrilligBytecode { function_name: "main".to_string(), bytecode: Vec::default() },
+                    BrilligBytecode {
+                        function_name: "main_1".to_string(),
+                        bytecode: Vec::default(),
+                    },
                 ],
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: vec!["main".to_string(), "main".to_string(), "main_1".to_string()],
+            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file

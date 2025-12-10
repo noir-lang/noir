@@ -1,4 +1,4 @@
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -53,6 +53,11 @@ impl Function {
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
     pub(crate) fn remove_paired_rc(&mut self) {
+        if !self.runtime().is_brillig() {
+            // dec_rc and inc_rc only have an effect in Brillig
+            return;
+        }
+
         // `dec_rc` is only issued for parameters currently so we can speed things
         // up a bit by skipping any functions without them.
         if !contains_array_parameter(self) {
@@ -154,9 +159,13 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 #[cfg(test)]
 mod test {
 
-    use crate::ssa::{
-        ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
-        ssa_gen::Ssa,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
+            opt::assert_ssa_does_not_change,
+            ssa_gen::Ssa,
+        },
     };
 
     fn count_inc_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -264,5 +273,174 @@ mod test {
         // No changes, the array is possibly mutated
         assert_eq!(count_inc_rcs(entry, &main.dfg), 1);
         assert_eq!(count_dec_rcs(entry, &main.dfg), 1);
+    }
+
+    #[test]
+    fn lone_inc_rc() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    fn lone_dec_rc() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2]):
+            dec_rc v0
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    fn multiple_rc_pairs_mutation_on_different_types() {
+        let src = "
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 3], v1: [Field; 5]):
+            inc_rc v0
+            inc_rc v1
+            v2 = allocate -> &mut [Field; 3]
+            store v0 at v2
+            v3 = load v2 -> [Field; 3]
+            v6 = array_set v3, index u32 0, value Field 5
+            store v6 at v2
+            v8 = array_get v1, index u32 1 -> Field
+            dec_rc v0
+            dec_rc v1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_paired_rc();
+        // We expect the paired RC on v0 to remain, but we expect the paired RC on v1 to be removed
+        // as they operate over different types ([Field; 2] and [Field; 5]) respectively.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 3], v1: [Field; 5]):
+            inc_rc v0
+            v2 = allocate -> &mut [Field; 3]
+            store v0 at v2
+            v3 = load v2 -> [Field; 3]
+            v6 = array_set v3, index u32 0, value Field 5
+            store v6 at v2
+            v8 = array_get v1, index u32 1 -> Field
+            dec_rc v0
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn multiple_rc_pairs_mutation_on_matching_types() {
+        let src = "
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 5], v1: [Field; 5]):
+            inc_rc v0
+            inc_rc v1
+            v2 = allocate -> &mut [Field; 5]
+            store v0 at v2
+            v3 = load v2 -> [Field; 5]
+            v6 = array_set v3, index u32 0, value Field 5
+            store v6 at v2
+            v8 = array_get v1, index u32 1 -> Field
+            dec_rc v0
+            dec_rc v1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_paired_rc();
+        // We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 5], v1: [Field; 5]):
+            inc_rc v0
+            inc_rc v1
+            v2 = allocate -> &mut [Field; 5]
+            store v0 at v2
+            v3 = load v2 -> [Field; 5]
+            v6 = array_set v3, index u32 0, value Field 5
+            store v6 at v2
+            v8 = array_get v1, index u32 1 -> Field
+            dec_rc v0
+            dec_rc v1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn rc_pair_with_same_type_but_different_values() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2], v1: [Field; 2]):
+            inc_rc v0
+            dec_rc v1
+            v2 = make_array [v0] : [[Field; 2]; 1]
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    fn do_not_remove_pairs_across_blocks() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1()
+          b1():
+            dec_rc v0
+            jmp b2()
+          b2():
+            v1 = make_array [v0] : [[Field; 2]; 1]
+            return v1  
+        }
+        ";
+        // This pass is very conservative and only looks for inc_rc's in the entry block and dec_rc's in the exit block
+        // The dec_rc is not in the return block so we do not expect the rc pair to be removed.
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    fn remove_pair_across_blocks() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            dec_rc v0
+            v1 = make_array [v0] : [[Field; 2]; 1]
+            return v1  
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_paired_rc();
+        // As the program has an RC pair where the increment is in the entry block and
+        // the decrement is in the return block this pair is safe to remove.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2]):
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            v1 = make_array [v0] : [[Field; 2]; 1]
+            return v1
+        }
+        ");
     }
 }

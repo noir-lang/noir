@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[simple_not] Circuit output: Field(1)
+[simple_not] Circuit output: true
