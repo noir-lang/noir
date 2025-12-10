@@ -260,7 +260,7 @@ pub struct Elaborator<'context> {
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
 
-    /// Tracks locations where frontend errors (non-interpreter errors) have occurred.
+    /// Tracks locations where non-interpreter errors have occurred.
     /// Used to filter duplicate interpreter errors at the same location.
     frontend_error_locations: HashSet<Location>,
 }
@@ -468,7 +468,7 @@ impl<'context> Elaborator<'context> {
         if let CompilationError::InterpreterError(_) = error {
             let location = error.location();
             if self.frontend_error_locations.contains(&location) {
-                // Skip - we already have a frontend error at this location
+                // Skip as we already have a frontend error at this location
                 return;
             }
         } else {
