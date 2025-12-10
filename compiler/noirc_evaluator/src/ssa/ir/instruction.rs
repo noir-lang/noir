@@ -868,13 +868,15 @@ impl Binary {
             BinaryOp::Add { unchecked: false }
             | BinaryOp::Sub { unchecked: false }
             | BinaryOp::Mul { unchecked: false } => {
-                // Some binary math can overflow or underflow for non-field types.
-                // However, we assume that signed types should have already been expanded using unsigned operations.
-                assert!(
-                    !dfg.type_of_value(self.rhs).is_signed(),
-                    "signed instructions should have been already expanded"
-                );
-                dfg.type_of_value(self.rhs).is_unsigned()
+                match dfg.type_of_value(self.rhs).unwrap_numeric() {
+                    NumericType::NativeField => false,
+                    // Some binary math can overflow or underflow for non-field types.
+                    NumericType::Unsigned { .. } => true,
+                    // However, we assume that signed types should have already been expanded using unsigned operations.
+                    NumericType::Signed { .. } => {
+                        unreachable!("signed instructions should have been already expanded")
+                    }
+                }
             }
             BinaryOp::Shl | BinaryOp::Shr => {
                 // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
