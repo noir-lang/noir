@@ -219,11 +219,7 @@
 <a href="#218" id="218">218</a>
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
+<a href="#221" id="221">221</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxResolutionError;
 
 <span class="kw">use </span><span class="kw">crate</span>::FieldElement;
@@ -236,12 +232,12 @@
     poseidon.permutation(inputs)
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Poseidon2&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">struct </span>Poseidon2&lt;<span class="lifetime">'a</span>&gt; {
     config: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Poseidon2Config,
 }
 
 <span class="kw">impl </span>Poseidon2&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
         Poseidon2 { config: <span class="kw-2">&amp;</span>POSEIDON2_CONFIG }
     }
 
@@ -342,82 +338,17 @@
     }
 }
 
-<span class="doccomment">/// Performs a poseidon hash with a sponge construction equivalent to the one in the Barretenberg proving system
-</span><span class="kw">pub fn </span>poseidon_hash(inputs: <span class="kw-2">&amp;</span>[FieldElement]) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, BlackBoxResolutionError&gt; {
-    <span class="kw">let </span>two_pow_64 = <span class="number">18446744073709551616_u128</span>.into();
-    <span class="kw">let </span>iv = FieldElement::from(inputs.len()) * two_pow_64;
-    <span class="comment">// A rate of 3, with a width of 4, gives 1 field element of capacity, i.e ~128 bits of security
-    </span><span class="kw">let </span><span class="kw-2">mut </span>sponge = Poseidon2Sponge::new(iv, <span class="number">3</span>);
-    <span class="kw">for </span>input <span class="kw">in </span>inputs.iter() {
-        sponge.absorb(<span class="kw-2">*</span>input)<span class="question-mark">?</span>;
-    }
-    sponge.squeeze()
-}
-
-<span class="kw">pub struct </span>Poseidon2Sponge&lt;<span class="lifetime">'a</span>&gt; {
-    rate: usize,
-    poseidon: Poseidon2&lt;<span class="lifetime">'a</span>&gt;,
-    squeezed: bool,
-    cache: Vec&lt;FieldElement&gt;,
-    state: Vec&lt;FieldElement&gt;,
-}
-
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Poseidon2Sponge&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">pub fn </span>new(iv: FieldElement, rate: usize) -&gt; Poseidon2Sponge&lt;<span class="lifetime">'a</span>&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = Poseidon2Sponge {
-            cache: Vec::with_capacity(rate),
-            state: <span class="macro">vec!</span>[FieldElement::zero(); rate + <span class="number">1</span>],
-            squeezed: <span class="bool-val">false</span>,
-            rate,
-            poseidon: Poseidon2::new(),
-        };
-        result.state[rate] = iv;
-        result
-    }
-
-    <span class="kw">fn </span>perform_duplex(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), BlackBoxResolutionError&gt; {
-        <span class="comment">// zero-pad the cache
-        </span><span class="kw">for _ in </span><span class="self">self</span>.cache.len()..<span class="self">self</span>.rate {
-            <span class="self">self</span>.cache.push(FieldElement::zero());
-        }
-        <span class="comment">// add the cache into sponge state
-        </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.rate {
-            <span class="self">self</span>.state[i] += <span class="self">self</span>.cache[i];
-        }
-        <span class="self">self</span>.state = <span class="self">self</span>.poseidon.permutation(<span class="kw-2">&amp;</span><span class="self">self</span>.state)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">pub fn </span>absorb(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: FieldElement) -&gt; <span class="prelude-ty">Result</span>&lt;(), BlackBoxResolutionError&gt; {
-        <span class="macro">assert!</span>(!<span class="self">self</span>.squeezed);
-        <span class="kw">if </span><span class="self">self</span>.cache.len() == <span class="self">self</span>.rate {
-            <span class="comment">// If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
-            </span><span class="self">self</span>.perform_duplex()<span class="question-mark">?</span>;
-            <span class="self">self</span>.cache = <span class="macro">vec!</span>[input];
-        } <span class="kw">else </span>{
-            <span class="comment">// If we're absorbing, and the cache is not full, add the input into the cache
-            </span><span class="self">self</span>.cache.push(input);
-        }
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">pub fn </span>squeeze(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, BlackBoxResolutionError&gt; {
-        <span class="macro">assert!</span>(!<span class="self">self</span>.squeezed);
-        <span class="comment">// If we're in absorb mode, apply sponge permutation to compress the cache.
-        </span><span class="self">self</span>.perform_duplex()<span class="question-mark">?</span>;
-        <span class="self">self</span>.squeezed = <span class="bool-val">true</span>;
-
-        <span class="comment">// Pop one item off the top of the permutation and return it.
-        </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.state[<span class="number">0</span>])
-    }
-}
-
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>std::sync::Arc;
+
     <span class="kw">use </span>acir::AcirField;
 
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+    <span class="kw">use </span>proptest::result::maybe_ok;
+
     <span class="kw">use super</span>::{FieldElement, poseidon2_permutation};
-    <span class="kw">use </span><span class="kw">crate</span>::poseidon2_constants::field_from_hex;
+    <span class="kw">use </span><span class="kw">crate</span>::poseidon2_constants::{POSEIDON2_CONFIG, field_from_hex};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>smoke_test() {
@@ -433,19 +364,80 @@
         <span class="macro">assert_eq!</span>(result, expected_result);
     }
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>hash_smoke_test() {
-        <span class="kw">let </span>fields = [
-            FieldElement::from(<span class="number">1u128</span>),
-            FieldElement::from(<span class="number">2u128</span>),
-            FieldElement::from(<span class="number">3u128</span>),
-            FieldElement::from(<span class="number">4u128</span>),
-        ];
-        <span class="kw">let </span>result = <span class="kw">super</span>::poseidon_hash(<span class="kw-2">&amp;</span>fields).expect(<span class="string">"should hash successfully"</span>);
-        <span class="macro">assert_eq!</span>(
-            result,
-            field_from_hex(<span class="string">"130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"</span>),
+    <span class="kw">fn </span>into_old_ark_field&lt;T, U&gt;(field: T) -&gt; U
+    <span class="kw">where
+        </span>T: AcirField,
+        U: ark_ff_v04::PrimeField,
+    {
+        U::from_be_bytes_mod_order(<span class="kw-2">&amp;</span>field.to_be_bytes())
+    }
+
+    <span class="kw">fn </span>into_new_ark_field&lt;T, U&gt;(field: T) -&gt; U
+    <span class="kw">where
+        </span>T: ark_ff_v04::PrimeField,
+        U: ark_ff::PrimeField,
+    {
+        <span class="kw">use </span>zkhash::ark_ff::BigInteger;
+
+        U::from_be_bytes_mod_order(<span class="kw-2">&amp;</span>field.into_bigint().to_bytes_be())
+    }
+
+    <span class="kw">fn </span>run_both_poseidon2_permutations(
+        inputs: Vec&lt;FieldElement&gt;,
+    ) -&gt; (Vec&lt;ark_bn254::Fr&gt;, Vec&lt;ark_bn254::Fr&gt;) {
+        <span class="kw">let </span>poseidon2_t = POSEIDON2_CONFIG.t <span class="kw">as </span>usize;
+        <span class="kw">let </span>poseidon2_d = <span class="number">5</span>;
+        <span class="kw">let </span>rounds_f = POSEIDON2_CONFIG.rounds_f <span class="kw">as </span>usize;
+        <span class="kw">let </span>rounds_p = POSEIDON2_CONFIG.rounds_p <span class="kw">as </span>usize;
+        <span class="kw">let </span>mat_internal_diag_m_1: Vec&lt;ark_bn254_v04::Fr&gt; =
+            POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
+        <span class="kw">let </span>mat_internal = <span class="macro">vec!</span>[];
+        <span class="kw">let </span>round_constants: Vec&lt;Vec&lt;ark_bn254_v04::Fr&gt;&gt; = POSEIDON2_CONFIG
+            .round_constant
+            .into_iter()
+            .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
+            .collect();
+
+        <span class="kw">let </span>external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(<span class="kw-2">&amp;</span>Arc::new(
+            zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
+                poseidon2_t,
+                poseidon2_d,
+                rounds_f,
+                rounds_p,
+                <span class="kw-2">&amp;</span>mat_internal_diag_m_1,
+                <span class="kw-2">&amp;</span>mat_internal,
+                <span class="kw-2">&amp;</span>round_constants,
+            ),
+        ));
+
+        <span class="kw">let </span>result =
+            poseidon2_permutation(<span class="kw-2">&amp;</span>inputs).unwrap().into_iter().map(|x| x.into_repr()).collect();
+
+        <span class="kw">let </span>expected_result = external_poseidon2.permutation(
+            <span class="kw-2">&amp;</span>inputs.into_iter().map(into_old_ark_field).collect::&lt;Vec&lt;ark_bn254_v04::Fr&gt;&gt;(),
         );
+        (result, expected_result.into_iter().map(into_new_ark_field).collect())
+    }
+
+    <span class="macro">prop_compose!</span> {
+        <span class="comment">// Use both `u128` and hex proptest strategies
+        </span><span class="kw">fn </span>field_element()
+            (u128_or_hex <span class="kw">in </span>maybe_ok(any::&lt;u128&gt;(), <span class="string">"[0-9a-f]{64}"</span>))
+            -&gt; FieldElement
+        {
+            <span class="kw">match </span>u128_or_hex {
+                <span class="prelude-val">Ok</span>(number) =&gt; FieldElement::from(number),
+                <span class="prelude-val">Err</span>(hex) =&gt; FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).expect(<span class="string">"should accept any 32 byte hex string"</span>),
+            }
+        }
+    }
+
+    <span class="macro">proptest!</span> {
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>poseidon2_permutation_matches_external_impl(inputs <span class="kw">in </span>proptest::collection::vec(field_element(), <span class="number">4</span>)) {
+            <span class="kw">let </span>(result, expected_result) = run_both_poseidon2_permutations(inputs);
+            <span class="macro">prop_assert_eq!</span>(result, expected_result);
+        }
     }
 }
 </code></pre></div></section></main></body></html>

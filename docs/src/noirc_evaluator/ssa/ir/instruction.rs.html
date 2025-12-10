@@ -1127,7 +1127,8 @@
 <a href="#1126" id="1126">1126</a>
 <a href="#1127" id="1127">1127</a>
 <a href="#1128" id="1128">1128</a>
-<a href="#1129" id="1129">1129</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -1320,14 +1321,13 @@
             </span>Intrinsic::ToBits(<span class="kw">_</span>) | Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 
             <span class="comment">// These imply a check that the slice is non-empty and should fail otherwise.
-            </span>Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove =&gt; <span class="bool-val">true</span>,
+            </span>Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove | Intrinsic::SliceInsert =&gt; <span class="bool-val">true</span>,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
-            | Intrinsic::SliceInsert
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -1354,9 +1354,11 @@
             Intrinsic::BlackBox(func) <span class="kw">if </span>func.has_side_effects() =&gt; Purity::PureWithPredicate,
 
             <span class="comment">// Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
-            </span>Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove =&gt; {
-                Purity::PureWithPredicate
-            }
+            // Slice insert also reads from its input slice, thus needing to assert that it is non-empty.
+            </span>Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceRemove
+            | Intrinsic::SliceInsert =&gt; Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert

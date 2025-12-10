@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["poseidon2_permutation","poseidon_hash"],"struct":["Poseidon2","Poseidon2Sponge"]};
+window.SIDEBAR_ITEMS = {"fn":["poseidon2_permutation"],"struct":["Poseidon2"]};

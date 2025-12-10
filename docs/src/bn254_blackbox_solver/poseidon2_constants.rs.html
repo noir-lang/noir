@@ -456,27 +456,27 @@
 <span class="kw">use </span><span class="kw">crate</span>::FieldElement;
 
 <span class="doccomment">/// Configuration parameters for Poseidon2 permutation
-</span><span class="kw">pub struct </span>Poseidon2Config {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Poseidon2Config {
     <span class="doccomment">/// State width (or state size, number of field elements in the permutation state).
-    </span><span class="kw">pub </span>t: u32,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) t: u32,
 
     <span class="doccomment">/// Number of full rounds (also called R_F).
     /// In full rounds, the S-box is applied to all state elements.
-    </span><span class="kw">pub </span>rounds_f: u32,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) rounds_f: u32,
 
     <span class="doccomment">/// Number of partial rounds (also called R_P).
     /// In partial rounds, the S-box is applied only to the first state element.
-    </span><span class="kw">pub </span>rounds_p: u32,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) rounds_p: u32,
 
     <span class="doccomment">/// Internal matrix diagonal values used in the linear layer of partial rounds.
-    </span><span class="kw">pub </span>internal_matrix_diagonal: [FieldElement; <span class="number">4</span>],
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) internal_matrix_diagonal: [FieldElement; <span class="number">4</span>],
 
     <span class="doccomment">/// Round constants added to the state in each round.
-    </span><span class="kw">pub </span>round_constant: [[FieldElement; <span class="number">4</span>]; <span class="number">64</span>],
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) round_constant: [[FieldElement; <span class="number">4</span>]; <span class="number">64</span>],
 }
 
 <span class="doccomment">/// Helper function to convert hex strings to field elements
-</span><span class="kw">pub fn </span>field_from_hex(hex: <span class="kw-2">&amp;</span>str) -&gt; FieldElement {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field_from_hex(hex: <span class="kw-2">&amp;</span>str) -&gt; FieldElement {
     FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>hex::decode(hex).expect(<span class="string">"Should be passed only valid hex"</span>))
 }
 
@@ -484,7 +484,7 @@
 
     <span class="doccomment">/// The complete Poseidon2 configuration for BN254.
     /// This includes all parameters and constants needed for the permutation.
-    </span><span class="kw">pub static </span><span class="kw-2">ref </span>POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">static </span><span class="kw-2">ref </span>POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
         <span class="comment">// The value of 4 is optimized for a PLONK proving system width of 4,
         // to align with the number of witness columns available in the constraint system.
         </span>t: <span class="number">4</span>,
@@ -496,7 +496,7 @@
 
     <span class="doccomment">/// Internal matrix diagonal for Poseidon2 permutation.
     /// These values are used in the internal rounds for linear layer mixing.
-    </span><span class="kw">pub static </span><span class="kw-2">ref </span>INTERNAL_MATRIX_DIAGONAL: [FieldElement; <span class="number">4</span>] = [
+    </span><span class="kw">static </span><span class="kw-2">ref </span>INTERNAL_MATRIX_DIAGONAL: [FieldElement; <span class="number">4</span>] = [
         field_from_hex(<span class="string">"10dc6e9c006ea38b04b1e03b4bd9490c0d03f98929ca1d7fb56821fd19d3b6e7"</span>),
         field_from_hex(<span class="string">"0c28145b6a44df3e0149b3d0a30b3bb599df9756d4dd9b84a86b38cfb45a740b"</span>),
         field_from_hex(<span class="string">"00544b8338791518b2c7645a50392798b21f75bb60e3596170067d00141cac15"</span>),
@@ -505,7 +505,7 @@
 
     <span class="doccomment">/// Round constants for all rounds of Poseidon2.
     /// Contains 64 rounds, each with 4 field elements.
-    </span><span class="kw">pub static </span><span class="kw-2">ref </span>ROUND_CONSTANT: [[FieldElement; <span class="number">4</span>]; <span class="number">64</span>] = [
+    </span><span class="kw">static </span><span class="kw-2">ref </span>ROUND_CONSTANT: [[FieldElement; <span class="number">4</span>]; <span class="number">64</span>] = [
         [
             field_from_hex(<span class="string">"19b849f69450b06848da1d39bd5e4a4302bb86744edc26238b0878e269ed23e5"</span>),
             field_from_hex(<span class="string">"265ddfe127dd51bd7239347b758f0a1320eb2cc7450acc1dad47f80c8dcf34d6"</span>),

@@ -66,8 +66,7 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
@@ -79,8 +78,7 @@
 
 <span class="kw">pub use </span>embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 <span class="kw">pub use </span>generator::generators::derive_generators;
-<span class="kw">pub use </span>poseidon2::{Poseidon2Sponge, poseidon_hash, poseidon2_permutation};
-<span class="kw">pub use </span>poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config, field_from_hex};
+<span class="kw">pub use </span>poseidon2::poseidon2_permutation;
 
 <span class="comment">// Temporary hack, this ensure that we always use a bn254 field here
 // without polluting the feature flags of the `acir_field` crate.
