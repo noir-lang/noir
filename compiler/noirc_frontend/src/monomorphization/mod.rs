@@ -482,7 +482,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// Expects any generics to already be bound by their bindings at this function's call site.
     /// If this is not done, the relevant generic will either reimain unbound (leading to a panic)
     /// or, if the same generic is used further up the callstack (common with traits), it may have
-    /// an incorrect value.
+    /// an incorrect value. This incorrect type value will not be caught by monomorphization but
+    /// may or may not lead to panics later. Either way, it is best to only call this function
+    /// directly only when you know there should be no generics in your function, such as in
+    /// [Self::compile_main], or through a wrapper such as [Self::process_next_job] which will
+    /// handle the instantiation bindings for you.
     pub fn function(
         &mut self,
         f: node_interner::FuncId,
@@ -1488,13 +1492,13 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Converts a [HirType] into a [ast::Type].
     ///
-    /// Returns an error if the type was invalid somehow. For example:
+    /// Returns an error if the type was invalid somehow. For example, if the type contains:
     /// - an array with a size that does not evaluate to a positive integer
     /// - an unbound type variable without a default value
     /// - a nested slice
     /// - a compile-time only type (these should all be evaluated beforehand and thus never monomorphized)
     /// - an infinitely recursive type
-    /// etc.
+    /// - a failed checked-cast
     fn convert_type_helper(
         typ: &HirType,
         location: Location,
