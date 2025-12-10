@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765382925735,
+  "lastUpdate": 1765383245850,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a4391f8c4dd5dfb5b8e559527bfc3cfbed5ad6b9",
-          "message": "fix: implement `checked_transmute` in the comptime interpreter (#10732)",
-          "timestamp": "2025-12-02T12:56:54Z",
-          "tree_id": "2348dfff3fd4bfda292faaf6df3631cd7981a29b",
-          "url": "https://github.com/noir-lang/noir/commit/a4391f8c4dd5dfb5b8e559527bfc3cfbed5ad6b9"
-        },
-        "date": 1764681790824,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264299,
-            "range": "± 595",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236756,
-            "range": "± 3519",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794618,
-            "range": "± 2861",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25314,6 +25272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794491,
             "range": "± 12724",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d2a782f78b7fb7270fc7161b233027f3669a72c",
+          "message": "chore: Add 'constrained' and 'dual' keywords (#10880)",
+          "timestamp": "2025-12-10T15:46:18Z",
+          "tree_id": "348e81c9e089ff2fea3285a0887e8c9d12dfa076",
+          "url": "https://github.com/noir-lang/noir/commit/6d2a782f78b7fb7270fc7161b233027f3669a72c"
+        },
+        "date": 1765383214635,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252904,
+            "range": "± 374",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228477,
+            "range": "± 2537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791956,
+            "range": "± 2853",
             "unit": "ns/iter"
           }
         ]
