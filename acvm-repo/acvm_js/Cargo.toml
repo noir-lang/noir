@@ -35,7 +35,7 @@ const-str = "^0.6.2"
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.
 getrandom = { workspace = true, features = ["wasm_js"] }
-getrandomv2 = { package = "getrandom", version = "^0.2.0", features = ["js"] }
+getrandom_v2 = { package = "getrandom", version = "^0.2.0", features = ["js"] }
 
 [build-dependencies]
 build-data.workspace = true
