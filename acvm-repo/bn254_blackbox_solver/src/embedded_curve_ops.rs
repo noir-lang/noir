@@ -44,7 +44,7 @@ pub fn multi_scalar_mul(
             ));
         }
         let point =
-            create_point(points[i], points[i + 1], points[i + 2] == FieldElement::from(1_u128))
+            create_point(points[i], points[i + 1], points[i + 2])
                 .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
 
         let scalar_low: u128 =
@@ -89,14 +89,14 @@ pub fn embedded_curve_add(
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     if input1[2] > FieldElement::one() || input2[2] > FieldElement::one() {
         return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::MultiScalarMul,
+            BlackBoxFunc::EmbeddedCurveAdd,
             "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
         ));
     }
 
-    let point1 = create_point(input1[0], input1[1], input1[2] == FieldElement::one())
+    let point1 = create_point(input1[0], input1[1], input1[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
-    let point2 = create_point(input2[0], input2[1], input2[2] == FieldElement::one())
+    let point2 = create_point(input2[0], input2[1], input2[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
 
     for point in [point1, point2] {
@@ -110,29 +110,24 @@ pub fn embedded_curve_add(
 
     let res = ark_grumpkin::Affine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
-        Ok((
-            FieldElement::from_repr(res_x),
-            FieldElement::from_repr(res_y),
-            FieldElement::from(u128::from(res.is_zero())),
-        ))
-    } else if res.is_zero() {
-        Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
+        Ok((FieldElement::from_repr(res_x), FieldElement::from_repr(res_y), FieldElement::zero()))
     } else {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EmbeddedCurveAdd,
-            "Point is not on curve".to_string(),
-        ))
+        assert!(res.is_zero());
+        Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
     }
 }
 
 fn create_point(
     x: FieldElement,
     y: FieldElement,
-    is_infinite: bool,
+    is_infinite: FieldElement,
 ) -> Result<ark_grumpkin::Affine, String> {
-    if is_infinite {
+    if is_infinite.is_one() {
         return Ok(ark_grumpkin::Affine::zero());
+    } else if !is_infinite.is_zero() {
+        return Err("`is_infinite` flag is non-boolean".to_string());
     }
+
     let point = ark_grumpkin::Affine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
         return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
@@ -310,5 +305,27 @@ mod tests {
         assert_eq!(msm_res.0, add_res.0);
         assert_eq!(msm_res.1, add_res.1);
         Ok(())
+    }
+
+    #[test]
+    fn rejects_non_boolean_is_infinite_flag() {
+        let a = get_generator();
+        
+        let mut b = get_generator();
+        // Manipulate `is_infinite` to be non-boolean.
+        b[2] = FieldElement::from(2u32);
+
+        let res = embedded_curve_add(
+            a,
+            b
+        );
+
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".into(),
+            ))
+        );
     }
 }
