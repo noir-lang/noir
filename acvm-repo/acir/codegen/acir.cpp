@@ -4434,6 +4434,7 @@ namespace Acir {
 
     struct ProgramWithoutBrillig {
         std::vector<Acir::Circuit> functions;
+        std::monostate unconstrained_functions;
 
         friend bool operator==(const ProgramWithoutBrillig&, const ProgramWithoutBrillig&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -9684,6 +9685,7 @@ namespace Acir {
 
     inline bool operator==(const ProgramWithoutBrillig &lhs, const ProgramWithoutBrillig &rhs) {
         if (!(lhs.functions == rhs.functions)) { return false; }
+        if (!(lhs.unconstrained_functions == rhs.unconstrained_functions)) { return false; }
         return true;
     }
 
@@ -9709,6 +9711,7 @@ template <typename Serializer>
 void serde::Serializable<Acir::ProgramWithoutBrillig>::serialize(const Acir::ProgramWithoutBrillig &obj, Serializer &serializer) {
     serializer.increase_container_depth();
     serde::Serializable<decltype(obj.functions)>::serialize(obj.functions, serializer);
+    serde::Serializable<decltype(obj.unconstrained_functions)>::serialize(obj.unconstrained_functions, serializer);
     serializer.decrease_container_depth();
 }
 
@@ -9718,6 +9721,7 @@ Acir::ProgramWithoutBrillig serde::Deserializable<Acir::ProgramWithoutBrillig>::
     deserializer.increase_container_depth();
     Acir::ProgramWithoutBrillig obj;
     obj.functions = serde::Deserializable<decltype(obj.functions)>::deserialize(deserializer);
+    obj.unconstrained_functions = serde::Deserializable<decltype(obj.unconstrained_functions)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }

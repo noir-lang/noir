@@ -77,6 +77,7 @@ mod reflection {
     #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
     struct ProgramWithoutBrillig<F: AcirField> {
         pub functions: Vec<Circuit<F>>,
+        pub unconstrained_functions: (),
     }
 
     #[test]
@@ -363,13 +364,25 @@ mod reflection {
             // or we could reject the data if there was a new field we could
             // not recognize, or we could even handle aliases.
 
+            // We treat unit fields as special, using them to ignore fields during deserialization:
+            // * in 'map' format we skip over them, never try to deserialize them from the map
+            // * in 'tuple' format we jump over their index, ignoring whatever is in that position
+            fn is_unit(field: &Named<Format>) -> bool {
+                matches!(field.value, Format::Unit)
+            }
+
+            let non_unit_field_count = fields.iter().filter(|f| !is_unit(*f)).count();
+
             self.msgpack_pack(name, &{
                 let mut body = format!(
                     "
     packer.pack_map({});",
-                    fields.len()
+                    non_unit_field_count
                 );
                 for field in fields {
+                    if is_unit(field) {
+                        continue;
+                    }
                     let field_name = &field.name;
                     body.push_str(&format!(
                         r#"
@@ -390,6 +403,9 @@ mod reflection {
                 );
                 // cSpell:enable
                 for field in fields {
+                    if is_unit(field) {
+                        continue;
+                    }
                     let field_name = &field.name;
                     let is_optional = matches!(field.value, Format::Option(_));
                     // cSpell:disable
