@@ -77,6 +77,10 @@ mod reflection {
     #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
     struct ProgramWithoutBrillig<F: AcirField> {
         pub functions: Vec<Circuit<F>>,
+        /// We want to ignore this field. By setting its type as `unit`
+        /// it will not be deserialized, but it will correctly maintain
+        /// the position of the others (although in this case it doesn't)
+        /// matter since it's the last field.
         pub unconstrained_functions: (),
     }
 
