@@ -43,9 +43,8 @@ pub fn multi_scalar_mul(
                 "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
             ));
         }
-        let point =
-            create_point(points[i], points[i + 1], points[i + 2])
-                .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
+        let point = create_point(points[i], points[i + 1], points[i + 2])
+            .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
 
         let scalar_low: u128 =
             field_to_u128_limb(&scalars_lo[i / 3], BlackBoxFunc::MultiScalarMul)?;
@@ -310,15 +309,12 @@ mod tests {
     #[test]
     fn rejects_non_boolean_is_infinite_flag() {
         let a = get_generator();
-        
+
         let mut b = get_generator();
         // Manipulate `is_infinite` to be non-boolean.
         b[2] = FieldElement::from(2u32);
 
-        let res = embedded_curve_add(
-            a,
-            b
-        );
+        let res = embedded_curve_add(a, b);
 
         assert_eq!(
             res,
