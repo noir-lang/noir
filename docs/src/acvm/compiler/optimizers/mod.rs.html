@@ -100,12 +100,11 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
-    circuit::{Circuit, ExpressionWidth, Opcode, brillig::BrilligFunctionId},
+    circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
 
 <span class="kw">mod </span>common_subexpression;
@@ -194,7 +193,6 @@
     <span class="kw">let </span>(acir, acir_opcode_positions, _opcodes_hash_stabilized) =
         common_subexpression::transform_internal(
             acir,
-            ExpressionWidth::Bounded { width: <span class="number">4 </span>},
             acir_opcode_positions,
             brillig_side_effects,
             max_transformer_passes_or_default,

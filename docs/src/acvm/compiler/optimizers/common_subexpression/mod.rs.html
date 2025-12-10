@@ -597,30 +597,7 @@
 <a href="#596" id="596">596</a>
 <a href="#597" id="597">597</a>
 <a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformations to a [`Circuit`].
+<a href="#599" id="599">599</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformations to a [`Circuit`].
 ///
 /// ## CSAT: transforms AssertZero opcodes into AssertZero opcodes having the required width.
 ///
@@ -654,7 +631,7 @@
 <span class="kw">use </span>acir::{
     AcirField,
     circuit::{
-        Circuit, ExpressionWidth, Opcode,
+        Circuit, Opcode,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
@@ -684,12 +661,10 @@
 ///
 /// Pre-Conditions:
 /// - General Optimizer must run before this pass,
-///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
-/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
+///   when `max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES)` is greater than 0
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, name = <span class="string">"transform_acir"</span>, skip(acir, acir_opcode_positions))]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transform_internal&lt;F: AcirField&gt;(
     <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
-    expression_width: ExpressionWidth,
     <span class="kw-2">mut </span>acir_opcode_positions: Vec&lt;usize&gt;,
     brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
     max_transformer_passes_or_default: <span class="prelude-ty">Option</span>&lt;usize&gt;,
@@ -712,12 +687,8 @@
     // don't stabilize unless we also repeat the backend agnostic optimizations.
     </span><span class="kw">for _ in </span><span class="number">0</span>..max_transformer_passes {
         <span class="macro">info!</span>(<span class="string">"Number of opcodes {}"</span>, acir.opcodes.len());
-        <span class="kw">let </span>(new_acir, new_acir_opcode_positions) = transform_internal_once(
-            acir,
-            expression_width,
-            acir_opcode_positions,
-            brillig_side_effects,
-        );
+        <span class="kw">let </span>(new_acir, new_acir_opcode_positions) =
+            transform_internal_once(acir, acir_opcode_positions, brillig_side_effects);
 
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
@@ -747,7 +718,6 @@
 ///
 /// Pre-Conditions:
 /// - General Optimizer must run before this pass
-/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 </span><span class="attr">#[tracing::instrument(
     level = <span class="string">"trace"</span>,
     name = <span class="string">"transform_acir_once"</span>,
@@ -755,7 +725,6 @@
 )]
 </span><span class="kw">fn </span>transform_internal_once&lt;F: AcirField&gt;(
     <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
-    expression_width: ExpressionWidth,
     acir_opcode_positions: Vec&lt;usize&gt;,
     brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
@@ -763,20 +732,10 @@
     // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
     // to the required width by creating intermediate variables.
     // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
-
-    // If the expression width is unbounded, we don't need to do anything.
-    </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = <span class="kw">match </span><span class="kw-2">&amp;</span>expression_width {
-        ExpressionWidth::Unbounded =&gt; {
-            <span class="kw">return </span>(acir, acir_opcode_positions);
-        }
-        ExpressionWidth::Bounded { width } =&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>csat = CSatTransformer::new(<span class="kw-2">*</span>width);
-            <span class="kw">for </span>value <span class="kw">in </span>acir.circuit_arguments() {
-                csat.mark_solvable(value);
-            }
-            csat
-        }
-    };
+    </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = CSatTransformer::new(<span class="number">4</span>);
+    <span class="kw">for </span>value <span class="kw">in </span>acir.circuit_arguments() {
+        transformer.mark_solvable(value);
+    }
 
     <span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions: Vec&lt;usize&gt; = Vec::with_capacity(acir_opcode_positions.len());
     <span class="comment">// Optimize the assert-zero gates by reducing them into the correct width and
@@ -1146,7 +1105,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">super</span>::transform_internal;
     <span class="kw">use </span><span class="kw">crate</span>::compiler::CircuitSimulator;
-    <span class="kw">use </span>acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
+    <span class="kw">use </span>acir::circuit::{Circuit, brillig::BrilligFunctionId};
     <span class="kw">use </span>std::collections::BTreeMap;
 
     <span class="attr">#[test]
@@ -1223,7 +1182,7 @@
 
         <span class="kw">let </span>acir = Circuit::from_str(formatted_acir).unwrap();
         <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>acir).is_none());
-        <span class="kw">let </span>expression_width = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
+
         <span class="kw">let </span>acir_opcode_positions = <span class="macro">vec!</span>[
             <span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>, <span class="number">14</span>, <span class="number">15</span>, <span class="number">16</span>, <span class="number">17</span>, <span class="number">18</span>, <span class="number">19</span>, <span class="number">20</span>, <span class="number">21</span>, <span class="number">22</span>, <span class="number">23</span>,
             <span class="number">24</span>, <span class="number">25</span>, <span class="number">26</span>, <span class="number">27</span>, <span class="number">28</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">30</span>, <span class="number">31</span>, <span class="number">32</span>, <span class="number">33</span>, <span class="number">34</span>, <span class="number">35</span>, <span class="number">36</span>, <span class="number">37</span>, <span class="number">38</span>, <span class="number">39</span>, <span class="number">40</span>, <span class="number">41</span>, <span class="number">42</span>, <span class="number">43</span>,
@@ -1232,13 +1191,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>brillig_side_effects = BTreeMap::new();
         brillig_side_effects.insert(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">false</span>);
 
-        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, opcodes_hash_stabilized) = transform_internal(
-            acir,
-            expression_width,
-            acir_opcode_positions.clone(),
-            <span class="kw-2">&amp;</span>brillig_side_effects,
-            <span class="prelude-val">None</span>,
-        );
+        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, opcodes_hash_stabilized) =
+            transform_internal(acir, acir_opcode_positions.clone(), <span class="kw-2">&amp;</span>brillig_side_effects, <span class="prelude-val">None</span>);
         <span class="macro">assert!</span>(!opcodes_hash_stabilized);
     }
 }
