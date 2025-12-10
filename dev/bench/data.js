@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765368156028,
+  "lastUpdate": 1765381431544,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23231,48 +23231,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ffa50afedcd00e3c00fd245d1128c1fd9c7f0e0a",
-          "message": "chore: simplify evaluate_ordering (#10681)",
-          "timestamp": "2025-12-02T12:48:22Z",
-          "tree_id": "84d2d7fd04b4528e7ebab51111044d8f67fe8da3",
-          "url": "https://github.com/noir-lang/noir/commit/ffa50afedcd00e3c00fd245d1128c1fd9c7f0e0a"
-        },
-        "date": 1764680968940,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259673,
-            "range": "± 822",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228169,
-            "range": "± 3107",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793204,
-            "range": "± 4729",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "a4391f8c4dd5dfb5b8e559527bfc3cfbed5ad6b9",
           "message": "fix: implement `checked_transmute` in the comptime interpreter (#10732)",
           "timestamp": "2025-12-02T12:56:54Z",
@@ -25314,6 +25272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790756,
             "range": "± 10163",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aa4da67f714663f2eaee2987a5ce59180481cc60",
+          "message": "chore: call site expect a call (#10879)",
+          "timestamp": "2025-12-10T15:16:08Z",
+          "tree_id": "97f42cd60d02c647949fc1831d47fd89def6d41d",
+          "url": "https://github.com/noir-lang/noir/commit/aa4da67f714663f2eaee2987a5ce59180481cc60"
+        },
+        "date": 1765381400540,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251053,
+            "range": "± 1078",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224150,
+            "range": "± 4363",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794491,
+            "range": "± 12724",
             "unit": "ns/iter"
           }
         ]
