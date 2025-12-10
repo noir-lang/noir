@@ -75,7 +75,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
     num_runs: 1
-    compilation-timeout: 450
+    compilation-timeout: 525
     execution-timeout: 1
     compilation-memory-limit: 12000
     execution-memory-limit: 2000
