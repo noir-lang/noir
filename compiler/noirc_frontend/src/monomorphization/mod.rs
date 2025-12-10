@@ -31,13 +31,13 @@
 //!   fn foo$f1(a$l1: i32, b$l2: i32) -> () {}  // two separate parameters
 //!   ```
 //! - Functions are represented as a pair of `(constrained, unconstrained)` versions of the same
-//!   function. The variant to use is selected by [Monomorphizer::extract_function] to match the
+//!   function. The variant to use is selected by `Monomorphizer::extract_function` to match the
 //!   runtime when the function is later called.
 //!
 //! At the end of monomorphization, a couple sub-passes are performed:
 //! - [ownership](crate::ownership): infers when values should be cloned or moved for unconstrained code.
 //!   This is only relevant for arrays in unconstrained code which are implemented with copy on
-//!   write semantics. An [ast::Expr::Clone] corresponds to an increment of the reference-count on
+//!   write semantics. An [ast::Expression::Clone] corresponds to an increment of the reference-count on
 //!   a particular array rather than a deep clone. The deep clone itself will be performed by the
 //!   Brillig runtime when mutating an array with a reference count greater than one.
 //! - [proxies]: wraps oracle functions in unconstrained function wrappers automatically.
