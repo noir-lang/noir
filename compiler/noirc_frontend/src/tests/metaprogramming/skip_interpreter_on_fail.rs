@@ -558,3 +558,258 @@ fn comptime_for_loop_with_end_value_out_of_range() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn regression_10807_1() {
+    // Out of range end value with no type annotation
+    let src = "
+    fn main() {
+        comptime {
+            let start: u32 = 1;
+            let end = 340282366920938463463374607431768211456;
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The value `340282366920938463463374607431768211456` cannot fit into `u32` which has range `0..=4294967295`
+            for i in start..end {
+                let _ = i;
+            }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10861_0() {
+    let src = "
+    fn main() {
+        comptime {
+            // u32::MAX + 1
+            let x: Field = 4294967296;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+                            ^ Indexing arrays and slices must be done with `u32`, not `Field`
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10861_1() {
+    let src = "
+    fn main() {
+        comptime {
+            // u64::MAX + 1
+            let x: Field = 18446744073709551616;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+                            ^ Indexing arrays and slices must be done with `u32`, not `Field`
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10863() {
+    let src = "
+    fn main() {
+        comptime {
+            let x: i8 = -1;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+                            ^ Indexing arrays and slices must be done with `u32`, not `i8`
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10830() {
+    let src = "
+    struct Foo { }
+    fn main() {
+        comptime {
+            let start: Foo = 1;
+                             ^ Expected type Foo, found type Field
+            let end: u32 = 5;
+            for i in start..end {
+                            ^^^ Expected type Foo, found type u32
+                     ^^^^^ The type Foo cannot be used in a for loop
+                let _ = i;
+            }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+// Regression for issue #10819 (https://github.com/noir-lang/noir/issues/10819)
+#[test]
+fn comptime_trait_default_method_using_missing_associated_constant() {
+    let src = "
+    trait MyTrait {
+        let N: u32;
+
+        fn foo() {
+            let _ = Self::N;
+                          ^ Could not resolve 'N' in path
+        }
+    }
+    struct Foo {}
+    impl MyTrait for Foo { 
+         ^^^^^^^ `MyTrait` is missing the associated type `N`
+        // Leave this out to trigger errors
+        // let N: u32 = 10;
+    }
+    fn main() {
+        comptime {
+            let _ = <Foo as MyTrait>::foo();
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regressoin_10829_0() {
+    let src = "
+    fn main() {
+        comptime {
+            let start: u32 = 1;
+            let end: u32 = 2i8;
+                           ^^^ Expected type u32, found type i8
+            for i in start..end {
+                let _ = i;
+            }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regressoin_10829() {
+    let src = "
+    fn main() {
+        comptime {
+            let start: u32 = 1i8;
+                             ^^^ Expected type u32, found type i8
+            let end: u32 = 2;            
+            for i in start..end {
+                let _ = i;
+            }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10688_0() {
+    let src = "
+    fn main() {
+        comptime {
+            for _ in 1_i8..2_u8 {}
+                           ^^^^ Expected type i8, found type u8
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10688_1() {
+    let src = "
+    fn main() {
+        comptime {
+            for _ in 1_u8..2_i8 {}
+                           ^^^^ Expected type u8, found type i8
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+// Regression for issue #10831 (https://github.com/noir-lang/noir/issues/10831)
+#[test]
+fn oob_tuple_access() {
+    let src = "
+    fn main() {
+        comptime {
+            let mut x = (1, 2);
+            // Check whether there is data corruption with the wrong index
+            x.3 = 999;
+              ^ Index 3 is out of bounds for this tuple (Field, Field) of length 2
+            assert_eq(x.0, 999);
+            assert_eq(x.0, 1);
+            assert_eq(x.1, 999);
+            assert_eq(x.1, 1);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10832() {
+    let src = "
+    struct Foo {
+        x: Field,
+        y: Field,
+    }
+    fn main() {
+        comptime {
+            let mut f = Foo { x: 1, y: 2 };
+            let Foo { x, y, undefined } = f;
+                            ^^^^^^^^^ no such field undefined defined in struct Foo
+            let _ = x;
+            let _ = y;
+            assert_eq(undefined, 999);
+            assert_eq(undefined, 0);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10855() {
+    let src = "
+    struct Foo {
+        x: Field,
+        y: Field,
+    }
+    fn main() {
+        comptime {
+            let mut f: Foo = Foo { x: 1, y: 2 };
+            assert_eq(f.undefined, 999);
+                        ^^^^^^^^^ Type Foo has no member named undefined
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10865() {
+    let src = "
+    struct Foo {
+        x: Field,
+        y: Field,
+    }
+    fn main() {
+        comptime {
+            let mut f = Foo { x: 1, y: 2, undefined: 10 };
+                                          ^^^^^^^^^ no such field undefined defined in struct Foo
+            f.undefined = 999;
+              ^^^^^^^^^ Type Foo has no member named undefined
+            assert_eq(f.undefined, 999);
+                        ^^^^^^^^^ Type Foo has no member named undefined
+            assert_eq(f.undefined, 0);
+                        ^^^^^^^^^ Type Foo has no member named undefined
+        }
+    }
+    ";
+    check_errors(src);
+}
