@@ -9,7 +9,7 @@
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
 //!
-//! The monomorphized Ast (mAST) has a few notable differences from the Hir:
+//! The monomorphized AST (mAST) has a few notable differences from the HIR:
 //! - It is self-contained without the need for an external context like the NodeInterner.
 //! - All generics are gone, they are specialized away by creating a new copy of each function
 //!   for each combination of generic arguments it is used with.
@@ -39,7 +39,7 @@
 //!   This is only relevant for arrays in unconstrained code which are implemented with copy on
 //!   write semantics. An [ast::Expr::Clone] corresponds to an increment of the reference-count on
 //!   a particular array rather than a deep clone. The deep clone itself will be performed by the
-//!   brillig runtime when mutating an array with a reference count greater than one.
+//!   Brillig runtime when mutating an array with a reference count greater than one.
 //! - [proxies]: wraps oracle functions in unconstrained function wrappers automatically.
 //!   This is required in some corner cases when oracles are used as first-class functions.
 //!
@@ -480,7 +480,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Monomorphizes the given function.
     ///
     /// Expects any generics to already be bound by their bindings at this function's call site.
-    /// If this is not done, the relevant generic will either reimain unbound (leading to a panic)
+    /// If this is not done, the relevant generic will either remain unbound (leading to a panic)
     /// or, if the same generic is used further up the callstack (common with traits), it may have
     /// an incorrect value.
     pub fn function(
