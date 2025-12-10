@@ -1397,7 +1397,13 @@
 <a href="#1396" id="1396">1396</a>
 <a href="#1397" id="1397">1397</a>
 <a href="#1398" id="1398">1398</a>
-<a href="#1399" id="1399">1399</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -2644,10 +2650,12 @@
     CallData,
     Comptime,
     Constrain,
+    Constrained,
     Continue,
     Contract,
     Crate,
     Dep,
+    Dual,
     Else,
     Enum,
     Fn,
@@ -2686,10 +2694,12 @@
             Keyword::CallData =&gt; <span class="macro">write!</span>(f, <span class="string">"call_data"</span>),
             Keyword::Comptime =&gt; <span class="macro">write!</span>(f, <span class="string">"comptime"</span>),
             Keyword::Constrain =&gt; <span class="macro">write!</span>(f, <span class="string">"constrain"</span>),
+            Keyword::Constrained =&gt; <span class="macro">write!</span>(f, <span class="string">"constrained"</span>),
             Keyword::Continue =&gt; <span class="macro">write!</span>(f, <span class="string">"continue"</span>),
             Keyword::Contract =&gt; <span class="macro">write!</span>(f, <span class="string">"contract"</span>),
             Keyword::Crate =&gt; <span class="macro">write!</span>(f, <span class="string">"crate"</span>),
             Keyword::Dep =&gt; <span class="macro">write!</span>(f, <span class="string">"dep"</span>),
+            Keyword::Dual =&gt; <span class="macro">write!</span>(f, <span class="string">"dual"</span>),
             Keyword::Else =&gt; <span class="macro">write!</span>(f, <span class="string">"else"</span>),
             Keyword::Enum =&gt; <span class="macro">write!</span>(f, <span class="string">"enum"</span>),
             Keyword::Fn =&gt; <span class="macro">write!</span>(f, <span class="string">"fn"</span>),
@@ -2731,10 +2741,12 @@
             <span class="string">"call_data" </span>=&gt; Keyword::CallData,
             <span class="string">"comptime" </span>=&gt; Keyword::Comptime,
             <span class="string">"constrain" </span>=&gt; Keyword::Constrain,
+            <span class="string">"constrained" </span>=&gt; Keyword::Constrained,
             <span class="string">"continue" </span>=&gt; Keyword::Continue,
             <span class="string">"contract" </span>=&gt; Keyword::Contract,
             <span class="string">"crate" </span>=&gt; Keyword::Crate,
             <span class="string">"dep" </span>=&gt; Keyword::Dep,
+            <span class="string">"dual" </span>=&gt; Keyword::Dual,
             <span class="string">"else" </span>=&gt; Keyword::Else,
             <span class="string">"enum" </span>=&gt; Keyword::Enum,
             <span class="string">"fn" </span>=&gt; Keyword::Fn,

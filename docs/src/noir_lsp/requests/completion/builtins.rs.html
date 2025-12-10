@@ -236,7 +236,9 @@
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::CompletionItemKind;
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::CompletionItemKind;
 <span class="kw">use </span>noirc_frontend::{ast::AttributeTarget, elaborator::PrimitiveType, token::Keyword};
 <span class="kw">use </span>strum::IntoEnumIterator;
 
@@ -442,10 +444,12 @@
         | Keyword::CallData
         | Keyword::Comptime
         | Keyword::Constrain
+        | Keyword::Constrained
         | Keyword::Continue
         | Keyword::Contract
         | Keyword::Crate
         | Keyword::Dep
+        | Keyword::Dual
         | Keyword::Else
         | Keyword::Enum
         | Keyword::Fn
