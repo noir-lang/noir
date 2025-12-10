@@ -693,7 +693,8 @@
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
 <a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the pruning of unused block parameters from functions.
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the pruning of unused block parameters from functions.
 //!
 //! Blocks can accept parameters that are passed via terminator instructions (e.g., `jmp`).
 //! During the compilation pipeline, it's common for some of these parameters to become unused.
@@ -851,11 +852,12 @@
 
                     <span class="comment">// Apply call site rewrites
                     </span><span class="kw">for </span>(instruction_id, new_args) <span class="kw">in </span>call_sites_to_update {
-                        <span class="kw">if let </span>Instruction::Call { arguments, .. } =
+                        <span class="kw">let </span>Instruction::Call { arguments, .. } =
                             <span class="kw-2">&amp;mut </span>caller_func.dfg[instruction_id]
-                        {
-                            <span class="kw-2">*</span>arguments = new_args;
-                        }
+                        <span class="kw">else </span>{
+                            <span class="macro">unreachable!</span>(<span class="string">"expected call site to be call instruction"</span>);
+                        };
+                        <span class="kw-2">*</span>arguments = new_args;
                     }
                 }
             }
