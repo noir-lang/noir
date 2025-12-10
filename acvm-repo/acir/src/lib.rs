@@ -228,7 +228,10 @@ mod reflection {
         fn add_preamble(source: &mut String) {
             let inc = r#"#include "serde.hpp""#;
             let pos = source.find(inc).expect("serde.hpp missing");
-            source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
+            source.insert_str(
+                pos + inc.len(),
+                "\n#include \"barretenberg/serialize/msgpack_impl.hpp\"",
+            );
         }
 
         /// Add helper functions to cut down repetition in the generated code.
