@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765389330946,
+  "lastUpdate": 1765389461037,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a15b88f0dcac3961ccf95b722a317f9257b431ed",
-          "message": "chore: simplify `evaluate_integer` (#10665)",
-          "timestamp": "2025-12-02T15:50:46Z",
-          "tree_id": "32932909a3262f14c22473e3e139cab6f98ee82f",
-          "url": "https://github.com/noir-lang/noir/commit/a15b88f0dcac3961ccf95b722a317f9257b431ed"
-        },
-        "date": 1764692078939,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257586,
-            "range": "± 911",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226897,
-            "range": "± 7107",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792955,
-            "range": "± 5594",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25314,6 +25272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793003,
             "range": "± 3689",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a65daee121a836e2c084b9839159163d4811c20",
+          "message": "fix(acir): Do not read empty array under inactive predicates for various slice ops (#10882)",
+          "timestamp": "2025-12-10T17:33:00Z",
+          "tree_id": "b36407a8eb32b48d098585c8fbb0844918507728",
+          "url": "https://github.com/noir-lang/noir/commit/5a65daee121a836e2c084b9839159163d4811c20"
+        },
+        "date": 1765389430256,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258591,
+            "range": "± 1004",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228418,
+            "range": "± 2714",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789703,
+            "range": "± 44276",
             "unit": "ns/iter"
           }
         ]
