@@ -1098,3 +1098,64 @@ fn comptime_uhashmap_of_slices_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_10830() {
+    let src = r#"
+    struct Foo { }
+    fn main() {
+        comptime {
+            let start: Foo = 1;
+                             ^ Expected type Foo, found type Field
+            let end: u32 = 5;
+            for i in start..end {
+                            ^^^ Expected type Foo, found type u32
+                     ^^^^^ The type Foo cannot be used in a for loop
+                let _ = i;
+            }
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10831() {
+    let src = "
+    fn main() {
+        comptime {
+            let mut x = (1, 2);
+            x.3 = 999;
+              ^ Index 3 is out of bounds for this tuple (Field, Field) of length 2
+            assert_eq(x.0, 999);
+            assert_eq(x.0, 1);
+                      ^^^^^^ Assertion failed
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10865() {
+    let src = "
+    struct Foo {
+        x: Field,
+        y: Field,
+    }
+    fn main() {
+        comptime {
+            let mut f = Foo { x: 1, y: 2, undefined: 10 };
+                                          ^^^^^^^^^ no such field undefined defined in struct Foo
+            f.undefined = 999;
+              ^^^^^^^^^ Type Foo has no member named undefined
+            assert_eq(f.undefined, 999);
+                        ^^^^^^^^^ Type Foo has no member named undefined
+            assert_eq(f.undefined, 0);
+                        ^^^^^^^^^ Type Foo has no member named undefined
+                      ^^^^^^^^^^^^^^ Assertion failed
+        }
+    }
+    ";
+    check_errors(src);
+}

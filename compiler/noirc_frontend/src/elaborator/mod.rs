@@ -51,7 +51,7 @@
 
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     rc::Rc,
 };
 
@@ -259,6 +259,10 @@ pub struct Elaborator<'context> {
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+
+    /// Tracks locations where frontend errors (non-interpreter errors) have occurred.
+    /// Used to filter duplicate interpreter errors at the same location.
+    frontend_error_locations: HashSet<Location>,
 }
 
 #[derive(Copy, Clone)]
@@ -326,6 +330,7 @@ impl<'context> Elaborator<'context> {
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
+            frontend_error_locations: HashSet::default(),
         }
     }
 
@@ -458,6 +463,20 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
+
+        // For interpreter errors, check if a frontend error already exists at this location
+        if let CompilationError::InterpreterError(_) = error {
+            let location = error.location();
+            if self.frontend_error_locations.contains(&location) {
+                // Skip - we already have a frontend error at this location
+                return;
+            }
+        } else {
+            // Track the location of this frontend error (non-interpreter error)
+            let location = error.location();
+            self.frontend_error_locations.insert(location);
+        }
+
         self.errors.push(error);
     }
 
