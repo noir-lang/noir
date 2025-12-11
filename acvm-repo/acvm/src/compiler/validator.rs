@@ -9,7 +9,7 @@ use crate::pwg::{
 use acir::{
     AcirField,
     circuit::{
-        Circuit, Opcode,
+        Circuit, Opcode, OpcodeLocation,
         opcodes::{BlackBoxFuncCall, BlockId, MemOp},
     },
     native_types::{Witness, WitnessMap},
@@ -19,9 +19,9 @@ use acvm_blackbox_solver::{
 };
 use std::collections::HashMap;
 
-fn unsatisfied_constraint<F>(message: String) -> OpcodeResolutionError<F> {
+fn unsatisfied_constraint<F>(opcode_index: usize, message: String) -> OpcodeResolutionError<F> {
     OpcodeResolutionError::UnsatisfiedConstrain {
-        opcode_location: ErrorLocation::Unresolved,
+        opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(opcode_index)),
         payload: Some(ResolvedAssertionPayload::String(message)),
     }
 }
@@ -40,14 +40,15 @@ pub fn validate_witness<F: AcirField>(
 ) -> Result<(), OpcodeResolutionError<F>> {
     let mut block_solvers: HashMap<BlockId, MemoryOpSolver<F>> = HashMap::new();
 
-    for opcode in &circuit.opcodes {
+    for (opcode_index, opcode) in circuit.opcodes.iter().enumerate() {
         match opcode {
             Opcode::AssertZero(expression) => {
                 let result = &ExpressionSolver::evaluate(expression, &witness_map);
                 if !result.is_zero() {
-                    return Err(unsatisfied_constraint(format!(
-                        "Invalid witness assignment: {expression}"
-                    )));
+                    return Err(unsatisfied_constraint(
+                        opcode_index,
+                        format!("Invalid witness assignment: {expression}"),
+                    ));
                 }
             }
             Opcode::BlackBoxFuncCall(black_box_func_call) => {
@@ -64,9 +65,12 @@ pub fn validate_witness<F: AcirField>(
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             let output_value = F::from(u128::from(value));
                             if witness_value != output_value {
-                                return Err(unsatisfied_constraint(format!(
-                                    "AES128 opcode violation: expected {output_value} but found {witness_value} for output witness {output_witness}",
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "AES128 opcode violation: expected {output_value} but found {witness_value} for output witness {output_witness}",
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -78,9 +82,12 @@ pub fn validate_witness<F: AcirField>(
                             .get(output)
                             .ok_or(OpcodeNotSolvable::MissingAssignment(output.0))?;
                         if and_result != *output_value {
-                            return Err(unsatisfied_constraint(format!(
-                                "AND opcode violation: {lhs_value} AND {rhs_value} != {output_value} for {num_bits} bits"
-                            )));
+                            return Err(unsatisfied_constraint(
+                                opcode_index,
+                                format!(
+                                    "AND opcode violation: {lhs_value} AND {rhs_value} != {output_value} for {num_bits} bits"
+                                ),
+                            ));
                         }
                     }
                     BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
@@ -91,17 +98,23 @@ pub fn validate_witness<F: AcirField>(
                             .get(output)
                             .ok_or(OpcodeNotSolvable::MissingAssignment(output.0))?;
                         if xor_result != *output_value {
-                            return Err(unsatisfied_constraint(format!(
-                                "XOR opcode violation: {lhs_value} XOR {rhs_value} != {output_value} for {num_bits} bits"
-                            )));
+                            return Err(unsatisfied_constraint(
+                                opcode_index,
+                                format!(
+                                    "XOR opcode violation: {lhs_value} XOR {rhs_value} != {output_value} for {num_bits} bits"
+                                ),
+                            ));
                         }
                     }
                     BlackBoxFuncCall::RANGE { input, num_bits } => {
                         let value = input_to_value(&witness_map, *input)?;
                         if value.num_bits() > *num_bits {
-                            return Err(unsatisfied_constraint(format!(
-                                "RANGE opcode violation: value {value} does not fit in {num_bits} bits"
-                            )));
+                            return Err(unsatisfied_constraint(
+                                opcode_index,
+                                format!(
+                                    "RANGE opcode violation: value {value} does not fit in {num_bits} bits"
+                                ),
+                            ));
                         }
                     }
                     BlackBoxFuncCall::Blake2s { inputs, outputs } => {
@@ -113,12 +126,15 @@ pub fn validate_witness<F: AcirField>(
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
                             if *witness_value != F::from_be_bytes_reduce(&[digest[i]]) {
-                                return Err(unsatisfied_constraint(format!(
-                                    "BLAKE2s opcode violation: expected {:?} but found {:?} for output witness {:?}",
-                                    F::from_be_bytes_reduce(&[digest[i]]),
-                                    witness_value,
-                                    output_witness
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "BLAKE2s opcode violation: expected {:?} but found {:?} for output witness {:?}",
+                                        F::from_be_bytes_reduce(&[digest[i]]),
+                                        witness_value,
+                                        output_witness
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -129,12 +145,15 @@ pub fn validate_witness<F: AcirField>(
                             let output_witness = &outputs[i];
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             if witness_value != F::from_be_bytes_reduce(&[digest[i]]) {
-                                return Err(unsatisfied_constraint(format!(
-                                    "BLAKE3 opcode violation: expected {:?} but found {:?} for output witness {:?}",
-                                    F::from_be_bytes_reduce(&[digest[i]]),
-                                    witness_value,
-                                    output_witness
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "BLAKE3 opcode violation: expected {:?} but found {:?} for output witness {:?}",
+                                        F::from_be_bytes_reduce(&[digest[i]]),
+                                        witness_value,
+                                        output_witness
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -159,12 +178,15 @@ pub fn validate_witness<F: AcirField>(
                             )?;
                             let output_value = witness_value(output, &witness_map)?;
                             if output_value != F::from(is_valid) {
-                                return Err(unsatisfied_constraint(format!(
-                                    "EcdsaSecp256k1 opcode violation: expected {:?} but found {:?} for output witness {:?}",
-                                    F::from(is_valid),
-                                    output_value,
-                                    output
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "EcdsaSecp256k1 opcode violation: expected {:?} but found {:?} for output witness {:?}",
+                                        F::from(is_valid),
+                                        output_value,
+                                        output
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -189,12 +211,15 @@ pub fn validate_witness<F: AcirField>(
                             )?;
                             let output_value = witness_value(output, &witness_map)?;
                             if output_value != F::from(is_valid) {
-                                return Err(unsatisfied_constraint(format!(
-                                    "EcdsaSecp256r1 opcode violation: expected {:?} but found {:?} for output witness {:?}",
-                                    F::from(is_valid),
-                                    output_value,
-                                    output
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "EcdsaSecp256r1 opcode violation: expected {:?} but found {:?} for output witness {:?}",
+                                        F::from(is_valid),
+                                        output_value,
+                                        output
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -216,9 +241,12 @@ pub fn validate_witness<F: AcirField>(
                                 || res_infinite != output_infinite_value
                             {
                                 //TODO: on check pas les x,y si infinite est true
-                                return Err(unsatisfied_constraint(format!(
-                                    "MultiScalarMul opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "MultiScalarMul opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -240,9 +268,12 @@ pub fn validate_witness<F: AcirField>(
                                 || res_infinite != output_infinite_value
                             {
                                 //TODO: on check pas les x,y si infinite est true
-                                return Err(unsatisfied_constraint(format!(
-                                    "EmbeddedCurveAdd opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "EmbeddedCurveAdd opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -258,9 +289,12 @@ pub fn validate_witness<F: AcirField>(
                         {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             if witness_value != F::from(u128::from(value)) {
-                                return Err(unsatisfied_constraint(format!(
-                                    "Keccakf1600 opcode violation: expected {value} but found {witness_value} for output witness {output_witness}",
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "Keccakf1600 opcode violation: expected {value} but found {witness_value} for output witness {output_witness}",
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -278,9 +312,12 @@ pub fn validate_witness<F: AcirField>(
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
                             if *witness_value != value {
-                                return Err(unsatisfied_constraint(format!(
-                                    "Poseidon2 opcode violation: expected {value} but found {witness_value} for output witness {output_witness}",
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "Poseidon2 opcode violation: expected {value} but found {witness_value} for output witness {output_witness}",
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -296,12 +333,15 @@ pub fn validate_witness<F: AcirField>(
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
                             if *witness_value != F::from(u128::from(value)) {
-                                return Err(unsatisfied_constraint(format!(
-                                    "SHA256 Compression opcode violation: expected {:?} but found {:?} for output witness {:?}",
-                                    F::from(u128::from(value)),
-                                    witness_value,
-                                    output_witness
-                                )));
+                                return Err(unsatisfied_constraint(
+                                    opcode_index,
+                                    format!(
+                                        "SHA256 Compression opcode violation: expected {:?} but found {:?} for output witness {:?}",
+                                        F::from(u128::from(value)),
+                                        witness_value,
+                                        output_witness
+                                    ),
+                                ));
                             }
                         }
                     }
@@ -311,7 +351,7 @@ pub fn validate_witness<F: AcirField>(
                 let solver = block_solvers
                     .get_mut(block_id)
                     .expect("Memory block should have been initialized");
-                solver.check_memory_op(op, &witness_map)?;
+                solver.check_memory_op(op, &witness_map, opcode_index)?;
             }
             Opcode::MemoryInit { block_id, init, .. } => {
                 MemoryOpSolver::new(init, &witness_map).map(|solver| {
@@ -355,6 +395,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         &mut self,
         op: &MemOp<F>,
         witness_map: &WitnessMap<F>,
+        opcode_index: usize,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, witness_map)?;
 
@@ -372,9 +413,12 @@ impl<F: AcirField> MemoryOpSolver<F> {
             // `value = arr[memory_index]`
             let value_in_array = self.read_memory_index(memory_index)?;
             if value != value_in_array {
-                return Err(unsatisfied_constraint(format!(
-                    "Memory read opcode violation at index {memory_index}: expected {value_in_array} but found {value}",
-                )));
+                return Err(unsatisfied_constraint(
+                    opcode_index,
+                    format!(
+                        "Memory read opcode violation at index {memory_index}: expected {value_in_array} but found {value}",
+                    ),
+                ));
             }
             Ok(())
         } else {
