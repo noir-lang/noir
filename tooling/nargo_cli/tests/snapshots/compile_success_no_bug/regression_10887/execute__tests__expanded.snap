@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_A: Option<u1> = Option::<u1> { _is_some: false, _value: 0 };
+global G_A: Option<u1> = Option::<u1> { _is_some: false, _value: false };
 
 fn main() {
     let a: Option<u1> = Option::<u1>::none();
