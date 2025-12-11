@@ -237,8 +237,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding using constraints",
         ),
         SsaPass::new(
-            |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
-            "Inlining Brillig Calls",
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
         ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
