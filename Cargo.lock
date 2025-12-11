@@ -64,9 +64,7 @@ dependencies = [
  "acir",
  "acvm_blackbox_solver",
  "ark-bls12-381",
- "ark-bn254 0.4.0",
  "ark-bn254 0.5.0",
- "ark-ff 0.4.2",
  "ark-ff 0.5.0",
  "bn254_blackbox_solver",
  "brillig_vm",
@@ -80,7 +78,6 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tracing",
- "zkhash",
 ]
 
 [[package]]
@@ -821,8 +818,10 @@ version = "1.0.0-beta.16"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-bn254 0.4.0",
  "ark-bn254 0.5.0",
  "ark-ec 0.5.0",
+ "ark-ff 0.4.2",
  "ark-ff 0.5.0",
  "ark-grumpkin",
  "ark-std 0.5.0",
@@ -831,6 +830,8 @@ dependencies = [
  "lazy_static",
  "num-bigint",
  "pprof",
+ "proptest",
+ "zkhash",
 ]
 
 [[package]]
@@ -3843,7 +3844,6 @@ dependencies = [
 name = "noir_wasm"
 version = "1.0.0-beta.16"
 dependencies = [
- "acvm",
  "build-data",
  "console_error_panic_hook",
  "fm",

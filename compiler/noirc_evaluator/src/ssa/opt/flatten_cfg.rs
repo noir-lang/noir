@@ -850,12 +850,8 @@ impl<'f> Context<'f> {
         match instruction {
             Instruction::Constrain(lhs, rhs, message) => {
                 // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, lhs, call_stack);
-                let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
-                let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
+                let lhs = self.mul_by_condition(lhs, condition, call_stack);
+                let rhs = self.mul_by_condition(rhs, condition, call_stack);
                 Instruction::Constrain(lhs, rhs, message)
             }
             Instruction::ConstrainNotEqual(_, _, _) => {
@@ -1884,11 +1880,14 @@ mod test {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = cast v0 as Field
-            v4 = mul v2, Field 2
-            v5 = make_array [v4] : [Field; 1]
             enable_side_effects u1 1
-            return v5
+            v3 = cast v0 as Field
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v5 = mul v3, Field 2
+            v6 = make_array [v5] : [Field; 1]
+            enable_side_effects u1 1
+            return v6
         }
         ");
     }

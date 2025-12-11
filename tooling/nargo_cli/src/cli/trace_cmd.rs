@@ -99,7 +99,6 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
     let compile_options = compile_options_for_debugging(
         acir_mode,
         skip_instrumentation,
-        None,
         args.compile_options.clone(),
     );
 

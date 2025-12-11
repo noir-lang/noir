@@ -177,8 +177,7 @@ fn truncate_field_to_6_bits() {
     BRILLIG CALL func: 1, inputs: [-w2 + 342003794872488675347600089769644923258568193756500536620284440415247007744], outputs: [w5]
     ASSERT w6 = w2*w5 - 342003794872488675347600089769644923258568193756500536620284440415247007744*w5 + 1
     ASSERT 0 = -w2*w6 + 342003794872488675347600089769644923258568193756500536620284440415247007744*w6
-    ASSERT w7 = w3*w6
-    ASSERT w7 = 0
+    ASSERT 0 = w3*w6
     ASSERT w1 = w3
 
     unconstrained func 0: directive_integer_quotient
@@ -347,4 +346,18 @@ fn make_array() {
     ASSERT w3 = w1
     ASSERT w4 = 10
     ");
+}
+
+#[test]
+#[should_panic(expected = "potential underflow in subtraction when max_bit_size is 253")]
+fn truncate_underflow() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field):
+        v2 = sub v0, v1
+        v3 = truncate v2 to 6 bits, max_bit_size: 253
+        return v3
+    }
+    ";
+    let _ = ssa_to_acir_program(src);
 }

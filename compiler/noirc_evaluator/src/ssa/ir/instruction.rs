@@ -191,14 +191,13 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             // These imply a check that the slice is non-empty and should fail otherwise.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove | Intrinsic::SliceInsert => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
-            | Intrinsic::SliceInsert
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -225,9 +224,11 @@ impl Intrinsic {
             Intrinsic::BlackBox(func) if func.has_side_effects() => Purity::PureWithPredicate,
 
             // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                Purity::PureWithPredicate
-            }
+            // Slice insert also reads from its input slice, thus needing to assert that it is non-empty.
+            Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceRemove
+            | Intrinsic::SliceInsert => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert

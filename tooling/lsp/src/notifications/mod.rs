@@ -260,7 +260,6 @@ pub(crate) fn fake_stdlib_workspace() -> Workspace {
         entry_path: PathBuf::from_str("fake_entry_path.nr").unwrap(),
         name: CrateName::from_str("fake_std").unwrap(),
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     Workspace {
         root_dir: PathBuf::from_str("std").unwrap(),

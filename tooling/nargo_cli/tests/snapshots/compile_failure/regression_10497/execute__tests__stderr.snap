@@ -2,53 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
---- The SSA failed to validate:
-acir(inline) fn main f0 {
-  b0(v0: u1):
-    v2 = allocate -> &mut Field
-    store Field 1 at v2
-    v7 = call f1(v0, v2, u32 2, f2, v2, u32 2, f3) -> u32
-    return v7
-}
-acir(inline) fn foo f1 {
-  b0(v0: u1, v1: &mut Field, v2: u32, v3: function, v4: &mut Field, v5: u32, v6: function):
-    jmpif v0 then: b1, else: b2
-  b1():
-    v7 = call v3(v1, v2) -> u32
-    jmp b3(v7)
-  b2():
-    v9 = call f4(v1, v2, v3, v4, v5, v6) -> u32
-    jmp b3(v9)
-  b3(v10: u32):
-    return v10
-}
-acir(inline) fn lambda f2 {
-  b0(v0: &mut Field, v2: u32):
-    v1 = allocate -> &mut &mut Field
-    store v0 at v1
-    v3 = allocate -> &mut u32
-    store v2 at v3
-    v4 = load v1 -> &mut Field
-    v5 = load v3 -> u32
-    return v5
-}
-brillig(inline) fn lambda f3 {
-  b0(v0: &mut Field, v2: u32):
-    v1 = allocate -> &mut &mut Field
-    store v0 at v1
-    v3 = allocate -> &mut u32
-    store v2 at v3
-    v4 = load v1 -> &mut Field
-    v5 = load v3 -> u32
-    return v5
-}
-brillig(inline) fn bar f4 {
-  b0(v0: &mut Field, v1: u32, v2: function, v3: &mut Field, v4: u32, v5: function):
-    v6 = call v5(v3, v4) -> u32
-    return v6
-}
-
-
-error: Trying to pass a reference from ACIR function 'foo f1' to unconstrained 'bar f4' in argument v1: &mut Field
+error: SSA validation error: Trying to pass a reference from ACIR function 'foo f1' to unconstrained 'bar f4' in argument v1: &mut Field
+ = Set the NOIR_SHOW_INVALID_SSA env var to see the SSA.
 
 Aborting due to 1 previous error

@@ -1,3 +1,4 @@
+use async_lsp::lsp_types;
 use fm::FileId;
 use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_errors::Span;
@@ -5,7 +6,7 @@ use noirc_frontend::{
     ParsedModule,
     ast::{
         AttributeTarget, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait,
-        TypeAlias, Visitor,
+        TraitItem, TypeAlias, Visitor,
     },
     hir::{
         def_map::{LocalModuleId, ModuleId},
@@ -35,7 +36,12 @@ pub(crate) struct VisitorReferenceFinder<'a> {
     module_id: ModuleId,
     args: &'a ProcessRequestCallbackArgs<'a>,
     link_finder: LinkFinder,
-    reference_id: Option<ReferenceId>,
+
+    /// The found ReferenceId, if any, along with an LSP location that covers
+    /// the range of the text that points to that reference (None if the range
+    /// should be the word under the cursor, or Some if the range is not that word,
+    /// which is the case of doc comment links where the entire `[...]` is the range)
+    reference_id: Option<(ReferenceId, Option<lsp_types::Location>)>,
 }
 
 impl<'a> VisitorReferenceFinder<'a> {
@@ -61,10 +67,13 @@ impl<'a> VisitorReferenceFinder<'a> {
         Self { source, byte_index, module_id, args, link_finder, reference_id: None }
     }
 
-    pub(crate) fn find(&mut self, parsed_module: &ParsedModule) -> Option<ReferenceId> {
+    pub(crate) fn find(
+        &mut self,
+        parsed_module: &ParsedModule,
+    ) -> Option<(ReferenceId, Option<lsp_types::Location>)> {
         parsed_module.accept(self);
 
-        self.reference_id
+        std::mem::take(&mut self.reference_id)
     }
 
     /// Checks if the cursor is on a link inside the doc comments of the given ReferenceId.
@@ -137,7 +146,15 @@ impl<'a> VisitorReferenceFinder<'a> {
                             continue;
                         }
                     };
-                    self.reference_id = Some(reference);
+                    let location = lsp_types::Location {
+                        uri: byte_lsp_location.uri.clone(),
+                        range: lsp_types::Range {
+                            start: lsp_types::Position { line, character: start },
+                            end: lsp_types::Position { line, character: end },
+                        },
+                    };
+
+                    self.reference_id = Some((reference, Some(location)));
                     return;
                 }
             }
@@ -221,6 +238,18 @@ impl Visitor for VisitorReferenceFinder<'_> {
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
         };
+
+        for item in noir_trait.items.iter() {
+            if let TraitItem::Function { name, .. } = &item.item {
+                let func_name_location = name.location();
+                if let Some(reference) =
+                    self.args.interner.reference_at_location(func_name_location)
+                {
+                    self.find_in_reference_doc_comments(reference);
+                };
+            }
+        }
+
         true
     }
 
@@ -273,7 +302,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
             return true;
         };
 
-        self.reference_id = Some(module_def_id_to_reference_id(module_def_id));
+        self.reference_id = Some((module_def_id_to_reference_id(module_def_id), None));
 
         true
     }

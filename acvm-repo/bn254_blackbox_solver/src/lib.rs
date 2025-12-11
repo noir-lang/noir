@@ -10,8 +10,7 @@ mod poseidon2_constants;
 
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use generator::generators::derive_generators;
-pub use poseidon2::{Poseidon2Sponge, poseidon_hash, poseidon2_permutation};
-pub use poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config, field_from_hex};
+pub use poseidon2::poseidon2_permutation;
 
 // Temporary hack, this ensure that we always use a bn254 field here
 // without polluting the feature flags of the `acir_field` crate.
@@ -34,7 +33,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         predicate: bool,
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
         if predicate {
-            multi_scalar_mul(points, scalars_lo, scalars_hi, self.pedantic_solving())
+            multi_scalar_mul(points, scalars_lo, scalars_hi)
         } else {
             Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
         }
@@ -54,7 +53,6 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
             embedded_curve_add(
                 [*input1_x, *input1_y, *input1_infinite],
                 [*input2_x, *input2_y, *input2_infinite],
-                self.pedantic_solving(),
             )
         } else {
             Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))

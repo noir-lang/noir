@@ -37,7 +37,7 @@
     "docusaurus-plugin-llms": "^0.2.2",
     "docusaurus-plugin-typedoc": "1.4.2",
     "eslint-plugin-prettier": "^5.5.4",
-    "prettier": "3.7.3",
+    "prettier": "3.7.4",
     "serve": "^14.2.1",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.15",
