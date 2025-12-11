@@ -486,7 +486,7 @@ impl<
     pub fn fuzz(&mut self) -> FuzzTestResult {
         self.metrics.set_num_threads(self.num_threads);
         // Generate a seed for the campaign
-        let seed = thread_rng().r#gen::<u64>();
+        let seed = rand::rng().random::<u64>();
 
         // Init a fast PRNG used throughout the campaign
         let mut prng = XorShiftRng::seed_from_u64(seed);

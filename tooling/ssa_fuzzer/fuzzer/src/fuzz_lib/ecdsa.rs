@@ -14,12 +14,12 @@ pub(crate) struct SignatureSsaPrepared {
 fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepared {
     use k256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
     use k256::elliptic_curve::scalar::IsHigh;
-    let signing_key = SigningKey::random(&mut rand::thread_rng());
+    let signing_key = SigningKey::generate();
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
     let public_key_bytes = verifying_key.to_encoded_point(/*compress = */ false).to_bytes();
     let signature_bytes = if signature.s().is_high().into() {
-        signature.normalize_s().unwrap().to_bytes()
+        signature.normalize_s().to_bytes()
     } else {
         signature.to_bytes()
     };
@@ -36,12 +36,12 @@ fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepar
 fn generate_ecdsa_signature_secp256r1_internal(msg: &[u8]) -> SignatureSsaPrepared {
     use p256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
     use p256::elliptic_curve::scalar::IsHigh;
-    let signing_key = SigningKey::random(&mut rand::thread_rng());
+    let signing_key = SigningKey::generate();
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
     let public_key_bytes = verifying_key.to_encoded_point(/*compress = */ false).to_bytes();
     let signature_bytes = if signature.s().is_high().into() {
-        signature.normalize_s().unwrap().to_bytes()
+        signature.normalize_s().to_bytes()
     } else {
         signature.to_bytes()
     };
@@ -70,31 +70,31 @@ pub(crate) fn generate_ecdsa_signature_and_corrupt_it(
     corrupt_pubkey_y: bool,
     corrupt_signature: bool,
 ) -> SignatureSsaPrepared {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut prepared_signature = match target_curve {
         Curve::Secp256k1 => generate_ecdsa_signature_secp256k1_internal(msg),
         Curve::Secp256r1 => generate_ecdsa_signature_secp256r1_internal(msg),
     };
     if corrupt_hash {
-        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let new_size = rng.random_range(u8::MIN..=u8::MAX);
         let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.hash = new_bytes;
     }
     if corrupt_pubkey_x {
-        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let new_size = rng.random_range(u8::MIN..=u8::MAX);
         let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.public_key_x = new_bytes;
     }
     if corrupt_pubkey_y {
-        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let new_size = rng.random_range(u8::MIN..=u8::MAX);
         let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.public_key_y = new_bytes;
     }
     if corrupt_signature {
-        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let new_size = rng.random_range(u8::MIN..=u8::MAX);
         let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.signature = new_bytes;
