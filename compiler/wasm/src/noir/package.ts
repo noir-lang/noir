@@ -100,21 +100,55 @@ export class Package {
    */
   public async getSources(fm: FileManager, alias?: string): Promise<SourceList> {
     const handles = await fm.readdir(this.#srcPath, { recursive: true });
+    const sourceFiles = handles.filter((handle) => SOURCE_EXTENSIONS.find((ext) => handle.endsWith(ext)));
+
+    // Check if there's a module file matching the package name with a corresponding directory
+    // For example, if we have src/foo.nr and src/foo/ in a package named "foo",
+    // then files in src/foo/ should be placed at the same level as src/foo.nr
+    let specialModuleDir: string | null = null;
+    if (this.getType() === 'lib') {
+      const packageName = alias ?? this.#config.package.name;
+      const moduleFile = sourceFiles.find((f) => {
+        const suffix = f.replace(new RegExp(`.*${this.#srcPath}`), '');
+        return suffix === `/${packageName}.nr`;
+      });
+      if (moduleFile) {
+        const hasMatchingDir = sourceFiles.some((f) => {
+          const s = f.replace(new RegExp(`.*${this.#srcPath}`), '');
+          return s.startsWith(`/${packageName}/`);
+        });
+        if (hasMatchingDir) {
+          specialModuleDir = packageName;
+        }
+      }
+    }
+
     return Promise.all(
-      handles
-        .filter((handle) => SOURCE_EXTENSIONS.find((ext) => handle.endsWith(ext)))
-        .map(async (file) => {
-          // Github deps are directly added to the file manager, which causes them to be missing the absolute path to the source file
-          // and only include the extraction directory relative to the fm root directory
-          // This regexp ensures we remove the "real" source path for all dependencies, providing the compiler with what it expects for each source file:
-          // <absoluteSourcePath> -> <sourceAsString> for bin/contract packages
-          // <depAlias/relativePathToSource> -> <sourceAsString> for libs
-          const suffix = file.replace(new RegExp(`.*${this.#srcPath}`), '');
-          return {
-            path: this.getType() === 'lib' ? `${alias ? alias : this.#config.package.name}${suffix}` : file,
-            source: (await fm.readFile(file, 'utf-8')).toString(),
-          };
-        }),
+      sourceFiles.map(async (file) => {
+        // Github deps are directly added to the file manager, which causes them to be missing the absolute path to the source file
+        // and only include the extraction directory relative to the fm root directory
+        // This regexp ensures we remove the "real" source path for all dependencies, providing the compiler with what it expects for each source file:
+        // <absoluteSourcePath> -> <sourceAsString> for bin/contract packages
+        // <depAlias/relativePathToSource> -> <sourceAsString> for libs
+        const suffix = file.replace(new RegExp(`.*${this.#srcPath}`), '');
+
+        let adjustedSuffix = suffix;
+        if (specialModuleDir) {
+          // If the file is in the special module directory (e.g., /foo/bar.nr where this package is named "foo"
+          // and foo.nr exists), strip the module directory name to match Noir's module resolution behavior.
+          // This handles the case where foo.nr declares "mod bar;" and expects to find bar.nr at the same level
+          // due to the should_check_siblings_for_module logic when filename matches parent directory.
+          const prefix = `/${specialModuleDir}/`;
+          if (suffix.startsWith(prefix)) {
+            adjustedSuffix = suffix.substring(specialModuleDir.length + 1); // Remove /foo from /foo/bar.nr to get /bar.nr
+          }
+        }
+
+        return {
+          path: this.getType() === 'lib' ? `${alias ? alias : this.#config.package.name}${adjustedSuffix}` : file,
+          source: (await fm.readFile(file, 'utf-8')).toString(),
+        };
+      }),
     );
   }
 
