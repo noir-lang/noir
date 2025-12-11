@@ -1096,7 +1096,7 @@ impl Context<'_> {
     /// This is different from `flattened_size` in that a non-zero length
     /// array containing zero length arrays has zero size, but we can still
     /// access its elements.
-    fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
+    pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
         if let Type::Array(_, size) = dfg.type_of_value(array) {
             size == 0
         } else {
