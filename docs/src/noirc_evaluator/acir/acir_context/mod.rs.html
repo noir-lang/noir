@@ -1654,7 +1654,15 @@
 <a href="#1653" id="1653">1653</a>
 <a href="#1654" id="1654">1654</a>
 <a href="#1655" id="1655">1655</a>
-<a href="#1656" id="1656">1656</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2433,6 +2441,14 @@
             <span class="comment">// If `rhs` is one then the division is a noop.
             </span>(<span class="kw">_</span>, <span class="prelude-val">Some</span>(rhs_const), <span class="kw">_</span>) <span class="kw">if </span>rhs_const.is_one() =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>((lhs, zero));
+            }
+
+            <span class="comment">// If `rhs` is zero then the division fail.
+            </span>(<span class="kw">_</span>, <span class="prelude-val">Some</span>(rhs_const), <span class="kw">_</span>) <span class="kw">if </span>rhs_const.is_zero() =&gt; {
+                <span class="kw">let </span>msg = <span class="self">self
+                    </span>.generate_assertion_message_payload(<span class="string">"Attempted to divide by zero"</span>.to_string());
+                <span class="self">self</span>.assert_eq_var(predicate, zero, <span class="prelude-val">Some</span>(msg))<span class="question-mark">?</span>;
+                <span class="kw">return </span><span class="prelude-val">Ok</span>((zero, zero));
             }
 
             <span class="comment">// After this point, we cannot perform the division at compile-time.
