@@ -968,14 +968,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             _ => None,
         };
         // Error if there is no ordering field
-        if field_ordering.is_none() {
+        let Some(ordering) = field_ordering else {
             return Err(InterpreterError::TypeMismatch {
                 expected: "Ordering".to_string(),
                 actual: ordering.get_type().into_owned(),
                 location,
             });
         }
-        let ordering = field_ordering.unwrap();
 
         // Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
         let result = match operator {
