@@ -64,7 +64,7 @@ impl FunctionDeclaration {
             .collect();
 
         let return_type =
-            (!types::is_unit(&self.return_type)).then(|| types::to_hir_type(&self.return_type));
+            (!types::is_unit(&self.return_type)).then_some(types::to_hir_type(&self.return_type));
 
         (param_types, return_type)
     }
@@ -1469,6 +1469,7 @@ impl<'a> FunctionContext<'a> {
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
+
         let hir_type = types::to_hir_type(typ);
         let ident = self.local_ident(id);
 

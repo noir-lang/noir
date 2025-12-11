@@ -44,7 +44,7 @@ fn main() {
                 assert(false, "test");
                 panic(f"test");
                 std::static_assert(false, "test");
-                assert_constant(x);
+                std::assert_constant(x);
             }
         }
     };

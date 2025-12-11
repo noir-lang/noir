@@ -89,7 +89,6 @@ mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
-pub mod proxies;
 pub mod tests;
 pub mod visitor;
 
@@ -343,7 +342,6 @@ impl<'interner> Monomorphizer<'interner> {
             debug_types,
         )
         .handle_ownership()
-        .create_foreign_proxies()
     }
 
     pub(super) fn next_local_id(&mut self) -> LocalId {

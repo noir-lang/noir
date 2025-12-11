@@ -3,12 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: foo: Foo { x: 0x01, y: 0x02, z: 0x03 }
-   ┌─ src/main.nr:11:5
-   │
-11 │     static_assert(1 == 2, f"foo: {foo}");
-   │     ------------------------------------
-   │
-   = Call stack:
-     1. src/main.nr:11:5
+    ┌─ std/lib.nr:111:8
+    │
+111 │ pub fn static_assert<T>(predicate: bool, message: T) {}
+    │        -------------
+    │
+    = Call stack:
+      1. src/main.nr:11:5
+      2. std/lib.nr:111:8
 
 Aborting due to 1 previous error

@@ -21,7 +21,11 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
+        def_collector::{
+            dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
+            errors::{DefCollectorErrorKind, DuplicateType},
+        },
+        def_map::ModuleId,
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
@@ -33,6 +37,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
     shared::Visibility,
+    token::Attributes,
     validity::length_is_zero,
 };
 
@@ -73,6 +78,10 @@ impl Elaborator<'_> {
         function_set: &mut UnresolvedFunctions,
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
+        // Transform oracle, lowlevel, & builtin functions into wrappers
+        self.make_wrappers_for_special_functions(function_set);
+
+        // Define metas for all functions
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = Some(*local_module);
             self.recover_generics(|this| {
@@ -579,5 +588,149 @@ impl Elaborator<'_> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+    }
+
+    /// Transforms oracle, lowlevel, & builtin functions into wrapper functions that can be passed by value.
+    /// For each of these functions:
+    /// 1. Rename it to `name_inner`
+    /// 2. Creates a new wrapper function with the original name that calls `name_inner`
+    fn make_wrappers_for_special_functions(&mut self, function_set: &mut UnresolvedFunctions) {
+        use crate::ast::{
+            BlockExpression, CallExpression, Expression, ExpressionKind, Ident, NoirFunction,
+            Pattern, Statement, StatementKind,
+        };
+
+        let mut wrappers = Vec::new();
+
+        for (local_module, func_id, func) in &mut function_set.functions {
+            use FunctionKind::*;
+            if !matches!(func.kind, Oracle | LowLevel | Builtin) || func.def.is_comptime {
+                continue;
+            }
+
+            let original_name = func.def.name.clone();
+            let new_name = format!("{}_inner", original_name.as_str());
+            let new_name_ident = Ident::new(new_name.clone(), original_name.location());
+
+            // Rename the original function in both the AST and interner
+            func.def.name = new_name_ident.clone();
+
+            // Update the function name in the interner's modifiers
+            let modifiers = self.interner.function_modifiers_mut(func_id);
+            modifiers.name = new_name.clone();
+            modifiers.name_location = original_name.location();
+
+            // Update the module's def_map to reflect the rename
+            let module_id = ModuleId { krate: self.crate_id, local_id: *local_module };
+            let module_data =
+                &mut self.def_maps.get_mut(&module_id.krate).expect("ICE: should have def_map")
+                    [module_id.local_id];
+
+            // Remove the old name and re-declare with new name
+            module_data.remove_function(&original_name);
+            let visibility = func.def.visibility;
+            match module_data.declare_function(new_name_ident, visibility, *func_id) {
+                Ok(_) => {}
+                Err((first_def, second_def)) => {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::Function,
+                        first_def,
+                        second_def,
+                    };
+                    self.errors.push(error.into());
+                }
+            }
+
+            // Create the wrapper function body: wrapper_name(param1, param2, ...)
+            let wrapper_path = crate::ast::Path::from_single(new_name, original_name.location());
+            let wrapper_expr = Expression {
+                kind: ExpressionKind::Variable(wrapper_path),
+                location: original_name.location(),
+            };
+
+            // Create arguments from parameters
+            let arguments: Vec<Expression> = func
+                .def
+                .parameters
+                .iter()
+                .map(|param| {
+                    // Extract the identifier from the pattern
+                    let ident = match &param.pattern {
+                        Pattern::Identifier(_) | Pattern::Mutable(_, _, _) => {
+                            param.pattern.name_ident().clone()
+                        }
+                        _ => {
+                            // For complex patterns, create a dummy identifier
+                            Ident::new("_param".to_string(), param.location)
+                        }
+                    };
+
+                    let path =
+                        crate::ast::Path::from_single(ident.as_string().clone(), ident.location());
+                    Expression { kind: ExpressionKind::Variable(path), location: ident.location() }
+                })
+                .collect();
+
+            // Create call expression: wrapper_name(...)
+            let call_expr = Expression {
+                kind: ExpressionKind::Call(Box::new(CallExpression {
+                    func: Box::new(wrapper_expr),
+                    arguments,
+                    is_macro_call: false,
+                })),
+                location: original_name.location(),
+            };
+
+            // Wrap in a statement
+            let call_stmt = Statement {
+                kind: StatementKind::Expression(call_expr),
+                location: original_name.location(),
+            };
+
+            // Create wrapper function definition
+            let wrapper_def = crate::ast::FunctionDefinition {
+                name: original_name.clone(),
+                attributes: Attributes::empty(),
+                is_unconstrained: func.def.is_unconstrained,
+                is_comptime: func.def.is_comptime,
+                visibility: func.def.visibility,
+                generics: func.def.generics.clone(),
+                parameters: func.def.parameters.clone(),
+                body: BlockExpression { statements: vec![call_stmt] },
+                location: func.def.location,
+                where_clause: func.def.where_clause.clone(),
+                return_type: func.def.return_type.clone(),
+                return_visibility: func.def.return_visibility,
+            };
+
+            // Create a new FuncId for the wrapper
+            let wrapper_id = self.interner.push_empty_fn();
+
+            self.interner.push_function(
+                wrapper_id,
+                &wrapper_def,
+                module_id,
+                original_name.location(),
+            );
+
+            // Register the wrapper in the module's def_map with the original name
+            match module_data.declare_function(original_name, wrapper_def.visibility, wrapper_id) {
+                Ok(_) => {}
+                Err((first_def, second_def)) => {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::Function,
+                        first_def,
+                        second_def,
+                    };
+                    self.errors.push(error.into());
+                }
+            }
+
+            let wrapper_func = NoirFunction { kind: Normal, def: wrapper_def };
+            wrappers.push((*local_module, wrapper_id, wrapper_func));
+        }
+
+        // Add all wrappers to the function set
+        function_set.functions.extend(wrappers);
     }
 }

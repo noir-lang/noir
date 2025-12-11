@@ -15,8 +15,12 @@ fn main() {
     }
 }
 
+unconstrained fn foo_oracle() {
+    foo_oracle_inner()
+}
+
 #[oracle(foo)]
-unconstrained fn foo_oracle() {}
+unconstrained fn foo_oracle_inner() {}
 
 unconstrained fn foo_wrapper() {
     foo_oracle();
