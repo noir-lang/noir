@@ -9,11 +9,4 @@ error: cannot find `foo` in this scope
   │         --- not found in this scope
   │
 
-error: Variable not in scope
-  ┌─ src/main.nr:3:9
-  │
-3 │         foo();
-  │         --- Could not find variable
-  │
-
-Aborting due to 2 previous errors
+Aborting due to 1 previous error

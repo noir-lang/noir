@@ -224,13 +224,25 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
         let meta = self.elaborator.interner.function_meta(&function);
         match self.elaborator.interner.function(&function).try_as_expr() {
-            Some(body) => Ok(body),
+            Some(body) => {
+                // Even if the body exists, check if it had errors during elaboration
+                if self.elaborator.functions_with_errors.contains(&function) {
+                    return Err(InterpreterError::SkippedDueToEarlierErrors);
+                }
+                Ok(body)
+            }
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
+                    // After elaboration, check if there were errors before trying to get the body
+                    if self.elaborator.functions_with_errors.contains(&function) {
+                        return Err(InterpreterError::SkippedDueToEarlierErrors);
+                    }
+
+                    // Recursive call - this will now hit the Some(body) branch
                     self.get_function_body(function, location)
                 } else {
                     let function = self.elaborator.interner.function_name(&function).to_owned();
@@ -806,7 +818,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         evaluate_integer(typ, value, location)
     }
 
-    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub(crate) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -1206,7 +1218,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub(crate) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.elaborator.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
