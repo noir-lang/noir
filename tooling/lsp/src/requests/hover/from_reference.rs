@@ -10,7 +10,7 @@ use noirc_frontend::modules::get_parent_module;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    DataType, EnumVariant, ResolvedGenerics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
@@ -616,21 +616,21 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
-fn format_generics(generics: &Generics, string: &mut String) {
+fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
     format_generics_impl(
         generics, false, // only show names
         string,
     );
 }
 
-fn format_generic_names(generics: &Generics, string: &mut String) {
+fn format_generic_names(generics: &ResolvedGenerics, string: &mut String) {
     format_generics_impl(
         generics, true, // only show names
         string,
     );
 }
 
-fn format_generics_impl(generics: &Generics, only_show_names: bool, string: &mut String) {
+fn format_generics_impl(generics: &ResolvedGenerics, only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }

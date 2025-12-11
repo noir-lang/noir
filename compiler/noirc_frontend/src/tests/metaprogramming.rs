@@ -11,7 +11,8 @@ use crate::{
 };
 
 use crate::tests::{
-    assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
+    assert_no_errors, assert_no_errors_and_to_string, assert_no_errors_without_report,
+    check_errors, get_program_errors,
 };
 
 // Regression for #5388
@@ -372,7 +373,8 @@ fn does_not_fail_to_parse_macro_on_parser_warning() {
 
 #[test]
 fn quote_code_fragments() {
-    // TODO: have the error also point to `contact!` as a secondary
+    // TODO(https://github.com/noir-lang/noir/issues/10601): have the error
+    // also point to `concat!` as a secondary
     // This test ensures we can quote (and unquote/splice) code fragments
     // which by themselves are not valid code. They only need to be valid
     // by the time they are unquoted into the macro's call site.
@@ -752,9 +754,9 @@ fn multiple_comptime_blocks_share_scope() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn nested_comptime_accesses_outer_comptime_variable() {
     let src = r#"
         fn main() {
@@ -767,12 +769,14 @@ fn nested_comptime_accesses_outer_comptime_variable() {
             }
         }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn nested_comptime_accesses_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -783,12 +787,14 @@ fn nested_comptime_accesses_outer_comptime_func_variable() {
         }
     }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn nested_comptime_with_mut_variable() {
     let src = r#"
         fn main() {
@@ -801,12 +807,14 @@ fn nested_comptime_with_mut_variable() {
             }
         }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn nested_comptime_mut_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -817,12 +825,14 @@ fn nested_comptime_mut_outer_comptime_func_variable() {
         assert_eq(x, 5);
     }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn comptime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         comptime fn helper(x: Field) -> Field {
@@ -839,12 +849,14 @@ fn comptime_function_with_comptime_block_called_from_comptime() {
             }
         }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
+// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn runtime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         fn helper(x: Field) -> Field {
@@ -861,7 +873,9 @@ fn runtime_function_with_comptime_block_called_from_comptime() {
             }
         }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
 #[test]

@@ -1,7 +1,9 @@
 //! Tests for qualified path syntax (`<T as Trait>`) and `Self` type usage.
 //! Validates disambiguation of trait methods, associated item access, and trait renaming during imports.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{
+    assert_no_errors, assert_no_errors_without_report, check_errors, check_monomorphization_error,
+};
 use crate::{elaborator::FrontendOptions, test_utils::get_program_with_options};
 
 #[test]
@@ -270,9 +272,9 @@ fn as_trait_path_self_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/9562): Reactive once the issue is resolved
+/// TODO(https://github.com/noir-lang/noir/issues/9562): Reactivate once the issue is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn as_trait_path_with_method_turbofish() {
     let src = r#"
     trait Foo {
@@ -289,12 +291,14 @@ fn as_trait_path_with_method_turbofish() {
         let _x: i32 = <u32 as Foo>::bar::<i32>(42);
     }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/9562): use `assert_no_errors` once the issue is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
 /// TODO(https://github.com/noir-lang/noir/issues/10436): Reactivate once the issue is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn self_with_associated_type_method_call_on_non_primitives() {
     // In Rust, this would be valid:
     // trait MyTrait {
@@ -335,12 +339,14 @@ fn self_with_associated_type_method_call_on_non_primitives() {
         let _ = MyStruct { };
     }
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10436): use `assert_no_errors` once the issue is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
 /// TODO(https://github.com/noir-lang/noir/issues/10434): Reactivate once the issue is resolved
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected no errors")]
 fn self_with_associated_type_method_call_on_primitive() {
     // In Noir, the special Self:: handling for primitives only works with
     // exactly 2 segments (Self::method or Self::AssociatedConstant).
@@ -371,7 +377,9 @@ fn self_with_associated_type_method_call_on_primitive() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/10434): use `assert_no_errors` once the issue is resolved
+    // assert_no_errors(src);
+    assert_no_errors_without_report(src);
 }
 
 /// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message
