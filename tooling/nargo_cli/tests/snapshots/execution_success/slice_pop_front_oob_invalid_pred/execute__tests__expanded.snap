@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(dummy_val: u32, dummy_arr: [u32; 1], x: u32, y: u32) {
+    let mut slice: [u32] = dummy_arr.as_slice();
+    if x == 3_u32 {
+        slice = slice.push_back(dummy_val);
+    } else {
+        let (_, slice): (u32, [u32]) = slice.pop_front();
+        let (x, s2): (u32, [u32]) = slice.pop_front();
+        assert(x == y);
+        assert(s2.len() == 1_u32);
+    };
+    assert(slice.len() == 2_u32);
+}
