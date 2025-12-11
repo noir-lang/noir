@@ -1569,7 +1569,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
-            (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: u1"),
+            (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
             (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
