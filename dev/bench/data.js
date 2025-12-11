@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765469100927,
+  "lastUpdate": 1765470657794,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23231,48 +23231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "14552bddf7089998d29af9f066d109c114c6c343",
-          "message": "chore: remove catch-all branch in `array_set` + add missing panic (#10586)",
-          "timestamp": "2025-12-02T17:21:00Z",
-          "tree_id": "1e287c63cefaa5722689fa446b3ce48bba6eb6e7",
-          "url": "https://github.com/noir-lang/noir/commit/14552bddf7089998d29af9f066d109c114c6c343"
-        },
-        "date": 1764698141232,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252074,
-            "range": "± 1078",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221716,
-            "range": "± 2234",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2255846,
-            "range": "± 39843",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787102,
             "range": "± 792",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e3ebd3729a49455cef2793e6a8c129cb7689132",
+          "message": "fix: restore side effects in interpreter between calls (#10883)",
+          "timestamp": "2025-12-11T16:27:53Z",
+          "tree_id": "659eb3a4dcd50e926442dee741d49f07d9dccab0",
+          "url": "https://github.com/noir-lang/noir/commit/9e3ebd3729a49455cef2793e6a8c129cb7689132"
+        },
+        "date": 1765470625100,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255384,
+            "range": "± 328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226795,
+            "range": "± 3686",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788015,
+            "range": "± 10583",
             "unit": "ns/iter"
           }
         ]
