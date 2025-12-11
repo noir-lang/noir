@@ -1380,7 +1380,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let end_type = end_value.get_type();
 
         // Check that start and end have the same type
-        if start_type != end_type {
+        if start_type.unify(&end_type).is_ok() {
             let location = self.elaborator.interner.expr_location(&for_.end_range);
             return Err(InterpreterError::RangeBoundsTypeMismatch {
                 start_type: start_type.into_owned(),
