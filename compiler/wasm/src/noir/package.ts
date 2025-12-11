@@ -102,6 +102,10 @@ export class Package {
     const handles = await fm.readdir(this.#srcPath, { recursive: true });
     const sourceFiles = handles.filter((handle) => SOURCE_EXTENSIONS.find((ext) => handle.endsWith(ext)));
 
+    // Pre-compile regex pattern for efficiency (escaping special regex characters)
+    const escapedSrcPath = this.#srcPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const srcPathRegex = new RegExp(`.*${escapedSrcPath}`);
+
     // Check if there's a module file matching the package name with a corresponding directory
     // For example, if we have src/foo.nr and src/foo/ in a package named "foo",
     // then files in src/foo/ should be placed at the same level as src/foo.nr
@@ -109,12 +113,12 @@ export class Package {
     if (this.getType() === 'lib') {
       const packageName = alias ?? this.#config.package.name;
       const moduleFile = sourceFiles.find((f) => {
-        const suffix = f.replace(new RegExp(`.*${this.#srcPath}`), '');
+        const suffix = f.replace(srcPathRegex, '');
         return suffix === `/${packageName}.nr`;
       });
       if (moduleFile) {
         const hasMatchingDir = sourceFiles.some((f) => {
-          const s = f.replace(new RegExp(`.*${this.#srcPath}`), '');
+          const s = f.replace(srcPathRegex, '');
           return s.startsWith(`/${packageName}/`);
         });
         if (hasMatchingDir) {
@@ -130,17 +134,18 @@ export class Package {
         // This regexp ensures we remove the "real" source path for all dependencies, providing the compiler with what it expects for each source file:
         // <absoluteSourcePath> -> <sourceAsString> for bin/contract packages
         // <depAlias/relativePathToSource> -> <sourceAsString> for libs
-        const suffix = file.replace(new RegExp(`.*${this.#srcPath}`), '');
+        const suffix = file.replace(srcPathRegex, '');
 
         let adjustedSuffix = suffix;
         if (specialModuleDir) {
           // If the file is in the special module directory (e.g., /foo/bar.nr where this package is named "foo"
-          // and foo.nr exists), strip the module directory name to match Noir's module resolution behavior.
+          // and foo.nr exists), remove the module directory prefix to match Noir's module resolution behavior.
           // This handles the case where foo.nr declares "mod bar;" and expects to find bar.nr at the same level
           // due to the should_check_siblings_for_module logic when filename matches parent directory.
           const prefix = `/${specialModuleDir}/`;
           if (suffix.startsWith(prefix)) {
-            adjustedSuffix = suffix.substring(specialModuleDir.length + 1); // Remove /foo from /foo/bar.nr to get /bar.nr
+            // Replace /foo/ with / to transform /foo/bar.nr into /bar.nr
+            adjustedSuffix = suffix.replace(prefix, '/');
           }
         }
 

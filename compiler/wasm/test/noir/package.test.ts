@@ -2,6 +2,27 @@ import { expect } from 'chai';
 import { Package } from '../../src/noir/package';
 import { FileManager } from '../../src/noir/file-manager/file-manager';
 
+/**
+ * Creates a minimal mock FileManager for testing
+ */
+class MockFileManager implements Pick<FileManager, 'readdir' | 'readFile'> {
+  constructor(private files: Map<string, string>) {}
+
+  async readdir(path: string, _options?: { recursive?: boolean }): Promise<string[]> {
+    const results: string[] = [];
+    for (const [file] of this.files) {
+      if (file.startsWith(path + '/')) {
+        results.push(file);
+      }
+    }
+    return results;
+  }
+
+  async readFile(path: string, _encoding?: string): Promise<string> {
+    return this.files.get(path) || '';
+  }
+}
+
 describe('Package', () => {
   describe('getSources', () => {
     it('should handle nested submodules correctly when package name matches module file', async () => {
@@ -14,20 +35,7 @@ describe('Package', () => {
         ['test-pkg/src/other/bar.nr', 'pub fn baz() {}'],
       ]);
 
-      const fm: FileManager = {
-        readdir: async (path: string, _options?: { recursive?: boolean }) => {
-          const results: string[] = [];
-          for (const [file] of mockFiles) {
-            if (file.startsWith(path + '/')) {
-              results.push(file);
-            }
-          }
-          return results;
-        },
-        readFile: async (path: string, _encoding?: string) => {
-          return mockFiles.get(path) || '';
-        },
-      } as FileManager;
+      const fm = new MockFileManager(mockFiles) as unknown as FileManager;
 
       const packageConfig = {
         package: { name: 'test_pkg', type: 'lib' as const },
@@ -58,20 +66,7 @@ describe('Package', () => {
         ['lib-x/src/module_y/constants.nr', 'pub const FOO: Field = 42;'],
       ]);
 
-      const fm: FileManager = {
-        readdir: async (path: string, _options?: { recursive?: boolean }) => {
-          const results: string[] = [];
-          for (const [file] of mockFiles) {
-            if (file.startsWith(path + '/')) {
-              results.push(file);
-            }
-          }
-          return results;
-        },
-        readFile: async (path: string, _encoding?: string) => {
-          return mockFiles.get(path) || '';
-        },
-      } as FileManager;
+      const fm = new MockFileManager(mockFiles) as unknown as FileManager;
 
       const packageConfig = {
         package: { name: 'lib_x', type: 'lib' as const },
