@@ -346,8 +346,8 @@ impl RegisterAllocator for GlobalSpace {
         allocated
     }
 
-    fn deallocate_register(&mut self, _register: MemoryAddress) {
-        unimplemented!("blah")
+    fn deallocate_register(&mut self, register: MemoryAddress) {
+        self.storage.deallocate_register(register.unwrap_direct());
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
