@@ -66,13 +66,8 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self, max_iter: usize) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
-        let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
-        for (func_id, func) in &self.functions {
-            if func.runtime().is_brillig() {
-                let cloned_function = Function::clone_with_id(*func_id, func);
-                brillig_functions.insert(*func_id, cloned_function);
-            };
-        }
+        let brillig_functions = clone_brillig_functions(&self.functions);
+
         let mut interpreter = Interpreter::new_from_functions(
             &brillig_functions,
             InterpreterOptions {
@@ -101,13 +96,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self, max_iter: usize) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
-        let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
-        for (func_id, func) in &self.functions {
-            if func.runtime().is_brillig() {
-                let cloned_function = Function::clone_with_id(*func_id, func);
-                brillig_functions.insert(*func_id, cloned_function);
-            };
-        }
+        let brillig_functions = clone_brillig_functions(&self.functions);
 
         let mut interpreter = Interpreter::new_from_functions(
             &brillig_functions,
@@ -126,6 +115,20 @@ impl Ssa {
         }
         self
     }
+}
+
+/// Clones all brillig functions stored within `all_functions` returning these in a new map.
+fn clone_brillig_functions(
+    all_functions: &BTreeMap<FunctionId, Function>,
+) -> BTreeMap<FunctionId, Function> {
+    all_functions
+        .iter()
+        .filter(|(_, func)| func.runtime().is_brillig())
+        .map(|(func_id, func)| {
+            let cloned_function = Function::clone_with_id(*func_id, func);
+            (*func_id, cloned_function)
+        })
+        .collect()
 }
 
 impl Function {
