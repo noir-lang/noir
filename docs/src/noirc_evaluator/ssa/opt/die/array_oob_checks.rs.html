@@ -475,15 +475,15 @@
                 <span class="kw">let </span>array_length =
                     function.dfg.make_constant(u128::from(array_length).into(), length_type);
 
-                <span class="kw">let </span>is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
+                <span class="kw">let </span>is_index_in_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     <span class="prelude-val">None</span>,
                     call_stack,
                 );
-                <span class="kw">let </span>is_index_out_of_bounds = is_index_out_of_bounds.first();
+                <span class="kw">let </span>is_index_in_bounds = is_index_in_bounds.first();
                 <span class="kw">let </span>true_const = function.dfg.make_constant(<span class="bool-val">true</span>.into(), NumericType::bool());
-                (is_index_out_of_bounds, true_const)
+                (is_index_in_bounds, true_const)
             };
 
             <span class="kw">let </span>(lhs, rhs) = apply_side_effects(
