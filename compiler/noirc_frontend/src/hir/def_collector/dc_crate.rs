@@ -215,6 +215,10 @@ impl CompilationError {
         // also isn't expected to be called too often.
         CustomDiagnostic::from(self).is_error()
     }
+
+    pub(crate) fn is_expecting_other_error_error(&self) -> bool {
+        matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
+    }
 }
 
 impl std::fmt::Display for CompilationError {
@@ -505,6 +509,9 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
+        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
         errors
     }
 
