@@ -1563,13 +1563,13 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Slice(_) => Value::Slice(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U8(0),
+            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
-            (Signedness::Signed, IntegerBitSize::One) => Value::I8(0),
+            (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: u1"),
             (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
