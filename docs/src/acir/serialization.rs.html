@@ -391,56 +391,9 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::proto::convert::ProtoSchema;
-<span class="kw">use </span>acir_field::AcirField;
-<span class="kw">use </span>noir_protobuf::ProtoCodec;
-<span class="kw">use </span>num_enum::{IntoPrimitive, TryFromPrimitive};
+</span><span class="kw">use </span>num_enum::{IntoPrimitive, TryFromPrimitive};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>strum_macros::EnumString;
@@ -461,7 +414,6 @@
     </span>Msgpack = <span class="number">2</span>,
     <span class="doccomment">/// Msgpack with tuple structs.
     </span>MsgpackCompact = <span class="number">3</span>,
-    Protobuf = <span class="number">4</span>,
 }
 
 <span class="kw">impl </span>Format {
@@ -529,39 +481,11 @@
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
-<span class="doccomment">/// Serialize a value using `protobuf`.
-///
-/// This format is forwards and backwards compatible, but requires code generation based on `.proto` schemas.
-</span><span class="attr">#[allow(dead_code)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proto_serialize&lt;F, T, R&gt;(value: <span class="kw-2">&amp;</span>T) -&gt; Vec&lt;u8&gt;
-<span class="kw">where
-    </span>F: AcirField,
-    R: prost::Message,
-    ProtoSchema&lt;F&gt;: ProtoCodec&lt;T, R&gt;,
-{
-    ProtoSchema::&lt;F&gt;::serialize_to_vec(value)
-}
-
-<span class="doccomment">/// Deserialize a value using `protobuf`.
-</span><span class="attr">#[allow(dead_code)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proto_deserialize&lt;F, T, R&gt;(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;T&gt;
-<span class="kw">where
-    </span>F: AcirField,
-    R: prost::Message + Default,
-    ProtoSchema&lt;F&gt;: ProtoCodec&lt;T, R&gt;,
-{
-    ProtoSchema::&lt;F&gt;::deserialize_from_slice(buf)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-}
-
 <span class="doccomment">/// Deserialize any of the supported formats. Try go guess the format based on the first byte,
 /// but fall back to the legacy `bincode` format if anything fails.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deserialize_any_format&lt;F, T, R&gt;(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;T&gt;
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deserialize_any_format&lt;T&gt;(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;T&gt;
 <span class="kw">where
     </span>T: <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;,
-    F: AcirField,
-    R: prost::Message + Default,
-    ProtoSchema&lt;F&gt;: ProtoCodec&lt;T, R&gt;,
 {
     <span class="comment">// Unfortunately as long as we have to deal with legacy bincode format we might be able
     // to deserialize any other format as pure coincidence, when it was just legacy data.
@@ -585,11 +509,6 @@
                         <span class="kw">return </span><span class="prelude-val">Ok</span>(value);
                     }
                 }
-                Format::Protobuf =&gt; {
-                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(value) = proto_deserialize(<span class="kw-2">&amp;</span>buf[<span class="number">1</span>..]) {
-                        <span class="kw">return </span><span class="prelude-val">Ok</span>(value);
-                    }
-                }
             }
         }
     }
@@ -597,18 +516,14 @@
     bincode_result
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>serialize_with_format&lt;F, T, R&gt;(value: <span class="kw-2">&amp;</span>T, format: Format) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>serialize_with_format&lt;T&gt;(value: <span class="kw-2">&amp;</span>T, format: Format) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt;
 <span class="kw">where
-    </span>F: AcirField,
-    T: Serialize,
-    R: prost::Message,
-    ProtoSchema&lt;F&gt;: ProtoCodec&lt;T, R&gt;,
+    </span>T: Serialize,
 {
     <span class="comment">// It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     </span><span class="kw">let </span><span class="kw-2">mut </span>buf = <span class="kw">match </span>format {
         Format::BincodeLegacy =&gt; <span class="kw">return </span>bincode_serialize(value),
         Format::Bincode =&gt; bincode_serialize(value)<span class="question-mark">?</span>,
-        Format::Protobuf =&gt; proto_serialize(value),
         Format::Msgpack =&gt; msgpack_serialize(value, <span class="bool-val">false</span>)<span class="question-mark">?</span>,
         Format::MsgpackCompact =&gt; msgpack_serialize(value, <span class="bool-val">true</span>)<span class="question-mark">?</span>,
     };
@@ -617,12 +532,9 @@
     <span class="prelude-val">Ok</span>(res)
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>serialize_with_format_from_env&lt;F, T, R&gt;(value: <span class="kw-2">&amp;</span>T) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>serialize_with_format_from_env&lt;T&gt;(value: <span class="kw-2">&amp;</span>T) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt;
 <span class="kw">where
-    </span>F: AcirField,
-    T: Serialize,
-    R: prost::Message,
-    ProtoSchema&lt;F&gt;: ProtoCodec&lt;T, R&gt;,
+    </span>T: Serialize,
 {
     <span class="kw">match </span>Format::from_env() {
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(format)) =&gt; {

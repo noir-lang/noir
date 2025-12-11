@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Value"],"struct":["BrilligCall","Call","MemoryInit","MemoryOp"]};

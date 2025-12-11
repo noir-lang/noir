@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["expression"],"struct":["Expression","Field","Witness"]};

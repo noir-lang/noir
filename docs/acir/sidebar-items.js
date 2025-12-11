@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["parse_opcodes"],"mod":["circuit","native_types","parser","proto","serialization"],"trait":["AcirField"],"type":["FieldElement"]};
+window.SIDEBAR_ITEMS = {"fn":["parse_opcodes"],"mod":["circuit","native_types","parser","serialization"],"trait":["AcirField"],"type":["FieldElement"]};

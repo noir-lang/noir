@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["BinaryFieldOpKind","BinaryIntOpKind","IntegerBitSize"],"mod":["bit_size","black_box_op","brillig_opcode","heap_value_type","memory_address","value_or_array"],"struct":["BitSize","BlackBoxOp","BrilligBytecode","BrilligOpcode","HeapArray","HeapValueType","HeapVector","MemoryAddress","ValueOrArray"]};
