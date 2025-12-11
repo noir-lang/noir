@@ -38,11 +38,6 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
 
-    /// This variable can be modified by `enable_side_effects_if` instructions and is
-    /// expected to have no effect if there are no such instructions or if the code
-    /// being executed is an unconstrained function.
-    side_effects_enabled: bool,
-
     /// The options the interpreter was created with.
     options: InterpreterOptions,
 
@@ -70,15 +65,24 @@ struct CallContext {
 
     /// Contains each value currently defined and visible to the current function.
     scope: HashMap<ValueId, Value>,
+
+    /// This variable can be modified by `enable_side_effects_if` instructions and is
+    /// expected to have no effect if there are no such instructions or if the code
+    /// being executed is an unconstrained function.
+    side_effects_enabled: bool,
 }
 
 impl CallContext {
     fn new(called_function: FunctionId) -> Self {
-        Self { called_function: Some(called_function), scope: Default::default() }
+        Self {
+            called_function: Some(called_function),
+            scope: Default::default(),
+            side_effects_enabled: true,
+        }
     }
 
     fn global_context() -> Self {
-        Self { called_function: None, scope: Default::default() }
+        Self { called_function: None, scope: Default::default(), side_effects_enabled: true }
     }
 }
 
@@ -124,7 +128,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, side_effects_enabled: true, options, output, step_counter: 0 }
+        Self { functions, call_stack, options, output, step_counter: 0 }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
@@ -137,7 +141,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// preparing the interpreter to interpret a new entry point.
     pub(crate) fn reset_state(&mut self) {
         self.step_counter = 0;
-        self.side_effects_enabled = true;
+        self.call_context_mut().side_effects_enabled = true;
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
@@ -243,11 +247,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         function_id: FunctionId,
         mut arguments: Vec<Value>,
     ) -> IResults {
-        // Save side_effects_enabled state so it can be restored after the call.
-        // Any changes made by the callee should not affect the caller.
-        let saved_side_effects_enabled = self.side_effects_enabled;
-        self.side_effects_enabled = true;
-
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.functions[&function_id];
@@ -337,9 +336,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
 
         self.call_stack.pop();
-
-        // Restore the caller's side_effects_enabled state
-        self.side_effects_enabled = saved_side_effects_enabled;
 
         if self.options.trace {
             if let Some(context) = self.call_stack.last() {
@@ -548,7 +544,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         match current_function.runtime() {
             RuntimeType::Acir(_) => {
-                self.side_effects_enabled
+                self.call_context().side_effects_enabled
                     || !instruction.requires_acir_gen_predicate(&current_function.dfg)
             }
             RuntimeType::Brillig(_) => true,
@@ -646,7 +642,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             Instruction::Load { address } => self.interpret_load(*address, results[0]),
             Instruction::Store { address, value } => self.interpret_store(*address, *value),
             Instruction::EnableSideEffectsIf { condition } => {
-                self.side_effects_enabled = self.lookup_bool(*condition, "enable_side_effects")?;
+                self.call_context_mut().side_effects_enabled =
+                    self.lookup_bool(*condition, "enable_side_effects")?;
                 Ok(())
             }
             Instruction::ArrayGet { array, index } => {
