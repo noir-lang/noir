@@ -135,13 +135,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.functions
     }
 
-    /// Resets interpreter state for reuse between top-level calls.
+    /// Resets the step counter to 0.
     ///
-    /// This resets the step counter and side_effects_enabled state,
-    /// preparing the interpreter to interpret a new entry point.
-    pub(crate) fn reset_state(&mut self) {
+    /// This resets the step counter, to reset the budget before
+    /// interpreting the next entry point.
+    pub(crate) fn reset_step_counter(&mut self) {
         self.step_counter = 0;
-        self.call_context_mut().side_effects_enabled = true;
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
