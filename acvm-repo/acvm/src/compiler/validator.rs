@@ -59,13 +59,11 @@ pub fn validate_witness<F: AcirField>(
                             iv,
                             key,
                         )?;
-
+                        assert_eq!(outputs.len(), ciphertext.len());
                         for (output_witness, value) in outputs.iter().zip(ciphertext.into_iter()) {
-                            let witness_value = witness_map
-                                .get(output_witness)
-                                .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
+                            let witness_value = witness_value(output_witness, &witness_map)?;
                             let output_value = F::from(u128::from(value));
-                            if *witness_value != output_value {
+                            if witness_value != output_value {
                                 return Err(unsatisfied_constraint(format!(
                                     "AES128 opcode violation: expected {output_value} but found {witness_value} for output witness {output_witness}",
                                 )));
@@ -192,7 +190,7 @@ pub fn validate_witness<F: AcirField>(
                             let output_value = witness_value(output, &witness_map)?;
                             if output_value != F::from(is_valid) {
                                 return Err(unsatisfied_constraint(format!(
-                                    "EcdsaSecp256k1 opcode violation: expected {:?} but found {:?} for output witness {:?}",
+                                    "EcdsaSecp256r1 opcode violation: expected {:?} but found {:?} for output witness {:?}",
                                     F::from(is_valid),
                                     output_value,
                                     output
