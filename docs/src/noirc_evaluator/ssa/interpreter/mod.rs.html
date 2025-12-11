@@ -1943,7 +1943,12 @@
 <a href="#1942" id="1942">1942</a>
 <a href="#1943" id="1943">1943</a>
 <a href="#1944" id="1944">1944</a>
-<a href="#1945" id="1945">1945</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1983,11 +1988,6 @@
 
     functions: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>BTreeMap&lt;FunctionId, Function&gt;,
 
-    <span class="doccomment">/// This variable can be modified by `enable_side_effects_if` instructions and is
-    /// expected to have no effect if there are no such instructions or if the code
-    /// being executed is an unconstrained function.
-    </span>side_effects_enabled: bool,
-
     <span class="doccomment">/// The options the interpreter was created with.
     </span>options: InterpreterOptions,
 
@@ -2015,15 +2015,24 @@
 
     <span class="doccomment">/// Contains each value currently defined and visible to the current function.
     </span>scope: HashMap&lt;ValueId, Value&gt;,
+
+    <span class="doccomment">/// This variable can be modified by `enable_side_effects_if` instructions and is
+    /// expected to have no effect if there are no such instructions or if the code
+    /// being executed is an unconstrained function.
+    </span>side_effects_enabled: bool,
 }
 
 <span class="kw">impl </span>CallContext {
     <span class="kw">fn </span>new(called_function: FunctionId) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ called_function: <span class="prelude-val">Some</span>(called_function), scope: Default::default() }
+        <span class="self">Self </span>{
+            called_function: <span class="prelude-val">Some</span>(called_function),
+            scope: Default::default(),
+            side_effects_enabled: <span class="bool-val">true</span>,
+        }
     }
 
     <span class="kw">fn </span>global_context() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ called_function: <span class="prelude-val">None</span>, scope: Default::default() }
+        <span class="self">Self </span>{ called_function: <span class="prelude-val">None</span>, scope: Default::default(), side_effects_enabled: <span class="bool-val">true </span>}
     }
 }
 
@@ -2069,7 +2078,7 @@
         output: W,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>call_stack = <span class="macro">vec!</span>[CallContext::global_context()];
-        <span class="self">Self </span>{ functions, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options, output, step_counter: <span class="number">0 </span>}
+        <span class="self">Self </span>{ functions, call_stack, options, output, step_counter: <span class="number">0 </span>}
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt; {
@@ -2078,8 +2087,8 @@
 
     <span class="doccomment">/// Resets the step counter to 0.
     ///
-    /// This can be used when the interpreter is reused between calls,
-    /// to reset the budget before interpreting the next entry point.
+    /// This resets the step counter, to reset the budget before
+    /// interpreting the next entry point.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reset_step_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.step_counter = <span class="number">0</span>;
     }
@@ -2484,7 +2493,7 @@
 
         <span class="kw">match </span>current_function.runtime() {
             RuntimeType::Acir(<span class="kw">_</span>) =&gt; {
-                <span class="self">self</span>.side_effects_enabled
+                <span class="self">self</span>.call_context().side_effects_enabled
                     || !instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>current_function.dfg)
             }
             RuntimeType::Brillig(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
@@ -2582,7 +2591,8 @@
             Instruction::Load { address } =&gt; <span class="self">self</span>.interpret_load(<span class="kw-2">*</span>address, results[<span class="number">0</span>]),
             Instruction::Store { address, value } =&gt; <span class="self">self</span>.interpret_store(<span class="kw-2">*</span>address, <span class="kw-2">*</span>value),
             Instruction::EnableSideEffectsIf { condition } =&gt; {
-                <span class="self">self</span>.side_effects_enabled = <span class="self">self</span>.lookup_bool(<span class="kw-2">*</span>condition, <span class="string">"enable_side_effects"</span>)<span class="question-mark">?</span>;
+                <span class="self">self</span>.call_context_mut().side_effects_enabled =
+                    <span class="self">self</span>.lookup_bool(<span class="kw-2">*</span>condition, <span class="string">"enable_side_effects"</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(())
             }
             Instruction::ArrayGet { array, index } =&gt; {

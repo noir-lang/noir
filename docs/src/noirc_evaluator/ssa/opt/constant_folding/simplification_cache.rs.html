@@ -92,7 +92,11 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     dom::DominatorTree,
@@ -157,14 +161,18 @@
         rhs: ValueId,
     ) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((complex, simple)) = simplify(dfg, lhs, rhs) {
-            <span class="self">self</span>.get(predicate).entry(complex).or_default().add(dfg, simple, block);
+            <span class="kw">let </span>predicate_cache = <span class="self">self</span>.<span class="number">0</span>.entry(predicate).or_default();
+            predicate_cache.entry(complex).or_default().add(dfg, simple, block);
         }
     }
 
     <span class="doccomment">/// Get the simplification mapping from complex to simpler instructions,
     /// which all depend on the same side effect condition variable.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>, predicate: ValueId) -&gt; <span class="kw-2">&amp;mut </span>HashMap&lt;ValueId, SimplificationCache&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.entry(predicate).or_default()
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        predicate: ValueId,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashMap&lt;ValueId, SimplificationCache&gt;&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.get(<span class="kw-2">&amp;</span>predicate)
     }
 }
 
