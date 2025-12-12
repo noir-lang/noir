@@ -354,3 +354,13 @@ fn no_error_on_returning_non_empty_array_with_empty_nested_array() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn no_error_on_returning_empty_array_with_tuple_of_empty_arrays() {
+    let src = r#"
+    fn main() -> pub [([u32; 0], [u32; 0]); 0] {
+        []
+    }
+    "#;
+    assert_no_errors(src);
+}
