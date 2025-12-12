@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765475368698,
+  "lastUpdate": 1765536171647,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23231,48 +23231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e948361e67bec5ed45196879c3619067d561718e",
-          "message": "chore(ssa_verification): retest acir relations (#10729)",
-          "timestamp": "2025-12-03T12:17:34Z",
-          "tree_id": "03735ed4539ee255f170913bfbccec9c1112a8c3",
-          "url": "https://github.com/noir-lang/noir/commit/e948361e67bec5ed45196879c3619067d561718e"
-        },
-        "date": 1764765583688,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260382,
-            "range": "± 401",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229119,
-            "range": "± 6260",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792652,
-            "range": "± 7966",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790794,
             "range": "± 13960",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "56ee0a9b2f3359b9aab4db4eb538902c8af00956",
+          "message": "fix: validate loop range have identical types in comptime (#10888)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-12-12T10:15:47Z",
+          "tree_id": "2ce0bf44c532afdbdb50f0d73c59d94b3a49637e",
+          "url": "https://github.com/noir-lang/noir/commit/56ee0a9b2f3359b9aab4db4eb538902c8af00956"
+        },
+        "date": 1765536140102,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252983,
+            "range": "± 2327",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230349,
+            "range": "± 4048",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789917,
+            "range": "± 2974",
             "unit": "ns/iter"
           }
         ]
