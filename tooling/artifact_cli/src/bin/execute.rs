@@ -64,7 +64,7 @@ pub fn start_cli() -> eyre::Result<()> {
 }
 
 /// Load a witness file and check if the witnesses satisfy the program.
-fn check_witness_file(witness_path: &PathBuf, artifact_path: &Path) -> eyre::Result<()> {
+fn check_witness_file(witness_path: &Path, artifact_path: &Path) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(artifact_path)?;
     let program: CompiledProgram = match artifact {
         Artifact::Program(program) => program.into(),
