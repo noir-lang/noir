@@ -1397,9 +1397,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
         let start_value = self.evaluate(for_.start_range)?;
         let end_value = self.evaluate(for_.end_range)?;
-        let loop_index_type = start_value.get_type();
+        let start_type = start_value.get_type();
+        let end_type = end_value.get_type();
 
-        if loop_index_type.is_signed() {
+        // Check that start and end have the same type
+        if start_type.unify(&end_type).is_err() {
+            let location = self.elaborator.interner.expr_location(&for_.end_range);
+            return Err(InterpreterError::RangeBoundsTypeMismatch {
+                start_type: start_type.into_owned(),
+                end_type: end_type.into_owned(),
+                location,
+            });
+        }
+
+        if start_type.is_signed() {
             let get_index = match start_value {
                 Value::I8(_) => |i| Value::I8(i as i8),
                 Value::I16(_) => |i| Value::I16(i as i16),
@@ -1410,10 +1421,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             // i128 can store all values from i8 - u64
             let start = to_i128(start_value).expect("Checked above that value is signed type");
-            let end = to_i128(end_value).expect("Checked above that value is signed type");
+            let end = to_i128(end_value).expect("Checked above that types match");
 
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
-        } else if loop_index_type.is_unsigned() {
+        } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
                 Value::U8(_) => |i| Value::U8(i as u8),
@@ -1426,12 +1437,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             // u128 can store all values from u8 - u128
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
-            let end = to_u128(end_value).expect("Checked above that value is unsigned type");
+            let end = to_u128(end_value).expect("Checked above that types match");
 
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
-            let typ = loop_index_type.into_owned();
+            let typ = start_type.into_owned();
             Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
         }
     }
