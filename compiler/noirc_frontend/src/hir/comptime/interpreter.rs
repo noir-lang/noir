@@ -955,14 +955,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         location: Location,
     ) -> IResult<Value> {
         let field_ordering = match &ordering {
-            Value::Struct(fields, _) => {
-                let first_field = fields.iter().next();
-                match first_field {
-                    Some((_, value)) => match &*value.borrow() {
-                        Value::Field(ordering) => Some(*ordering),
-                        _ => None,
-                    },
-                    None => None,
+            Value::Struct(fields, typ) => {
+                // Check the struct is named "Ordering"
+                let is_ordering_type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def.borrow().name.as_str() == "Ordering",
+                    _ => false,
+                };
+                if is_ordering_type {
+                    let first_field = fields.iter().next();
+                    match first_field {
+                        Some((_, value)) => match &*value.borrow() {
+                            Value::Field(ordering) => Some(*ordering),
+                            _ => None,
+                        },
+                        None => None,
+                    }
+                } else {
+                    None
                 }
             }
             _ => None,
