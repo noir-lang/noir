@@ -5,7 +5,7 @@
 //! 2. A macro call `foo!()`
 //!   - The interpreter calls the function `foo` and inlines the resulting `Quoted` code at the callsite.
 //! 3. An attribute call `#[my_attr] struct Foo {}`
-//!   - The interpreter calls the function `my_attr` and, if `foo`returns a `Quoted` value,
+//!   - The interpreter calls the function `my_attr` and, if `my_attr` returns a `Quoted` value,
 //!     inlines the resulting `Quoted` code.
 //! 4. A global `global FOO = expr;`
 //!   - The interpreter evaluates `expr` to simplify the global to a constant.
