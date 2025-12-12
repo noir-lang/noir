@@ -16,7 +16,7 @@ nargo execute --skip-underconstrained-check --pedantic-solving --oracle-file Ora
 
 # Also execute through `noir-execute`
 noir-execute \
-    execute
+    execute \
     --artifact-path target/oracle_transcript.json \
     --oracle-file Oracle.jsonl \
     --prover-file Prover.toml \
