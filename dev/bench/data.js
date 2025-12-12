@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765537596242,
+  "lastUpdate": 1765546633247,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23231,48 +23231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2a925b031d6480def78e2722451e6ed9d4f87fca",
-          "message": "chore: use `NOIR_REPO_TOKEN` for triggering binary builds for release (#10744)",
-          "timestamp": "2025-12-03T13:48:21Z",
-          "tree_id": "ccaf1d96ce40a8aef41c29f02064ba7cf5ab360a",
-          "url": "https://github.com/noir-lang/noir/commit/2a925b031d6480def78e2722451e6ed9d4f87fca"
-        },
-        "date": 1764769853055,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261061,
-            "range": "± 764",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228783,
-            "range": "± 1715",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791394,
-            "range": "± 3301",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789917,
             "range": "± 2974",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "10ab9a54ad8c8640c9a08495904404a3d0822e43",
+          "message": "fix: error on wrong Ordering trait, instead of panic. (#10895)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-12-12T13:15:52Z",
+          "tree_id": "14f6cc63793d8af41c836eeb593e07eaa6258ac3",
+          "url": "https://github.com/noir-lang/noir/commit/10ab9a54ad8c8640c9a08495904404a3d0822e43"
+        },
+        "date": 1765546601678,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249447,
+            "range": "± 502",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220505,
+            "range": "± 2169",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792278,
+            "range": "± 8775",
             "unit": "ns/iter"
           }
         ]
