@@ -1574,7 +1574,9 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
             (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => todo!(),
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                unreachable!("invalid type: i128")
+            }
         },
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
