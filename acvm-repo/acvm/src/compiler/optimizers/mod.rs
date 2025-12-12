@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use acir::{
     AcirField,
-    circuit::{Circuit, ExpressionWidth, Opcode, brillig::BrilligFunctionId},
+    circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
 
 mod common_subexpression;
@@ -91,7 +91,6 @@ pub(super) fn optimize_internal<F: AcirField>(
     let (acir, acir_opcode_positions, _opcodes_hash_stabilized) =
         common_subexpression::transform_internal(
             acir,
-            ExpressionWidth::Bounded { width: 4 },
             acir_opcode_positions,
             brillig_side_effects,
             max_transformer_passes_or_default,
