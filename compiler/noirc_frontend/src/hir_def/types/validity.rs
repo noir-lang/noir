@@ -248,5 +248,5 @@ impl Type {
 }
 
 pub(crate) fn length_is_zero(length: &Type) -> bool {
-    length.evaluate_to_u32(Location::dummy()).unwrap_or(0) == 0
+    length.evaluate_to_u32(Location::dummy()) == Ok(0)
 }
