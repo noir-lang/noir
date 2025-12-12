@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765549176214,
+  "lastUpdate": 1765549333795,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "6fa1a4bd35006b292e21b26b217f20101d84c8e1",
-          "message": "feat(doc): mobile style (#10760)",
-          "timestamp": "2025-12-04T10:41:49Z",
-          "tree_id": "2069789883be06ed9e4588b5a061737f19e57647",
-          "url": "https://github.com/noir-lang/noir/commit/6fa1a4bd35006b292e21b26b217f20101d84c8e1"
-        },
-        "date": 1764846215895,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260636,
-            "range": "± 609",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229604,
-            "range": "± 4127",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792785,
-            "range": "± 7011",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "40146b93c0ee38bdf55dd13058ac966c77a83118",
           "message": "fix(LSP): correct link range for doc comment references (#10769)",
           "timestamp": "2025-12-04T12:49:02Z",
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2272651,
             "range": "± 7470",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "438ab7267b2b3231924822e74e7ac0a5ac7090a7",
+          "message": "fix(ssa): Clear the SSA interpreter `call_stack` between top level calls (#10901)",
+          "timestamp": "2025-12-12T14:01:06Z",
+          "tree_id": "2fac5944de46417898fbaa203deb41e07cf4a357",
+          "url": "https://github.com/noir-lang/noir/commit/438ab7267b2b3231924822e74e7ac0a5ac7090a7"
+        },
+        "date": 1765549302752,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261409,
+            "range": "± 1176",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230614,
+            "range": "± 3661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799692,
+            "range": "± 13357",
             "unit": "ns/iter"
           }
         ]
