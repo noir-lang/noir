@@ -336,25 +336,21 @@ fn no_error_on_returning_empty_array() {
 }
 
 #[test]
-fn error_on_returning_empty_array_with_empty_nested_array() {
+fn no_error_on_returning_empty_array_with_empty_nested_array() {
     let src = r#"
     fn main() -> pub [[u32; 0]; 0] {
-       ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Empty array is not a valid entry point type. Found: [u32; 0]
         []
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
-fn error_on_returning_non_empty_array_with_empty_nested_array() {
+fn no_error_on_returning_non_empty_array_with_empty_nested_array() {
     let src = r#"
     fn main() -> pub [[u32; 0]; 1] {
-       ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Empty array is not a valid entry point type. Found: [u32; 0]
         [[]]
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }

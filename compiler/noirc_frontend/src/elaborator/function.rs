@@ -183,12 +183,14 @@ impl Elaborator<'_> {
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow slices for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
-            self.check_if_type_is_valid_for_program_output(
+            if let Err(err) = self.check_if_type_is_valid_for_program_output(
                 &return_type,
                 is_entry_point || func.is_test_or_fuzz(),
                 func.has_inline_attribute(),
                 location,
-            );
+            ) {
+                self.push_err(err);
+            }
         }
 
         // Build function type
@@ -350,12 +352,14 @@ impl Elaborator<'_> {
                 _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
-            self.check_if_type_is_valid_for_program_input(
+            if let Err(err) = self.check_if_type_is_valid_for_program_input(
                 &typ,
                 is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
                 type_location,
-            );
+            ) {
+                self.push_err(err);
+            }
 
             if is_entry_point || is_test_or_fuzz {
                 self.mark_type_as_used(&typ);
@@ -386,19 +390,20 @@ impl Elaborator<'_> {
         is_entry_point: bool,
         has_inline_attribute: bool,
         location: Location,
-    ) {
+    ) -> Result<(), TypeCheckError> {
         if is_entry_point {
             if let Some(invalid_type) = typ.program_input_validity() {
-                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-                return;
+                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
 
         if has_inline_attribute {
             if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
-                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
+
+        Ok(())
     }
 
     fn check_if_type_is_valid_for_program_output(
@@ -407,35 +412,40 @@ impl Elaborator<'_> {
         is_entry_point: bool,
         has_inline_attribute: bool,
         location: Location,
-    ) {
+    ) -> Result<(), TypeCheckError> {
         match typ {
-            Type::Unit => return,
+            Type::Unit => Ok(()),
             Type::Array(_, element_type) => {
-                if let Some(InvalidType::EmptyArray(_)) = typ.program_input_validity() {
-                    self.check_if_type_is_valid_for_program_input(
+                match self.check_if_type_is_valid_for_program_input(
+                    element_type,
+                    is_entry_point,
+                    has_inline_attribute,
+                    location,
+                ) {
+                    Ok(_) => Ok(()),
+                    Err(TypeCheckError::InvalidTypeForEntryPoint {
+                        invalid_type: InvalidType::EmptyArray(_),
+                        ..
+                    }) => self.check_if_type_is_valid_for_program_output(
                         element_type,
                         is_entry_point,
                         has_inline_attribute,
                         location,
-                    );
-                    return;
+                    ),
+                    Err(err) => Err(err),
                 }
             }
-            Type::String(length) => {
-                if length_is_zero(length) {
-                    //returning zero length string is allowed
-                    return;
-                }
+            Type::String(length) if length_is_zero(length) => {
+                //returning zero length string is allowed
+                Ok(())
             }
-            _ => (),
+            _ => self.check_if_type_is_valid_for_program_input(
+                typ,
+                is_entry_point,
+                has_inline_attribute,
+                location,
+            ),
         }
-
-        self.check_if_type_is_valid_for_program_input(
-            typ,
-            is_entry_point,
-            has_inline_attribute,
-            location,
-        );
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
