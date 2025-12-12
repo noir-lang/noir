@@ -1,0 +1,6 @@
+[package]
+name = "slice_remove_oob"
+type = "bin"
+authors = [""]
+
+[dependencies]

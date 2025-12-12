@@ -14,15 +14,9 @@
 //! The compiled program will be returned as an `Artifacts` type.
 //!
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
-use acir::{
-    AcirField,
-    circuit::{
-        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
-        brillig::BrilligFunctionId,
-    },
-};
+use acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
 
 // The various passes that we can use over ACIR
 pub use optimizers::optimize;
@@ -119,25 +113,6 @@ fn transform_assert_messages<F: Clone>(
             new_locations.map(move |new_location| (new_location, message.clone()))
         })
         .collect()
-}
-
-/// Applies backend specific optimizations to a [`Circuit`].
-///
-/// optimize_internal:
-/// - General optimizer: canonicalize AssertZero opcodes.
-/// - Unused Memory: remove unused MemoryInit opcodes.
-/// - Redundant Ranges: remove RANGE opcodes that are redundant.
-///
-/// transform_internal: run multiple times (up to 4) until the output stabilizes.
-/// - CSAT: limit AssertZero opcodes to the Circuit's width.
-/// - Eliminate intermediate variables: Combine AssertZero opcodes used only once.
-/// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
-pub fn compile<F: AcirField>(
-    acir: Circuit<F>,
-    _expression_width: ExpressionWidth,
-    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-) -> (Circuit<F>, AcirTransformationMap) {
-    optimize(acir, brillig_side_effects)
 }
 
 #[macro_export]
