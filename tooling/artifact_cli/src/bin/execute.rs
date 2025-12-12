@@ -2,7 +2,6 @@
 
 use std::path::{Path, PathBuf};
 
-use acir::{FieldElement, native_types::WitnessStack};
 use acvm::compiler::validator::validate_witness;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::{Parser, Subcommand, command};
@@ -10,7 +9,7 @@ use color_eyre::eyre;
 use const_format::formatcp;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
-use noir_artifact_cli::{Artifact, commands::execute_cmd};
+use noir_artifact_cli::{Artifact, commands::execute_cmd, fs::witness::load_witness_from_file};
 use noirc_driver::CompiledProgram;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -74,10 +73,7 @@ fn check_witness_file(witness_path: &PathBuf, artifact_path: &Path) -> eyre::Res
         }
     };
 
-    let witness_data = std::fs::read(witness_path)?;
-    let mut witness_stack: WitnessStack<FieldElement> = WitnessStack::deserialize(&witness_data)
-        .map_err(|e| eyre::eyre!("Failed to deserialize witness file: {e}"))?;
-
+    let mut witness_stack = load_witness_from_file(witness_path)?;
     let backend = Bn254BlackBoxSolver(false);
 
     while let Some(stack_item) = witness_stack.pop() {
