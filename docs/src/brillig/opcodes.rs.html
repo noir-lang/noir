@@ -797,7 +797,8 @@
 <a href="#796" id="796">796</a>
 <a href="#797" id="797">797</a>
 <a href="#798" id="798">798</a>
-<a href="#799" id="799">799</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -870,12 +871,13 @@
         !<span class="self">self</span>.is_relative()
     }
 
-    <span class="doccomment">/// Offset the address by `amount`, while preserving its type.
+    <span class="doccomment">/// Offset a `Direct` address by `amount`.
+    ///
+    /// Panics if called on a `Relative` address.
     </span><span class="kw">pub fn </span>offset(<span class="kw-2">&amp;</span><span class="self">self</span>, amount: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">match </span><span class="self">self </span>{
-            MemoryAddress::Direct(address) =&gt; MemoryAddress::Direct(address + amount),
-            MemoryAddress::Relative(offset) =&gt; MemoryAddress::Relative(offset + amount),
-        }
+        <span class="comment">// We disallow offsetting relatively addresses as this is not expected to be meaningful.
+        </span><span class="kw">let </span>address = <span class="self">self</span>.unwrap_direct();
+        MemoryAddress::Direct(address + amount)
     }
 }
 
