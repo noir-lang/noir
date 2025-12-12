@@ -33,7 +33,6 @@ use crate::{
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
     shared::Visibility,
-    validity::{InvalidType, length_is_zero},
 };
 
 use super::Elaborator;
@@ -384,15 +383,16 @@ impl Elaborator<'_> {
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
     /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
     /// error is issued.
-    fn check_if_type_is_valid_for_program_input(
+    fn check_if_type_is_valid_for_program(
         &mut self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
+        allow_empty_arrays: bool,
         location: Location,
     ) -> Result<(), TypeCheckError> {
         if is_entry_point {
-            if let Some(invalid_type) = typ.program_input_validity() {
+            if let Some(invalid_type) = typ.program_input_validity(allow_empty_arrays) {
                 return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
@@ -406,6 +406,22 @@ impl Elaborator<'_> {
         Ok(())
     }
 
+    fn check_if_type_is_valid_for_program_input(
+        &mut self,
+        typ: &Type,
+        is_entry_point: bool,
+        has_inline_attribute: bool,
+        location: Location,
+    ) -> Result<(), TypeCheckError> {
+        self.check_if_type_is_valid_for_program(
+            typ,
+            is_entry_point,
+            has_inline_attribute,
+            false,
+            location,
+        )
+    }
+
     fn check_if_type_is_valid_for_program_output(
         &mut self,
         typ: &Type,
@@ -415,34 +431,11 @@ impl Elaborator<'_> {
     ) -> Result<(), TypeCheckError> {
         match typ {
             Type::Unit => Ok(()),
-            Type::Array(_, element_type) => {
-                match self.check_if_type_is_valid_for_program_input(
-                    element_type,
-                    is_entry_point,
-                    has_inline_attribute,
-                    location,
-                ) {
-                    Ok(_) => Ok(()),
-                    Err(TypeCheckError::InvalidTypeForEntryPoint {
-                        invalid_type: InvalidType::EmptyArray(_),
-                        ..
-                    }) => self.check_if_type_is_valid_for_program_output(
-                        element_type,
-                        is_entry_point,
-                        has_inline_attribute,
-                        location,
-                    ),
-                    Err(err) => Err(err),
-                }
-            }
-            Type::String(length) if length_is_zero(length) => {
-                //returning zero length string is allowed
-                Ok(())
-            }
-            _ => self.check_if_type_is_valid_for_program_input(
+            _ => self.check_if_type_is_valid_for_program(
                 typ,
                 is_entry_point,
                 has_inline_attribute,
+                true,
                 location,
             ),
         }

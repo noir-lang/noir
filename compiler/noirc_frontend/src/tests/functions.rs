@@ -379,9 +379,9 @@ fn error_on_taking_string_with_zero_length() {
 #[test]
 fn error_on_taking_string_with_non_eval_length() {
     let src = r#"
-    fn main(_s: str< -1 >) {
-                ^^^^^^ Invalid type found in the entry point to a program
-                ~~~~~~ <should say something about not being able to evaluate -1 to a u32>
+    fn main(_s: str<-1>) {
+                ^^^^^^^ Invalid type found in the entry point to a program
+                ~~~~~~~ Empty string is not a valid entry point type. Found: str<-1>
     }
     "#;
     check_errors(src);
