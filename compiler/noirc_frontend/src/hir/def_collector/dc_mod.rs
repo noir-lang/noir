@@ -523,6 +523,26 @@ impl ModCollector<'_> {
                 }
             }
 
+            // Check for duplicate trait item names across all item types (functions, types, constants)
+            let mut trait_item_names: HashMap<String, Ident> = HashMap::default();
+            for trait_item in &trait_definition.items {
+                let item_name = match &trait_item.item {
+                    TraitItem::Function { name, .. } => name,
+                    TraitItem::Constant { name, .. } => name,
+                    TraitItem::Type { name, .. } => name,
+                };
+                if let Some(first_def) = trait_item_names.get(item_name.as_str()) {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
+                }
+            }
+
             for trait_item in &trait_definition.items {
                 match &trait_item.item {
                     TraitItem::Function {
