@@ -1948,7 +1948,17 @@
 <a href="#1947" id="1947">1947</a>
 <a href="#1948" id="1948">1948</a>
 <a href="#1949" id="1949">1949</a>
-<a href="#1950" id="1950">1950</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a>
+<a href="#1952" id="1952">1952</a>
+<a href="#1953" id="1953">1953</a>
+<a href="#1954" id="1954">1954</a>
+<a href="#1955" id="1955">1955</a>
+<a href="#1956" id="1956">1956</a>
+<a href="#1957" id="1957">1957</a>
+<a href="#1958" id="1958">1958</a>
+<a href="#1959" id="1959">1959</a>
+<a href="#1960" id="1960">1960</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2063,7 +2073,7 @@
     ) -&gt; IResults {
         <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new(<span class="self">self</span>, options, output);
         interpreter.interpret_globals()<span class="question-mark">?</span>;
-        interpreter.call_function(function, args)
+        interpreter.interpret_function(function, args)
     }
 }
 
@@ -2083,14 +2093,6 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt; {
         <span class="self">self</span>.functions
-    }
-
-    <span class="doccomment">/// Resets the step counter to 0.
-    ///
-    /// This resets the step counter, to reset the budget before
-    /// interpreting the next entry point.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reset_step_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.step_counter = <span class="number">0</span>;
     }
 
     <span class="doccomment">/// Increment the step counter, or return [InterpreterError::OutOfBudget].
@@ -2164,7 +2166,12 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpret_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
+    <span class="doccomment">/// Interpret the global instructions.
+    ///
+    /// Once this is complete, the interpreter can be reused for multiple
+    /// function calls within the same SSA.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpret_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.call_stack.len(), <span class="number">1</span>, <span class="string">"should be in the global context"</span>);
         <span class="kw">let </span>(<span class="kw">_</span>, function) = <span class="self">self</span>.functions.first_key_value().unwrap();
         <span class="kw">let </span>globals = <span class="kw-2">&amp;</span>function.dfg.globals;
         <span class="kw">for </span>(global_id, global) <span class="kw">in </span>globals.values_iter() {
@@ -2191,11 +2198,24 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_function(
+    <span class="doccomment">/// Interpret an entry point, assuming the globals have already been interpreted.
+    ///
+    /// This resets any previous call stack and step counter.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpret_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function_id: FunctionId,
-        <span class="kw-2">mut </span>arguments: Vec&lt;Value&gt;,
+        arguments: Vec&lt;Value&gt;,
     ) -&gt; IResults {
+        <span class="self">self</span>.step_counter = <span class="number">0</span>;
+        <span class="self">self</span>.call_stack.truncate(<span class="number">1</span>);
+        <span class="self">self</span>.call_function(function_id, arguments)
+    }
+
+    <span class="doccomment">/// Interpret a function call.
+    ///
+    /// Unlike `interpret_function` this does not reset the state;
+    /// it is meant to be used for internal calls.
+    </span><span class="kw">fn </span>call_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function_id: FunctionId, <span class="kw-2">mut </span>arguments: Vec&lt;Value&gt;) -&gt; IResults {
         <span class="self">self</span>.call_stack.push(CallContext::new(function_id));
 
         <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>function_id];
