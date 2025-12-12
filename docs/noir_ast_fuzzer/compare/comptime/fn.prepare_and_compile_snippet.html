@@ -2,7 +2,7 @@
     source: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>,
     force_brillig: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
     output: W,
-) -&gt; (<a class="type" href="../../../noirc_driver/type.CompilationResult.html" title="type noirc_driver::CompilationResult">CompilationResult</a>&lt;<a class="struct" href="../../../noirc_driver/program/struct.CompiledProgram.html" title="struct noirc_driver::program::CompiledProgram">CompiledProgram</a>&gt;, W)</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Compile the main function in a code snippet.</p>
+) -&gt; (CompilationResult&lt;CompiledProgram&gt;, W)</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Compile the main function in a code snippet.</p>
 <p>Use <code>force_brillig</code> to test it as an unconstrained function without having to change the code.
 This is useful for methods that use the <code>runtime::is_unconstrained()</code> method to change their behavior.
 (copied from nargo_cli/tests/common.rs)</p>

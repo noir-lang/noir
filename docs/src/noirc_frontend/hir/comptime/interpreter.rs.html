@@ -1820,7 +1820,18 @@
 <a href="#1819" id="1819">1819</a>
 <a href="#1820" id="1820">1820</a>
 <a href="#1821" id="1821">1821</a>
-<a href="#1822" id="1822">1822</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -3198,9 +3209,20 @@
     <span class="kw">fn </span>evaluate_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, for_: HirForStatement) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>start_value = <span class="self">self</span>.evaluate(for_.start_range)<span class="question-mark">?</span>;
         <span class="kw">let </span>end_value = <span class="self">self</span>.evaluate(for_.end_range)<span class="question-mark">?</span>;
-        <span class="kw">let </span>loop_index_type = start_value.get_type();
+        <span class="kw">let </span>start_type = start_value.get_type();
+        <span class="kw">let </span>end_type = end_value.get_type();
 
-        <span class="kw">if </span>loop_index_type.is_signed() {
+        <span class="comment">// Check that start and end have the same type
+        </span><span class="kw">if </span>start_type.unify(<span class="kw-2">&amp;</span>end_type).is_err() {
+            <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>for_.end_range);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::RangeBoundsTypeMismatch {
+                start_type: start_type.into_owned(),
+                end_type: end_type.into_owned(),
+                location,
+            });
+        }
+
+        <span class="kw">if </span>start_type.is_signed() {
             <span class="kw">let </span>get_index = <span class="kw">match </span>start_value {
                 Value::I8(<span class="kw">_</span>) =&gt; |i| Value::I8(i <span class="kw">as </span>i8),
                 Value::I16(<span class="kw">_</span>) =&gt; |i| Value::I16(i <span class="kw">as </span>i16),
@@ -3211,10 +3233,10 @@
 
             <span class="comment">// i128 can store all values from i8 - u64
             </span><span class="kw">let </span>start = to_i128(start_value).expect(<span class="string">"Checked above that value is signed type"</span>);
-            <span class="kw">let </span>end = to_i128(end_value).expect(<span class="string">"Checked above that value is signed type"</span>);
+            <span class="kw">let </span>end = to_i128(end_value).expect(<span class="string">"Checked above that types match"</span>);
 
             <span class="self">self</span>.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
-        } <span class="kw">else if </span>loop_index_type.is_unsigned() {
+        } <span class="kw">else if </span>start_type.is_unsigned() {
             <span class="kw">let </span>get_index = <span class="kw">match </span>start_value {
                 Value::U1(<span class="kw">_</span>) =&gt; |i| Value::U1(i == <span class="number">1</span>),
                 Value::U8(<span class="kw">_</span>) =&gt; |i| Value::U8(i <span class="kw">as </span>u8),
@@ -3227,12 +3249,12 @@
 
             <span class="comment">// u128 can store all values from u8 - u128
             </span><span class="kw">let </span>start = to_u128(start_value).expect(<span class="string">"Checked above that value is unsigned type"</span>);
-            <span class="kw">let </span>end = to_u128(end_value).expect(<span class="string">"Checked above that value is unsigned type"</span>);
+            <span class="kw">let </span>end = to_u128(end_value).expect(<span class="string">"Checked above that types match"</span>);
 
             <span class="self">self</span>.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } <span class="kw">else </span>{
             <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>for_.start_range);
-            <span class="kw">let </span>typ = loop_index_type.into_owned();
+            <span class="kw">let </span>typ = start_type.into_owned();
             <span class="prelude-val">Err</span>(InterpreterError::NonIntegerUsedInLoop { typ, location })
         }
     }
