@@ -73,10 +73,9 @@ impl MemoryAddress {
 
     /// Offset the address by `amount`, while preserving its type.
     pub fn offset(&self, amount: usize) -> Self {
-        match self {
-            MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
-            MemoryAddress::Relative(offset) => MemoryAddress::Relative(offset + amount),
-        }
+        // We disallow offsetting relatively addresses as this is not expected to be meaningful.
+        let address = self.unwrap_direct();
+        MemoryAddress::Direct(address + amount)
     }
 }
 
