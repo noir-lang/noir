@@ -321,7 +321,10 @@ impl Value {
                         Ok(expr)
                     }
                     Err(errors) => {
-                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = errors
+                            .into_iter()
+                            .find(|error| !error.is_warning())
+                            .expect("there is at least one error");
                         let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
