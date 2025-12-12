@@ -489,6 +489,21 @@ impl<'f> PerFunctionContext<'f> {
                 let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.remember_dereference(self.inserter.function, address, result);
 
+                // If the load result contains references, propagate alias info from the stored value
+                let result_type = self.inserter.function.dfg.type_of_value(result);
+                if result_type.contains_reference() {
+                    if let Some(known_value) = references.get_known_value(address) {
+                        // The result of the load should have the same aliases as the known value
+                        let known_aliases =
+                            references.get_aliases_for_value(known_value).into_owned();
+                        if !known_aliases.is_unknown() {
+                            let expr = Expression::Other(result);
+                            references.expressions.insert(result, expr);
+                            references.aliases.insert(expr, known_aliases);
+                        }
+                    }
+                }
+
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
                     let [result] = self.inserter.function.dfg.instruction_result(instruction);
@@ -677,10 +692,28 @@ impl<'f> PerFunctionContext<'f> {
                 if result_type.contains_reference() {
                     let expr = Expression::Other(result);
                     references.expressions.insert(result, expr);
-                    references.aliases.insert(
-                        expr,
-                        AliasSet::known_multiple(vec![*then_value, *else_value].into()),
-                    );
+
+                    // Collect all aliases from both branches.
+                    // For the case: `if cond { array1 } else { array2 }` where
+                    // both arrays contain references - we need to track them.
+                    let then_aliases = references.get_aliases_for_value(*then_value).into_owned();
+                    let else_aliases = references.get_aliases_for_value(*else_value).into_owned();
+                    let mut all_aliases =
+                        AliasSet::known_multiple(vec![*then_value, *else_value].into());
+                    all_aliases.unify(&then_aliases);
+                    all_aliases.unify(&else_aliases);
+
+                    references.aliases.insert(expr, all_aliases.clone());
+
+                    // Mark references in both branches as being used by this IfElse instruction.
+                    // This ensures that stores to those references are kept even in loops where
+                    // alias information may not propagate correctly through the back edge.
+                    for alias in then_aliases.iter() {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
+                    for alias in else_aliases.iter() {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
 
                     // `then_value` and `else_value` are now aliased by `result`
                     if let Some(then_expr) = references.expressions.get_mut(then_value) {
@@ -2609,6 +2642,47 @@ mod tests {
             v8 = load v5 -> Field
             return v8
         }";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn keep_store_to_reference_in_array_selected_by_if() {
+        // Regression test: The store to v5 should NOT be removed because:
+        // - v5 is placed inside array v6
+        // - v6 can be selected via the `if` expression based on loading from another array
+        // - The selected array is stored back to v4
+        // - On the next loop iteration, loading from v4 and doing array_get can return v5
+        // - Then loading from v5 would read uninitialized memory if the store was removed
+        let src = r"
+        brillig(inline) predicate_pure fn foo f1 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1; 1]
+            v4 = allocate -> &mut [&mut u1; 1]
+            store v3 at v4
+            v5 = allocate -> &mut u1
+            store u1 0 at v5
+            v6 = make_array [v5] : [&mut u1; 1]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v9 = lt v0, u32 3
+            jmpif v9 then: b2, else: b3
+          b2():
+            v10 = load v4 -> [&mut u1; 1]
+            v11 = array_get v10, index u32 0 -> &mut u1
+            v12 = load v11 -> u1
+            inc_rc v10
+            v13 = not v12
+            inc_rc v6
+            v14 = if v12 then v10 else (if v13) v6
+            store v14 at v4
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16)
+          b3():
+            return
+        }
+        ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
