@@ -974,7 +974,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 actual: ordering.get_type().into_owned(),
                 location,
             });
-        }
+        };
 
         // Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
         let result = match operator {
