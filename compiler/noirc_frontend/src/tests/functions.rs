@@ -364,3 +364,25 @@ fn no_error_on_returning_empty_array_with_tuple_of_empty_arrays() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn error_on_taking_string_with_zero_length() {
+    let src = r#"
+    fn main(_s: str<0>) {
+                ^^^^^^ Invalid type found in the entry point to a program
+                ~~~~~~ Empty string is not a valid entry point type. Found: str<0>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_taking_string_with_non_eval_length() {
+    let src = r#"
+    fn main(_s: str< -1 >) {
+                ^^^^^^ Invalid type found in the entry point to a program
+                ~~~~~~ <should say something about not being able to evaluate -1 to a u32>
+    }
+    "#;
+    check_errors(src);
+}
