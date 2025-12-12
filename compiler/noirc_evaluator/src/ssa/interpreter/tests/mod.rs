@@ -1791,12 +1791,12 @@ fn call_stack_is_cleared_between_entry_calls() {
     assert_eq!(interpreter.call_stack.len(), 1, "starts with the global context");
 
     let main_id = FunctionId::new(0);
-    interpreter.call_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
+    interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
     assert_eq!(interpreter.call_stack.len(), 1, "reset after successful call");
 
-    interpreter.call_function(main_id, vec![Value::u32(1)]).expect_err("1 should fail");
+    interpreter.interpret_function(main_id, vec![Value::u32(1)]).expect_err("1 should fail");
     assert_eq!(interpreter.call_stack.len(), 2, "contains the last entry after failure");
 
-    interpreter.call_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
+    interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
     assert_eq!(interpreter.call_stack.len(), 1, "should clear the previous leftover");
 }
