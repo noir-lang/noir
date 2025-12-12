@@ -386,3 +386,18 @@ fn error_on_taking_string_with_non_eval_length() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn error_on_returning_string_with_non_eval_length() {
+    let src = r#"
+    unconstrained fn main() -> pub str<-1> {
+                                   ^^^^^^^ Invalid type found in the entry point to a program
+                                   ~~~~~~~ Empty string is not a valid entry point type. Found: str<-1>
+        negative_str()
+    }
+
+    #[oracle(negative_str)]
+    unconstrained fn negative_str() -> str<-1> {}
+    "#;
+    check_errors(src);
+}
