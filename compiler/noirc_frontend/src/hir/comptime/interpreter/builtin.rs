@@ -1087,6 +1087,7 @@ fn to_le_radix(
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
+    assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
