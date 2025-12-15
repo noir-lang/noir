@@ -48,7 +48,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload archive to workflow
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nextest-archive-arm64
           path: nextest-archive-arm64.tar.zst
@@ -78,7 +78,7 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Download archive
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: nextest-archive-arm64
       - name: Run tests
