@@ -2,7 +2,7 @@ name: Non-deterministic fuzz tests
 on:
   workflow_dispatch:
   schedule:
-    # Run nightly at 0300
+    # Run nightly at 0300 UTC
     - cron: "0 3 * * *"
 
 permissions:
@@ -25,6 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -40,7 +43,14 @@ jobs:
 
       - name: Get current date
         id: date
-        run: echo "DAY=date::$(date +'%u')" >> $GITHUB_OUTPUT
+        run: echo "DAY=$(date +'%u')" >> $GITHUB_OUTPUT
+
+      - name: Upload fuzz artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: path/to/fuzz/output
 
       - name: Send an alert in slack
         # Send notifications on weekdays if there's a failure.
@@ -51,3 +61,7 @@ jobs:
           webhook-type: webhook-trigger
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            branch: ${{ github.ref }}
+            commit: ${{ github.sha }}
+            job: ast-fuzz
+            status: failed
