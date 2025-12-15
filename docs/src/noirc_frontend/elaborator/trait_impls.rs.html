@@ -908,7 +908,14 @@
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
 <a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -997,12 +1004,19 @@
                     };
                     <span class="kw">let </span>wildcard_allowed =
                         WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+                    <span class="kw">let </span>location = unresolved_type.location;
                     <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind(
                         unresolved_type,
                         <span class="kw-2">&amp;</span>associated_type.typ.kind(),
                         wildcard_allowed,
                     );
-                    named_generic.type_var.bind(resolved_type);
+                    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = named_generic.type_var.try_bind(
+                        resolved_type,
+                        <span class="kw-2">&amp;</span>named_generic.type_var.kind(),
+                        location,
+                    ) {
+                        <span class="self">self</span>.push_err(error);
+                    }
                 }
             }
 
