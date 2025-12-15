@@ -10,8 +10,7 @@ mod poseidon2_constants;
 
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use generator::generators::derive_generators;
-pub use poseidon2::{Poseidon2Sponge, poseidon_hash, poseidon2_permutation};
-pub use poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config, field_from_hex};
+pub use poseidon2::poseidon2_permutation;
 
 // Temporary hack, this ensure that we always use a bn254 field here
 // without polluting the feature flags of the `acir_field` crate.
