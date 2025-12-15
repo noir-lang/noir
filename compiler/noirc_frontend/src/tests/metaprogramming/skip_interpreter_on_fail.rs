@@ -4,8 +4,8 @@
 use crate::tests::check_errors;
 
 #[test]
-fn evaluate_separate_comptime_block_with_preceding_failure() {
-    // Guarantee that we run a comptime block even if a preceding comptime
+fn do_not_evaluate_separate_comptime_block_with_preceding_failure() {
+    // Guarantee that we do not run a comptime block even if a preceding comptime
     // block contains errors.
     let src = "
     fn main() {
@@ -17,7 +17,9 @@ fn evaluate_separate_comptime_block_with_preceding_failure() {
 
         comptime {
             let x: i8 = 5 + 10;
+            // We would expect one of these to fail
             assert_eq(x, 15);
+            assert_eq(x, 10);
         }
     }
     ";
@@ -61,7 +63,7 @@ fn do_not_evaluate_comptime_block_with_preceding_failure() {
 }
 
 #[test]
-fn failing_comptime_function_not_run() {
+fn failing_comptime_function_does_not_keep_running() {
     let src = "
     comptime mut global FLAG: bool = false;
 
@@ -69,6 +71,8 @@ fn failing_comptime_function_not_run() {
         comptime {
             bad();
             // Execution halts when bad() encounters its error, so neither assertion runs
+            assert_eq(FLAG, false);
+            assert_eq(FLAG, true);
         }
     }
 
@@ -104,6 +108,7 @@ fn comptime_execution_stops_at_first_elaboration_error() {
             let _x = foo();
             // Execution halted, this doesn't run
             COUNTER += 100;
+            assert_eq(COUNTER, 0); // This would fail if execution had not halted
         }
     }
 
@@ -314,6 +319,8 @@ fn nested_function_calls_with_inner_error_pre_call_mutation_decl_order() {
             comptime {
                 outer();  // Sets FLAG = true, then hits error in inner()
                 // Execution halted, assertions don't run
+                assert_eq(FLAG, false);
+                assert_eq(FLAG, true);
             }
         }
 
@@ -447,6 +454,7 @@ fn attribute_function_with_error_not_run() {
             comptime {
                 // Attribute already processed, FLAG is still false
                 assert_eq(FLAG, false);
+                assert_eq(FLAG, true);
             }
         }
         ";
@@ -473,8 +481,9 @@ fn attribute_with_error_prevents_function_execution() {
 
         fn main() {
             comptime {
-                some_function();  // Runs normally, attribute already processed
-                assert_eq(FLAG, true);  // some_function set it
+                some_function();
+                assert_eq(FLAG, true); 
+                assert_eq(FLAG, false);
             }
         }
         ";
@@ -662,7 +671,7 @@ fn comptime_trait_default_method_using_missing_associated_constant() {
 }
 
 #[test]
-fn regressoin_10829_0() {
+fn regression_10829_0() {
     let src = "
     fn main() {
         comptime {
@@ -679,7 +688,7 @@ fn regressoin_10829_0() {
 }
 
 #[test]
-fn regressoin_10829() {
+fn regression_10829() {
     let src = "
     fn main() {
         comptime {
@@ -832,9 +841,12 @@ fn execution_halts_when_encountering_errored_expression() {
             COUNTER += 10000;
         }
 
-        // Verify COUNTER = 100 + 10 + 1 = 111 (if execution halted correctly)
         comptime {
+            // If execution halted correctly COUNTER = 100 + 10 + 1 = 111 
+            // However, we halt comptime evaluation entirely (even in valid comptime blocks)
+            // if there are static errors from other comptime blocks.
             assert_eq(COUNTER, 111);
+            assert_eq(COUNTER, 0);
         }
     }
     ";
@@ -843,7 +855,7 @@ fn execution_halts_when_encountering_errored_expression() {
 
 #[test]
 fn statement_level_error_tracking_in_different_blocks() {
-    // Demonstrates that errors in one comptime block don't prevent
+    // Demonstrates that errors in one comptime block prevents
     // statements in other comptime blocks from executing.
     let src = "
     comptime mut global COUNTER: Field = 0;
@@ -859,8 +871,10 @@ fn statement_level_error_tracking_in_different_blocks() {
         }
 
         comptime {
-            COUNTER += 1;  // Third block should still execute
+            COUNTER += 1;  // Third block should not execute
+            // We would expect one of these assertions to fail if the comptime block was run
             assert_eq(COUNTER, 2);
+            assert_eq(COUNTER, 0);
         }
     }
     ";
@@ -879,14 +893,17 @@ fn expression_level_error_in_function_call() {
     }
 
     comptime fn bad() {
+        assert(VALUE != 0); // Executed
         let _x: u32 = \"error\";
                       ^^^^^^^ Expected type u32, found type str<5>
+        assert_eq(VALUE, 0); // This would be an assertion error if the block was run
     }
 
     fn main() {
         comptime {
-            good();  // This should work
+            good();  // This should be executed
             assert_eq(VALUE, 10);
+            assert(VALUE != 0); // We do not assert an execution failure as we want to show that `bad` begins executing
             bad();   // This will error but good() already executed
         }
     }

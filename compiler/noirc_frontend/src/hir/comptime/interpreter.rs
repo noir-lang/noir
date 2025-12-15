@@ -193,10 +193,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        // dbg!(self.elaborator.errors.len());
-        // dbg!(self.elaborator.stmts_with_errors.len());
-        // dbg!(self.elaborator.exprs_with_errors.len());
-
         let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();

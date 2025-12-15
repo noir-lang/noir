@@ -507,12 +507,12 @@ impl Elaborator<'_> {
 
         self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
 
-        let ((hir_func, body_type), _has_errors) = self.with_error_guard(|this| match kind {
+        let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
             | FunctionKind::LowLevel
             | FunctionKind::TraitFunctionWithoutBody => {
                 if !body.statements.is_empty() {
-                    this.push_err(ResolverError::BuiltinWithBody {
+                    self.push_err(ResolverError::BuiltinWithBody {
                         location: func_meta.name.location,
                     });
                 }
@@ -520,7 +520,7 @@ impl Elaborator<'_> {
             }
             FunctionKind::Oracle => {
                 if !body.statements.is_empty() {
-                    this.push_err(ResolverError::OracleWithBody {
+                    self.push_err(ResolverError::OracleWithBody {
                         location: func_meta.name.location,
                     });
                 }
@@ -528,11 +528,11 @@ impl Elaborator<'_> {
             }
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
-                let (block, body_type) = this.elaborate_block(body, Some(return_type));
-                let expr_id = this.interner.push_expr_full(block, body_location, body_type.clone());
+                let (block, body_type) = self.elaborate_block(body, Some(return_type));
+                let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
-        });
+        };
 
         // Don't verify the return type for builtin functions & trait function declarations
         if !func_meta.is_stub() {

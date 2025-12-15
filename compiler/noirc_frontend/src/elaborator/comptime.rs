@@ -153,6 +153,7 @@ impl<'context> Elaborator<'context> {
         self.errors.extend(errors);
         self.exprs_with_errors.extend(elaborator.exprs_with_errors);
         self.stmts_with_errors.extend(elaborator.stmts_with_errors);
+        self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
         result
     }
 
@@ -384,10 +385,6 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
         self.local_module = Some(attribute_context.module);
-
-        // Save the annotated function's ID before moving the item
-        let _annotated_func_id =
-            if let Value::FunctionDefinition(func_id) = item { Some(func_id) } else { None };
 
         let mut interpreter = self.setup_interpreter();
         let mut arguments = Self::handle_attribute_arguments(
