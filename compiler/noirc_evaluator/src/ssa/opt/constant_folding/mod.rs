@@ -276,7 +276,7 @@ impl Context {
         // To take advantage of constraint simplification we need to still resolve its cache.
         let mut terminator = dfg[block_id].take_terminator();
         let constraint_simplification_cache =
-            &*self.constraint_simplification_mappings.get(side_effects_enabled_var);
+            self.constraint_simplification_mappings.get(side_effects_enabled_var);
         let mut resolve_cache =
             |value| resolve_cache(block_id, dom, constraint_simplification_cache, value);
 
@@ -406,7 +406,7 @@ impl Context {
         block: BasicBlockId,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
-        constraint_simplification_mapping: &HashMap<ValueId, SimplificationCache>,
+        constraint_simplification_mapping: Option<&HashMap<ValueId, SimplificationCache>>,
     ) -> Instruction {
         let mut instruction = dfg[instruction_id].clone();
 
@@ -548,10 +548,10 @@ impl Context {
 fn resolve_cache(
     block: BasicBlockId,
     dom: &mut DominatorTree,
-    cache: &HashMap<ValueId, SimplificationCache>,
+    cache: Option<&HashMap<ValueId, SimplificationCache>>,
     value_id: ValueId,
 ) -> ValueId {
-    match cache.get(&value_id) {
+    match cache.and_then(|cache| cache.get(&value_id)) {
         Some(simplification_cache) => {
             if let Some(simplified) = simplification_cache.get(block, dom) {
                 resolve_cache(block, dom, cache, simplified)

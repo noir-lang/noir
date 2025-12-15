@@ -1,4 +1,3 @@
-use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use dap::errors::ServerError;
 use dap::events::OutputEventBody;
@@ -19,9 +18,7 @@ use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{
-    CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -118,7 +115,7 @@ fn compile_test(
     let test = get_test_function_for_debug(crate_id, &context, &test_name)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
-    let program = compile_test_fn_for_debugging(&test, &mut context, package, compile_options)
+    let program = compile_test_fn_for_debugging(&test, &mut context, compile_options)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
     Ok((program, test))
 }
@@ -172,7 +169,6 @@ fn load_and_compile_project(
 
 fn loop_uninitialized_dap<R: Read, W: Write>(
     mut server: Server<R, W>,
-    expression_width: ExpressionWidth,
     pedantic_solving: bool,
 ) -> Result<(), DapError> {
     while let Some(req) = server.poll_request()? {
@@ -225,7 +221,6 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                 let compile_options = compile_options_for_debugging(
                     generate_acir,
                     skip_instrumentation,
-                    Some(expression_width),
                     CompileOptions::default(),
                 );
 
@@ -317,10 +312,7 @@ fn analyze_test_result<R: Read, W: Write>(
     }))
 }
 
-fn run_preflight_check(
-    expression_width: ExpressionWidth,
-    args: DapCommand,
-) -> Result<(), DapError> {
+fn run_preflight_check(args: DapCommand) -> Result<(), DapError> {
     let project_folder = if let Some(project_folder) = args.preflight_project_folder {
         project_folder
     } else {
@@ -334,7 +326,6 @@ fn run_preflight_check(
     let compile_options: CompileOptions = compile_options_for_debugging(
         args.preflight_generate_acir,
         args.preflight_skip_instrumentation,
-        Some(expression_width),
         CompileOptions::default(),
     );
 
@@ -363,13 +354,12 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     if args.preflight_check {
-        return run_preflight_check(DEFAULT_EXPRESSION_WIDTH, args).map_err(CliError::DapError);
+        return run_preflight_check(args).map_err(CliError::DapError);
     }
 
     let output = BufWriter::new(std::io::stdout());
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, DEFAULT_EXPRESSION_WIDTH, args.pedantic_solving)
-        .map_err(CliError::DapError)
+    loop_uninitialized_dap(server, args.pedantic_solving).map_err(CliError::DapError)
 }

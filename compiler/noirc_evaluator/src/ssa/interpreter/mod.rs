@@ -38,11 +38,6 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
 
-    /// This variable can be modified by `enable_side_effects_if` instructions and is
-    /// expected to have no effect if there are no such instructions or if the code
-    /// being executed is an unconstrained function.
-    side_effects_enabled: bool,
-
     /// The options the interpreter was created with.
     options: InterpreterOptions,
 
@@ -70,15 +65,24 @@ struct CallContext {
 
     /// Contains each value currently defined and visible to the current function.
     scope: HashMap<ValueId, Value>,
+
+    /// This variable can be modified by `enable_side_effects_if` instructions and is
+    /// expected to have no effect if there are no such instructions or if the code
+    /// being executed is an unconstrained function.
+    side_effects_enabled: bool,
 }
 
 impl CallContext {
     fn new(called_function: FunctionId) -> Self {
-        Self { called_function: Some(called_function), scope: Default::default() }
+        Self {
+            called_function: Some(called_function),
+            scope: Default::default(),
+            side_effects_enabled: true,
+        }
     }
 
     fn global_context() -> Self {
-        Self { called_function: None, scope: Default::default() }
+        Self { called_function: None, scope: Default::default(), side_effects_enabled: true }
     }
 }
 
@@ -109,7 +113,7 @@ impl Ssa {
     ) -> IResults {
         let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
-        interpreter.call_function(function, args)
+        interpreter.interpret_function(function, args)
     }
 }
 
@@ -124,19 +128,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, side_effects_enabled: true, options, output, step_counter: 0 }
+        Self { functions, call_stack, options, output, step_counter: 0 }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
         self.functions
-    }
-
-    /// Resets the step counter to 0.
-    ///
-    /// This can be used when the interpreter is reused between calls,
-    /// to reset the budget before interpreting the next entry point.
-    pub(crate) fn reset_step_counter(&mut self) {
-        self.step_counter = 0;
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
@@ -210,7 +206,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
+    /// Interpret the global instructions.
+    ///
+    /// Once this is complete, the interpreter can be reused for multiple
+    /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
+        assert_eq!(self.call_stack.len(), 1, "should be in the global context");
         let Some((_, function)) = self.functions.first_key_value() else {
             return Ok(());
         };
@@ -240,11 +241,24 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    pub(crate) fn call_function(
+    /// Interpret an entry point, assuming the globals have already been interpreted.
+    ///
+    /// This resets any previous call stack and step counter.
+    pub(crate) fn interpret_function(
         &mut self,
         function_id: FunctionId,
-        mut arguments: Vec<Value>,
+        arguments: Vec<Value>,
     ) -> IResults {
+        self.step_counter = 0;
+        self.call_stack.truncate(1);
+        self.call_function(function_id, arguments)
+    }
+
+    /// Interpret a function call.
+    ///
+    /// Unlike `interpret_function` this does not reset the state;
+    /// it is meant to be used for internal calls.
+    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.functions[&function_id];
@@ -542,7 +556,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         match current_function.runtime() {
             RuntimeType::Acir(_) => {
-                self.side_effects_enabled
+                self.call_context().side_effects_enabled
                     || !instruction.requires_acir_gen_predicate(&current_function.dfg)
             }
             RuntimeType::Brillig(_) => true,
@@ -640,7 +654,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             Instruction::Load { address } => self.interpret_load(*address, results[0]),
             Instruction::Store { address, value } => self.interpret_store(*address, *value),
             Instruction::EnableSideEffectsIf { condition } => {
-                self.side_effects_enabled = self.lookup_bool(*condition, "enable_side_effects")?;
+                self.call_context_mut().side_effects_enabled =
+                    self.lookup_bool(*condition, "enable_side_effects")?;
                 Ok(())
             }
             Instruction::ArrayGet { array, index } => {

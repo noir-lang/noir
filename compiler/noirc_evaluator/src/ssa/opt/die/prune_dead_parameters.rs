@@ -156,11 +156,12 @@ impl Ssa {
 
                     // Apply call site rewrites
                     for (instruction_id, new_args) in call_sites_to_update {
-                        if let Instruction::Call { arguments, .. } =
+                        let Instruction::Call { arguments, .. } =
                             &mut caller_func.dfg[instruction_id]
-                        {
-                            *arguments = new_args;
-                        }
+                        else {
+                            unreachable!("expected call site to be call instruction");
+                        };
+                        *arguments = new_args;
                     }
                 }
             }

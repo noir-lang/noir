@@ -63,14 +63,18 @@ impl ConstraintSimplificationCache {
         rhs: ValueId,
     ) {
         if let Some((complex, simple)) = simplify(dfg, lhs, rhs) {
-            self.get(predicate).entry(complex).or_default().add(dfg, simple, block);
+            let predicate_cache = self.0.entry(predicate).or_default();
+            predicate_cache.entry(complex).or_default().add(dfg, simple, block);
         }
     }
 
     /// Get the simplification mapping from complex to simpler instructions,
     /// which all depend on the same side effect condition variable.
-    pub(super) fn get(&mut self, predicate: ValueId) -> &mut HashMap<ValueId, SimplificationCache> {
-        self.0.entry(predicate).or_default()
+    pub(super) fn get(
+        &mut self,
+        predicate: ValueId,
+    ) -> Option<&HashMap<ValueId, SimplificationCache>> {
+        self.0.get(&predicate)
     }
 }
 

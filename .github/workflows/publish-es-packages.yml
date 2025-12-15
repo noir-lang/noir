@@ -40,7 +40,7 @@ jobs:
         run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: noirc_abi_wasm
           path: |
@@ -76,7 +76,7 @@ jobs:
         run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: noir_wasm
           path: |
@@ -109,7 +109,7 @@ jobs:
         run: just build-package @noir-lang/acvm_js
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: acvm-js
           path: |
@@ -130,17 +130,17 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: acvm-repo/acvm_js
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: noir_wasm
           path: compiler/wasm
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: noirc_abi_wasm
           path: tooling/noirc_abi_wasm

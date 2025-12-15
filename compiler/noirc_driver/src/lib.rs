@@ -59,10 +59,6 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 
 #[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
-    /// Specify the backend expression width that should be targeted
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
-
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -233,7 +229,6 @@ pub struct CompileOptions {
 impl Default for CompileOptions {
     fn default() -> Self {
         Self {
-            expression_width: None,
             force_compile: false,
             show_ssa: false,
             show_ssa_pass: Vec::new(),
@@ -301,19 +296,6 @@ impl CompileOptions {
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
         }
-    }
-}
-
-pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        w if w >= 3 => Ok(ExpressionWidth::Bounded { width }),
-        _ => Err(Error::new(ErrorKind::InvalidInput, "has to be 0 or at least 3".to_string())),
     }
 }
 
@@ -727,7 +709,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -881,7 +863,7 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 
