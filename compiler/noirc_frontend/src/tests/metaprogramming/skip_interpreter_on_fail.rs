@@ -672,7 +672,7 @@ fn comptime_trait_default_method_using_missing_associated_constant() {
 }
 
 #[test]
-fn regressoin_10829_0() {
+fn regression_10829_0() {
     let src = "
     fn main() {
         comptime {
@@ -689,7 +689,7 @@ fn regressoin_10829_0() {
 }
 
 #[test]
-fn regressoin_10829() {
+fn regression_10829() {
     let src = "
     fn main() {
         comptime {
