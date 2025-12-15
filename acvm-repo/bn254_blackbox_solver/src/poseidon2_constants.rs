@@ -8,27 +8,27 @@ use lazy_static::lazy_static;
 use crate::FieldElement;
 
 /// Configuration parameters for Poseidon2 permutation
-pub struct Poseidon2Config {
+pub(crate) struct Poseidon2Config {
     /// State width (or state size, number of field elements in the permutation state).
-    pub t: u32,
+    pub(crate) t: u32,
 
     /// Number of full rounds (also called R_F).
     /// In full rounds, the S-box is applied to all state elements.
-    pub rounds_f: u32,
+    pub(crate) rounds_f: u32,
 
     /// Number of partial rounds (also called R_P).
     /// In partial rounds, the S-box is applied only to the first state element.
-    pub rounds_p: u32,
+    pub(crate) rounds_p: u32,
 
     /// Internal matrix diagonal values used in the linear layer of partial rounds.
-    pub internal_matrix_diagonal: [FieldElement; 4],
+    pub(crate) internal_matrix_diagonal: [FieldElement; 4],
 
     /// Round constants added to the state in each round.
-    pub round_constant: [[FieldElement; 4]; 64],
+    pub(crate) round_constant: [[FieldElement; 4]; 64],
 }
 
 /// Helper function to convert hex strings to field elements
-pub fn field_from_hex(hex: &str) -> FieldElement {
+pub(crate) fn field_from_hex(hex: &str) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&hex::decode(hex).expect("Should be passed only valid hex"))
 }
 
@@ -36,7 +36,7 @@ lazy_static! {
 
     /// The complete Poseidon2 configuration for BN254.
     /// This includes all parameters and constants needed for the permutation.
-    pub static ref POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
+    pub(crate) static ref POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
         // The value of 4 is optimized for a PLONK proving system width of 4,
         // to align with the number of witness columns available in the constraint system.
         t: 4,
@@ -48,7 +48,7 @@ lazy_static! {
 
     /// Internal matrix diagonal for Poseidon2 permutation.
     /// These values are used in the internal rounds for linear layer mixing.
-    pub static ref INTERNAL_MATRIX_DIAGONAL: [FieldElement; 4] = [
+    static ref INTERNAL_MATRIX_DIAGONAL: [FieldElement; 4] = [
         field_from_hex("10dc6e9c006ea38b04b1e03b4bd9490c0d03f98929ca1d7fb56821fd19d3b6e7"),
         field_from_hex("0c28145b6a44df3e0149b3d0a30b3bb599df9756d4dd9b84a86b38cfb45a740b"),
         field_from_hex("00544b8338791518b2c7645a50392798b21f75bb60e3596170067d00141cac15"),
@@ -57,7 +57,7 @@ lazy_static! {
 
     /// Round constants for all rounds of Poseidon2.
     /// Contains 64 rounds, each with 4 field elements.
-    pub static ref ROUND_CONSTANT: [[FieldElement; 4]; 64] = [
+    static ref ROUND_CONSTANT: [[FieldElement; 4]; 64] = [
         [
             field_from_hex("19b849f69450b06848da1d39bd5e4a4302bb86744edc26238b0878e269ed23e5"),
             field_from_hex("265ddfe127dd51bd7239347b758f0a1320eb2cc7450acc1dad47f80c8dcf34d6"),
