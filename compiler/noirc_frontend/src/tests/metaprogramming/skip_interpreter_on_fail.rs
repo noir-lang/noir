@@ -914,3 +914,27 @@ fn expression_level_error_in_function_call() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn call_to_quoted_function_from_invalid_comptime_block() {
+    let src = "
+    comptime fn generate_helper(_: TypeDefinition) -> Quoted {
+        let _x: i32 = 1_i8; // ERROR - execution halts
+                      ^^^^ Expected type i32, found type i8
+        // Following line never executes
+        quote { fn helper() -> Field { 42 } }
+    }
+
+    #[generate_helper]
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo {};
+        let _result = helper(); // Potential error: `helper` not found
+                      ^^^^^^ cannot find `helper` in this scope
+                      ~~~~~~ not found in this scope
+    }
+    ";
+    check_errors(src);
+    // let expanded = assert
+}
