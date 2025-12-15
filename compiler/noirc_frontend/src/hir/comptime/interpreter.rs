@@ -295,7 +295,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             } else if oracle.starts_with("__debug") {
                 Ok(Value::Unit)
             } else {
-                let item = format!("Comptime evaluation for oracle functions like {oracle}");
+                let item = format!("Comptime evaluation for oracle functions like '{oracle}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
