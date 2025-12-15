@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765802715490,
+  "lastUpdate": 1765802747475,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "caaf7c3d601533e546119994a2798a6f5454083d",
-          "message": "fix: SignedField Eq and Hash implementations (#10671)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-12-04T13:57:26Z",
-          "tree_id": "9db6f7e74d7220e5bf7e4ee7bf3aef401c767717",
-          "url": "https://github.com/noir-lang/noir/commit/caaf7c3d601533e546119994a2798a6f5454083d"
-        },
-        "date": 1764858005565,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252332,
-            "range": "± 721",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222381,
-            "range": "± 15149",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789382,
-            "range": "± 29585",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "b5f559fd7aff6449a13a8687f3f0c1706bbf7549",
           "message": "fix: element type sizes array has extra room for slice_insert (#10742)",
           "timestamp": "2025-12-04T15:06:39Z",
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2797100,
             "range": "± 2381",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "91872a853a05693c8f6fb34190b3f98c38a55c2d",
+          "message": "chore: Test reference_expression cases (#10899)",
+          "timestamp": "2025-12-15T12:22:47Z",
+          "tree_id": "3d72cca6e54d7b806b23330e5cf31a25f2bb191f",
+          "url": "https://github.com/noir-lang/noir/commit/91872a853a05693c8f6fb34190b3f98c38a55c2d"
+        },
+        "date": 1765802716082,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 271518,
+            "range": "± 1282",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237822,
+            "range": "± 920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799432,
+            "range": "± 1743",
             "unit": "ns/iter"
           }
         ]
