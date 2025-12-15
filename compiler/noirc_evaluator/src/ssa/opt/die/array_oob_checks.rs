@@ -114,15 +114,15 @@ impl Context {
                 let array_length =
                     function.dfg.make_constant(u128::from(array_length).into(), length_type);
 
-                let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
+                let is_index_in_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     None,
                     call_stack,
                 );
-                let is_index_out_of_bounds = is_index_out_of_bounds.first();
+                let is_index_in_bounds = is_index_in_bounds.first();
                 let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
-                (is_index_out_of_bounds, true_const)
+                (is_index_in_bounds, true_const)
             };
 
             let (lhs, rhs) = apply_side_effects(
