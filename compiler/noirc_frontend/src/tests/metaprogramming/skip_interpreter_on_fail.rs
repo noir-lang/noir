@@ -817,21 +817,8 @@ fn regression_10865() {
 fn execution_halts_when_encountering_errored_expression() {
     // Demonstrates that execution proceeds statement-by-statement until hitting
     // an errored expression, at which point it halts completely.
-    let src = "
+    let src = r#"
     comptime mut global COUNTER: Field = 0;
-
-    comptime fn foo() {
-        COUNTER += 1;         // Should execute (COUNTER = 1)
-        let _x: u32 = \"bad\";  // Error here - execution halts
-                      ^^^^^ Expected type u32, found type str<3>
-        COUNTER += 100;       // Should NOT execute
-    }
-
-    comptime fn bar() {
-        COUNTER += 10;        // Should execute (COUNTER = 11)
-        foo();                // Calls foo, which will halt execution
-        COUNTER += 1000;      // Should NOT execute (execution halted in foo)
-    }
 
     fn main() {
         comptime {
@@ -849,7 +836,23 @@ fn execution_halts_when_encountering_errored_expression() {
             assert_eq(COUNTER, 0);
         }
     }
-    ";
+
+    comptime fn bar() {
+        COUNTER += 10;        // Should execute (COUNTER = 110)
+        assert_eq(COUNTER, 110);
+        foo();                // Calls foo, which will halt execution
+        COUNTER += 1000;      // Should NOT execute (execution halted in foo)
+    }
+
+    comptime fn foo() {
+        COUNTER += 1;         // Should execute (COUNTER = 111)
+        assert_eq(COUNTER, 111);
+        let _x: u32 = "bad";  // Error here - execution halts
+                      ^^^^^ Expected type u32, found type str<3>
+        assert_eq(COUNTER, 0); // This would be an assertion error if this expression was run
+        COUNTER += 100;       // Should NOT execute
+    }
+    "#;
     check_errors(src);
 }
 
@@ -870,8 +873,9 @@ fn statement_level_error_tracking_in_different_blocks() {
                           ^^^^^^^ Expected type u32, found type str<5>
         }
 
+        // Third block should not execute
         comptime {
-            COUNTER += 1;  // Third block should not execute
+            COUNTER += 1;  
             // We would expect one of these assertions to fail if the comptime block was run
             assert_eq(COUNTER, 2);
             assert_eq(COUNTER, 0);
@@ -888,6 +892,15 @@ fn expression_level_error_in_function_call() {
     let src = "
     comptime mut global VALUE: Field = 0;
 
+    fn main() {
+        comptime {
+            good();  // This should be executed
+            assert_eq(VALUE, 10);
+            assert(VALUE != 0); // We do not assert an execution failure as we want to show that `bad` begins executing
+            bad();   // This will error but good() already executed
+        }
+    }
+
     comptime fn good() {
         VALUE = 10;
     }
@@ -897,15 +910,6 @@ fn expression_level_error_in_function_call() {
         let _x: u32 = \"error\";
                       ^^^^^^^ Expected type u32, found type str<5>
         assert_eq(VALUE, 0); // This would be an assertion error if the block was run
-    }
-
-    fn main() {
-        comptime {
-            good();  // This should be executed
-            assert_eq(VALUE, 10);
-            assert(VALUE != 0); // We do not assert an execution failure as we want to show that `bad` begins executing
-            bad();   // This will error but good() already executed
-        }
     }
     ";
     check_errors(src);
