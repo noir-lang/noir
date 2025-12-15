@@ -151,9 +151,8 @@ impl<'context> Elaborator<'context> {
         };
 
         self.errors.extend(errors);
-        // Transfer the set of functions with errors from the fresh elaborator
-        // so the interpreter can skip calling them
-        self.functions_with_errors.extend(elaborator.functions_with_errors);
+        self.exprs_with_errors.extend(elaborator.exprs_with_errors);
+        self.stmts_with_errors.extend(elaborator.stmts_with_errors);
         result
     }
 
@@ -387,7 +386,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = Some(attribute_context.module);
 
         // Save the annotated function's ID before moving the item
-        let annotated_func_id =
+        let _annotated_func_id =
             if let Value::FunctionDefinition(func_id) = item { Some(func_id) } else { None };
 
         let mut interpreter = self.setup_interpreter();
@@ -403,15 +402,6 @@ impl<'context> Elaborator<'context> {
 
         let result =
             interpreter.call_function(function, arguments, TypeBindings::default(), location);
-
-        // After trying to call the attribute function, check if it has errors.
-        // If so, mark the annotated function as also having errors to prevent it from executing.
-        // We need to check this before propagating the error with `?`.
-        if self.functions_with_errors.contains(&function) {
-            if let Some(func_id) = annotated_func_id {
-                self.functions_with_errors.insert(func_id);
-            }
-        }
 
         let value = result.map_err(CompilationError::from)?;
 

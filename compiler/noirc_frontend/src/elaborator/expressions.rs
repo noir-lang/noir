@@ -59,6 +59,21 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+
+        if has_errors {
+            self.exprs_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    fn elaborate_expression_inner(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
         let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
         let (hir_expr, typ) = match expr.kind {

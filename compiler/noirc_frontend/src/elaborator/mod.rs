@@ -80,7 +80,8 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, ExprId, GlobalId, NodeInterner, StmtId, TraitId, TraitImplId, TypeAliasId,
+        TypeId,
     },
     parser::{ParserError, ParserErrorReason},
 };
@@ -261,9 +262,17 @@ pub struct Elaborator<'context> {
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
 
-    /// Tracks functions that had errors during elaboration.
-    /// Used to prevent the interpreter from running functions with errors.
-    pub(crate) functions_with_errors: HashSet<FuncId>,
+    /// Tracks expressions that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored expressions.
+    pub(crate) exprs_with_errors: HashSet<ExprId>,
+
+    /// Tracks statements that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored statements.
+    pub(crate) stmts_with_errors: HashSet<StmtId>,
+
+    /// Set to true when the interpreter encounters an errored expression/statement,
+    /// causing all subsequent comptime evaluation to be skipped.
+    pub(crate) comptime_evaluation_halted: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -331,7 +340,9 @@ impl<'context> Elaborator<'context> {
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
-            functions_with_errors: HashSet::default(),
+            exprs_with_errors: HashSet::default(),
+            stmts_with_errors: HashSet::default(),
+            comptime_evaluation_halted: false,
         }
     }
 

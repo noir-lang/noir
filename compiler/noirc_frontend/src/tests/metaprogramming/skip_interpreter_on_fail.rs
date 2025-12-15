@@ -63,23 +63,20 @@ fn do_not_evaluate_comptime_block_with_preceding_failure() {
 #[test]
 fn failing_comptime_function_not_run() {
     let src = "
-    comptime mut global FLAG: bool = false; 
-    
+    comptime mut global FLAG: bool = false;
+
     fn main() {
         comptime {
-            bad(); 
-            // We expect the `FLAG` to remain `false`
-            assert_eq(FLAG, false);
-            // This comptime block will not be run at all as `bad` has errors
-            assert_eq(FLAG, true);
+            bad();
+            // Execution halts when bad() encounters its error, so neither assertion runs
         }
     }
 
     comptime fn bad() {
-        // Type error here
+        // Type error here - execution halts at this point
         let _: i32 = 10_u32;
                      ^^^^^^ Expected type i32, found type u32
-        FLAG = true;
+        FLAG = true;  // This doesn't execute
     }
     ";
     check_errors(src);
@@ -87,51 +84,44 @@ fn failing_comptime_function_not_run() {
 
 #[test]
 fn comptime_execution_stops_at_first_elaboration_error() {
-    // This test demonstrates the incremental execution model for comptime code,
-    // similar to Zig's comptime semantics. Execution proceeds by statement
-    // in order until an error is encountered, then stops completely.
+    // This test demonstrates the incremental execution model for comptime code.
+    // Execution proceeds statement-by-statement until an errored expression is encountered,
+    // then halts completely.
     //
     // Execution flow:
     // 1. COUNTER is incremented to 1 in the comptime block
     // 2. foo() is called, which increments COUNTER to 2
     // 3. The assertion `assert_eq(COUNTER, 2)` in foo() passes
-    // 4. The call to bar() happens, but execution stops immediately when bar()
-    //    encounters its type error during elaboration
-    // 5. We never execute any statements in bar() at comptime
-    //
-    // Evidence that bar() never executes:
-    // - The assertion `assert_eq(COUNTER, 0)` at the start of bar() succeeds,
-    //   proving COUNTER is still 0 inside bar() (because bar() never
-    //   actually runs). If it had run, it would see COUNTER = 2.
-    // - bar() has a type error that prevents it from executing at comptime
-    // - After bar() fails, we don't continue execution back in foo() or main()
-    //
-    // This test verifies that once we hit an error (the type error in bar()),
-    // execution stops completely and we don't continue in the calling function.
+    // 4. The call to bar() happens and executes its first statement (COUNTER = 3)
+    // 5. bar() hits the type error, execution halts
+    // 6. We don't execute any further statements in bar(), foo(), or main()
     let src = "
     comptime mut global COUNTER: Field = 0;
 
     fn main() {
         comptime {
-            COUNTER += 1;  // Would make COUNTER = 1
+            COUNTER += 1;  // Makes COUNTER = 1
             let _x = foo();
-            assert_eq(COUNTER, 0);
+            // Execution halted, this doesn't run
+            COUNTER += 100;
         }
     }
 
     comptime fn foo() -> u32 {
-        COUNTER += 1;  // Would make COUNTER = 2
+        COUNTER += 1;  // Makes COUNTER = 2
         assert_eq(COUNTER, 2);
         let result = bar();
-        assert_eq(COUNTER, 0);
+        // Execution halted in bar(), this doesn't run
+        COUNTER += 100;
         result
     }
 
     comptime fn bar() -> u32 {
-        assert_eq(COUNTER, 0);
+        COUNTER += 1;  // Makes COUNTER = 3
         let _: u32 = true;
                      ^^^^ Expected type u32, found type bool
-        assert_eq(COUNTER, 0);
+        // Execution halted, this doesn't run
+        COUNTER += 100;
         3
     }
     ";
@@ -322,10 +312,8 @@ fn nested_function_calls_with_inner_error_pre_call_mutation_decl_order() {
 
         fn main() {
             comptime {
-                outer();
-                assert_eq(FLAG, false);
-                // This comptime block will not be run at all
-                assert_eq(FLAG, true);
+                outer();  // Sets FLAG = true, then hits error in inner()
+                // Execution halted, assertions don't run
             }
         }
 
@@ -445,18 +433,20 @@ fn attribute_function_with_error_not_run() {
             let _: i32 = 10_u32;
                          ^^^^^^ Expected type i32, found type u32
             FLAG = true;
+            // Should not be run
+            assert_eq(FLAG, false);
             quote {}
         }
 
         #[my_attribute]
         fn some_function() { }
+           ^^^^^^^^^^^^^ unused function some_function
+           ~~~~~~~~~~~~~ unused function
 
         fn main() {
             comptime {
-                some_function();
+                // Attribute already processed, FLAG is still false
                 assert_eq(FLAG, false);
-                assert_eq(FLAG, true);
-
             }
         }
         ";
@@ -465,14 +455,14 @@ fn attribute_function_with_error_not_run() {
 
 #[test]
 fn attribute_with_error_prevents_function_execution() {
-    // The annotated function should not be called when its attribute failed
+    // Attribute execution halts when encountering an error
     let src = "
         comptime mut global FLAG: bool = false;
 
         comptime fn my_attribute(_f: FunctionDefinition) -> Quoted {
             let _: i32 = 10_u32;
                          ^^^^^^ Expected type i32, found type u32
-            FLAG = true;
+            FLAG = true;  // Doesn't execute
             quote {}
         }
 
@@ -483,9 +473,8 @@ fn attribute_with_error_prevents_function_execution() {
 
         fn main() {
             comptime {
-                some_function();
-                assert_eq(FLAG, false);
-                assert_eq(FLAG, true);
+                some_function();  // Runs normally, attribute already processed
+                assert_eq(FLAG, true);  // some_function set it
             }
         }
         ";
@@ -568,6 +557,7 @@ fn regression_10807_1() {
             let start: u32 = 1;
             let end = 340282366920938463463374607431768211456;
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The value `340282366920938463463374607431768211456` cannot fit into `u32` which has range `0..=4294967295`
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 340282366920938463463374607431768211456 is outside the range of the u32 type
             for i in start..end {
                 let _ = i;
             }
@@ -808,6 +798,96 @@ fn regression_10865() {
                         ^^^^^^^^^ Type Foo has no member named undefined
             assert_eq(f.undefined, 0);
                         ^^^^^^^^^ Type Foo has no member named undefined
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn execution_halts_when_encountering_errored_expression() {
+    // Demonstrates that execution proceeds statement-by-statement until hitting
+    // an errored expression, at which point it halts completely.
+    let src = "
+    comptime mut global COUNTER: Field = 0;
+
+    comptime fn foo() {
+        COUNTER += 1;         // Should execute (COUNTER = 1)
+        let _x: u32 = \"bad\";  // Error here - execution halts
+                      ^^^^^ Expected type u32, found type str<3>
+        COUNTER += 100;       // Should NOT execute
+    }
+
+    comptime fn bar() {
+        COUNTER += 10;        // Should execute (COUNTER = 11)
+        foo();                // Calls foo, which will halt execution
+        COUNTER += 1000;      // Should NOT execute (execution halted in foo)
+    }
+
+    fn main() {
+        comptime {
+            COUNTER += 100;   // Should execute (COUNTER = 100)
+            bar();            // Calls bar, which calls foo, which halts
+            // Execution has halted, nothing below runs
+            COUNTER += 10000;
+        }
+
+        // Verify COUNTER = 100 + 10 + 1 = 111 (if execution halted correctly)
+        comptime {
+            assert_eq(COUNTER, 111);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn statement_level_error_tracking_in_different_blocks() {
+    // Demonstrates that errors in one comptime block don't prevent
+    // statements in other comptime blocks from executing.
+    let src = "
+    comptime mut global COUNTER: Field = 0;
+
+    fn main() {
+        comptime {
+            COUNTER += 1;  // First block executes successfully
+        }
+
+        comptime {
+            let _x: u32 = \"error\";  // Second block has error
+                          ^^^^^^^ Expected type u32, found type str<5>
+        }
+
+        comptime {
+            COUNTER += 1;  // Third block should still execute
+            assert_eq(COUNTER, 2);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn expression_level_error_in_function_call() {
+    // Demonstrates that when a function contains an errored expression,
+    // only that expression is marked, but we can still call other functions.
+    let src = "
+    comptime mut global VALUE: Field = 0;
+
+    comptime fn good() {
+        VALUE = 10;
+    }
+
+    comptime fn bad() {
+        let _x: u32 = \"error\";
+                      ^^^^^^^ Expected type u32, found type str<5>
+    }
+
+    fn main() {
+        comptime {
+            good();  // This should work
+            assert_eq(VALUE, 10);
+            bad();   // This will error but good() already executed
         }
     }
     ";

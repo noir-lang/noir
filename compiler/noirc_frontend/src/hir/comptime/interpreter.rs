@@ -193,6 +193,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
+        // dbg!(self.elaborator.errors.len());
+        // dbg!(self.elaborator.stmts_with_errors.len());
+        // dbg!(self.elaborator.exprs_with_errors.len());
+
         let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
@@ -224,23 +228,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
         let meta = self.elaborator.interner.function_meta(&function);
         match self.elaborator.interner.function(&function).try_as_expr() {
-            Some(body) => {
-                // Even if the body exists, check if it had errors during elaboration
-                if self.elaborator.functions_with_errors.contains(&function) {
-                    return Err(InterpreterError::SkippedDueToEarlierErrors);
-                }
-                Ok(body)
-            }
+            Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
-
-                    // After elaboration, check if there were errors before trying to get the body
-                    if self.elaborator.functions_with_errors.contains(&function) {
-                        return Err(InterpreterError::SkippedDueToEarlierErrors);
-                    }
 
                     // Recursive call - this will now hit the Some(body) branch
                     self.get_function_body(function, location)
@@ -594,6 +587,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluate an expression and return the result.
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+        // If comptime evaluation has been halted, don't execute anything
+        if self.elaborator.comptime_evaluation_halted {
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        // Skip expressions that had errors during elaboration and halt all future execution
+        if self.elaborator.exprs_with_errors.contains(&id) {
+            self.elaborator.comptime_evaluation_halted = true;
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         match self.evaluate_no_dereference(id)? {
             Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
             other => Ok(other.move_struct()),
@@ -1197,6 +1201,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+        // If comptime evaluation has been halted, don't execute anything
+        if self.elaborator.comptime_evaluation_halted {
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        // Skip statements that had errors during elaboration and halt all future execution
+        if self.elaborator.stmts_with_errors.contains(&statement) {
+            self.elaborator.comptime_evaluation_halted = true;
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),

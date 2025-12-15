@@ -507,7 +507,7 @@ impl Elaborator<'_> {
 
         self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
 
-        let ((hir_func, body_type), has_errors) = self.with_error_guard(|this| match kind {
+        let ((hir_func, body_type), _has_errors) = self.with_error_guard(|this| match kind {
             FunctionKind::Builtin
             | FunctionKind::LowLevel
             | FunctionKind::TraitFunctionWithoutBody => {
@@ -533,11 +533,6 @@ impl Elaborator<'_> {
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         });
-
-        // Track functions with errors to prevent interpreter from running them
-        if has_errors {
-            self.functions_with_errors.insert(id);
-        }
 
         // Don't verify the return type for builtin functions & trait function declarations
         if !func_meta.is_stub() {
