@@ -359,7 +359,7 @@ impl RegisterAllocator for GlobalSpace {
         _preallocated_registers: Vec<MemoryAddress>,
         _layout: LayoutConfig,
     ) -> Self {
-        unimplemented!("blah")
+        unimplemented!("`GlobalSpace` does not implement `from_preallocated_registers")
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
