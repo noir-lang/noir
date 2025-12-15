@@ -936,5 +936,4 @@ fn call_to_quoted_function_from_invalid_comptime_block() {
     }
     ";
     check_errors(src);
-    // let expanded = assert
 }
