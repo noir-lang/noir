@@ -205,7 +205,6 @@ impl CircuitSimulator {
 
 #[cfg(test)]
 mod tests {
-
     use crate::compiler::CircuitSimulator;
     use acir::circuit::Circuit;
 
