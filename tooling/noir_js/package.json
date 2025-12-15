@@ -56,7 +56,7 @@
     "@types/pako": "^2",
     "@types/prettier": "^3.0.0",
     "chai": "^4.5.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
     "mocha": "^11.5.0",
     "prettier": "3.7.4",
