@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765810922734,
+  "lastUpdate": 1765811388551,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23240,48 +23240,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "50c3d0f563e83fcf563f7260cf1417c2e74c71f1",
-          "message": "feat(brillig): Show Brillig opcode advisories (#10746)",
-          "timestamp": "2025-12-04T15:41:44Z",
-          "tree_id": "d49344d57c01b6c408ddae92bfda0a1d2475cb87",
-          "url": "https://github.com/noir-lang/noir/commit/50c3d0f563e83fcf563f7260cf1417c2e74c71f1"
-        },
-        "date": 1764864227911,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257435,
-            "range": "± 721",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229212,
-            "range": "± 4775",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2796490,
-            "range": "± 25940",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "6e73ab4a06152778d91f3cbfd17acfdf9ca851c6",
           "message": "fix(brillig): Fix lookup for the back-edge (#10816)",
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796476,
             "range": "± 2079",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "725aeea3b7ef48bf4b5a9d6390327624412d9136",
+          "message": "chore: replace some unused `RegisterAllocator` methods with panics (#10897)",
+          "timestamp": "2025-12-15T14:47:59Z",
+          "tree_id": "49dd4130319993d22ca0521459afbe4572ac88e7",
+          "url": "https://github.com/noir-lang/noir/commit/725aeea3b7ef48bf4b5a9d6390327624412d9136"
+        },
+        "date": 1765811356813,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264359,
+            "range": "± 598",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231721,
+            "range": "± 5029",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2797205,
+            "range": "± 2039",
             "unit": "ns/iter"
           }
         ]
