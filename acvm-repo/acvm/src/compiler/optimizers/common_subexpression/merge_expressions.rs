@@ -220,9 +220,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                     });
                 }
                 if let Some(predicate) = predicate {
-                    for witness in CircuitSimulator::expr_witness(predicate) {
-                        witnesses.insert(witness);
-                    }
+                    witnesses.extend(CircuitSimulator::expr_witness(predicate));
                 }
                 for i in outputs {
                     self.for_each_brillig_output_witness(i, |witness| {
