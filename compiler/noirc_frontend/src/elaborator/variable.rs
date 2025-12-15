@@ -23,16 +23,11 @@ use noirc_errors::Location;
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
-        let ((id, typ, is_comptime_local, location), has_errors) =
-            self.with_error_guard(|this| this.elaborate_variable_inner(variable));
+        let (id, typ, is_comptime_local, location) = self.elaborate_variable_inner(variable);
 
         // Only check has_errors when we need to call the interpreter
         // If this variable is a comptime local variable, use its current value as the final expression
         if is_comptime_local {
-            if has_errors {
-                return (id, typ);
-            }
-
             let mut interpreter = self.setup_interpreter();
             let value = interpreter.evaluate(id);
             // If the value is an error it means the variable already had an error, so don't report it here again

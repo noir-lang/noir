@@ -72,54 +72,49 @@ impl Elaborator<'_> {
         let location = let_stmt.pattern.location();
         let type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
-        let (global_id, has_errors) = self.with_error_guard(|this| {
-            // ABI attributes are only meaningful within contracts, so error if used elsewhere.
-            if !this.in_contract() {
-                for attr in &let_stmt.attributes {
-                    if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
-                        this.push_err(ResolverError::AbiAttributeOutsideContract {
-                            location: attr.location,
-                        });
-                    }
+        // ABI attributes are only meaningful within contracts, so error if used elsewhere.
+        if !self.in_contract() {
+            for attr in &let_stmt.attributes {
+                if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
+                        location: attr.location,
+                    });
                 }
             }
+        }
 
-            // Non-comptime globals must be immutable. Comptime globals can be mutable during
-            // compile-time execution, but all globals are immutable at runtime.
-            if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
-                this.push_err(ResolverError::MutableGlobal { location });
-            }
+        // Non-comptime globals must be immutable. Comptime globals can be mutable during
+        // compile-time execution, but all globals are immutable at runtime.
+        if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+            self.push_err(ResolverError::MutableGlobal { location });
+        }
 
-            // Elaborate the let statement in a comptime context. This ensures that the expression
-            // is type-checked and converted to HIR.
-            let (let_statement, _typ) = this.elaborate_in_comptime_context(|this| {
-                this.elaborate_let(let_stmt, Some(global_id))
-            });
+        // Elaborate the let statement in a comptime context. This ensures that the expression
+        // is type-checked and converted to HIR.
+        let (let_statement, _typ) = self
+            .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
-            // References cannot be stored in globals because they would outlive their referents.
-            // All data in globals must be owned.
-            if let_statement.r#type.contains_reference() {
-                this.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
-            }
+        // References cannot be stored in globals because they would outlive their referents.
+        // All data in globals must be owned.
+        if let_statement.r#type.contains_reference() {
+            self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
 
-            if !let_statement.comptime && matches!(let_statement.r#type, Type::Quoted(_)) {
-                let typ = let_statement.r#type.to_string();
-                let location = type_location;
-                this.push_err(ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location });
-            }
+        if !let_statement.comptime && matches!(let_statement.r#type, Type::Quoted(_)) {
+            let typ = let_statement.r#type.to_string();
+            let location = type_location;
+            self.push_err(ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location });
+        }
 
-            let let_statement = HirStatement::Let(let_statement);
+        let let_statement = HirStatement::Let(let_statement);
 
-            // Replace the placeholder statement that was created during def collection with
-            // the fully elaborated HIR statement.
-            let statement_id = this.interner.get_global(global_id).let_statement;
-            this.interner.replace_statement(statement_id, let_statement);
-
-            global_id
-        });
+        // Replace the placeholder statement that was created during def collection with
+        // the fully elaborated HIR statement.
+        let statement_id = self.interner.get_global(global_id).let_statement;
+        self.interner.replace_statement(statement_id, let_statement);
 
         // Evaluate the global at compile time to get its constant value.
-        self.elaborate_comptime_global(global_id, has_errors);
+        self.elaborate_comptime_global(global_id);
 
         // Register this global in the LSP database for IDE features.
         if let Some(name) = name {
@@ -135,12 +130,7 @@ impl Elaborator<'_> {
     /// The comptime [interpreter][crate::hir::comptime::Interpreter] is used for evaluating the expression.
     ///
     /// See the [module-level documentation][self] for more details.
-    fn elaborate_comptime_global(&mut self, global_id: GlobalId, has_errors: bool) {
-        if has_errors {
-            self.push_err(crate::hir::comptime::InterpreterError::SkippedDueToEarlierErrors);
-            return;
-        }
-
+    fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
         // Retrieve the HIR let statement that was generated in elaborate_global.
         let let_statement = self
             .interner
