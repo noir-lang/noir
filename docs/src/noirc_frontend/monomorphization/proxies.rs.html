@@ -686,7 +686,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized_no_emit_test, get_monomorphized_with_error_filter},
+        test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
     };
 
     <span class="attr">#[test]
@@ -704,7 +704,7 @@
         }
         "</span>;
 
-        <span class="kw">let </span>program = get_monomorphized_no_emit_test(src).unwrap();
+        <span class="kw">let </span>program = get_monomorphized(src).unwrap();
         <span class="macro">insta::assert_snapshot!</span>(program, @<span class="string">r"
         fn main$f0() -&gt; () {
             {
@@ -734,7 +734,7 @@
         }
         "</span>;
 
-        <span class="kw">let </span>program = get_monomorphized_no_emit_test(src).unwrap();
+        <span class="kw">let </span>program = get_monomorphized(src).unwrap();
         <span class="macro">insta::assert_snapshot!</span>(program, @<span class="string">r"
         unconstrained fn main$f0() -&gt; () {
             foo$f1((bar$f2, bar$f2));
