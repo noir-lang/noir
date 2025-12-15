@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765803307913,
+  "lastUpdate": 1765803799794,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23231,48 +23231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b5f559fd7aff6449a13a8687f3f0c1706bbf7549",
-          "message": "fix: element type sizes array has extra room for slice_insert (#10742)",
-          "timestamp": "2025-12-04T15:06:39Z",
-          "tree_id": "948901478f12bd97d5424ce4380c6b03e8a2c009",
-          "url": "https://github.com/noir-lang/noir/commit/b5f559fd7aff6449a13a8687f3f0c1706bbf7549"
-        },
-        "date": 1764862248786,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255523,
-            "range": "± 1179",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225595,
-            "range": "± 3820",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790413,
-            "range": "± 3590",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25324,6 +25282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2799432,
             "range": "± 1743",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3c91a99258bec1849ad2b92fc1c46b564f2042b",
+          "message": "fix: use try_bind() to check for self-referencing types (#10905)",
+          "timestamp": "2025-12-15T12:42:07Z",
+          "tree_id": "b7c2858cef675c9e74369583a0c739a40f19f8ca",
+          "url": "https://github.com/noir-lang/noir/commit/c3c91a99258bec1849ad2b92fc1c46b564f2042b"
+        },
+        "date": 1765803767960,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261004,
+            "range": "± 688",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227555,
+            "range": "± 4637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790190,
+            "range": "± 13470",
             "unit": "ns/iter"
           }
         ]
