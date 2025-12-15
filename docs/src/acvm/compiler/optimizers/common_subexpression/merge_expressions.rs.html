@@ -428,7 +428,29 @@
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -642,12 +664,15 @@
             Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
                 init.iter().cloned().collect()
             }
-            Opcode::BrilligCall { inputs, outputs, .. } =&gt; {
+            Opcode::BrilligCall { inputs, outputs, predicate, .. } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>witnesses = BTreeSet::new();
                 <span class="kw">for </span>i <span class="kw">in </span>inputs {
                     <span class="self">self</span>.for_each_brillig_input_witness(i, |witness| {
                         witnesses.insert(witness);
                     });
+                }
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(predicate) = predicate {
+                    witnesses.extend(CircuitSimulator::expr_witness(predicate));
                 }
                 <span class="kw">for </span>i <span class="kw">in </span>outputs {
                     <span class="self">self</span>.for_each_brillig_output_witness(i, |witness| {
@@ -856,6 +881,25 @@
             MergeExpressionsOptimizer::merge_expression(<span class="kw-2">&amp;</span>opcode_a, <span class="kw-2">&amp;</span>opcode_b, Witness(<span class="number">0</span>),),
             <span class="prelude-val">Some</span>(opcode_a)
         );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_eliminate_witnesses_used_in_brillig_call_predicates() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w2]
+        public parameters: [w0, w1]
+        return values: [w3]
+        BLACKBOX::RANGE input: w0, bits: 1
+        BLACKBOX::RANGE input: w1, bits: 1
+        BLACKBOX::RANGE input: w2, bits: 1
+        ASSERT w4 = w0*w1
+        ASSERT w5 = -w2 + 1
+        BRILLIG CALL func: 0, predicate: w4*w5, inputs: [w2], outputs: [w6]
+        ASSERT w3 = -w5 + 1
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="kw">let </span>optimized_circuit = merge_expressions(circuit.clone());
+        <span class="macro">assert_eq!</span>(circuit, optimized_circuit);
     }
 }
 </code></pre></div></section></main></body></html>
