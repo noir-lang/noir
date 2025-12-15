@@ -113,7 +113,7 @@ impl Ssa {
     ) -> IResults {
         let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
-        interpreter.call_function(function, args)
+        interpreter.interpret_function(function, args)
     }
 }
 
@@ -133,14 +133,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
         self.functions
-    }
-
-    /// Resets the step counter to 0.
-    ///
-    /// This resets the step counter, to reset the budget before
-    /// interpreting the next entry point.
-    pub(crate) fn reset_step_counter(&mut self) {
-        self.step_counter = 0;
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
@@ -214,7 +206,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
+    /// Interpret the global instructions.
+    ///
+    /// Once this is complete, the interpreter can be reused for multiple
+    /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
+        assert_eq!(self.call_stack.len(), 1, "should be in the global context");
         let (_, function) = self.functions.first_key_value().unwrap();
         let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
@@ -241,11 +238,24 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    pub(crate) fn call_function(
+    /// Interpret an entry point, assuming the globals have already been interpreted.
+    ///
+    /// This resets any previous call stack and step counter.
+    pub(crate) fn interpret_function(
         &mut self,
         function_id: FunctionId,
-        mut arguments: Vec<Value>,
+        arguments: Vec<Value>,
     ) -> IResults {
+        self.step_counter = 0;
+        self.call_stack.truncate(1);
+        self.call_function(function_id, arguments)
+    }
+
+    /// Interpret a function call.
+    ///
+    /// Unlike `interpret_function` this does not reset the state;
+    /// it is meant to be used for internal calls.
+    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.functions[&function_id];

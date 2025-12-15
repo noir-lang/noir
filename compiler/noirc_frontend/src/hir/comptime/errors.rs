@@ -67,6 +67,11 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    RangeBoundsTypeMismatch {
+        start_type: Type,
+        end_type: Type,
+        location: Location,
+    },
     NonPointerDereferenced {
         typ: Type,
         location: Location,
@@ -321,6 +326,7 @@ impl InterpreterError {
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
             | InterpreterError::NonIntegerUsedInLoop { location, .. }
+            | InterpreterError::RangeBoundsTypeMismatch { location, .. }
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
             | InterpreterError::NonArrayIndexed { location, .. }
@@ -470,6 +476,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     String::new()
                 };
                 CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::RangeBoundsTypeMismatch { start_type, end_type, location } => {
+                let msg = format!(
+                    "Range bounds have mismatched types: start is `{start_type}` but end is `{end_type}`"
+                );
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonPointerDereferenced { typ, location } => {
                 let msg = format!("Only references may be dereferenced, but found `{typ}`");
