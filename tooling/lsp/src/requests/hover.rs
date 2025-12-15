@@ -154,7 +154,7 @@ mod hover_tests {
             Position { line: 15, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global invalid_global: Field"#,
+    global invalid_global: Field = 2"#,
             // cSpell:enable
         )
         .await;
