@@ -146,28 +146,18 @@ mod tests {
     fn regression_10929() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: Field, v1: u1):
-            enable_side_effects v1
-            v15 = not v1
-            v17 = truncate v0 to 128 bits, max_bit_size: 254
-            v18 = cast v17 as u128
-            v19 = cast v1 as u128
-            v20 = cast v15 as u128
-            v21 = unchecked_mul v19, u128 239001476155835873462206944775311375441
-            v22 = unchecked_mul v20, v18
-            v23 = unchecked_add v21, v22
-            v26 = eq v23, v18
-            constrain v26 == u1 0, "QPA"
+          b0(v0: Field, v1: Field, v2: u1):
+            enable_side_effects v2
+            v3 = eq v0, v1
+            constrain v3 == u1 0, "QPA"
             return
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
 
         let inputs = vec![
-            from_constant(
-                216767911292020316082964213810133643233_u128.into(),
-                NumericType::NativeField,
-            ),
+            from_constant(1_u128.into(), NumericType::NativeField),
+            from_constant(1_u128.into(), NumericType::NativeField),
             from_constant(false.into(), NumericType::bool()),
         ];
 
@@ -180,18 +170,10 @@ mod tests {
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: Field, v1: u1):
-            enable_side_effects v1
-            v2 = not v1
-            v3 = truncate v0 to 128 bits, max_bit_size: 254
-            v4 = cast v3 as u128
-            v5 = cast v1 as u128
-            v6 = cast v2 as u128
-            v8 = unchecked_mul v5, u128 239001476155835873462206944775311375441
-            v9 = unchecked_mul v6, v4
-            v10 = unchecked_add v8, v9
-            v11 = eq v10, v4
-            constrain v10 != v4, "QPA"
+          b0(v0: Field, v1: Field, v2: u1):
+            enable_side_effects v2
+            v3 = eq v0, v1
+            constrain v0 != v1, "QPA"
             return
         }
         "#);
