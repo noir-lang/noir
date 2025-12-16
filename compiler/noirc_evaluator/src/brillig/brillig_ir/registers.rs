@@ -558,7 +558,10 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [HeapArray].
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
-        self.allocate_register().map(|pointer| HeapArray { pointer, size })
+        self.allocate_register().map(|pointer| HeapArray {
+            pointer,
+            size: size.try_into().expect("Failed conversion from u32 to usize"),
+        })
     }
 
     /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].

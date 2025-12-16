@@ -27,14 +27,14 @@ pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
 /// * Vectors are `[ref-count, size, capacity, ...items]`
 pub mod offsets {
     /// Number of prefix fields in an array: RC.
-    pub const ARRAY_META_COUNT: usize = 1;
-    pub const ARRAY_ITEMS: usize = 1;
+    pub const ARRAY_META_COUNT: u32 = 1;
+    pub const ARRAY_ITEMS: u32 = 1;
 
     /// Number of prefix fields in a vector: RC, size, capacity.
-    pub const VECTOR_META_COUNT: usize = 3;
-    pub const VECTOR_SIZE: usize = 1;
-    pub const VECTOR_CAPACITY: usize = 2;
-    pub const VECTOR_ITEMS: usize = 3;
+    pub const VECTOR_META_COUNT: u32 = 3;
+    pub const VECTOR_SIZE: u32 = 1;
+    pub const VECTOR_CAPACITY: u32 = 2;
+    pub const VECTOR_ITEMS: u32 = 3;
 }
 
 /// Wrapper for array addresses, with convenience methods for various offsets.
@@ -46,7 +46,7 @@ pub(crate) struct ArrayAddress(MemoryAddress);
 impl ArrayAddress {
     /// The start of the items, after the meta-data.
     pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0.offset(offsets::ARRAY_ITEMS)
+        self.0.offset(offsets::ARRAY_ITEMS.try_into().expect("Failed conversion from u32 to usize"))
     }
 }
 
@@ -68,11 +68,12 @@ pub(crate) struct VectorAddress(MemoryAddress);
 impl VectorAddress {
     /// Size of the vector.
     pub(crate) fn size_addr(&self) -> MemoryAddress {
-        self.0.offset(offsets::VECTOR_SIZE)
+        self.0.offset(offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize"))
     }
     /// The start of the items, after the meta-data.
     pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0.offset(offsets::VECTOR_ITEMS)
+        self.0
+            .offset(offsets::VECTOR_ITEMS.try_into().expect("Failed conversion from u32 to usize"))
     }
 }
 
@@ -155,7 +156,9 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
     pub fn to_usize(&self) -> usize {
         match self {
-            MemoryValue::U32(value) => (*value).try_into().unwrap(),
+            MemoryValue::U32(value) => {
+                (*value).try_into().expect("Failed conversion from u32 to usize")
+            }
             other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
@@ -408,8 +411,13 @@ impl<F: AcirField> Memory<F> {
     /// Returns a memory slot index.
     fn resolve(&self, address: MemoryAddress) -> usize {
         match address {
-            MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Direct(address) => {
+                address.try_into().expect("Failed conversion from u32 to usize")
+            }
+            MemoryAddress::Relative(offset) => {
+                self.get_stack_pointer()
+                    + usize::try_from(offset).expect("Failed conversion from u32 to usize")
+            }
         }
     }
 

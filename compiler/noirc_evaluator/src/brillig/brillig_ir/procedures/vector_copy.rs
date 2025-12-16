@@ -53,7 +53,8 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             ctx.codegen_usize_op_in_place(
                 allocation_size.address,
                 BrilligBinaryOp::Add,
-                offsets::VECTOR_META_COUNT,
+                usize::try_from(offsets::VECTOR_META_COUNT)
+                    .expect("Failed conversion from u32 to usize"),
             );
             ctx.codegen_allocate_mem(target_vector.pointer, allocation_size.address);
 

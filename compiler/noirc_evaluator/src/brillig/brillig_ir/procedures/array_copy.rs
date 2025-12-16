@@ -39,7 +39,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(
             source_array_memory_size_arg,
-            (source_array.size + offsets::ARRAY_META_COUNT).into(),
+            (source_array.size
+                + usize::try_from(offsets::ARRAY_META_COUNT)
+                    .expect("Failed conversion from u32 to usize"))
+            .into(),
         );
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
@@ -114,7 +117,12 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     initialize_constant_string(brillig_context, data, *items_pointer);
 
     // Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: data.len() }))
+    items_pointer.map(|pointer| {
+        ValueOrArray::HeapArray(HeapArray {
+            pointer,
+            size: data.len().try_into().expect("Failed conversion from usize to u32"),
+        })
+    })
 }
 
 /// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
@@ -172,11 +180,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         let newline_type = u1_type.clone();
         let size = message_with_func_name.len();
-        let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
+        let msg_type = HeapValueType::Array {
+            value_types: vec![u8_type.clone()],
+            size: size.try_into().expect("Failed conversion from usize to u32"),
+        };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
         let size = PRINT_U32_TYPE_STRING.len();
-        let metadata_type = HeapValueType::Array { value_types: vec![u8_type], size };
+        let metadata_type = HeapValueType::Array {
+            value_types: vec![u8_type],
+            size: size.try_into().expect("Failed conversion from usize to u32"),
+        };
         let is_fmt_string_type = u1_type;
 
         let input_types = [

@@ -127,19 +127,19 @@ fn foreign_call_opcode_memory_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::field()],
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
             }],
         },
     ];
@@ -231,12 +231,22 @@ fn foreign_call_opcode_vector_input_and_output() {
         // output_pointer = free_memory_pointer + 3
         Opcode::Const {
             destination: r_output_pointer,
-            value: free_memory_start_addr.offset(offsets::VECTOR_ITEMS).to_usize().into(),
+            value: free_memory_start_addr
+                .offset(
+                    offsets::VECTOR_ITEMS.try_into().expect("Failed conversion from u32 to usize"),
+                )
+                .to_usize()
+                .into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         Opcode::Const {
             destination: r_output_size,
-            value: free_memory_start_addr.offset(offsets::VECTOR_SIZE).to_usize().into(),
+            value: free_memory_start_addr
+                .offset(
+                    offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize"),
+                )
+                .to_usize()
+                .into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
@@ -273,7 +283,11 @@ fn foreign_call_opcode_vector_input_and_output() {
     // Check result in memory: it should have been written to the free memory.
     let result_values: Vec<_> = memory
         .read_slice(
-            MemoryAddress::direct(free_memory_start + offsets::VECTOR_ITEMS),
+            MemoryAddress::direct(
+                free_memory_start
+                    + usize::try_from(offsets::VECTOR_ITEMS)
+                        .expect("Failed conversion from u32 to usize"),
+            ),
             output_string.len(),
         )
         .iter()
@@ -297,7 +311,10 @@ fn foreign_call_opcode_vector_input_and_output() {
     // `codegen_initialize_vector_metadata`. We *could* give the heap address in `size`, but it would be
     // an exception to how `HeapVector`s generally look like. We could also use `write_ref` in the VM,
     // but that's not what the AVM does.
-    let unset_size = memory.read(vector_addr.offset(offsets::VECTOR_SIZE));
+    let unset_size = memory.read(
+        vector_addr
+            .offset(offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize")),
+    );
     assert_eq!(unset_size, MemoryValue::Field(FieldElement::zero()));
 
     // Ensure the foreign call counter has been incremented
@@ -350,19 +367,19 @@ fn foreign_call_opcode_memory_alloc_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::field()],
-                size: initial_matrix.len(),
+                size: initial_matrix.len() as u32,
             }],
         },
     ];
@@ -454,23 +471,29 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: matrix_a.len(),
+                size: matrix_a.len() as u32,
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: matrix_a.len(),
+                size: matrix_a.len() as u32,
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![
-                ValueOrArray::HeapArray(HeapArray { pointer: r_input_a, size: matrix_a.len() }),
-                ValueOrArray::HeapArray(HeapArray { pointer: r_input_b, size: matrix_b.len() }),
+                ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input_a,
+                    size: matrix_a.len() as u32,
+                }),
+                ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input_b,
+                    size: matrix_b.len() as u32,
+                }),
             ],
             input_value_types: vec![
                 HeapValueType::Array {
-                    size: matrix_a.len(),
+                    size: matrix_a.len() as u32,
                     value_types: vec![HeapValueType::field()],
                 },
                 HeapValueType::Array {
-                    size: matrix_b.len(),
+                    size: matrix_b.len() as u32,
                     value_types: vec![HeapValueType::field()],
                 },
             ],
@@ -609,11 +632,11 @@ fn foreign_call_opcode_nested_arrays_and_vectors_input() {
             destination_value_types: vec![HeapValueType::field()],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: outer_array.len(),
+                size: outer_array.len() as u32,
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: input_array_value_types,
-                size: outer_array.len(),
+                size: outer_array.len() as u32,
             }],
         },
     ])
