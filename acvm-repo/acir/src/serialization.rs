@@ -30,7 +30,7 @@ pub enum Format {
 
 impl Default for Format {
     fn default() -> Self {
-        Self::Msgpack
+        Self::MsgpackCompact
     }
 }
 
