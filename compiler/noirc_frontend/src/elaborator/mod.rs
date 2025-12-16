@@ -125,6 +125,10 @@ pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 
 /// Maximum number of items on the interpreter stack, limiting recursion during comptime.
+///
+/// Ideally we would like this to be 1000, to match what we do in ACIR, however due to
+/// the overhead of the interpreter itself, which recursively evaluates expressions,
+/// we cannot currently raise this higher to somewhere between 300 and 350.
 pub const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
