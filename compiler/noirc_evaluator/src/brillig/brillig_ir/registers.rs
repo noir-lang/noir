@@ -310,14 +310,6 @@ impl GlobalSpace {
         Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
     }
 
-    /// Check if a `Direct` address is within the bounds of the global space.
-    ///
-    /// Panics if the address is `Relative`.
-    fn is_within_bounds(&self, register: MemoryAddress) -> bool {
-        let index = register.unwrap_direct();
-        index >= self.start()
-    }
-
     /// Expand the global space to fit a new register if necessary.
     fn update_max_address(&mut self, register: MemoryAddress) {
         let index = register.unwrap_direct();
@@ -364,22 +356,10 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn from_preallocated_registers(
-        preallocated_registers: Vec<MemoryAddress>,
-        layout: LayoutConfig,
+        _preallocated_registers: Vec<MemoryAddress>,
+        _layout: LayoutConfig,
     ) -> Self {
-        let empty = Self::new(layout);
-        for register in &preallocated_registers {
-            assert!(empty.is_within_bounds(*register), "Register out of global space bounds");
-        }
-
-        Self {
-            storage: DeallocationListAllocator::from_preallocated_registers(
-                empty.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_direct()),
-            ),
-            max_memory_address: empty.start(),
-            layout,
-        }
+        unimplemented!("`GlobalSpace` does not implement `from_preallocated_registers")
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
