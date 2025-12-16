@@ -3263,7 +3263,7 @@ mod control_dependence {
         let (ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
             ssa.loop_invariant_code_motion()
         });
-        assert!(result.is_err());
+        assert!(matches!(result, Err(InterpreterError::RangeCheckFailed { .. })));
 
         assert_normalized_ssa_equals(ssa, src);
     }
