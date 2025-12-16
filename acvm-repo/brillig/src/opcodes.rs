@@ -47,10 +47,12 @@ impl MemoryAddress {
     /// Return the index in a `Relative` address.
     ///
     /// Panics if it's `Direct`.
-    pub fn unwrap_relative(self) -> u32 {
+    pub fn unwrap_relative(self) -> usize {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
-            MemoryAddress::Relative(offset) => offset,
+            MemoryAddress::Relative(offset) => {
+                offset.try_into().expect("Failed conversion from u32 to usize")
+            }
         }
     }
 

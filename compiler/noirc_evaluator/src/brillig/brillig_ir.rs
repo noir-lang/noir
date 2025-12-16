@@ -125,7 +125,7 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.layout()))
+        MemoryAddress::direct(GlobalSpace::start_with_layout(&self.layout()))
     }
 
     /// If this flag is set, compile the array copy counter as a global.
@@ -443,7 +443,11 @@ pub(crate) mod tests {
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
-            (vm, return_data_offset, return_data_size)
+            (
+                vm,
+                return_data_offset.try_into().expect("Failed conversion from u32 to usize"),
+                return_data_size.try_into().expect("Failed conversion from u32 to usize"),
+            )
         } else {
             panic!("VM did not finish")
         }
@@ -488,7 +492,11 @@ pub(crate) mod tests {
         // The output pointer points at the heap.
         context.usize_const_instruction(
             r_output_ptr,
-            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+            FieldElement::from(
+                r_free_value
+                    + usize::try_from(offsets::VECTOR_ITEMS)
+                        .expect("Failed conversion from u32 to usize"),
+            ),
         );
         context.foreign_call_instruction(
             "make_number_sequence".into(),
