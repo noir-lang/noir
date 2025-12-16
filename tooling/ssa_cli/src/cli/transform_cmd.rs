@@ -32,7 +32,7 @@ pub(super) struct TransformCommand {
 }
 
 pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
-    let options = args.compile_options.as_ssa_options(PathBuf::default());
+    let options = args.compile_options.as_ssa_options(PathBuf::default(), false);
     let passes = super::ssa_passes(&options);
 
     let mut msg = "Initial";
