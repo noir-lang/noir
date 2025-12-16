@@ -370,3 +370,28 @@ fn regression_10554() {
     "#;
     check_monomorphization_error(src);
 }
+
+#[test]
+fn deeply_nested_expression_200_levels() {
+    // Build expression: (((1 + 2) + 3) + 4) ... + 200
+    let mut expr = String::from("1");
+    for i in 2..=200 {
+        expr = format!("({} + {})", expr, i);
+    }
+
+    let src = format!(
+        "
+      fn main() {{
+          comptime {{
+              let _ = {};
+          }}
+      }}
+      ",
+        expr
+    );
+
+    // XXX: Currently this hits Rust stack overflow before we even try to interpret it.
+    let _errors = get_program_errors(&src);
+
+    todo!("make sure we have an InterpreterError::StackOverflow in errors");
+}
