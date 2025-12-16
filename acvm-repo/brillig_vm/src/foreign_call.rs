@@ -344,7 +344,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 .to_string());
                         };
                         if values.len()
-                            != (*size).try_into().expect("Failed conversion from u32 to usize")
+                            != usize::try_from(*size).expect("Failed conversion from u32 to usize")
                         {
                             // foreign call returning flattened values into a nested type, so the sizes do not match
                             let destination = self.memory.read_ref(*pointer);
