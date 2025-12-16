@@ -76,6 +76,16 @@ impl Function {
                 return;
             };
 
+            // Only transform if side effects is one, because
+            // `Constrain` does not use `enable_side_effects` while `ConstrainNotEqual` does.
+            if !context
+                .dfg
+                .get_numeric_constant(context.enable_side_effects)
+                .is_some_and(|c| c.is_one())
+            {
+                return;
+            }
+
             if !context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
                 return;
             }
@@ -135,6 +145,34 @@ mod tests {
             return
         }
         ";
+        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
+    }
+
+    #[test]
+    /// https://github.com/noir-lang/noir/issues/10929
+    /// When side effects is not one, the transformation
+    /// should NOT happen because `Constrain` and `ConstrainNotEqual` have different
+    /// semantics with respect to `enable_side_effects`:
+    /// - `Constrain` ignores `enable_side_effects` (always executes)
+    /// - `ConstrainNotEqual` respects `enable_side_effects` (only executes when enabled)
+    fn regression_10929() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: u1):
+            enable_side_effects v1
+            v15 = not v1
+            v17 = truncate v0 to 128 bits, max_bit_size: 254
+            v18 = cast v17 as u128
+            v19 = cast v1 as u128
+            v20 = cast v15 as u128
+            v21 = unchecked_mul v19, u128 239001476155835873462206944775311375441
+            v22 = unchecked_mul v20, v18
+            v23 = unchecked_add v21, v22
+            v26 = eq v23, v18
+            constrain v26 == u1 0, "QPA"
+            return
+        }
+        "#;
         assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
     }
 }
