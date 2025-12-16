@@ -78,6 +78,8 @@ impl Function {
 
             // Only transform if side effects is one, because
             // `Constrain` does not use `enable_side_effects` while `ConstrainNotEqual` does.
+            // In that case (side effects is a variable), the instructions have different semantics
+            // and the transformation would be a mis-compilation.
             if !context
                 .dfg
                 .get_numeric_constant(context.enable_side_effects)
