@@ -11,7 +11,6 @@
 pub mod circuit;
 pub mod native_types;
 mod parser;
-mod proto;
 mod serialization;
 
 pub use acir_field;
