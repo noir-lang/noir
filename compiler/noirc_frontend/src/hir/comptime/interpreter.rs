@@ -141,11 +141,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
-        self.elaborator.interpreter_call_stack.push_back(location);
+        self.elaborator.push_interpreter_call_stack(location)?;
 
         let result = self.call_function_inner(function, arguments, location);
 
-        self.elaborator.interpreter_call_stack.pop_back();
+        self.elaborator.pop_interpreter_call_stack();
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();
@@ -318,11 +318,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let old_module = self.elaborator.replace_module(module_scope);
         let old_function = std::mem::replace(&mut self.current_function, function_scope);
 
-        self.elaborator.interpreter_call_stack.push_back(call_location);
+        self.elaborator.push_interpreter_call_stack(call_location)?;
 
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
-        self.elaborator.interpreter_call_stack.pop_back();
+        self.elaborator.pop_interpreter_call_stack();
 
         self.current_function = old_function;
         if let Some(old_module) = old_module {
@@ -1251,7 +1251,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 let message =
                     message.map(|value| value.display(self.elaborator.interner).to_string());
-                let call_stack = self.elaborator.interpreter_call_stack.clone();
+                let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
             value => {

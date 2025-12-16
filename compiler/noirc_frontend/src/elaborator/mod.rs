@@ -62,7 +62,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
@@ -123,6 +123,9 @@ use path_resolution::{
 use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
+
+/// Maximum number of items on the interpreter stack, limiting recursion during comptime.
+pub const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -244,7 +247,7 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    pub(crate) interpreter_call_stack: im::Vector<Location>,
+    interpreter_call_stack: im::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -728,6 +731,37 @@ impl<'context> Elaborator<'context> {
         let ret = f(self);
         let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
         (errored, ret)
+    }
+
+    /// Push a new location to the interpreter call stack.
+    ///
+    /// Returns an error if the stack size exceeds the maximum.
+    pub(crate) fn push_interpreter_call_stack(
+        &mut self,
+        location: Location,
+    ) -> Result<(), InterpreterError> {
+        if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+            return Err(InterpreterError::StackOverflow {
+                location,
+                call_stack: self.interpreter_call_stack.clone(),
+            });
+        }
+        self.interpreter_call_stack.push_back(location);
+        Ok(())
+    }
+
+    /// Pops the last item from the interpreter call stack.
+    ///
+    /// Panics if the call stack is empty.
+    pub(crate) fn pop_interpreter_call_stack(&mut self) {
+        self.interpreter_call_stack
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
+    }
+
+    /// The current interpreter call stack.
+    pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
+        &self.interpreter_call_stack
     }
 }
 
