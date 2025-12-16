@@ -12,6 +12,7 @@ use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, ModuleData};
+use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
@@ -330,4 +331,46 @@ fn capture_variables_by_copy() {
     ";
     let result = interpret(program);
     assert_eq!(result, Value::Unit);
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10896
+fn regression_10896() {
+    let program = "
+    fn main() -> pub Field {
+        comptime {
+            let i: i8 = -1;
+            let xs = [1, 2, 3];
+            xs[i]
+        }
+    }
+    ";
+    // This program produces a type mismatch error because the index is i8 but should be u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+fn regression_10896_with_valid_index() {
+    let program = "
+    fn main() -> pub Field {
+        comptime {
+            let i: u8 = 1;
+            let xs = [1, 2, 3];
+            xs[i]
+        }
+    }
+    ";
+    // Even if the index is valid (1), the program should still produce a type mismatch error
+    // because the index is not u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
 }
