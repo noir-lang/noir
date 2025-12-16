@@ -1,0 +1,6 @@
+[package]
+name = "slice_pop_back_simplify"
+type = "bin"
+authors = [""]
+
+[dependencies]
