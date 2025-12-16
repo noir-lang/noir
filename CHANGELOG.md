@@ -1,5 +1,64 @@
 # Changelog
 
+## [1.0.0-beta.17](https://github.com/noir-lang/noir/compare/v1.0.0-beta.16...v1.0.0-beta.17) (2025-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove protobuf ([#9055](https://github.com/noir-lang/noir/issues/9055))
+* remove `expression-width` from compile options ([#10845](https://github.com/noir-lang/noir/issues/10845))
+
+### Features
+
+* Always check bitsize of logical operation inputs ([#10750](https://github.com/noir-lang/noir/issues/10750)) ([6d9dcae](https://github.com/noir-lang/noir/commit/6d9dcae76a4cd9e1d756b14e27604970e01098e0))
+* Always perform pedantic checks on embedded curve operations ([#10776](https://github.com/noir-lang/noir/issues/10776)) ([9297904](https://github.com/noir-lang/noir/commit/929790438ed336cf246072b4c3e13df1a5199bdd))
+* **brillig:** Show Brillig opcode advisories ([#10746](https://github.com/noir-lang/noir/issues/10746)) ([50c3d0f](https://github.com/noir-lang/noir/commit/50c3d0f563e83fcf563f7260cf1417c2e74c71f1))
+* **doc:** Mobile style ([#10760](https://github.com/noir-lang/noir/issues/10760)) ([6fa1a4b](https://github.com/noir-lang/noir/commit/6fa1a4bd35006b292e21b26b217f20101d84c8e1))
+* Remove `bounded-codegen` feature from ACIRgen ([#10693](https://github.com/noir-lang/noir/issues/10693)) ([a3b5f97](https://github.com/noir-lang/noir/commit/a3b5f9752ce0141df75db30edaeb121e5e010e3d))
+
+
+### Bug Fixes
+
+* **acir:** Do not read empty array under inactive predicates for various slice ops ([#10882](https://github.com/noir-lang/noir/issues/10882)) ([5a65dae](https://github.com/noir-lang/noir/commit/5a65daee121a836e2c084b9839159163d4811c20))
+* **acir:** Nested array slice pop back  ([#10871](https://github.com/noir-lang/noir/issues/10871)) ([c9669fc](https://github.com/noir-lang/noir/commit/c9669fcb45182513d86d0832d62808d96c02f266))
+* Apply_range_constraint off-by-one error ([#10692](https://github.com/noir-lang/noir/issues/10692)) ([2c47c5a](https://github.com/noir-lang/noir/commit/2c47c5ab47c230cfa186c2eb27383cc8f5b533ce))
+* Avoid possible overflow during truncation ([#10841](https://github.com/noir-lang/noir/issues/10841)) ([9a5ea6f](https://github.com/noir-lang/noir/commit/9a5ea6f3cae79e2a0b83082b93462d28fce61151))
+* **brillig:** Fix lookup for the back-edge ([#10816](https://github.com/noir-lang/noir/issues/10816)) ([6e73ab4](https://github.com/noir-lang/noir/commit/6e73ab4a06152778d91f3cbfd17acfdf9ca851c6))
+* Capture variables in lamdba by copy ([#10683](https://github.com/noir-lang/noir/issues/10683)) ([bc40e89](https://github.com/noir-lang/noir/commit/bc40e892bdc179077cb08a30965aad8d4c2247bd))
+* Check types crossing boundaries during monomorphization too ([#10803](https://github.com/noir-lang/noir/issues/10803)) ([084ed53](https://github.com/noir-lang/noir/commit/084ed530b4bddd6733d03f9d965669aa9a87fae7))
+* **comptime:** `zeroed` returned `U8(0)` for `u1` ([#10892](https://github.com/noir-lang/noir/issues/10892)) ([a65b988](https://github.com/noir-lang/noir/commit/a65b9886a9f90800bd6050cb02d987c09a53f032))
+* Disallow no-predicates on entry points ([#10847](https://github.com/noir-lang/noir/issues/10847)) ([132eaee](https://github.com/noir-lang/noir/commit/132eaee4af4a0b589ce52be093c36702f35e07e0))
+* Do not crash on invalid strings ([#10739](https://github.com/noir-lang/noir/issues/10739)) ([00eadc5](https://github.com/noir-lang/noir/commit/00eadc5b94f900fac3eede72d9024d61086329f4))
+* Don't capture comptime vars in closures ([#10737](https://github.com/noir-lang/noir/issues/10737)) ([3900aa8](https://github.com/noir-lang/noir/commit/3900aa878cd851891a5e05c800943391932e7b4d))
+* Element type sizes array has extra room for slice_insert ([#10742](https://github.com/noir-lang/noir/issues/10742)) ([b5f559f](https://github.com/noir-lang/noir/commit/b5f559fd7aff6449a13a8687f3f0c1706bbf7549))
+* Error on duplicate field in set_fields ([#10726](https://github.com/noir-lang/noir/issues/10726)) ([a5edaa6](https://github.com/noir-lang/noir/commit/a5edaa61161198bd1f0f66952c671bc879366dfd))
+* Error on wrong Ordering trait, instead of panic. ([#10895](https://github.com/noir-lang/noir/issues/10895)) ([10ab9a5](https://github.com/noir-lang/noir/commit/10ab9a54ad8c8640c9a08495904404a3d0822e43))
+* Fix calling type variables of kind `Any` ([#10724](https://github.com/noir-lang/noir/issues/10724)) ([9493100](https://github.com/noir-lang/noir/commit/9493100ea745f2bea79632f4132220b773494a01))
+* Fix no numeric generic given leading to panic ([#10725](https://github.com/noir-lang/noir/issues/10725)) ([131f9bc](https://github.com/noir-lang/noir/commit/131f9bc7bdd53b7b529ea7868bb5b5605baccf8d))
+* **frontend:** Allow indirect calls to oracles from constrained functions  ([#10826](https://github.com/noir-lang/noir/issues/10826)) ([a4c1387](https://github.com/noir-lang/noir/commit/a4c13872630141d6e728cfff3b36f004e013e4bb))
+* Handle u128 indices in comptime interpreter ([#10867](https://github.com/noir-lang/noir/issues/10867)) ([723dd59](https://github.com/noir-lang/noir/commit/723dd59f48cc937e66f15ffbdb3927687952563a))
+* Implement `checked_transmute` in the comptime interpreter ([#10732](https://github.com/noir-lang/noir/issues/10732)) ([a4391f8](https://github.com/noir-lang/noir/commit/a4391f8c4dd5dfb5b8e559527bfc3cfbed5ad6b9))
+* Iterative decompose_constrain ([#10818](https://github.com/noir-lang/noir/issues/10818)) ([c25124d](https://github.com/noir-lang/noir/commit/c25124d983b1591b8b49b8f0d3168ea64c23ada3))
+* Keep track of comptime closure callstack ([#10735](https://github.com/noir-lang/noir/issues/10735)) ([7615632](https://github.com/noir-lang/noir/commit/7615632df856497750d6c0f856643a93df7dc40f))
+* **lexer:** Don't create broken span on broken interpolation ([#10722](https://github.com/noir-lang/noir/issues/10722)) ([20473e1](https://github.com/noir-lang/noir/commit/20473e1c85f835cf8d25ac1efd64fff292b78ec4))
+* **LSP:** Correct link range for doc comment references ([#10769](https://github.com/noir-lang/noir/issues/10769)) ([40146b9](https://github.com/noir-lang/noir/commit/40146b93c0ee38bdf55dd13058ac966c77a83118))
+* **LSP:** Semantic tokens in trait methods ([#10815](https://github.com/noir-lang/noir/issues/10815)) ([d4150ea](https://github.com/noir-lang/noir/commit/d4150ea6f903065e7d5a9d6975a749a4e904ed47))
+* Oob check for arrays with 0-size elements ([#10738](https://github.com/noir-lang/noir/issues/10738)) ([16cad49](https://github.com/noir-lang/noir/commit/16cad49bed299e97f664251e6086f3c6a61c0ba2))
+* Restore side effects in interpreter between calls ([#10883](https://github.com/noir-lang/noir/issues/10883)) ([9e3ebd3](https://github.com/noir-lang/noir/commit/9e3ebd3729a49455cef2793e6a8c129cb7689132))
+* SignedField Eq and Hash implementations ([#10671](https://github.com/noir-lang/noir/issues/10671)) ([caaf7c3](https://github.com/noir-lang/noir/commit/caaf7c3d601533e546119994a2798a6f5454083d))
+* Slice with zero size elements ([#10716](https://github.com/noir-lang/noir/issues/10716)) ([e76a832](https://github.com/noir-lang/noir/commit/e76a83247cd3e880b286e9805a3e83a0a29cb575))
+* **ssa:** Clear the SSA interpreter `call_stack` between top level calls ([#10901](https://github.com/noir-lang/noir/issues/10901)) ([438ab72](https://github.com/noir-lang/noir/commit/438ab7267b2b3231924822e74e7ac0a5ac7090a7))
+* Track when witnesses are used in the predicates of brillig calls when merging expressions ([#10922](https://github.com/noir-lang/noir/issues/10922)) ([daf526c](https://github.com/noir-lang/noir/commit/daf526ce21a8574894ea7d7006c78c565df1ee4a))
+* Use try_bind() to check for self-referencing types ([#10905](https://github.com/noir-lang/noir/issues/10905)) ([c3c91a9](https://github.com/noir-lang/noir/commit/c3c91a99258bec1849ad2b92fc1c46b564f2042b))
+* Validate loop range have identical types in comptime ([#10888](https://github.com/noir-lang/noir/issues/10888)) ([56ee0a9](https://github.com/noir-lang/noir/commit/56ee0a9b2f3359b9aab4db4eb538902c8af00956))
+* Wrap value merge of remove-if-else in enabled side effects ([#10740](https://github.com/noir-lang/noir/issues/10740)) ([4eab810](https://github.com/noir-lang/noir/commit/4eab8100c27a1b7d431bdb0b57d58eb9483c973c))
+
+
+### Miscellaneous Chores
+
+* Remove `expression-width` from compile options ([#10845](https://github.com/noir-lang/noir/issues/10845)) ([fe8e10e](https://github.com/noir-lang/noir/commit/fe8e10e649f1c8136e2ed2fa6f3bc784a61932ea))
+* Remove protobuf ([#9055](https://github.com/noir-lang/noir/issues/9055)) ([e0fba02](https://github.com/noir-lang/noir/commit/e0fba023363a21e335d005668923ee05d82ceeab))
+
 ## [1.0.0-beta.16](https://github.com/noir-lang/noir/compare/v1.0.0-beta.15...v1.0.0-beta.16) (2025-12-01)
 
 
