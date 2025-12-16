@@ -39,15 +39,11 @@ impl Context<'_> {
         let slice = self.convert_value(slice_contents, dfg);
         let slice_typ = dfg.type_of_value(slice_contents);
 
-        let (new_slice_length, new_slice_val) = if let Some(len_const) =
-            dfg.get_numeric_constant(arguments[0])
-        {
+        let new_slice_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
-            let old_slice_len = new_slice.len();
             // length of Acir Values slice
             let len = len_const.to_u128() as usize * elements_to_push.len();
-
             for (i, elem) in elements_to_push.iter().enumerate() {
                 let element = self.convert_value(*elem, dfg);
                 let write_index = len + i;
@@ -60,12 +56,7 @@ impl Context<'_> {
                     new_slice.push_back(element);
                 }
             }
-            let new_slice_length = if new_slice.len() > old_slice_len {
-                self.acir_context.add_var(slice_length, one)?
-            } else {
-                slice_length
-            };
-            (new_slice_length, AcirValue::Array(new_slice))
+            AcirValue::Array(new_slice)
         } else {
             // Length is not known, we are going to:
             // 1. Push dummy data to the slice, so that it's capacity covers for the push_back
@@ -154,10 +145,10 @@ impl Context<'_> {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
                 flatten_idx = self.acir_context.add_var(flatten_idx, one)?;
             }
-            let new_slice_length = self.acir_context.add_var(slice_length, one)?;
-            (new_slice_length, AcirValue::DynamicArray(flattened_dynamic_array))
+            AcirValue::DynamicArray(flattened_dynamic_array)
         };
 
+        let new_slice_length = self.acir_context.add_var(slice_length, one)?;
         Ok(vec![AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
