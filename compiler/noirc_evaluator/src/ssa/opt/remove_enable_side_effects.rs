@@ -111,19 +111,18 @@ fn should_insert_side_effects_before_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
 ) -> bool {
-    // If we hit an instruction which is affected by the side effects var then we must insert the
-    // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-    if instruction.requires_acir_gen_predicate(dfg) {
-        return true;
-    }
-
     // Constrain instructions don't need ACIR predicates, because the variables
     // they operate on have the side effects incorporated into them,
     // however they can later be turned into a ConstrainNotEqual instruction,
     // which _does_ need an ACIR predicate. If we don't require the side effect
     // variable for Constrain, then we might lose it and end up with a disabled
     // constrain, as it could inherit some unintended side effect.
-    return matches!(instruction, Instruction::Constrain(..));
+    if matches!(instruction, Instruction::Constrain(..)) {
+        return true;
+    }
+    // If we hit an instruction which is affected by the side effects var then we must insert the
+    // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
+    instruction.requires_acir_gen_predicate(dfg)
 }
 
 /// Check that the CFG has been flattened.
