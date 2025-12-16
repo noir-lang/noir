@@ -350,7 +350,6 @@ impl Abi {
                         .copied()
                 })
             {
-                dbg!(return_witness_values.len());
                 Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
