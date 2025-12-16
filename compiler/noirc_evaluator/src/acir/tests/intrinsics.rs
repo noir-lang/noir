@@ -825,3 +825,121 @@ fn as_slice_for_composite_slice() {
     ASSERT w0 = 2
     ");
 }
+
+#[test]
+fn as_slice_for_slice_with_nested_array() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v6 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5] : [u32; 5]
+        v12 = make_array [u32 6, u32 7, u32 8, u32 9, u32 10] : [u32; 5]
+        v18 = make_array [u32 11, u32 12, u32 13, u32 14, u32 15] : [u32; 5]
+        v24 = make_array [u32 16, u32 17, u32 18, u32 19, u32 20] : [u32; 5]
+        v25 = make_array [v6, v12, v18, v24] : [[u32; 5]; 4]
+        v26 = array_get v25, index v0 -> [u32; 5]
+        v28 = array_set v26, index u32 1, value u32 100
+        v29 = array_set v25, index v0, value v28
+        v31, v32 = call as_slice(v29) -> (u32, [[u32; 5]])
+        v34 = array_get v32, index u32 0 -> [u32; 5]
+        v35 = array_get v32, index u32 1 -> [u32; 5]
+        v36 = array_get v32, index u32 2 -> [u32; 5]
+        v37 = array_get v32, index u32 3 -> [u32; 5]
+        v38 = make_array [v34, v35, v36, v37] : [[u32; 5]; 4]
+        return v38
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // We want to guarantee that we actually read every value from our nested array into the return values (w1, w2, ... w20)
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w21 = 1
+    ASSERT w22 = 2
+    ASSERT w23 = 3
+    ASSERT w24 = 4
+    ASSERT w25 = 5
+    ASSERT w26 = 6
+    ASSERT w27 = 7
+    ASSERT w28 = 8
+    ASSERT w29 = 9
+    ASSERT w30 = 10
+    ASSERT w31 = 11
+    ASSERT w32 = 12
+    ASSERT w33 = 13
+    ASSERT w34 = 14
+    ASSERT w35 = 15
+    ASSERT w36 = 16
+    ASSERT w37 = 17
+    ASSERT w38 = 18
+    ASSERT w39 = 19
+    ASSERT w40 = 20
+    INIT b0 = [w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40]
+    ASSERT w41 = 5*w0
+    READ w42 = b0[w41]
+    ASSERT w43 = w41 + 1
+    READ w44 = b0[w43]
+    ASSERT w45 = w43 + 1
+    READ w46 = b0[w45]
+    ASSERT w47 = w45 + 1
+    READ w48 = b0[w47]
+    ASSERT w49 = w47 + 1
+    READ w50 = b0[w49]
+    INIT b1 = [w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40]
+    ASSERT w51 = 5*w0
+    WRITE b1[w51] = w42
+    ASSERT w52 = w51 + 1
+    ASSERT w53 = 100
+    WRITE b1[w52] = w53
+    ASSERT w54 = w52 + 1
+    WRITE b1[w54] = w46
+    ASSERT w55 = w54 + 1
+    WRITE b1[w55] = w48
+    ASSERT w56 = w55 + 1
+    WRITE b1[w56] = w50
+    ASSERT w57 = 0
+    READ w58 = b1[w57]
+    READ w59 = b1[w21]
+    READ w60 = b1[w22]
+    READ w61 = b1[w23]
+    READ w62 = b1[w24]
+    READ w63 = b1[w25]
+    READ w64 = b1[w26]
+    READ w65 = b1[w27]
+    READ w66 = b1[w28]
+    READ w67 = b1[w29]
+    READ w68 = b1[w30]
+    READ w69 = b1[w31]
+    READ w70 = b1[w32]
+    READ w71 = b1[w33]
+    READ w72 = b1[w34]
+    READ w73 = b1[w35]
+    READ w74 = b1[w36]
+    READ w75 = b1[w37]
+    READ w76 = b1[w38]
+    READ w77 = b1[w39]
+    ASSERT w1 = w58
+    ASSERT w2 = w59
+    ASSERT w3 = w60
+    ASSERT w4 = w61
+    ASSERT w5 = w62
+    ASSERT w6 = w63
+    ASSERT w7 = w64
+    ASSERT w8 = w65
+    ASSERT w9 = w66
+    ASSERT w10 = w67
+    ASSERT w11 = w68
+    ASSERT w12 = w69
+    ASSERT w13 = w70
+    ASSERT w14 = w71
+    ASSERT w15 = w72
+    ASSERT w16 = w73
+    ASSERT w17 = w74
+    ASSERT w18 = w75
+    ASSERT w19 = w76
+    ASSERT w20 = w77
+    ");
+}

@@ -129,6 +129,7 @@ pub fn check_witness(
 ) -> Result<(), CliError> {
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
     if let Some(ref expected) = circuit.abi.return_type {
+        dbg!(return_values.actual_return.is_none());
         if return_values.actual_return.is_none() {
             return Err(CliError::MissingReturn { expected: expected.clone() });
         }
