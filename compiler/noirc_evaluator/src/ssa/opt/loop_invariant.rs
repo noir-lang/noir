@@ -2443,7 +2443,10 @@ mod control_dependence {
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::{function::RuntimeType, types::NumericType},
-            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
+            opt::{
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, unrolling::Loops,
+            },
             ssa_gen::Ssa,
         },
     };
@@ -3252,24 +3255,15 @@ mod control_dependence {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let expected = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::unsigned(32)),
-                from_constant(3_u128.into(), NumericType::unsigned(32)),
-            ])
-            .expect_err("Should have error");
-        assert!(matches!(expected, InterpreterError::RangeCheckFailed { .. }));
 
-        let mut ssa = ssa.loop_invariant_code_motion();
-        ssa.normalize_ids();
-
-        let got = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::unsigned(32)),
-                from_constant(3_u128.into(), NumericType::unsigned(32)),
-            ])
-            .expect_err("Should have error");
-        assert_eq!(expected, got);
+        let inputs = vec![
+            from_constant(2_u128.into(), NumericType::unsigned(32)),
+            from_constant(3_u128.into(), NumericType::unsigned(32)),
+        ];
+        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.loop_invariant_code_motion()
+        });
+        assert!(result.is_err());
 
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -3314,28 +3308,15 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let expected = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-                from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-            ])
-            .expect_err("Should have error");
-        let InterpreterError::ConstrainEqFailed { lhs_id, .. } = expected else {
-            panic!("Expected ConstrainEqFailed");
-        };
-        // Make sure that the constrain on v8 is the on that failed
-        assert_eq!(lhs_id.to_u32(), 8);
+        let inputs = vec![
+            from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+            from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+        ];
+        let (ssa, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.loop_invariant_code_motion()
+        });
 
-        let mut ssa = ssa.loop_invariant_code_motion();
-        ssa.normalize_ids();
-
-        let got = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-                from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-            ])
-            .expect_err("Should have error");
-        let InterpreterError::ConstrainEqFailed { lhs_id, .. } = got else {
+        let Err(InterpreterError::ConstrainEqFailed { lhs_id, .. }) = execution_result else {
             panic!("Expected ConstrainEqFailed");
         };
         // Make sure that the constrain on v8 is the on that failed

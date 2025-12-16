@@ -135,3 +135,25 @@ pub(crate) fn assert_ssa_does_not_change(
     let ssa = pass(ssa);
     assert_normalized_ssa_equals(ssa, src);
 }
+
+/// Assert that running a certain pass on the SSA does not change the execution result.
+#[cfg(test)]
+fn assert_pass_does_not_affect_execution(
+    ssa: crate::ssa::Ssa,
+    inputs: Vec<crate::ssa::interpreter::value::Value>,
+    ssa_pass: impl FnOnce(crate::ssa::Ssa) -> crate::ssa::Ssa,
+) -> (
+    crate::ssa::Ssa,
+    Result<
+        Vec<crate::ssa::interpreter::value::Value>,
+        crate::ssa::interpreter::errors::InterpreterError,
+    >,
+) {
+    let before = ssa.interpret(inputs.clone());
+
+    let new_ssa = ssa_pass(ssa);
+
+    let after = new_ssa.interpret(inputs);
+    assert_eq!(before, after, "SSA pass has resulted in a different execution result");
+    (new_ssa, after)
+}
