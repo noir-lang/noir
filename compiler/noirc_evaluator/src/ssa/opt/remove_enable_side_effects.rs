@@ -26,7 +26,7 @@
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
-    ir::{function::Function, instruction::Instruction, types::NumericType},
+    ir::{dfg::DataFlowGraph, function::Function, instruction::Instruction, types::NumericType},
     ssa_gen::Ssa,
 };
 
@@ -94,9 +94,7 @@ impl Function {
                 return;
             }
 
-            // If we hit an instruction which is affected by the side effects var then we must insert the
-            // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-            if instruction.requires_acir_gen_predicate(context.dfg) {
+            if should_insert_side_effects_before_instruction(instruction, &context.dfg) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
@@ -105,6 +103,27 @@ impl Function {
             }
         });
     }
+}
+
+/// Decide we should insert any pending side effect variable before we insert
+/// a particular instruction into the SSA.
+fn should_insert_side_effects_before_instruction(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+) -> bool {
+    // If we hit an instruction which is affected by the side effects var then we must insert the
+    // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
+    if instruction.requires_acir_gen_predicate(dfg) {
+        return true;
+    }
+
+    // Constrain instructions don't need ACIR predicates, because the variables
+    // they operate on have the side effects incorporated into them,
+    // however they can later be turned into a ConstrainNotEqual instruction,
+    // which _does_ need an ACIR predicate. If we don't require the side effect
+    // variable for Constrain, then we might lose it and end up with a disabled
+    // constrain, as it could inherit some unintended side effect.
+    return matches!(instruction, Instruction::Constrain(..));
 }
 
 /// Check that the CFG has been flattened.
@@ -476,6 +495,40 @@ mod test {
             enable_side_effects u1 1
             v6 = allocate -> &mut Field
             v8 = add v1, u32 1
+            return
+        }
+        "
+        );
+    }
+
+    #[test]
+    fn inserts_insert_side_effects_before_constrain() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32, v3: u32):
+            enable_side_effects v0
+            v4 = mul v2, v3
+            enable_side_effects v1
+            v5 = add v2, v3
+            enable_side_effects v0
+            constrain v4 == u32 0
+            enable_side_effects u1 1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32, v3: u32):
+            enable_side_effects v0
+            v4 = mul v2, v3
+            enable_side_effects v1
+            v5 = add v2, v3
+            enable_side_effects v0
+            constrain v4 == u32 0
+            enable_side_effects u1 1
             return
         }
         "
