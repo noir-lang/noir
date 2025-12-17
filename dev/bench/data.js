@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765999698539,
+  "lastUpdate": 1766012943691,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23256,48 +23256,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a4c13872630141d6e728cfff3b36f004e013e4bb",
-          "message": "fix(frontend): Allow indirect calls to oracles from constrained functions  (#10826)",
-          "timestamp": "2025-12-05T20:56:42Z",
-          "tree_id": "2d3c4c80aa13d39daabe6b81c75c49d5b7f6642a",
-          "url": "https://github.com/noir-lang/noir/commit/a4c13872630141d6e728cfff3b36f004e013e4bb"
-        },
-        "date": 1764969610296,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254915,
-            "range": "± 910",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224477,
-            "range": "± 3967",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791164,
-            "range": "± 1858",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25349,6 +25307,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790701,
             "range": "± 1468",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52492c47571c3ac5384f45de7c7c665bfdd2eee9",
+          "message": "chore: remove redundant code (#10943)",
+          "timestamp": "2025-12-17T22:47:04Z",
+          "tree_id": "0b289c484390e65a283ea316538a97af03d42796",
+          "url": "https://github.com/noir-lang/noir/commit/52492c47571c3ac5384f45de7c7c665bfdd2eee9"
+        },
+        "date": 1766012910771,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260588,
+            "range": "± 992",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231682,
+            "range": "± 2901",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798674,
+            "range": "± 3261",
             "unit": "ns/iter"
           }
         ]
