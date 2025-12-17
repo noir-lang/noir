@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765998198349,
+  "lastUpdate": 1765998318549,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23256,48 +23256,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d4150ea6f903065e7d5a9d6975a749a4e904ed47",
-          "message": "fix(LSP): semantic tokens in trait methods (#10815)",
-          "timestamp": "2025-12-05T19:27:32Z",
-          "tree_id": "ab433bf1b9277a1c73e58fb0e27f695164fa1720",
-          "url": "https://github.com/noir-lang/noir/commit/d4150ea6f903065e7d5a9d6975a749a4e904ed47"
-        },
-        "date": 1764964257032,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253868,
-            "range": "± 1138",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224895,
-            "range": "± 2414",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792347,
-            "range": "± 2125",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25349,6 +25307,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792594,
             "range": "± 941",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "436f025532e0bb85c8aca8aee8857b473cd02388",
+          "message": "fix: reference aliases in if_else arrays (#10902)",
+          "timestamp": "2025-12-17T18:44:27Z",
+          "tree_id": "dfdeb9aafa3e99c01d89dc5a590ba9c736f4ccbe",
+          "url": "https://github.com/noir-lang/noir/commit/436f025532e0bb85c8aca8aee8857b473cd02388"
+        },
+        "date": 1765998286368,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256489,
+            "range": "± 742",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225043,
+            "range": "± 4632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790701,
+            "range": "± 1468",
             "unit": "ns/iter"
           }
         ]
