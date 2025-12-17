@@ -6,7 +6,7 @@ error: Invalid type found in the entry point to a program
   ┌─ src/main.nr:1:12
   │
 1 │ fn main(a: [[u32; 0]; 1], b: bool) -> pub [u32; 0] {
-  │            ------------- Empty array is not a valid entry point type. Found: [u32; 0]
+  │            ------------- Invalid entry point type: [u32; 0]
   │
   = Note: slices, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
 

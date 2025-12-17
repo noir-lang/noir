@@ -305,8 +305,8 @@ fn call_type_variable_of_kind_any() {
 fn error_on_returning_empty_unit_array() {
     let src = r#"
     fn main() -> pub [(); 0] {
-       ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Unit is not a valid entry point type
+                     ^^^^^^^ Invalid type found in the entry point to a program
+                     ~~~~~~~ Unit is not a valid entry point type
         [(); 0]
     }
     "#;
@@ -317,8 +317,8 @@ fn error_on_returning_empty_unit_array() {
 fn error_on_returning_non_empty_unit_array() {
     let src = r#"
     fn main() -> pub [(); 1] {
-       ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Unit is not a valid entry point type
+                     ^^^^^^^ Invalid type found in the entry point to a program
+                     ~~~~~~~ Unit is not a valid entry point type
         [()]
     }
     "#;
