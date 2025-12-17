@@ -1,4 +1,4 @@
-//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -8,6 +8,46 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
+//!
+//! The monomorphized AST (mAST) has a few notable differences from the HIR:
+//! - It is self-contained without the need for an external context like the NodeInterner.
+//! - All generics are gone, they are specialized away by creating a new copy of each function
+//!   for each combination of generic arguments it is used with.
+//! - All local lambdas are gone and closure environments are explicit. Closures are converted
+//!   into normal tuples of (function, environment) and when the function is called, will forward
+//!   the environment argument to the function as well. All functions are global and local lambdas
+//!   no longer exist.
+//! - Most patterns are simplified away. For example, a tuple pattern in a function parameter:
+//!   `fn foo((a, b): (i32, i32))` will be translated into separate parameters:
+//!   `fn foo(a: i32, b: i32)`. Note that this transformation relies on our SSA construction
+//!   pass to perform a similar translation for the callsites of functions. The monomorphized
+//!   output alone does not change callsites, so it will produce mAST like the following:
+//!   ```noir
+//!   fn main$f0() -> () {
+//!       let tuple$l0 = (0, 1);
+//!       foo$f1(tuple$l0);  // single tuple argument
+//!   }
+//!
+//!   fn foo$f1(a$l1: i32, b$l2: i32) -> () {}  // two separate parameters
+//!   ```
+//! - Functions are represented as a pair of `(constrained, unconstrained)` versions of the same
+//!   function. The variant to use is selected by `Monomorphizer::extract_function` to match the
+//!   runtime when the function is later called.
+//!
+//! At the end of monomorphization, a couple sub-passes are performed:
+//! - [ownership](crate::ownership): infers when values should be cloned or moved for unconstrained code.
+//!   This is only relevant for arrays in unconstrained code which are implemented with copy on
+//!   write semantics. An [ast::Expression::Clone] corresponds to an increment of the reference-count on
+//!   a particular array rather than a deep clone. The deep clone itself will be performed by the
+//!   Brillig runtime when mutating an array with a reference count greater than one.
+//! - [proxies]: wraps oracle functions in unconstrained function wrappers automatically.
+//!   This is required in some corner cases when oracles are used as first-class functions.
+//!
+//! Compared to monomorphization passes in other compilers, Noir's is a bit odd in that it may
+//! still fail with an error message. An example of an error caught at this step would be
+//! an unconstrained lambda being passed into and called in constrained code. This is possible
+//! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
+//! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
@@ -148,6 +188,10 @@ pub fn monomorphize(
     monomorphize_debug(main, interner, &DebugInstrumenter::default(), force_unconstrained)
 }
 
+/// A more general entry-point for the monomorphization pass containing an optional
+/// [DebugInstrumenter] which can be set to [DebugInstrumenter::default] in case it
+/// is not desired. If debugging is desired, additional function calls will be inserted
+/// to inspect values via debug functions.
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
@@ -159,9 +203,7 @@ pub fn monomorphize_debug(
     let function_sig = monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
-
-    let program = monomorphizer.into_program(function_sig);
-    Ok(program)
+    Ok(monomorphizer.into_program(function_sig))
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -195,6 +237,11 @@ impl<'interner> Monomorphizer<'interner> {
         !self.queue.is_empty()
     }
 
+    /// Pop the front of the function queue and monomorphize that function.
+    ///
+    /// Returns Ok(true) if there are still more jobs to process
+    /// Returns Ok(false) if there are no more jobs to process
+    /// Returns Err(_) if monomorphization encountered an error
     pub fn process_next_job(&mut self) -> Result<bool, MonomorphizationError> {
         let Some((next_fn_id, new_id, bindings, trait_method, is_unconstrained, location)) =
             self.queue.pop_front()
@@ -217,11 +264,21 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(true)
     }
 
+    /// Process any functions in the function queue to be monomorphized until
+    /// the queue is empty.
+    ///
+    /// Each function will push any new function-type combinations it encounters
+    /// during monomorphization so running the queue to completion will monomorphize
+    /// every function needed to run the program from the original entry point.
+    ///
+    /// Since this function does not fill the queue with any initial values, this
+    /// will need to be done beforehand by monomorphizing the entry point(s) beforehand.
     pub fn process_queue(&mut self) -> Result<(), MonomorphizationError> {
         while self.process_next_job()? {}
         Ok(())
     }
 
+    /// Return the item at the front of the queue, if there is one, without popping it.
     #[allow(clippy::type_complexity)]
     pub fn peek_queue(
         &self,
@@ -250,6 +307,10 @@ impl<'interner> Monomorphizer<'interner> {
         self.interner
     }
 
+    /// Collect all the finished functions and globals into a [Program].
+    ///
+    /// This will also run the ownership and proxies passes on the resulting
+    /// program.
     pub fn into_program(self, function_sig: FunctionSignature) -> Program {
         let force_unconstrained = self.force_unconstrained;
         let func_sigs = self
@@ -313,6 +374,10 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.get(&id).copied().map(Definition::Local)
     }
 
+    /// Retrieve the definition for the given function.
+    ///
+    /// If the given function has yet to be monomorphized, we'll create its new id now and return
+    /// that while queueing the full function to be monomorphized later.
     fn lookup_function(
         &mut self,
         id: node_interner::FuncId,
@@ -389,6 +454,7 @@ impl<'interner> Monomorphizer<'interner> {
             .insert(turbofish_generics, new_id);
     }
 
+    /// Monomorphize the `main` function, ensuring it has the id expected by [Program::main_id].
     pub fn compile_main(
         &mut self,
         main_id: node_interner::FuncId,
@@ -411,6 +477,16 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(main_meta.function_signature())
     }
 
+    /// Monomorphizes the given function.
+    ///
+    /// Expects any generics to already be bound by their bindings at this function's call site.
+    /// If this is not done, the relevant generic will either remain unbound (leading to a panic)
+    /// or, if the same generic is used further up the callstack (common with traits), it may have
+    /// an incorrect value. This incorrect type value will not be caught by monomorphization but
+    /// may or may not lead to panics later. Either way, it is best to only call this function
+    /// directly only when you know there should be no generics in your function, such as in
+    /// [Self::compile_main], or through a wrapper such as [Self::process_next_job] which will
+    /// handle the instantiation bindings for you.
     pub fn function(
         &mut self,
         f: node_interner::FuncId,
@@ -542,6 +618,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    /// Monomorphize an expression
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
@@ -747,6 +824,9 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(expr)
     }
 
+    /// True if a value of the given type contains a reference value.
+    ///
+    /// Note that the above wording excludes function types with reference parameters.
     fn contains_reference(typ: &Type) -> bool {
         match typ {
             Type::FieldElement
@@ -800,6 +880,8 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Monomorphize a "standard" array with all elements explicit, such as `[1, 5, 1, 3, 2]`.
+    /// This is in contrast to a repeated array such as `[0; 4]`.
     fn standard_array(
         &mut self,
         array: ExprId,
@@ -816,6 +898,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Monomorphize an array with repeated elements, such as `[3; 10]`.
     fn repeated_array(
         &mut self,
         array: ExprId,
@@ -1407,6 +1490,15 @@ impl<'interner> Monomorphizer<'interner> {
         Self::convert_type_helper(typ, location, &mut HashSet::default())
     }
 
+    /// Converts a [HirType] into a [ast::Type].
+    ///
+    /// Returns an error if the type was invalid somehow. For example, if the type contains:
+    /// - an array with a size that does not evaluate to a positive integer
+    /// - an unbound type variable without a default value
+    /// - a nested slice
+    /// - a compile-time only type (these should all be evaluated beforehand and thus never monomorphized)
+    /// - an infinitely recursive type
+    /// - a failed checked-cast
     fn convert_type_helper(
         typ: &HirType,
         location: Location,
@@ -1633,7 +1725,11 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
-    // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
+    /// Similar to `convert_type` but only checks for errors and does not actually convert to a
+    /// [ast::Type].
+    ///
+    /// This function also does not recur completely on a type (for example, it does
+    /// not check fields of a struct) to prevent infinite recursion.
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
@@ -1899,6 +1995,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Monomorphize a function call.
     fn function_call(
         &mut self,
         call: HirCallExpression,
@@ -2308,7 +2405,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if lambda.captures.is_empty() {
                     this.lambda_no_capture(lambda, expr)
                 } else {
-                    let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
+                    let (setup, closure_variable) = this.closure(lambda, expr)?;
                     Ok(ast::Expression::Block(vec![setup, closure_variable]))
                 }
             },
@@ -2365,12 +2462,17 @@ impl<'interner> Monomorphizer<'interner> {
         }))
     }
 
-    fn lambda_with_setup(
+    /// Monomorphize a closure, returning it along with its environment as `(env, closure)`.
+    ///
+    /// Note that this returns only a single function value in the `closure` slot. To obtain
+    /// a `(constrained, unconstrained)` pair, this function would need to be called twice,
+    /// e.g. via [Self::monomorphize_constrained_and_unconstrained].
+    fn closure(
         &mut self,
         lambda: HirLambda,
         expr: ExprId,
     ) -> Result<(ast::Expression, ast::Expression), MonomorphizationError> {
-        // returns (<closure setup>, <closure variable>)
+        // returns (<closure env>, <function variable>)
         //   which can be used directly in callsites or transformed
         //   directly to a single `Expression`
         // for other cases by `lambda` which is called by `expr`
@@ -2823,6 +2925,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 }
 
+/// Return this tuple type's fields or panic
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ.follow_bindings() {
         HirType::Tuple(fields) => fields.clone(),
@@ -2830,6 +2933,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     }
 }
 
+/// Return this struct type's fields or panic
 fn unwrap_struct_type(
     typ: &HirType,
     location: Location,
@@ -2847,6 +2951,7 @@ fn unwrap_struct_type(
     }
 }
 
+/// Return this enum type's variants or panic
 fn unwrap_enum_type(
     typ: &HirType,
     location: Location,
@@ -2919,7 +3024,7 @@ pub fn perform_impl_bindings(
     Ok(bindings)
 }
 
-/// Resolve a trait item to a particular impl
+/// Resolve a trait item to a particular impl, returning the id of that impl or an error on failure.
 fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
     method_id: TraitItemId,

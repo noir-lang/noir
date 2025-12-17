@@ -101,7 +101,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./dist/*
@@ -135,7 +135,7 @@ jobs:
           cp ./target/release/noir-inspector ./dist/noir-inspector
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: noir-inspector
           path: ./dist/*
@@ -311,7 +311,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: in_progress_compilation_mem_report
           path: memory_report.json
@@ -325,7 +325,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload execution memory report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: in_progress_execution_mem_report
           path: memory_report.json
@@ -393,7 +393,7 @@ jobs:
           PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -476,7 +476,7 @@ jobs:
           FLAGS: ${{ matrix.flags }}
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -501,7 +501,7 @@ jobs:
 
       - name: Upload execution memory report
         if: ${{ !matrix.cannot_execute }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.execution_report.outputs.report_name }}
           path: ${{ steps.execution_report.outputs.report_path }}
@@ -551,7 +551,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -597,7 +597,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -643,7 +643,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -689,7 +689,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -735,12 +735,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: in_progress_compilation_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: compilation_mem_report_*
           path: ./reports
@@ -786,12 +786,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: in_progress_execution_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: execution_mem_report_*
           path: ./reports
