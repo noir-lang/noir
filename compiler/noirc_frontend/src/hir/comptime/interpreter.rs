@@ -98,7 +98,7 @@ mod unquote;
 ///
 /// If, in the future, we refactor the interpreter to be iterative, rather than use recursion,
 /// we could have a separate limit just for comptime call stack depth.
-const MAX_EVALUATION_DEPTH: usize = 600;
+const MAX_EVALUATION_DEPTH: usize = 300;
 
 #[allow(unused)]
 pub struct Interpreter<'local, 'interner> {

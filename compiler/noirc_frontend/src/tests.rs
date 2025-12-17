@@ -32,6 +32,7 @@ mod visibility;
 use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
 use crate::test_utils::{get_program, get_program_with_options};
 
@@ -372,26 +373,45 @@ fn regression_10554() {
 }
 
 #[test]
-fn deeply_nested_expression_200_levels() {
-    // Build expression: (((1 + 2) + 3) + 4) ... + 200
-    let mut expr = String::from("1");
-    for i in 2..=200 {
-        expr = format!("({} + {})", expr, i);
+fn deeply_nested_expression_overflow() {
+    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 100
+    // If we build it too deep (like 200), then even the parser gets stack overflow,
+    // but `nargo` uses a larger stack size, so it can go higher than the test.
+    // Instead we use it to build a mix of recursive calls and nested expressions,
+    // so that we can provide an overall limit on evaluation depth.
+    fn make_nested_expr(stem: &str) -> String {
+        let mut expr = String::from(stem);
+        for i in 2..=100 {
+            expr = format!("({} + {})", expr, i);
+        }
+        expr
     }
+
+    let expr = make_nested_expr("if max_depth == 0 { 1 } else { foo(max_depth - 1) }");
 
     let src = format!(
         "
+      fn foo(max_depth: u32) -> u32 {{
+        {expr}
+      }}
       fn main() {{
           comptime {{
-              let _ = {};
+              let _ = foo(5);
           }}
       }}
-      ",
-        expr
+      "
     );
 
-    // XXX: Currently this hits Rust stack overflow before we even try to interpret it.
-    let _errors = get_program_errors(&src);
+    let errors = get_program_errors(&src);
 
-    todo!("make sure we have an InterpreterError::StackOverflow in errors");
+    for error in errors {
+        if matches!(
+            error,
+            CompilationError::InterpreterError(InterpreterError::StackOverflow { .. })
+        ) {
+            return;
+        }
+    }
+
+    panic!("should have got a StackOverflow error");
 }
