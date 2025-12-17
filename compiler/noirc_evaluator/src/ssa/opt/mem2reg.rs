@@ -489,21 +489,6 @@ impl<'f> PerFunctionContext<'f> {
                 let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.remember_dereference(self.inserter.function, address, result);
 
-                // If the load result contains references, propagate alias info from the stored value
-                let result_type = self.inserter.function.dfg.type_of_value(result);
-                if result_type.contains_reference() {
-                    if let Some(known_value) = references.get_known_value(address) {
-                        // The result of the load should have the same aliases as the known value
-                        let known_aliases =
-                            references.get_aliases_for_value(known_value).into_owned();
-                        if !known_aliases.is_unknown() {
-                            let expr = Expression::Other(result);
-                            references.expressions.insert(result, expr);
-                            references.aliases.insert(expr, known_aliases);
-                        }
-                    }
-                }
-
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
                     let [result] = self.inserter.function.dfg.instruction_result(instruction);
