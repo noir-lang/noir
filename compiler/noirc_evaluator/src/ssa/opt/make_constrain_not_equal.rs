@@ -166,17 +166,8 @@ mod tests {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field, v1: u1):
-            enable_side_effects v1
-            v15 = not v1
-            v17 = truncate v0 to 128 bits, max_bit_size: 254
-            v18 = cast v17 as u128
-            v19 = cast v1 as u128
-            v20 = cast v15 as u128
-            v21 = unchecked_mul v19, u128 239001476155835873462206944775311375441
-            v22 = unchecked_mul v20, v18
-            v23 = unchecked_add v21, v22
-            v26 = eq v23, v18
-            constrain v26 == u1 0, "QPA"
+            enable_side_effects v1            
+            constrain v0 == u1 0
             return
         }
         "#;
