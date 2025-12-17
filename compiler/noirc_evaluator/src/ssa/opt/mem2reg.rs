@@ -829,12 +829,6 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             TerminatorInstruction::Return { return_values, .. } => {
-                // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
-                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
-                for return_value in return_values {
-                    let aliases = references.get_aliases_for_value(*return_value);
-                    self.instruction_input_references.extend(aliases.iter());
-                }
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
