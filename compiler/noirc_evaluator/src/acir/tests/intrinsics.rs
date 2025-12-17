@@ -62,7 +62,7 @@ fn slice_push_back_known_length_with_padding() {
     let program = ssa_to_acir_program(src);
 
     // Note that w12 is now the third element in b3 and followed by two zero values from the pre-existing padding.
-    // The dynamic length, represented by w3, has also been asserted to equal 3.
+    // w1 has also been asserted to equal 3, the dynamic length of the slice.
     // Aside the extra padding in the memory blocks we expect this ACIR to closely match a slice whose contents do not contain padding.
     assert_circuit_snapshot!(program, @r"
     func 0
