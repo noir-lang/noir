@@ -109,7 +109,7 @@ impl Context<'_> {
                 };
                 let list_length = self.acir_context.add_constant(list_length);
                 let acir_value = self.convert_value(array_contents, dfg);
-                let result = self.read_array(acir_value)?;
+                let result = self.read_array_with_type(acir_value, &array_type)?;
                 Ok(vec![
                     AcirValue::Var(list_length, NumericType::length_type()),
                     AcirValue::Array(result),

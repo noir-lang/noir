@@ -936,19 +936,6 @@ impl Context<'_> {
         }
     }
 
-    pub(super) fn read_array(
-        &mut self,
-        array: AcirValue,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
-        match array {
-            AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
-            AcirValue::Array(vars) => Ok(vars),
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                self.read_dynamic_array(block_id, len, &value_types).collect()
-            }
-        }
-    }
-
     /// Read an array and reconstruct its structure based on the SSA type.
     /// For DynamicArrays with nested arrays, this preserves the nested structure
     /// instead of returning a flat array.
