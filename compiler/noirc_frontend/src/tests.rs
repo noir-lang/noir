@@ -364,6 +364,7 @@ fn wildcard_with_generic_argument() {
     assert_no_errors(src);
 }
 
+#[test]
 fn regression_10553() {
     let src = r#"
     pub fn println<T>(_input: T) { }
