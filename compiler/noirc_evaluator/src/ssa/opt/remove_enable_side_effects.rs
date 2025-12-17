@@ -94,7 +94,7 @@ impl Function {
                 return;
             }
 
-            if should_insert_side_effects_before_instruction(instruction, &context.dfg) {
+            if should_insert_side_effects_before_instruction(instruction, context.dfg) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
