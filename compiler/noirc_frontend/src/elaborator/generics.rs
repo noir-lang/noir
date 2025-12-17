@@ -25,7 +25,10 @@ pub(super) struct GenericsState {
 }
 
 impl Elaborator<'_> {
-    /// Saves the current generics state to be restored later with `exit_generics_scope`.
+    /// Saves the current generics state to be restored later with [Self::exit_generics_scope].
+    /// Note that all of `self.generics` will still be in scope after this call. This will only save the
+    /// position of the current generics so that any generics added afterward can later be discarded
+    /// via a call to [Self::exit_generics_scope].
     pub(super) fn enter_generics_scope(&self) -> GenericsState {
         GenericsState { generics_count: self.generics.len() }
     }
