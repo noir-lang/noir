@@ -402,6 +402,8 @@ fn deeply_nested_expression_overflow() {
       "
     );
 
+    println!("{src}");
+
     let errors = get_program_errors(&src);
 
     for error in errors {

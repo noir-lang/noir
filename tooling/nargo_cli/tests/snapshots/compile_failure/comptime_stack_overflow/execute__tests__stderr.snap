@@ -13,7 +13,7 @@ error: Comptime Stack Overflow
   ┌─ src/main.nr:8:5
   │
 8 │     foo();
-  │     ----- Exceeded the recursion limit
+  │     --- Exceeded the recursion limit
   │
   = Call stack:
     1. src/main.nr:3:9
@@ -116,5 +116,54 @@ error: Comptime Stack Overflow
     98. src/main.nr:8:5
     99. src/main.nr:8:5
     100. src/main.nr:8:5
+    101. src/main.nr:8:5
+    102. src/main.nr:8:5
+    103. src/main.nr:8:5
+    104. src/main.nr:8:5
+    105. src/main.nr:8:5
+    106. src/main.nr:8:5
+    107. src/main.nr:8:5
+    108. src/main.nr:8:5
+    109. src/main.nr:8:5
+    110. src/main.nr:8:5
+    111. src/main.nr:8:5
+    112. src/main.nr:8:5
+    113. src/main.nr:8:5
+    114. src/main.nr:8:5
+    115. src/main.nr:8:5
+    116. src/main.nr:8:5
+    117. src/main.nr:8:5
+    118. src/main.nr:8:5
+    119. src/main.nr:8:5
+    120. src/main.nr:8:5
+    121. src/main.nr:8:5
+    122. src/main.nr:8:5
+    123. src/main.nr:8:5
+    124. src/main.nr:8:5
+    125. src/main.nr:8:5
+    126. src/main.nr:8:5
+    127. src/main.nr:8:5
+    128. src/main.nr:8:5
+    129. src/main.nr:8:5
+    130. src/main.nr:8:5
+    131. src/main.nr:8:5
+    132. src/main.nr:8:5
+    133. src/main.nr:8:5
+    134. src/main.nr:8:5
+    135. src/main.nr:8:5
+    136. src/main.nr:8:5
+    137. src/main.nr:8:5
+    138. src/main.nr:8:5
+    139. src/main.nr:8:5
+    140. src/main.nr:8:5
+    141. src/main.nr:8:5
+    142. src/main.nr:8:5
+    143. src/main.nr:8:5
+    144. src/main.nr:8:5
+    145. src/main.nr:8:5
+    146. src/main.nr:8:5
+    147. src/main.nr:8:5
+    148. src/main.nr:8:5
+    149. src/main.nr:8:5
 
 Aborting due to 1 previous error
