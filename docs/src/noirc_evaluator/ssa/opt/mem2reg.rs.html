@@ -2665,13 +2665,7 @@
 <a href="#2664" id="2664">2664</a>
 <a href="#2665" id="2665">2665</a>
 <a href="#2666" id="2666">2666</a>
-<a href="#2667" id="2667">2667</a>
-<a href="#2668" id="2668">2668</a>
-<a href="#2669" id="2669">2669</a>
-<a href="#2670" id="2670">2670</a>
-<a href="#2671" id="2671">2671</a>
-<a href="#2672" id="2672">2672</a>
-<a href="#2673" id="2673">2673</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2667" id="2667">2667</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3520,12 +3514,6 @@
                 }
             }
             TerminatorInstruction::Return { return_values, .. } =&gt; {
-                <span class="comment">// We need to appropriately mark each alias of a reference as being used as a return terminator argument.
-                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
-                </span><span class="kw">for </span>return_value <span class="kw">in </span>return_values {
-                    <span class="kw">let </span>aliases = references.get_aliases_for_value(<span class="kw-2">*</span>return_value);
-                    <span class="self">self</span>.instruction_input_references.extend(aliases.iter());
-                }
                 <span class="comment">// Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
