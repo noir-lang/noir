@@ -303,7 +303,7 @@ access its elements.</p>
     value: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.InternalError.html" title="enum noirc_evaluator::errors::InternalError">InternalError</a>&gt;</h4></section></summary><div class="docblock"><p>Initializes an array with the given values and caches the fact that we
 have initialized this array.</p>
-</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E-1" class="impl"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#10-822">Source</a><a href="#impl-Context%3C'_%3E-1" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::acir::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.convert_slice_push_back" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#26-162">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_push_back" class="fn">convert_slice_push_back</a>(
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E-1" class="impl"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#10-813">Source</a><a href="#impl-Context%3C'_%3E-1" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::acir::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.convert_slice_push_back" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#26-153">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_push_back" class="fn">convert_slice_push_back</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -323,7 +323,7 @@ have initialized this array.</p>
 <li>Updated slice length (incremented by one)</li>
 <li>New slice with elements appended</li>
 </ol>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_push_front" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#177-203">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_push_front" class="fn">convert_slice_push_front</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_push_front" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#168-194">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_push_front" class="fn">convert_slice_push_front</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -340,7 +340,7 @@ have initialized this array.</p>
 <li>Updated slice length (incremented by one)</li>
 <li>New slice with elements prepended</li>
 </ol>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_pop_back" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#240-318">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_pop_back" class="fn">convert_slice_pop_back</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_pop_back" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#231-309">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_pop_back" class="fn">convert_slice_pop_back</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -376,7 +376,7 @@ The <code>result_ids</code> encode the type/shape of the removed element.</p>
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
 with “cannot pop from a slice with length 0”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_pop_front" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#358-422">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_pop_front" class="fn">convert_slice_pop_front</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_pop_front" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#349-413">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_pop_front" class="fn">convert_slice_pop_front</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -414,7 +414,7 @@ consistently with the element’s type.</p>
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
 with “cannot pop from a slice with length 0”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_insert" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#462-636">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_insert" class="fn">convert_slice_insert</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_insert" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#453-627">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_insert" class="fn">convert_slice_insert</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -460,7 +460,7 @@ shifting a contiguous region of elements upward to make room for the new ones:</
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
 with “Index out of bounds, slice has size 0”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_remove" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#683-821">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_remove" class="fn">convert_slice_remove</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_slice_remove" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/slice_ops.rs.html#674-812">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_slice_remove" class="fn">convert_slice_remove</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
