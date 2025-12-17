@@ -158,7 +158,7 @@ mod tests {
     /// - `Constrain` ignores `enable_side_effects` (always executes)
     /// - `ConstrainNotEqual` respects `enable_side_effects` (only executes when enabled)
     /// Because `Constrain` ignores side effects, during the `remove_enable_side_effects`
-    /// pass it might end up under a different side effect than it started with after flattening, 
+    /// pass it might end up under a different side effect than it started with after flattening,
     /// which makes it unsafe to transform it into `ConstrainNotEqual`. Since we don't validate
     /// whether an arbitrary SSA has a side effect variable above `Constrain` which is compatible
     /// with its variables, the conservative thing to do is to only transform if we know it it is safe.
