@@ -619,7 +619,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_no_dereference(&mut self, id: ExprId) -> IResult<Value> {
         if self.evaluation_depth >= MAX_EVALUATION_DEPTH {
             let location = self.elaborator.interner.expr_location(&id);
-            return Err(InterpreterError::StackOverflow {
+            return Err(InterpreterError::EvaluationDepthOverflow {
                 location,
                 call_stack: self.elaborator.interpreter_call_stack().clone(),
             });

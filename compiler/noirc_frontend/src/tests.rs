@@ -409,11 +409,11 @@ fn deeply_nested_expression_overflow() {
     for error in errors {
         if matches!(
             error,
-            CompilationError::InterpreterError(InterpreterError::StackOverflow { .. })
+            CompilationError::InterpreterError(InterpreterError::EvaluationDepthOverflow { .. })
         ) {
             return;
         }
     }
 
-    panic!("should have got a StackOverflow error");
+    panic!("should have got a EvaluationDepthOverflow error");
 }
