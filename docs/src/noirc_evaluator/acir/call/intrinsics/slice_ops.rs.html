@@ -820,16 +820,7 @@
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
 <a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a>
-<a href="#826" id="826">826</a>
-<a href="#827" id="827">827</a>
-<a href="#828" id="828">828</a>
-<a href="#829" id="829">829</a>
-<a href="#830" id="830">830</a>
-<a href="#831" id="831">831</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#822" id="822">822</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
@@ -1019,7 +1010,8 @@
         <span class="kw">let </span>new_slice_length = <span class="self">self</span>.acir_context.add_var(slice_length, one)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
-        <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
+        <span class="kw">let </span>slice_type = dfg.type_of_value(slice_contents);
+        <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array_with_type(slice, <span class="kw-2">&amp;</span>slice_type)<span class="question-mark">?</span>;
 
         <span class="comment">// We must directly push front elements for non-nested slices
         </span><span class="kw">for </span>elem <span class="kw">in </span>elements_to_push.iter().rev() {
@@ -1227,14 +1219,11 @@
         <span class="kw">let </span>new_slice_length = <span class="self">self</span>.acir_context.sub_var(slice_length, one)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
-        <span class="kw">let </span>is_dynamic = <span class="macro">matches!</span>(slice, AcirValue::DynamicArray(<span class="kw">_</span>));
 
-        <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
-
+        <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array_with_type(slice, <span class="kw-2">&amp;</span>slice_typ)<span class="question-mark">?</span>;
         <span class="kw">let </span>element_size = slice_typ.element_size();
 
         <span class="kw">let </span><span class="kw-2">mut </span>popped_elements: Vec&lt;AcirValue&gt; = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>popped_elements_size = <span class="number">0</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>var_index = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
         <span class="comment">// Fetch the values we are popping off of the slice.
         // In the case of non-nested slice the logic is simple as we do not
@@ -1242,19 +1231,12 @@
         </span><span class="kw">for </span>res <span class="kw">in </span><span class="kw-2">&amp;</span>result_ids[..element_size] {
             <span class="kw">let </span>element =
                 <span class="self">self</span>.array_get_value(<span class="kw-2">&amp;</span>dfg.type_of_value(<span class="kw-2">*</span>res), block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
-            <span class="kw">let </span>elem_size = <span class="kw">super</span>::arrays::flattened_value_size(<span class="kw-2">&amp;</span>element);
-            popped_elements_size += elem_size;
             popped_elements.push(element);
         }
 
-        <span class="comment">// It is expected that the `popped_elements_size` is the flattened size of the elements,
-        // as the input slice should be a dynamic array which is represented by flat memory.
-        // However in some cases the input slice is an Array with a nested structure,
-        // in which case we only need to pop the items that represent a single entry.
-        </span><span class="kw">let </span>popped_elements_size = <span class="kw">if </span>is_dynamic { popped_elements_size } <span class="kw">else </span>{ element_size };
+        <span class="kw">let </span>popped_elements_size = popped_elements.len();
 
         new_slice = new_slice.slice(popped_elements_size..);
-
         popped_elements.push(AcirValue::Var(new_slice_length, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_slice));
 

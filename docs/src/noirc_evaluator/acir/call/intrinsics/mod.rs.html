@@ -266,7 +266,7 @@
                 };
                 <span class="kw">let </span>slice_length = <span class="self">self</span>.acir_context.add_constant(slice_length);
                 <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array_contents, dfg);
-                <span class="kw">let </span>result = <span class="self">self</span>.read_array(acir_value)<span class="question-mark">?</span>;
+                <span class="kw">let </span>result = <span class="self">self</span>.read_array_with_type(acir_value, <span class="kw-2">&amp;</span>array_type)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
                     AcirValue::Var(slice_length, NumericType::length_type()),
                     AcirValue::Array(result),
