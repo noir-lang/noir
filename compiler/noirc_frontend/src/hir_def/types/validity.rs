@@ -63,7 +63,7 @@ impl Type {
 
             Type::Array(length, element) => {
                 if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
-                    return Some(InvalidType::Primitive(self.clone()));
+                    Some(InvalidType::Primitive(self.clone()))
                 } else {
                     length
                         .program_input_validity(allow_empty_arrays)
