@@ -415,11 +415,8 @@ impl Elaborator<'_> {
         };
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::List };
         let elem_type = Box::new(elem_type);
-        let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
-        } else {
-            Type::List(elem_type)
-        };
+        let typ =
+            if is_array { Type::Array(Box::new(length), elem_type) } else { Type::List(elem_type) };
         (HirExpression::Literal(constructor(expr)), typ)
     }
 

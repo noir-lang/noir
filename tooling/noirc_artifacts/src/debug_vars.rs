@@ -104,10 +104,7 @@ impl<F: AcirField> DebugVars<F> {
                     }
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
-                (
-                    PrintableValue::Vec { array_elements, is_list },
-                    PrintableType::List { typ },
-                ) => {
+                (PrintableValue::Vec { array_elements, is_list }, PrintableType::List { typ }) => {
                     assert!(*is_list, "list doesn't have list type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }

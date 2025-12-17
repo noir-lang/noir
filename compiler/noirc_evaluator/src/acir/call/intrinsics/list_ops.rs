@@ -601,17 +601,13 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&list_typ).is_none() {
-                Some(self.init_element_type_sizes_array(
-                    &list_typ,
-                    list_contents,
-                    Some(&list),
-                    dfg,
-                )?)
-            } else {
-                None
-            };
+        let element_type_sizes = if super::arrays::array_has_constant_element_size(&list_typ)
+            .is_none()
+        {
+            Some(self.init_element_type_sizes_array(&list_typ, list_contents, Some(&list), dfg)?)
+        } else {
+            None
+        };
 
         let value_types = flat_numeric_types(&list_typ);
 
@@ -783,17 +779,13 @@ impl Context<'_> {
             self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&list_typ).is_none() {
-                Some(self.init_element_type_sizes_array(
-                    &list_typ,
-                    list_contents,
-                    Some(&list),
-                    dfg,
-                )?)
-            } else {
-                None
-            };
+        let element_type_sizes = if super::arrays::array_has_constant_element_size(&list_typ)
+            .is_none()
+        {
+            Some(self.init_element_type_sizes_array(&list_typ, list_contents, Some(&list), dfg)?)
+        } else {
+            None
+        };
 
         let value_types = flat_numeric_types(&list_typ);
 

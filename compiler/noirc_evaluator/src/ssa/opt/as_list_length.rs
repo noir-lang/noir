@@ -45,8 +45,7 @@ impl Function {
                 return;
             }
 
-            let first_argument =
-                arguments.first().expect("AsList should always have one argument");
+            let first_argument = arguments.first().expect("AsList should always have one argument");
             let array_typ = context.dfg.type_of_value(*first_argument);
             let Type::Array(_, length) = array_typ else {
                 unreachable!("AsList called with non-array {}", array_typ);

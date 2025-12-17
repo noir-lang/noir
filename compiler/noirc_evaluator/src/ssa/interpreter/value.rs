@@ -144,9 +144,7 @@ impl Value {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
             Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
-            Value::ArrayOrList(array) if array.is_list => {
-                Type::List(array.element_types.clone())
-            }
+            Value::ArrayOrList(array) if array.is_list => Type::List(array.element_types.clone()),
             Value::ArrayOrList(array) => {
                 let len = array.elements.borrow().len().checked_div(array.element_types.len());
                 let len = len.unwrap_or(0) as u32;

@@ -273,8 +273,7 @@ impl FunctionContext<'_> {
                     ast::Type::List(_) => {
                         let list_length =
                             self.builder.length_constant(array.contents.len() as u128);
-                        let list_contents =
-                            self.codegen_array_checked(elements, typ[1].clone())?;
+                        let list_contents = self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![list_length.into(), list_contents])
                     }
                     _ => unreachable!("ICE: unexpected list literal type, got {}", array.typ),
