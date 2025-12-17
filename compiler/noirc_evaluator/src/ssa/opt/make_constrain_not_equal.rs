@@ -157,6 +157,7 @@ mod tests {
     /// semantics with respect to `enable_side_effects`:
     /// - `Constrain` ignores `enable_side_effects` (always executes)
     /// - `ConstrainNotEqual` respects `enable_side_effects` (only executes when enabled)
+    ///
     /// Because `Constrain` ignores side effects, during the `remove_enable_side_effects`
     /// pass it might end up under a different side effect than it started with after flattening,
     /// which makes it unsafe to transform it into `ConstrainNotEqual`. Since we don't validate
