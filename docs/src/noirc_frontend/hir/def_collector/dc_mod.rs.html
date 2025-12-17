@@ -1795,7 +1795,27 @@
 <a href="#1794" id="1794">1794</a>
 <a href="#1795" id="1795">1795</a>
 <a href="#1796" id="1796">1796</a>
-<a href="#1797" id="1797">1797</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a>
+<a href="#1801" id="1801">1801</a>
+<a href="#1802" id="1802">1802</a>
+<a href="#1803" id="1803">1803</a>
+<a href="#1804" id="1804">1804</a>
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2317,6 +2337,26 @@
             <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_definition.items {
                 <span class="kw">if let </span>TraitItem::Function { generics, where_clause, .. } = <span class="kw-2">&amp;mut </span>item.item {
                     desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
+                }
+            }
+
+            <span class="comment">// Check for duplicate trait item names across all item types (functions, types, constants)
+            </span><span class="kw">let </span><span class="kw-2">mut </span>trait_item_names: HashMap&lt;String, Ident&gt; = HashMap::default();
+            <span class="kw">for </span>trait_item <span class="kw">in </span><span class="kw-2">&amp;</span>trait_definition.items {
+                <span class="kw">let </span>item_name = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_item.item {
+                    TraitItem::Function { name, .. } =&gt; name,
+                    TraitItem::Constant { name, .. } =&gt; name,
+                    TraitItem::Type { name, .. } =&gt; name,
+                };
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(first_def) = trait_item_names.get(item_name.as_str()) {
+                    <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } <span class="kw">else </span>{
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
             }
 
