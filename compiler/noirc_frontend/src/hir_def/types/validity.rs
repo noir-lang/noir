@@ -62,8 +62,8 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                if !allow_empty_arrays && length_may_be_zero(length) {
-                    Some(InvalidType::EmptyArray(self.clone()))
+                if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
+                    return Some(InvalidType::Primitive(self.clone()));
                 } else {
                     length
                         .program_input_validity(allow_empty_arrays)
@@ -71,7 +71,7 @@ impl Type {
                 }
             }
             Type::String(length) => {
-                if !allow_empty_arrays && length_may_be_zero(length) {
+                if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
                     Some(InvalidType::EmptyString(self.clone()))
                 } else {
                     length.program_input_validity(allow_empty_arrays)
@@ -252,6 +252,10 @@ impl Type {
     }
 }
 
-pub(crate) fn length_may_be_zero(length: &Type) -> bool {
-    length.evaluate_to_u32(Location::dummy()).unwrap_or(0) == 0
+pub(crate) fn length_is_valid_for_entry_point(length: &Type, allow_empty: bool) -> bool {
+    match length.evaluate_to_u32(Location::dummy()) {
+        Ok(0) => allow_empty, // Zero is invalid unless allow_empty
+        Ok(_) => true,        // Positive is always valid
+        Err(_) => false,      // Failed to evaluate (like -1) is invalid
+    }
 }

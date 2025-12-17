@@ -186,7 +186,7 @@ impl Elaborator<'_> {
                 &return_type,
                 is_entry_point || func.is_test_or_fuzz(),
                 func.has_inline_attribute(),
-                location,
+                func.return_type().location,
             ) {
                 self.push_err(err);
             }
