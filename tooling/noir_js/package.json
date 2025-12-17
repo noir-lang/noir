@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.15",
+  "version": "1.0.0-beta.17",
   "packageManager": "yarn@4.5.2",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
@@ -56,13 +56,13 @@
     "@types/pako": "^2",
     "@types/prettier": "^3.0.0",
     "chai": "^4.5.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
     "mocha": "^11.5.0",
-    "prettier": "3.7.3",
+    "prettier": "3.7.4",
     "ts-node": "^10.9.2",
     "tsc-multi": "^1.1.0",
-    "tsx": "^4.19.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3"
   }
 }

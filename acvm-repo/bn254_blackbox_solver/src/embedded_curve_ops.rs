@@ -26,7 +26,6 @@ pub fn multi_scalar_mul(
     points: &[FieldElement],
     scalars_lo: &[FieldElement],
     scalars_hi: &[FieldElement],
-    pedantic_solving: bool,
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     if points.len() != 3 * scalars_lo.len() || scalars_lo.len() != scalars_hi.len() {
         return Err(BlackBoxResolutionError::Failed(
@@ -38,12 +37,14 @@ pub fn multi_scalar_mul(
     let mut output_point = ark_grumpkin::Affine::zero();
 
     for i in (0..points.len()).step_by(3) {
-        if pedantic_solving && points[i + 2] > FieldElement::one() {
-            panic!("--pedantic-solving: is_infinity expected to be a bool, but found to be > 1")
+        if points[i + 2] > FieldElement::one() {
+            return Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::MultiScalarMul,
+                "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
+            ));
         }
-        let point =
-            create_point(points[i], points[i + 1], points[i + 2] == FieldElement::from(1_u128))
-                .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
+        let point = create_point(points[i], points[i + 1], points[i + 2])
+            .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
 
         let scalar_low: u128 =
             field_to_u128_limb(&scalars_lo[i / 3], BlackBoxFunc::MultiScalarMul)?;
@@ -84,53 +85,48 @@ pub fn multi_scalar_mul(
 pub fn embedded_curve_add(
     input1: [FieldElement; 3],
     input2: [FieldElement; 3],
-    pedantic_solving: bool,
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-    if pedantic_solving && (input1[2] > FieldElement::one() || input2[2] > FieldElement::one()) {
-        panic!("--pedantic-solving: is_infinity expected to be a bool, but found to be > 1")
+    if input1[2] > FieldElement::one() || input2[2] > FieldElement::one() {
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EmbeddedCurveAdd,
+            "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
+        ));
     }
 
-    let point1 = create_point(input1[0], input1[1], input1[2] == FieldElement::one())
+    let point1 = create_point(input1[0], input1[1], input1[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
-    let point2 = create_point(input2[0], input2[1], input2[2] == FieldElement::one())
+    let point2 = create_point(input2[0], input2[1], input2[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
 
-    if pedantic_solving {
-        for point in [point1, point2] {
-            if point == ark_grumpkin::Affine::zero() {
-                return Err(BlackBoxResolutionError::Failed(
-                    BlackBoxFunc::EmbeddedCurveAdd,
-                    format!("Infinite input: embedded_curve_add({point1}, {point2})"),
-                ));
-            }
+    for point in [point1, point2] {
+        if point == ark_grumpkin::Affine::zero() {
+            return Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                format!("Infinite input: embedded_curve_add({point1}, {point2})"),
+            ));
         }
     }
 
     let res = ark_grumpkin::Affine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
-        Ok((
-            FieldElement::from_repr(res_x),
-            FieldElement::from_repr(res_y),
-            FieldElement::from(u128::from(res.is_zero())),
-        ))
-    } else if res.is_zero() {
-        Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
+        Ok((FieldElement::from_repr(res_x), FieldElement::from_repr(res_y), FieldElement::zero()))
     } else {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EmbeddedCurveAdd,
-            "Point is not on curve".to_string(),
-        ))
+        assert!(res.is_zero());
+        Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
     }
 }
 
 fn create_point(
     x: FieldElement,
     y: FieldElement,
-    is_infinite: bool,
+    is_infinite: FieldElement,
 ) -> Result<ark_grumpkin::Affine, String> {
-    if is_infinite {
+    if is_infinite.is_one() {
         return Ok(ark_grumpkin::Affine::zero());
+    } else if !is_infinite.is_zero() {
+        return Err("`is_infinite` flag is non-boolean".to_string());
     }
+
     let point = ark_grumpkin::Affine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
         return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
@@ -158,13 +154,7 @@ mod tests {
         // We check that multiplying 1 by generator results in the generator
         let generator = get_generator();
 
-        let pedantic_solving = true;
-        let res = multi_scalar_mul(
-            &generator,
-            &[FieldElement::one()],
-            &[FieldElement::zero()],
-            pedantic_solving,
-        )?;
+        let res = multi_scalar_mul(&generator, &[FieldElement::one()], &[FieldElement::zero()])?;
 
         assert_eq!(generator[0], res.0);
         assert_eq!(generator[1], res.1);
@@ -177,8 +167,7 @@ mod tests {
         let scalars_lo = [FieldElement::one()];
         let scalars_hi = [FieldElement::from(2u128)];
 
-        let pedantic_solving = true;
-        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)?;
+        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
         let x = "0702ab9c7038eeecc179b4f209991bcb68c7cb05bf4c532d804ccac36199c9a9";
         let y = "23f10e9e43a3ae8d75d24154e796aae12ae7af546716e8f81a2564f1b5814130";
 
@@ -199,13 +188,10 @@ mod tests {
             "Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128".into(),
         ));
 
-        let pedantic_solving = true;
-        let res =
-            multi_scalar_mul(&points, &[FieldElement::one()], &[invalid_limb], pedantic_solving);
+        let res = multi_scalar_mul(&points, &[FieldElement::one()], &[invalid_limb]);
         assert_eq!(res, expected_error);
 
-        let res =
-            multi_scalar_mul(&points, &[invalid_limb], &[FieldElement::one()], pedantic_solving);
+        let res = multi_scalar_mul(&points, &[invalid_limb], &[FieldElement::one()]);
         assert_eq!(res, expected_error);
     }
 
@@ -215,8 +201,7 @@ mod tests {
         let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
         let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
 
-        let pedantic_solving = true;
-        let res = multi_scalar_mul(&get_generator(), &[low], &[high], pedantic_solving);
+        let res = multi_scalar_mul(&get_generator(), &[low], &[high]);
 
         assert_eq!(
             res,
@@ -234,12 +219,10 @@ mod tests {
         let valid_scalar_low = FieldElement::zero();
         let valid_scalar_high = FieldElement::zero();
 
-        let pedantic_solving = true;
         let res = multi_scalar_mul(
             &[invalid_point_x, invalid_point_y, FieldElement::zero()],
             &[valid_scalar_low],
             &[valid_scalar_high],
-            pedantic_solving,
         );
 
         assert_eq!(
@@ -257,8 +240,7 @@ mod tests {
         let scalars_lo = [FieldElement::from(2u128)];
         let scalars_hi = [];
 
-        let pedantic_solving = true;
-        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving);
+        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
 
         assert_eq!(
             res,
@@ -274,11 +256,9 @@ mod tests {
         let x = FieldElement::from(1u128);
         let y = FieldElement::from(2u128);
 
-        let pedantic_solving = true;
         let res = embedded_curve_add(
             [x, y, FieldElement::from(0u128)],
             [x, y, FieldElement::from(0u128)],
-            pedantic_solving,
         );
 
         assert_eq!(
@@ -295,11 +275,9 @@ mod tests {
         let x = FieldElement::from(1u128);
         let y = FieldElement::from(1u128);
 
-        let pedantic_solving = true;
         let res = embedded_curve_add(
             [x, y, FieldElement::from(1u128)],
             [x, y, FieldElement::from(1u128)],
-            pedantic_solving,
         );
 
         assert_eq!(
@@ -317,16 +295,33 @@ mod tests {
         let scalars_lo = [FieldElement::from(2u128)];
         let scalars_hi = [FieldElement::zero()];
 
-        let pedantic_solving = true;
-        let msm_res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)?;
+        let msm_res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
         let add_res = embedded_curve_add(
             [points[0], points[1], FieldElement::from(0u128)],
             [points[0], points[1], FieldElement::from(0u128)],
-            pedantic_solving,
         )?;
 
         assert_eq!(msm_res.0, add_res.0);
         assert_eq!(msm_res.1, add_res.1);
         Ok(())
+    }
+
+    #[test]
+    fn rejects_non_boolean_is_infinite_flag() {
+        let a = get_generator();
+
+        let mut b = get_generator();
+        // Manipulate `is_infinite` to be non-boolean.
+        b[2] = FieldElement::from(2u32);
+
+        let res = embedded_curve_add(a, b);
+
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".into(),
+            ))
+        );
     }
 }

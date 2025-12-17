@@ -340,3 +340,33 @@ fn does_not_stack_overflow_on_many_comments_in_a_row() {
     src.push_str("fn main() { }");
     assert_no_errors(&src);
 }
+
+#[test]
+fn regression_10553() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+    fn main() {
+        let x = &[false];
+        let s = f"{x}";
+        let _ = &[s];
+                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_10554() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+    fn main() {
+        let x = &[false];
+        let t = &[x];
+                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+        let s = f"{t}";
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}

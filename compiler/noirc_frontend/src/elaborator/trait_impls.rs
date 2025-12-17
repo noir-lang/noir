@@ -100,12 +100,19 @@ impl Elaborator<'_> {
                     };
                     let wildcard_allowed =
                         WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+                    let location = unresolved_type.location;
                     let resolved_type = self.resolve_type_with_kind(
                         unresolved_type,
                         &associated_type.typ.kind(),
                         wildcard_allowed,
                     );
-                    named_generic.type_var.bind(resolved_type);
+                    if let Err(error) = named_generic.type_var.try_bind(
+                        resolved_type,
+                        &named_generic.type_var.kind(),
+                        location,
+                    ) {
+                        self.push_err(error);
+                    }
                 }
             }
 
