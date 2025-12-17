@@ -1067,12 +1067,12 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     ) -> DefinitionId {
         let name = format!("internal_match_variable_{index}");
         let definition_kind = DefinitionKind::Local(None);
-        let not_mutable = false;
-        let not_comptime = false;
+        let mutable = false;
+        let comptime = false;
         let id = self.elaborator.interner.push_definition(
             name,
-            not_mutable,
-            not_comptime,
+            mutable,
+            comptime,
             definition_kind,
             location,
         );

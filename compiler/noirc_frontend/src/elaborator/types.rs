@@ -1090,14 +1090,15 @@ impl Elaborator<'_> {
 
         let (hir_method_reference, error) =
             self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
-        let mut errors = path_resolution.errors;
-        if let Some(error) = error {
-            errors.push(error);
-        }
         let hir_method_reference = hir_method_reference?;
         match hir_method_reference {
             HirMethodReference::FuncId(func_id) => {
                 // It could happen that we find a single function (one in a trait impl)
+                let mut errors = path_resolution.errors;
+                if let Some(error) = error {
+                    errors.push(error);
+                }
+
                 let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
                 Some(TraitPathResolution { method, item: None, errors })
             }
@@ -1113,6 +1114,11 @@ impl Elaborator<'_> {
                 let trait_method = TraitItem { definition, constraint, assumed: false };
                 let func_id = hir_method_reference.func_id(self.interner)?;
                 let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
+
+                let mut errors = path_resolution.errors;
+                if let Some(error) = error {
+                    errors.push(error);
+                }
 
                 let method = TraitPathResolutionMethod::TraitItem(trait_method);
                 Some(TraitPathResolution { method, item: Some(item), errors })
