@@ -2612,7 +2612,66 @@
 <a href="#2611" id="2611">2611</a>
 <a href="#2612" id="2612">2612</a>
 <a href="#2613" id="2613">2613</a>
-<a href="#2614" id="2614">2614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
+<a href="#2620" id="2620">2620</a>
+<a href="#2621" id="2621">2621</a>
+<a href="#2622" id="2622">2622</a>
+<a href="#2623" id="2623">2623</a>
+<a href="#2624" id="2624">2624</a>
+<a href="#2625" id="2625">2625</a>
+<a href="#2626" id="2626">2626</a>
+<a href="#2627" id="2627">2627</a>
+<a href="#2628" id="2628">2628</a>
+<a href="#2629" id="2629">2629</a>
+<a href="#2630" id="2630">2630</a>
+<a href="#2631" id="2631">2631</a>
+<a href="#2632" id="2632">2632</a>
+<a href="#2633" id="2633">2633</a>
+<a href="#2634" id="2634">2634</a>
+<a href="#2635" id="2635">2635</a>
+<a href="#2636" id="2636">2636</a>
+<a href="#2637" id="2637">2637</a>
+<a href="#2638" id="2638">2638</a>
+<a href="#2639" id="2639">2639</a>
+<a href="#2640" id="2640">2640</a>
+<a href="#2641" id="2641">2641</a>
+<a href="#2642" id="2642">2642</a>
+<a href="#2643" id="2643">2643</a>
+<a href="#2644" id="2644">2644</a>
+<a href="#2645" id="2645">2645</a>
+<a href="#2646" id="2646">2646</a>
+<a href="#2647" id="2647">2647</a>
+<a href="#2648" id="2648">2648</a>
+<a href="#2649" id="2649">2649</a>
+<a href="#2650" id="2650">2650</a>
+<a href="#2651" id="2651">2651</a>
+<a href="#2652" id="2652">2652</a>
+<a href="#2653" id="2653">2653</a>
+<a href="#2654" id="2654">2654</a>
+<a href="#2655" id="2655">2655</a>
+<a href="#2656" id="2656">2656</a>
+<a href="#2657" id="2657">2657</a>
+<a href="#2658" id="2658">2658</a>
+<a href="#2659" id="2659">2659</a>
+<a href="#2660" id="2660">2660</a>
+<a href="#2661" id="2661">2661</a>
+<a href="#2662" id="2662">2662</a>
+<a href="#2663" id="2663">2663</a>
+<a href="#2664" id="2664">2664</a>
+<a href="#2665" id="2665">2665</a>
+<a href="#2666" id="2666">2666</a>
+<a href="#2667" id="2667">2667</a>
+<a href="#2668" id="2668">2668</a>
+<a href="#2669" id="2669">2669</a>
+<a href="#2670" id="2670">2670</a>
+<a href="#2671" id="2671">2671</a>
+<a href="#2672" id="2672">2672</a>
+<a href="#2673" id="2673">2673</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3291,10 +3350,28 @@
                 <span class="kw">if </span>result_type.contains_reference() {
                     <span class="kw">let </span>expr = Expression::Other(result);
                     references.expressions.insert(result, expr);
-                    references.aliases.insert(
-                        expr,
-                        AliasSet::known_multiple(<span class="macro">vec!</span>[<span class="kw-2">*</span>then_value, <span class="kw-2">*</span>else_value].into()),
-                    );
+
+                    <span class="comment">// Collect all aliases from both branches.
+                    // For the case: `if cond { array1 } else { array2 }` where
+                    // both arrays contain references - we need to track them.
+                    </span><span class="kw">let </span>then_aliases = references.get_aliases_for_value(<span class="kw-2">*</span>then_value).into_owned();
+                    <span class="kw">let </span>else_aliases = references.get_aliases_for_value(<span class="kw-2">*</span>else_value).into_owned();
+                    <span class="kw">let </span><span class="kw-2">mut </span>all_aliases =
+                        AliasSet::known_multiple(<span class="macro">vec!</span>[<span class="kw-2">*</span>then_value, <span class="kw-2">*</span>else_value].into());
+                    all_aliases.unify(<span class="kw-2">&amp;</span>then_aliases);
+                    all_aliases.unify(<span class="kw-2">&amp;</span>else_aliases);
+
+                    references.aliases.insert(expr, all_aliases.clone());
+
+                    <span class="comment">// Mark references in both branches as being used by this IfElse instruction.
+                    // This ensures that stores to those references are kept even in loops where
+                    // alias information may not propagate correctly through the back edge.
+                    </span><span class="kw">for </span>alias <span class="kw">in </span>then_aliases.iter() {
+                        <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
+                    <span class="kw">for </span>alias <span class="kw">in </span>else_aliases.iter() {
+                        <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
 
                     <span class="comment">// `then_value` and `else_value` are now aliased by `result`
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(then_expr) = references.expressions.get_mut(then_value) {
@@ -5223,6 +5300,47 @@
             v8 = load v5 -&gt; Field
             return v8
         }"</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_store_to_reference_in_array_selected_by_if() {
+        <span class="comment">// Regression test: The store to v5 should NOT be removed because:
+        // - v5 is placed inside array v6
+        // - v6 can be selected via the `if` expression based on loading from another array
+        // - The selected array is stored back to v4
+        // - On the next loop iteration, loading from v4 and doing array_get can return v5
+        // - Then loading from v5 would read uninitialized memory if the store was removed
+        </span><span class="kw">let </span>src = <span class="string">r"
+        brillig(inline) predicate_pure fn foo f1 {
+          b0():
+            v1 = allocate -&gt; &amp;mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&amp;mut u1; 1]
+            v4 = allocate -&gt; &amp;mut [&amp;mut u1; 1]
+            store v3 at v4
+            v5 = allocate -&gt; &amp;mut u1
+            store u1 0 at v5
+            v6 = make_array [v5] : [&amp;mut u1; 1]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v9 = lt v0, u32 3
+            jmpif v9 then: b2, else: b3
+          b2():
+            v10 = load v4 -&gt; [&amp;mut u1; 1]
+            v11 = array_get v10, index u32 0 -&gt; &amp;mut u1
+            v12 = load v11 -&gt; u1
+            inc_rc v10
+            v13 = not v12
+            inc_rc v6
+            v14 = if v12 then v10 else (if v13) v6
+            store v14 at v4
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16)
+          b3():
+            return
+        }
+        "</span>;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
