@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["remove_enable_side_effects_pre_check"]};
+window.SIDEBAR_ITEMS = {"fn":["remove_enable_side_effects_pre_check","should_insert_side_effects_before_instruction"]};
