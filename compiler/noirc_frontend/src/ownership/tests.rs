@@ -4,7 +4,7 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::get_monomorphized_no_emit_test;
+use crate::test_utils::get_monomorphized;
 
 #[test]
 fn last_use_in_if_branches() {
@@ -28,7 +28,7 @@ fn last_use_in_if_branches() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(d$l0: [Field; 2]) -> () {
         if (len$f1(d$l0.clone()) == 2) {
@@ -66,7 +66,7 @@ fn does_not_move_into_loop() {
     fn use_var<T>(_x: T) {}
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(param$l0: [Field; 2]) -> () {
         let local1$l1 = [0];
@@ -100,7 +100,7 @@ fn can_move_within_loop() {
     fn use_var<T>(_x: T) {}
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         for _$l0 in 0 .. 10 {
@@ -129,7 +129,7 @@ fn borrows_on_nested_index() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     // We expect no clones
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(x$l0: Field, y$l1: pub Field) -> () {
@@ -158,7 +158,7 @@ fn clone_call_array_result() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     // We expect no clones
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub u32 {
@@ -184,7 +184,7 @@ fn considers_lvalue_index_identifier_in_last_use() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let mut b$l0 = [true];
@@ -210,7 +210,7 @@ fn analyzes_expression_before_lvalue_in_assignment() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let mut b$l0 = [true];
@@ -242,7 +242,7 @@ fn clone_nested_array_used_as_call_arg() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub bool {
         let G_A$l1 = [[false, false, false], [false, false, false]];
@@ -278,7 +278,7 @@ fn clone_global_nested_array_used_as_call_arg() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     global G_A$g0: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
     unconstrained fn main$f0(i$l0: u32) -> pub bool {
@@ -317,7 +317,7 @@ fn regression_9907() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     // There are clones on both bar input and output
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> pub [[Field; 1]; 1] {
@@ -333,6 +333,51 @@ fn regression_9907() {
     }
     unconstrained fn bar$f2(mut a$l3: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
         a$l3
+    }
+    ");
+}
+
+#[test]
+fn handle_reference_expression_cases() {
+    // Each of these cases should delay a clone
+    let src = "
+        unconstrained fn main(mut a: [Field; 1]) {
+            let _ = { a }[0]; // block
+            let _ = (*&mut a)[0]; // *
+
+            let tuple = (a, a); // Clones here are expected
+            let _ = tuple.0[0];  // but the tuple itself doesn't need to be cloned when getting the
+                                 // first element of the tuple.
+
+            let nested = [a, a]; // Clones here are expected
+            let _ = nested[0][0];  // index expr, no clone
+
+            let _ = (|x| x)(a)[0]; // other (we should clone)
+
+            let _ = (a, tuple, nested); // ensure each variable is used afterward so each prior use is eligible for a clone
+        }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // There are clones on both bar input and output
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut a$l0: [Field; 1]) -> () {
+        let _$l1 = {
+            a$l0
+        }[0];
+        let _$l2 = (*(&mut a$l0))[0];
+        let tuple$l3 = (a$l0.clone(), a$l0.clone());
+        let _$l4 = tuple$l3.0[0];
+        let nested$l5 = [a$l0.clone(), a$l0.clone()];
+        let _$l6 = nested$l5[0][0];
+        let _$l9 = lambda$f2(a$l0.clone())[0];
+        let _$l10 = (a$l0, tuple$l3, nested$l5)
+    }
+    unconstrained fn lambda$f1(x$l7: [Field; 1]) -> [Field; 1] {
+        x$l7
+    }
+    unconstrained fn lambda$f2(x$l8: [Field; 1]) -> [Field; 1] {
+        x$l8
     }
     ");
 }

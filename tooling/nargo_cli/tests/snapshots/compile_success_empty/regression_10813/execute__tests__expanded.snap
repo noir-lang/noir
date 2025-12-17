@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Foo {
+    type Bar;
+
+    let Baz: u32;
+
+    fn foo(x: [Bar; Baz]) -> u32 {
+        x.len()
+    }
+}
+
+impl Foo for () {
+    let Baz: u32 = 0;
+
+    type Bar = Self;
+
+    fn foo(x: [Self; 0]) -> u32 {
+        x.len()
+    }
+}
+
+fn main() {
+    assert(<() as Foo<Bar = ()>>::foo([(); 0]) == 0_u32);
+}
