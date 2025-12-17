@@ -165,9 +165,10 @@ mod tests {
     fn regression_10929() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: Field, v1: u1):
-            enable_side_effects v1            
-            constrain v0 == u1 0
+          b0(v0: Field, v1: Field, v2: u1):
+            enable_side_effects v2
+            v3 = eq v0, v1
+            constrain v3 == u1 0
             return
         }
         "#;
