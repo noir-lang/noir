@@ -147,8 +147,16 @@
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
-    Type,
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    Type, TypeBindings,
     node_interner::{FuncId, TraitId},
 };
 
@@ -251,6 +259,13 @@
         direct.chain(trait_impl_methods)
     }
 
+    <span class="doccomment">/// Check if the types can unify without binding any type variables.
+    /// This is important because method lookup should not have side effects on type variables.
+    </span><span class="kw">fn </span>types_can_unify(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+        a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_ok()
+    }
+
     <span class="kw">fn </span>method_matches(
         typ: <span class="kw-2">&amp;</span>Type,
         check_self_param: bool,
@@ -274,16 +289,17 @@
                         }
                     }
                 } <span class="kw">else </span>{
-                    <span class="comment">// We still need to make sure the method is for the given type
-                    // (this might be false if for example a method for `Struct&lt;i32&gt;` was added but
-                    // now we are looking for a method in `Struct&lt;i64&gt;`)
-                    </span><span class="kw">if </span>method_type.unify(typ).is_ok() {
+                    <span class="comment">// When check_self_param is false, we do not bind unification because
+                    // `method_type` might contain NamedGenerics from the impl definition,
+                    // and we don't want to bind type variables in `typ` to those NamedGenerics.
+                    // This prevents side effects on the caller's type variables.
+                    </span><span class="kw">if </span><span class="self">Self</span>::types_can_unify(method_type, typ) {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
 
                     <span class="comment">// Handle auto-dereferencing `&amp;T` and `&amp;mut T` into `T`
                     </span><span class="kw">if let </span>Type::Reference(method_type, _mutable) = method_type {
-                        <span class="kw">if </span>method_type.unify(typ).is_ok() {
+                        <span class="kw">if </span><span class="self">Self</span>::types_can_unify(method_type, typ) {
                             <span class="kw">return </span><span class="bool-val">true</span>;
                         }
                     }
