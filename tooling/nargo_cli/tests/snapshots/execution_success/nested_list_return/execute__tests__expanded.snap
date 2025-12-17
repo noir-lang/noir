@@ -10,6 +10,6 @@ fn main(i: u32) -> pub [[u32; 5]; 4] {
         [16_u32, 17_u32, 18_u32, 19_u32, 20_u32],
     ];
     arr[i][1_u32] = 100_u32;
-    let slice: [[u32; 5]] = arr.as_slice();
-    slice.as_array()
+    let list: [[u32; 5]] = arr.as_list();
+    list.as_array()
 }

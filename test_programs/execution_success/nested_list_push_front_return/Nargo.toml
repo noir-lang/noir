@@ -1,5 +1,5 @@
 [package]
-name = "nested_slice_push_front_return"
+name = "nested_list_push_front_return"
 type = "bin"
 authors = [""]
 

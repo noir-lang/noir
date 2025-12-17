@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[nested_list_return] Circuit output: [[1, 2, 3, 4, 5], [6, 100, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20]]
