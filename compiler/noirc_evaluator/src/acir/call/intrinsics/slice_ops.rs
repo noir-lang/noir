@@ -44,7 +44,6 @@ impl Context<'_> {
         {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
-            let old_slice_len = new_slice.len();
             // length of Acir Values slice
             let len = len_const.to_u128() as usize * elements_to_push.len();
 
@@ -60,11 +59,7 @@ impl Context<'_> {
                     new_slice.push_back(element);
                 }
             }
-            let new_slice_length = if new_slice.len() > old_slice_len {
-                self.acir_context.add_var(slice_length, one)?
-            } else {
-                slice_length
-            };
+            let new_slice_length = self.acir_context.add_var(slice_length, one)?;
             (new_slice_length, AcirValue::Array(new_slice))
         } else {
             // Length is not known, we are going to:
@@ -116,8 +111,10 @@ impl Context<'_> {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(&new_slice_array),
+                        Some(new_slice_array.clone()),
                         dfg,
+                        // We do not need extra capacity here as `new_slice_array` has already pushed back new elements
+                        None,
                     )?)
                 } else {
                     None
@@ -624,9 +621,10 @@ impl Context<'_> {
             if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
-                    slice_contents,
-                    Some(&slice),
+                    result_ids[1],
+                    Some(slice),
                     dfg,
+                    Some(1),
                 )?)
             } else {
                 None
@@ -807,8 +805,9 @@ impl Context<'_> {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
                     slice_contents,
-                    Some(&slice),
+                    Some(slice),
                     dfg,
+                    None,
                 )?)
             } else {
                 None

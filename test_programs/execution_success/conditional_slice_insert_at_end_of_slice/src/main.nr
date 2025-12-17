@@ -9,5 +9,6 @@ fn main(cond: bool) -> pub u32 {
         slice = slice.push_back(foo { a: 5, b: [6, 7] });
     }
     slice = slice.insert(slice.len(), foo { a: 8, b: [9, 10] });
+    slice = slice.insert(slice.len(), foo { a: 8, b: [9, 10] });
     slice.len()
 }
