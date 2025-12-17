@@ -233,7 +233,7 @@ fn abi_incompatible_assert_message() {
         fn main() {
             let xs = &[0_u32];
             assert(xs[0] > 0, f"bad list: {xs}");
-                              ^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
+                              ^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
 
             assert(false, ());
                           ^^ The type () cannot be used in a message
