@@ -382,7 +382,7 @@ fn deeply_nested_expression_overflow() {
     fn make_nested_expr(stem: &str) -> String {
         let mut expr = String::from(stem);
         for i in 2..=100 {
-            expr = format!("({} + {})", expr, i);
+            expr = format!("({expr} + {i})");
         }
         expr
     }
