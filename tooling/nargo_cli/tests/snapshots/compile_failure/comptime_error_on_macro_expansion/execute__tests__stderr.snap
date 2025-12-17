@@ -60,7 +60,7 @@ error: Expected value, found built-in type `(resolved type)`
          fn one() {
              
          }
-         fn mul < let NScalarSlices: u32 > (self, scalar: ScalarField < NScalarSlices > ) -> Self {
+         fn mul < let NScalarLists: u32 > (self, scalar: ScalarField < NScalarLists > ) -> Self {
              unconstrained_function();
              crate::mul_with_hint(BN254, scalar, transcript)
          }

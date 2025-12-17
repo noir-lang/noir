@@ -738,7 +738,7 @@ impl<'a> Parser<'a> {
                 return self.expected_byte_string();
             };
             let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-            let typ = Type::Slice(Arc::new(vec![u8.clone()]));
+            let typ = Type::List(Arc::new(vec![u8.clone()]));
             let elements = string
                 .bytes()
                 .map(|byte| {
@@ -977,7 +977,7 @@ impl<'a> Parser<'a> {
                 return Ok(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Slice(Arc::new(element_types)));
+                return Ok(Type::List(Arc::new(element_types)));
             }
         }
 

@@ -23,15 +23,15 @@ impl<T, let N: u32> [T; N] {
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
-    /// Returns this array as a slice.
+    /// Returns this array as a list.
     ///
     /// ```noir
     /// let array = [1, 2];
-    /// let slice = array.as_slice();
-    /// assert_eq(slice, &[1, 2]);
+    /// let list = array.as_list();
+    /// assert_eq(list, &[1, 2]);
     /// ```
-    #[builtin(as_slice)]
-    pub fn as_slice(self) -> [T] {}
+    #[builtin(as_list)]
+    pub fn as_list(self) -> [T] {}
 
     /// Applies a function to each element of this array, returning a new array containing the mapped elements.
     ///

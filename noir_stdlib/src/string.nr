@@ -8,7 +8,7 @@ impl<let N: u32> str<N> {
 
     /// return a byte vector of the str content
     pub fn as_bytes_vec(self: Self) -> Vec<u8> {
-        Vec::from_slice(self.as_bytes().as_slice())
+        Vec::from_list(self.as_bytes().as_list())
     }
 }
 

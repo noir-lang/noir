@@ -3,19 +3,19 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(expected: pub Field, first: Field, input: [Field; 20]) {
-    let mut hasher_slice: [Field] = input.as_slice();
-    hasher_slice = hasher_slice.push_front(first);
-    assert(hasher_slice[0_u32] == expected);
+    let mut hasher_list: [Field] = input.as_list();
+    hasher_list = hasher_list.push_front(first);
+    assert(hasher_list[0_u32] == expected);
     if (expected as u32) > 10_u32 {
         {
             let i_4484: u32 = (expected - 10_Field) as u32;
-            hasher_slice[i_4484] = 100_Field;
+            hasher_list[i_4484] = 100_Field;
         }
     } else {
         {
             let i_4485: u32 = expected as u32;
-            hasher_slice[i_4485] = 100_Field;
+            hasher_list[i_4485] = 100_Field;
         }
     };
-    assert(hasher_slice[0_u32] == expected);
+    assert(hasher_list[0_u32] == expected);
 }

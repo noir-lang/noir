@@ -1,6 +1,6 @@
 ---
 title: UnresolvedType
-description: Work with the syntactic form of types—inspect references, slices, and primitive kind checks before resolution.
+description: Work with the syntactic form of types—inspect references, lists, and primitive kind checks before resolution.
 ---
 
 `std::meta::unresolved_type` contains methods on the built-in `UnresolvedType` type for the syntax of types.
@@ -13,11 +13,11 @@ description: Work with the syntactic form of types—inspect references, slices,
 
 If this is a mutable reference type `&mut T`, returns the mutable type `T`.
 
-### as_slice
+### as_list
 
-#include_code as_slice noir_stdlib/src/meta/unresolved_type.nr rust
+#include_code as_list noir_stdlib/src/meta/unresolved_type.nr rust
 
-If this is a slice `&[T]`, returns the element type `T`.
+If this is a list `&[T]`, returns the element type `T`.
 
 ### is_bool
 

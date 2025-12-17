@@ -72,7 +72,7 @@ pub enum Value {
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
-    Slice(Vector<Value>, Type),
+    List(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
     TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
@@ -162,7 +162,7 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
-            Value::Slice(_, typ) => return Cow::Borrowed(typ),
+            Value::List(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
             Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element, auto_deref, mutable) => {
@@ -297,10 +297,10 @@ impl Value {
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, _) => {
+            Value::List(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Literal::List(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -478,11 +478,11 @@ impl Value {
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, _) => {
+            Value::List(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
                     element.into_hir_expression(interner, location)
                 })?;
-                HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
+                HirExpression::Literal(HirLiteral::List(HirArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
@@ -686,7 +686,7 @@ impl Value {
             Value::Array(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Slice(values, _) => {
+            Value::List(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Tuple(values) => {

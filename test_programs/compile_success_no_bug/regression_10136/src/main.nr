@@ -1,8 +1,8 @@
 fn main(array: [Field; 1], cond: bool) -> pub u32 {
-    let slice = array.as_slice();
-    let mut slice = std::hint::black_box(slice);
+    let list = array.as_list();
+    let mut list = std::hint::black_box(list);
     if cond {
-        slice = slice.push_back(1);
+        list = list.push_back(1);
     }
-    slice.len()
+    list.len()
 }

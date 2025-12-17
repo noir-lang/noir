@@ -138,23 +138,23 @@ impl ChunkFormatter<'_, '_> {
             })),
             Literal::Array(array_literal) => group.group(self.format_array_literal(
                 array_literal,
-                false, // is slice
+                false, // is list
             )),
-            Literal::Slice(array_literal) => {
+            Literal::List(array_literal) => {
                 group.group(self.format_array_literal(
                     array_literal,
-                    true, // is slice
+                    true, // is list
                 ));
             }
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> ChunkGroup {
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_list: bool) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if is_slice {
-                formatter.write_token(Token::SliceStart);
+            if is_list {
+                formatter.write_token(Token::ListStart);
             }
             formatter.write_left_bracket();
         }));
@@ -1434,7 +1434,7 @@ mod tests {
     }
 
     #[test]
-    fn format_standard_slice() {
+    fn format_standard_list() {
         let src = "global x = & [ 1 , 2 , 3 , ] ;";
         let expected = "global x = &[1, 2, 3];\n";
         assert_format(src, expected);

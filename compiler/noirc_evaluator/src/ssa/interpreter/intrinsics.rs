@@ -25,7 +25,7 @@ impl<W: Write> Interpreter<'_, W> {
         match intrinsic {
             Intrinsic::ArrayLen => {
                 check_argument_count(args, 1, intrinsic)?;
-                let array = self.lookup_array_or_slice(args[0], "call to array_len")?;
+                let array = self.lookup_array_or_list(args[0], "call to array_len")?;
                 let length = array.elements.borrow().len();
                 Ok(vec![Value::u32(length as u32)])
             }
@@ -33,15 +33,15 @@ impl<W: Write> Interpreter<'_, W> {
                 check_argument_count(args, 1, intrinsic)?;
                 Ok(vec![self.lookup(args[0])?])
             }
-            Intrinsic::AsSlice => {
+            Intrinsic::AsList => {
                 check_argument_count(args, 1, intrinsic)?;
-                let array = self.lookup_array_or_slice(args[0], "call to as_slice")?;
+                let array = self.lookup_array_or_list(args[0], "call to as_list")?;
                 let length = array.elements.borrow().len();
                 let length = Value::u32(length as u32);
 
                 let elements = array.elements.borrow().to_vec();
-                let slice = Value::slice(elements, array.element_types.clone());
-                Ok(vec![length, slice])
+                let list = Value::list(elements, array.element_types.clone());
+                Ok(vec![length, list])
             }
             Intrinsic::AssertConstant => {
                 // Nothing we can do here unfortunately if we want to allow code with
@@ -66,12 +66,12 @@ impl<W: Write> Interpreter<'_, W> {
                     Err(InterpreterError::StaticAssertFailed { condition: args[0], message })
                 }
             }
-            Intrinsic::SlicePushBack => self.slice_push_back(args),
-            Intrinsic::SlicePushFront => self.slice_push_front(args),
-            Intrinsic::SlicePopBack => self.slice_pop_back(args),
-            Intrinsic::SlicePopFront => self.slice_pop_front(args),
-            Intrinsic::SliceInsert => self.slice_insert(args),
-            Intrinsic::SliceRemove => self.slice_remove(args),
+            Intrinsic::ListPushBack => self.list_push_back(args),
+            Intrinsic::ListPushFront => self.list_push_front(args),
+            Intrinsic::ListPopBack => self.list_pop_back(args),
+            Intrinsic::ListPopFront => self.list_pop_front(args),
+            Intrinsic::ListInsert => self.list_insert(args),
+            Intrinsic::ListRemove => self.list_remove(args),
             Intrinsic::ApplyRangeConstraint => {
                 Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
@@ -260,7 +260,7 @@ impl<W: Write> Interpreter<'_, W> {
                 acvm::acir::BlackBoxFunc::MultiScalarMul => {
                     check_argument_count(args, 3, intrinsic)?;
                     let input_points =
-                        self.lookup_array_or_slice(args[0], "call to MultiScalarMul blackbox")?;
+                        self.lookup_array_or_list(args[0], "call to MultiScalarMul blackbox")?;
                     let mut points = Vec::new();
                     for (i, v) in input_points.elements.borrow().iter().enumerate() {
                         if i % 3 == 2 {
@@ -285,7 +285,7 @@ impl<W: Write> Interpreter<'_, W> {
                         }
                     }
                     let scalars =
-                        self.lookup_array_or_slice(args[1], "call to MultiScalarMul blackbox")?;
+                        self.lookup_array_or_list(args[1], "call to MultiScalarMul blackbox")?;
                     let mut scalars_lo = Vec::new();
                     let mut scalars_hi = Vec::new();
                     for (i, v) in scalars.elements.borrow().iter().enumerate() {
@@ -481,10 +481,10 @@ impl<W: Write> Interpreter<'_, W> {
                 let rhs = self.lookup_field(args[1], "rhs of call to field less than")?;
                 Ok(vec![Value::bool(lhs < rhs)])
             }
-            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
-                // `slice_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
-                let idx = if matches!(intrinsic, Intrinsic::SliceRefCount) { 1 } else { 0 };
-                let array = self.lookup_array_or_slice(args[idx], "array/slice ref count")?;
+            Intrinsic::ArrayRefCount | Intrinsic::ListRefCount => {
+                // `list_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
+                let idx = if matches!(intrinsic, Intrinsic::ListRefCount) { 1 } else { 0 };
+                let array = self.lookup_array_or_list(args[idx], "array/list ref count")?;
                 let mut rc = *array.rc.borrow();
                 // ACIR always returns 0 for the refcounts, and we expect that IncRc and DecRc don't appear in constrained SSA.
                 // The interpreter starts with a default ref-count value of 1. If it did not change, treat it as zero to match ACIR.
@@ -531,17 +531,17 @@ impl<W: Write> Interpreter<'_, W> {
         Ok(vec![Value::array(elements, vec![Type::Numeric(element_type)])])
     }
 
-    /// (length, slice, elem...) -> (length, slice)
-    fn slice_push_back(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_push_back")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_push_back")?;
+    /// (length, list, elem...) -> (length, list)
+    fn list_push_back(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to list_push_back")?;
+        let list = self.lookup_array_or_list(args[1], "call to list_push_back")?;
 
-        // The resulting slice should be cloned - should we check RC here to try mutating it?
+        // The resulting list should be cloned - should we check RC here to try mutating it?
         // It'd need to be brillig-only if so since RC is always 1 in acir.
-        let mut new_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut new_elements = list.elements.borrow().to_vec();
+        let element_types = list.element_types.clone();
 
-        // The slice might contain more elements than its length.
+        // The list might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
         new_elements.truncate(element_types.len() * length as usize);
         for arg in args.iter().skip(2) {
@@ -549,117 +549,117 @@ impl<W: Write> Interpreter<'_, W> {
         }
 
         let new_length = Value::u32(length + 1);
-        let new_slice = Value::slice(new_elements, element_types);
-        Ok(vec![new_length, new_slice])
+        let new_list = Value::list(new_elements, element_types);
+        Ok(vec![new_length, new_list])
     }
 
-    /// (length, slice, elem...) -> (length, slice)
-    fn slice_push_front(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_push_front")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_push_front")?;
-        let slice_elements = slice.elements.clone();
-        let element_types = slice.element_types.clone();
+    /// (length, list, elem...) -> (length, list)
+    fn list_push_front(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to list_push_front")?;
+        let list = self.lookup_array_or_list(args[1], "call to list_push_front")?;
+        let list_elements = list.elements.clone();
+        let element_types = list.element_types.clone();
 
         let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
-        new_elements.extend_from_slice(&slice_elements.borrow());
+        new_elements.extend_from_slice(&list_elements.borrow());
 
         let new_length = Value::u32(length + 1);
-        let new_slice = Value::slice(new_elements, element_types);
-        Ok(vec![new_length, new_slice])
+        let new_list = Value::list(new_elements, element_types);
+        Ok(vec![new_length, new_list])
     }
 
-    /// (length, slice) -> (length, slice, elem...)
-    fn slice_pop_back(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_pop_back")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_pop_back")?;
+    /// (length, list) -> (length, list, elem...)
+    fn list_pop_back(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to list_pop_back")?;
+        let list = self.lookup_array_or_list(args[1], "call to list_pop_back")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut list_elements = list.elements.borrow().to_vec();
+        let element_types = list.element_types.clone();
 
-        if slice_elements.is_empty() || length == 0 {
-            let instruction = "slice_pop_back";
-            return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
+        if list_elements.is_empty() || length == 0 {
+            let instruction = "list_pop_back";
+            return Err(InterpreterError::PoppedFromEmptyList { list: args[1], instruction });
         }
-        check_slice_can_pop_all_element_types(args[1], &slice)?;
+        check_list_can_pop_all_element_types(args[1], &list)?;
 
-        // The slice might contain more elements than its length.
+        // The list might contain more elements than its length.
         // We want the last valid element, ignoring any extras following it.
         // We don't ever access the extras, so we might as well remove any.
-        slice_elements.truncate(element_types.len() * length as usize);
-        let mut popped_elements = vecmap(0..element_types.len(), |_| slice_elements.pop().unwrap());
+        list_elements.truncate(element_types.len() * length as usize);
+        let mut popped_elements = vecmap(0..element_types.len(), |_| list_elements.pop().unwrap());
         popped_elements.reverse();
 
         let new_length = Value::u32(length - 1);
-        let new_slice = Value::slice(slice_elements, element_types);
-        let mut results = vec![new_length, new_slice];
+        let new_list = Value::list(list_elements, element_types);
+        let mut results = vec![new_length, new_list];
         results.extend(popped_elements);
         Ok(results)
     }
 
-    /// (length, slice) -> (elem..., length, slice)
-    fn slice_pop_front(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_pop_front")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_pop_front")?;
+    /// (length, list) -> (elem..., length, list)
+    fn list_pop_front(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to list_pop_front")?;
+        let list = self.lookup_array_or_list(args[1], "call to list_pop_front")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut list_elements = list.elements.borrow().to_vec();
+        let element_types = list.element_types.clone();
 
-        if slice_elements.is_empty() || length == 0 {
-            let instruction = "slice_pop_front";
-            return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
+        if list_elements.is_empty() || length == 0 {
+            let instruction = "list_pop_front";
+            return Err(InterpreterError::PoppedFromEmptyList { list: args[1], instruction });
         }
-        check_slice_can_pop_all_element_types(args[1], &slice)?;
+        check_list_can_pop_all_element_types(args[1], &list)?;
 
-        let mut results = slice_elements.drain(0..element_types.len()).collect::<Vec<_>>();
+        let mut results = list_elements.drain(0..element_types.len()).collect::<Vec<_>>();
 
         let new_length = Value::u32(length - 1);
-        let new_slice = Value::slice(slice_elements, element_types);
+        let new_list = Value::list(list_elements, element_types);
         results.push(new_length);
-        results.push(new_slice);
+        results.push(new_list);
         Ok(results)
     }
 
-    /// (length, slice, index:u32, elem...) -> (length, slice)
-    fn slice_insert(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_insert")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_insert")?;
-        let index = self.lookup_u32(args[2], "call to slice_insert")?;
+    /// (length, list, index:u32, elem...) -> (length, list)
+    fn list_insert(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to list_insert")?;
+        let list = self.lookup_array_or_list(args[1], "call to list_insert")?;
+        let index = self.lookup_u32(args[2], "call to list_insert")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut list_elements = list.elements.borrow().to_vec();
+        let element_types = list.element_types.clone();
 
         let mut index = index as usize * element_types.len();
         for arg in args.iter().skip(3) {
-            slice_elements.insert(index, self.lookup(*arg)?);
+            list_elements.insert(index, self.lookup(*arg)?);
             index += 1;
         }
 
         let new_length = Value::u32(length + 1);
-        let new_slice = Value::slice(slice_elements, element_types);
-        Ok(vec![new_length, new_slice])
+        let new_list = Value::list(list_elements, element_types);
+        Ok(vec![new_length, new_list])
     }
 
-    /// (length, slice, index:u32) -> (length, slice, elem...)
-    fn slice_remove(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_remove")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_remove")?;
-        let index = self.lookup_u32(args[2], "call to slice_remove")?;
+    /// (length, list, index:u32) -> (length, list, elem...)
+    fn list_remove(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to list_remove")?;
+        let list = self.lookup_array_or_list(args[1], "call to list_remove")?;
+        let index = self.lookup_u32(args[2], "call to list_remove")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut list_elements = list.elements.borrow().to_vec();
+        let element_types = list.element_types.clone();
 
-        if slice_elements.is_empty() {
-            let instruction = "slice_remove";
-            return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
+        if list_elements.is_empty() {
+            let instruction = "list_remove";
+            return Err(InterpreterError::PoppedFromEmptyList { list: args[1], instruction });
         }
-        check_slice_can_pop_all_element_types(args[1], &slice)?;
+        check_list_can_pop_all_element_types(args[1], &list)?;
 
         let index = index as usize * element_types.len();
-        let removed: Vec<_> = slice_elements.drain(index..index + element_types.len()).collect();
+        let removed: Vec<_> = list_elements.drain(index..index + element_types.len()).collect();
 
         let new_length = Value::u32(length - 1);
-        let new_slice = Value::slice(slice_elements, element_types);
-        let mut results = vec![new_length, new_slice];
+        let new_list = Value::list(list_elements, element_types);
+        let mut results = vec![new_length, new_list];
         results.extend(removed);
         Ok(results)
     }
@@ -780,16 +780,16 @@ fn check_argument_count_is_at_least(
     }
 }
 
-fn check_slice_can_pop_all_element_types(slice_id: ValueId, slice: &ArrayValue) -> IResult<()> {
-    let actual_length = slice.elements.borrow().len();
-    if actual_length >= slice.element_types.len() {
+fn check_list_can_pop_all_element_types(list_id: ValueId, list: &ArrayValue) -> IResult<()> {
+    let actual_length = list.elements.borrow().len();
+    if actual_length >= list.element_types.len() {
         Ok(())
     } else {
-        Err(InterpreterError::Internal(InternalError::NotEnoughElementsToPopSliceOfStructs {
-            slice_id,
-            slice: slice.to_string(),
+        Err(InterpreterError::Internal(InternalError::NotEnoughElementsToPopListOfStructs {
+            list_id,
+            list: list.to_string(),
             actual_length,
-            element_types: vecmap(slice.element_types.iter(), ToString::to_string),
+            element_types: vecmap(list.element_types.iter(), ToString::to_string),
         }))
     }
 }
@@ -812,10 +812,10 @@ fn new_embedded_curve_point(
     ))
 }
 
-/// Convert a slice of [Value] to a flattened vector of [FieldElement] for printing.
+/// Convert a list of [Value] to a flattened vector of [FieldElement] for printing.
 ///
-/// It takes a slice, rather than individual values, so that it can try to
-/// pair up `u32` fields indicating the size of a `Slice` with its elements
+/// It takes a list, rather than individual values, so that it can try to
+/// pair up `u32` fields indicating the size of a `List` with its elements
 /// following in the next value, and truncate the data to the semantic length.
 fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
     fn go<'a, I>(values: I, fields: &mut Vec<FieldElement>)
@@ -831,9 +831,9 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                         go(std::iter::once(value), fields);
                     }
                 }
-                Value::ArrayOrSlice(array_value) => {
+                Value::ArrayOrList(array_value) => {
                     let length = match vector_length {
-                        Some(length) if array_value.is_slice => {
+                        Some(length) if array_value.is_list => {
                             length * array_value.element_types.len()
                         }
                         _ => array_value.elements.borrow().len(),
@@ -887,7 +887,7 @@ fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
 
 /// Parse a value as `[u8]` and convert to UTF-8 `String`.
 fn value_to_string(name: &'static str, value: &Value) -> IResult<String> {
-    let arr = value.as_array_or_slice().and_then(|arr| {
+    let arr = value.as_array_or_list().and_then(|arr| {
         arr.elements.borrow().iter().map(|v| v.as_u8()).collect::<Option<Vec<_>>>()
     });
     let Some(bz) = arr else {

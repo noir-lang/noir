@@ -1,0 +1,6 @@
+[package]
+name = "nested_list_pop_back"
+type = "bin"
+authors = [""]
+
+[dependencies]

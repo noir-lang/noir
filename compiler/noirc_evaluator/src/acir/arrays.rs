@@ -241,7 +241,7 @@ impl Context<'_> {
         Ok(())
     }
 
-    /// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+    /// For 0-length arrays and lists, even the disabled memory operations would cause runtime failures.
     /// Set the result to a zero value that matches the type then bypass the rest of the operation,
     /// leaving an assertion that the side effect variable must be false.
     ///
@@ -379,7 +379,7 @@ impl Context<'_> {
         if is_simple_array {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             match array_typ {
-                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
+                Type::Array(item_type, _) | Type::List(item_type) => item_type
                     .iter()
                     .enumerate()
                     .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
@@ -807,10 +807,10 @@ impl Context<'_> {
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         //
-        // A slice's size must be fetched from the SSA value that represents the slice.
-        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
-        // and may contain data for which we want to restrict access. The true slice length is tracked in a
-        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
+        // A list's size must be fetched from the SSA value that represents the list.
+        // However, this size is simply the capacity of a list. The capacity is dependent upon the witness
+        // and may contain data for which we want to restrict access. The true list length is tracked in a
+        // a separate SSA value and restrictions on list indices should be generated elsewhere in the SSA.
         let array_typ = dfg.type_of_value(array);
         let len = self.flattened_size(array, dfg);
 
@@ -849,15 +849,15 @@ impl Context<'_> {
     ) -> Result<BlockId, RuntimeError> {
         let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
-        // Need to look into how to optimize for slices as this could lead to different element type sizes
-        // for different slices that do not have consistent sizes
+        // Need to look into how to optimize for lists as this could lead to different element type sizes
+        // for different lists that do not have consistent sizes
         if self.initialized_arrays.contains(&element_type_sizes) {
             return Ok(element_type_sizes);
         }
 
-        if !matches!(array_typ, Type::Array(_, _) | Type::Slice(_)) {
+        if !matches!(array_typ, Type::Array(_, _) | Type::List(_)) {
             return Err(InternalError::Unexpected {
-                expected: "array or slice".to_owned(),
+                expected: "array or list".to_owned(),
                 found: array_typ.to_string(),
                 call_stack: self.acir_context.get_call_stack(),
             }
@@ -873,7 +873,7 @@ impl Context<'_> {
             .into());
         }
 
-        // An instruction representing the slice means it has been processed previously during ACIR gen.
+        // An instruction representing the list means it has been processed previously during ACIR gen.
         // Use the previously defined result of an array operation to fetch the internal type information.
         let array_acir_value = &self.convert_value(array_id, dfg);
         let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
@@ -962,9 +962,9 @@ impl Context<'_> {
             //Array are already structured
             AcirValue::Array(vars) => Ok(vars),
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                // For slices/arrays, reconstruct the structure based on the element type
+                // For lists/arrays, reconstruct the structure based on the element type
                 let element_types = match array_typ {
-                    Type::Slice(types) | Type::Array(types, _) => types.as_ref(),
+                    Type::List(types) | Type::Array(types, _) => types.as_ref(),
                     _ => unreachable!("ICE: reading array into a non array type"),
                 };
 
@@ -1075,7 +1075,7 @@ impl Context<'_> {
 
     pub(super) fn flattened_size(&mut self, array: ValueId, dfg: &DataFlowGraph) -> usize {
         let array_typ = dfg.type_of_value(array);
-        if !array_typ.contains_slice_element() {
+        if !array_typ.contains_list_element() {
             array_typ.flattened_size() as usize
         } else {
             match &dfg[array] {
@@ -1085,13 +1085,13 @@ impl Context<'_> {
                     flattened_value_size(&array_acir_value)
                 }
                 _ => {
-                    unreachable!("ICE: Unexpected SSA value when computing the slice size");
+                    unreachable!("ICE: Unexpected SSA value when computing the list size");
                 }
             }
         }
     }
 
-    /// Check if the array or slice has 0 length.
+    /// Check if the array or list has 0 length.
     ///
     /// This is different from `flattened_size` in that a non-zero length
     /// array containing zero length arrays has zero size, but we can still
@@ -1108,14 +1108,14 @@ impl Context<'_> {
                         AcirValue::Array(values) => values.is_empty(),
                         AcirValue::Var(_, _) => {
                             unreachable!(
-                                "ICE: Unexpected ACIR value for array or slice: {array_acir_value:?}"
+                                "ICE: Unexpected ACIR value for array or list: {array_acir_value:?}"
                             )
                         }
                     }
                 }
                 other => {
                     unreachable!(
-                        "ICE: Unexpected SSA value when computing the slice size: {other:?}"
+                        "ICE: Unexpected SSA value when computing the list size: {other:?}"
                     );
                 }
             }
@@ -1190,8 +1190,8 @@ impl Context<'_> {
 
 pub(super) fn calculate_element_type_sizes_array(array_typ: &Type, length: usize) -> Vec<usize> {
     let element_types = match array_typ {
-        Type::Array(types, _) | Type::Slice(types) => types,
-        _ => panic!("ICE: expected array or slice type"),
+        Type::Array(types, _) | Type::List(types) => types,
+        _ => panic!("ICE: expected array or list type"),
     };
     if element_types.is_empty() {
         return vec![];
@@ -1200,7 +1200,7 @@ pub(super) fn calculate_element_type_sizes_array(array_typ: &Type, length: usize
     let non_flattened_elements = length / element_types.len();
 
     // We need the element type sizes array to have one extra entry for the case
-    // of `slice_insert` inserting at the end of the array.
+    // of `list_insert` inserting at the end of the array.
     let capacity = (non_flattened_elements + 1) * element_types.len();
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
@@ -1241,8 +1241,8 @@ pub(super) fn flattened_value_size(value: &AcirValue) -> usize {
 /// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
 pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     let types = match array_typ {
-        Type::Array(types, _) | Type::Slice(types) => types,
-        _ => panic!("ICE: expected array or slice type"),
+        Type::Array(types, _) | Type::List(types) => types,
+        _ => panic!("ICE: expected array or list type"),
     };
 
     let mut element_sizes = types.iter().map(|typ| typ.flattened_size());

@@ -485,17 +485,17 @@ impl DependencyContext {
                                 Intrinsic::ArrayLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsSlice
+                                | Intrinsic::AsList
                                 | Intrinsic::BlackBox(..)
                                 | Intrinsic::DerivePedersenGenerators
                                 | Intrinsic::Hint(..)
-                                | Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRefCount
-                                | Intrinsic::SliceInsert
-                                | Intrinsic::SliceRemove
+                                | Intrinsic::ListPushBack
+                                | Intrinsic::ListPushFront
+                                | Intrinsic::ListPopBack
+                                | Intrinsic::ListPopFront
+                                | Intrinsic::ListRefCount
+                                | Intrinsic::ListInsert
+                                | Intrinsic::ListRemove
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -799,17 +799,17 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsSlice
+                            | Intrinsic::AsList
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::SliceInsert
-                            | Intrinsic::SlicePushBack
-                            | Intrinsic::SlicePushFront
-                            | Intrinsic::SlicePopBack
-                            | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceRefCount
-                            | Intrinsic::SliceRemove
+                            | Intrinsic::ListInsert
+                            | Intrinsic::ListPushBack
+                            | Intrinsic::ListPushFront
+                            | Intrinsic::ListPopBack
+                            | Intrinsic::ListPopFront
+                            | Intrinsic::ListRefCount
+                            | Intrinsic::ListRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)

@@ -330,7 +330,7 @@ impl Elaborator<'_> {
             Literal::Array(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, true)
             }
-            Literal::Slice(array_literal) => {
+            Literal::List(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, false)
             }
         }
@@ -413,12 +413,12 @@ impl Elaborator<'_> {
                 (HirArrayLiteral::Repeated { repeated_element, length }, elem_type, length_clone)
             }
         };
-        let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Slice };
+        let constructor = if is_array { HirLiteral::Array } else { HirLiteral::List };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
             Type::Array(Box::new(length), elem_type)
         } else {
-            Type::Slice(elem_type)
+            Type::List(elem_type)
         };
         (HirExpression::Literal(constructor(expr)), typ)
     }
@@ -582,7 +582,7 @@ impl Elaborator<'_> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
-            Type::Slice(base_type) => *base_type,
+            Type::List(base_type) => *base_type,
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex {

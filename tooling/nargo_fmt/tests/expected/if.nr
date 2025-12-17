@@ -8,12 +8,12 @@ fn main() {
 
     let n = if x != y {
         if x != 20 {
-            slice.push_back(y)
+            list.push_back(y)
         } else {
-            slice
+            list
         }
     } else {
-        slice
+        list
     };
 
     if false {

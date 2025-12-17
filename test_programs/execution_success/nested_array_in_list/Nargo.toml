@@ -1,0 +1,5 @@
+[package]
+name = "nested_array_in_list"
+type = "bin"
+authors = [""]
+[dependencies]

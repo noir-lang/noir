@@ -474,8 +474,8 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
             unresolved_type_expression_with_file(length, file),
             Box::new(unresolved_type_with_file(*typ, file)),
         ),
-        UnresolvedTypeData::Slice(typ) => {
-            UnresolvedTypeData::Slice(Box::new(unresolved_type_with_file(*typ, file)))
+        UnresolvedTypeData::List(typ) => {
+            UnresolvedTypeData::List(Box::new(unresolved_type_with_file(*typ, file)))
         }
         UnresolvedTypeData::Expression(expr) => {
             UnresolvedTypeData::Expression(unresolved_type_expression_with_file(expr, file))
@@ -847,8 +847,8 @@ fn literal_with_file(literal: Literal, file: FileId) -> Literal {
         Literal::Array(array_literal) => {
             Literal::Array(array_literal_with_file(array_literal, file))
         }
-        Literal::Slice(array_literal) => {
-            Literal::Slice(array_literal_with_file(array_literal, file))
+        Literal::List(array_literal) => {
+            Literal::List(array_literal_with_file(array_literal, file))
         }
         Literal::FmtStr(fragments, length) => Literal::FmtStr(
             vecmap(fragments, |fragment| fmt_str_fragment_with_file(fragment, file)),

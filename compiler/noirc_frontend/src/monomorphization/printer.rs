@@ -257,7 +257,7 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            Literal::Slice(array) => {
+            Literal::List(array) => {
                 write!(f, "&[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
@@ -570,7 +570,7 @@ impl AstPrinter {
             let is_unsafe = unconstrained && !self.in_unconstrained;
             let special = match definition {
                 Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("list") => {
                     Some(SpecialCall::Object(name.clone()))
                 }
                 _ => None,

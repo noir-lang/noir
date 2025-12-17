@@ -29,7 +29,7 @@ comptime fn derive_bn254_impl(s: TypeDefinition) -> Quoted {
         impl BN254 {
             fn one() {}
 
-            fn mul<let NScalarSlices: u32>(self, scalar: ScalarField<NScalarSlices>) -> Self {
+            fn mul<let NScalarLists: u32>(self, scalar: ScalarField<NScalarLists>) -> Self {
                 unconstrained_function();
                 crate::mul_with_hint($typ, scalar, transcript)
             }

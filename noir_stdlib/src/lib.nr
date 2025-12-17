@@ -1,7 +1,7 @@
 pub mod hash;
 pub mod aes128;
 pub mod array;
-pub mod slice;
+pub mod list;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
 pub mod embedded_curve_ops;

@@ -3,17 +3,17 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Type provided when a numeric generic was expected
-  ┌─ src/main.nr:6:41
+  ┌─ src/main.nr:6:39
   │
-6 │ fn slice_to_array<N>(slice: [Field]) -> [Field; N] {
-  │                                         ---------- the numeric generic is not of type `u32`
+6 │ fn list_to_array<N>(list: [Field]) -> [Field; N] {
+  │                                       ---------- the numeric generic is not of type `u32`
   │
 
 error: Type annotation needed
   ┌─ src/main.nr:3:13
   │
-3 │     let _ = slice_to_array(&[1, 2, 3]);
-  │             -------------- Could not determine the type of the generic argument `N` declared on the function `slice_to_array`
+3 │     let _ = list_to_array(&[1, 2, 3]);
+  │             ------------- Could not determine the type of the generic argument `N` declared on the function `list_to_array`
   │
 
 error: Type provided when a numeric generic was expected

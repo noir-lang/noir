@@ -26,7 +26,7 @@ fn main(x: Field, y: pub Field) {
     assert(vector.get(3) == 3);
     assert(vector.len() == 4);
 
-    let mut inputs_vector = Vec::from_slice(&[x, y]);
+    let mut inputs_vector = Vec::from_list(&[x, y]);
     assert(inputs_vector.get(0) == x);
     assert(inputs_vector.get(1) == y);
 }

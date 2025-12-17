@@ -211,7 +211,7 @@ impl Elaborator<'_> {
                 );
                 self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::Reference(typ, _) | Type::Array(_, typ) | Type::Slice(typ) => {
+            Type::Reference(typ, _) | Type::Array(_, typ) | Type::List(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {

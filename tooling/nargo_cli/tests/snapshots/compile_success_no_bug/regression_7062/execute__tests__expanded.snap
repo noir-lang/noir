@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(args: [Field; 2]) {
     // Safety: comment added by `nargo expand`
-    unsafe { store(args.as_slice()) };
+    unsafe { store(args.as_list()) };
     assert((args[0_u32] + args[1_u32]) != 0_Field);
 }
 

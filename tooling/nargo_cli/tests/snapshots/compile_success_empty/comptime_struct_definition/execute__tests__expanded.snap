@@ -25,7 +25,7 @@ comptime fn mutate_struct_fields(s: TypeDefinition) {
         (quote { y }, quote { Field }.as_type(), quote { pub(crate) }),
     ];
     s.set_fields(fields);
-    let fields: [(Quoted, Type, Quoted)] = s.fields([].as_slice());
+    let fields: [(Quoted, Type, Quoted)] = s.fields([].as_list());
     assert(fields[0_u32].2 == quote { pub });
     assert(fields[1_u32].2 == quote { pub(crate) });
     let fields: [(Quoted, Type, Quoted)] = s.fields_as_written();

@@ -1,0 +1,6 @@
+[package]
+name = "list_dynamic_index"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,6 @@
+[package]
+name = "list_dynamic_insert"
+type = "bin"
+authors = [""]
+
+[dependencies]

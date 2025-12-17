@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Point {
+    x: Field,
+    y: Field,
+}
+
+unconstrained fn sum_list(list: [[Point; 2]]) -> Field {
+    let mut sum: Field = 0_Field;
+    for i in 0_u32..list.len() {
+        for j in 0_u32..list[i].len() {
+            sum = sum + (list[i][j].x + list[i][j].y);
+        }
+    }
+    sum
+}
+
+fn main() {
+    let mut list: [[Point; 2]] = &[];
+    list = list.push_back([Point { x: 13_Field, y: 14_Field }, Point { x: 20_Field, y: 8_Field }]);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        let brillig_sum: Field = sum_list(list);
+        assert(brillig_sum == 55_Field);
+    };
+    list = list.push_back([Point { x: 15_Field, y: 5_Field }, Point { x: 12_Field, y: 13_Field }]);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        let brillig_sum: Field = sum_list(list);
+        assert(brillig_sum == 100_Field);
+    }
+}

@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::append::Append;
+
+fn main() {
+    let list: [u32] = &[1_u32, 2_u32, 3_u32, 4_u32, 5_u32];
+    let odds: [u32] = list.filter(|x: u32| -> bool { (x % 2_u32) == 1_u32 });
+    assert(odds == &[1_u32, 3_u32, 5_u32]);
+    let odds_and_evens: [u32] = append_three(odds, &[100_u32], &[2_u32, 4_u32]);
+    assert(odds_and_evens == &[1_u32, 3_u32, 5_u32, 100_u32, 2_u32, 4_u32]);
+}
+
+fn append_three<T>(one: T, two: T, three: T) -> T
+where
+    T: Append,
+{
+    T::empty().append(one).append(two).append(three).append(T::empty())
+}

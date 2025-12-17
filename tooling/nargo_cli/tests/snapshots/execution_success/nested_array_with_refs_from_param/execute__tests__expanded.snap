@@ -12,5 +12,5 @@ unconstrained fn main() -> pub bool {
 }
 
 fn func_3(b: &mut bool) -> [[&mut bool; 1]] {
-    { [[b]] }.as_slice()
+    { [[b]] }.as_list()
 }

@@ -26,7 +26,7 @@ This function currently supports the following types:
 - Bool
 - Uint
 - Array
-- Slice
+- List
 - String
 - Tuple
 - Functions
@@ -66,17 +66,17 @@ This function is mostly intended for debugging compiler optimizations but can al
 to find where array copies may be happening in unconstrained code by placing it before array
 mutations.
 
-# `std::mem::slice_refcount`
+# `std::mem::list_refcount`
 
 ```rust
-fn slice_refcount<T>(slice: [T]) -> u32 {}
+fn list_refcount<T>(list: [T]) -> u32 {}
 ```
 
-Returns the internal reference count of a slice value in unconstrained code.
+Returns the internal reference count of a list value in unconstrained code.
 
-Slices only have reference count in unconstrained code - using this anywhere
+Lists only have reference count in unconstrained code - using this anywhere
 else will return zero.
 
 This function is mostly intended for debugging compiler optimizations but can also be used
-to find where slice copies may be happening in unconstrained code by placing it before slice
+to find where list copies may be happening in unconstrained code by placing it before list
 mutations.

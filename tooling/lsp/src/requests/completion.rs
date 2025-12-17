@@ -633,7 +633,7 @@ impl<'a> NodeFinder<'a> {
             }
             Type::FieldElement
             | Type::Array(_, _)
-            | Type::Slice(_)
+            | Type::List(_)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::String(_)
@@ -1633,7 +1633,7 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_lvalue_index(&mut self, array: &LValue, _index: &Expression, span: Span) -> bool {
-        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/slice element type,
+        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/list element type,
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(array) {
@@ -1948,7 +1948,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
 
 fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
-        Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
+        Type::Array(_, typ) | Type::List(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)

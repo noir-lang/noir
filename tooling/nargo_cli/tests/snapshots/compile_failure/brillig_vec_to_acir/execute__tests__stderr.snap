@@ -9,7 +9,7 @@ error: Call to unconstrained function is unsafe and must be in an unconstrained 
   │             -----------
   │
 
-error: Slices cannot be returned from an unconstrained runtime to a constrained runtime
+error: Lists cannot be returned from an unconstrained runtime to a constrained runtime
   ┌─ src/main.nr:5:13
   │
 5 │     new_x = clear(x, y);

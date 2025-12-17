@@ -58,12 +58,12 @@ pub enum RuntimeError {
     StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
-    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
-    NestedSlice { call_stack: CallStack },
+    #[error("Nested lists, i.e. lists within an array or list, are not supported")]
+    NestedList { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
+    #[error("Lists cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedListReturnToConstrained { call_stack: CallStack },
     #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
@@ -200,9 +200,9 @@ impl RuntimeError {
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
-            | RuntimeError::NestedSlice { call_stack, .. }
+            | RuntimeError::NestedList { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedListReturnToConstrained { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }
@@ -264,7 +264,7 @@ impl RuntimeError {
 
                 CustomDiagnostic::simple_error(
                     primary_message,
-                    "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
+                    "If attempting to fetch the length of a list, try converting to an array. Lists only use dynamic lengths.".to_string(),
                     location,
                 )
             }

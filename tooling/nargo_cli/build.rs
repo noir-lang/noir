@@ -107,7 +107,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
     ("reference_counts_inliner_0", 0),
     ("reference_counts_inliner_min", i64::MIN),
     ("reference_counts_inliner_max", i64::MAX),
-    ("reference_counts_slices_inliner_0", 0),
+    ("reference_counts_lists_inliner_0", 0),
 ];
 
 /// Some tests are expected to have warnings
@@ -144,7 +144,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 7] = [
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
-    "reference_counts_slices_inliner_0",
+    "reference_counts_lists_inliner_0",
     // Enums are currently unsupported in comptime code
     "regression_7323",
 ];
@@ -163,7 +163,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
-    "array_to_slice_constant_length",
+    "array_to_list_constant_length",
     "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",

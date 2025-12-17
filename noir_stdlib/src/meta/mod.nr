@@ -44,8 +44,8 @@ pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
     UHashMap::default();
 
-// Given a type definition and a slice of traits to derive, create trait impls for each.
-// This function is as simple as iterating over the slice, checking if we have a trait
+// Given a type definition and a list of traits to derive, create trait impls for each.
+// This function is as simple as iterating over the list, checking if we have a trait
 // handler registered for the given trait, calling it, and appending the result.
 // docs:start:derive
 #[varargs]

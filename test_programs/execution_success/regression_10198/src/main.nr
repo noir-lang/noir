@@ -1,8 +1,8 @@
 fn main(index: u32) {
-    let slice: [()] = &[(), (), ()];
-    println(slice);
+    let list: [()] = &[(), (), ()];
+    println(list);
 
-    let mut slice: [()] = &[(), (), ()];
-    slice[index] = ();
-    println(slice);
+    let mut list: [()] = &[(), (), ()];
+    list[index] = ();
+    println(list);
 }

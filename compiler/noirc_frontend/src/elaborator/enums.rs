@@ -1022,7 +1022,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             }
             // We could match on these types in the future
             typ @ (Type::Array(_, _)
-            | Type::Slice(_)
+            | Type::List(_)
             | Type::String(_)
             // But we'll never be able to match on these
             | Type::Alias(_, _)

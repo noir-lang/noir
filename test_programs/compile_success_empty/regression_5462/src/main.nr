@@ -1,11 +1,11 @@
 fn main() {
-    let empty_slice: [u8] = &[];
+    let empty_list: [u8] = &[];
 
-    if empty_slice != &[] {
-        let _ = empty_slice.pop_front();
+    if empty_list != &[] {
+        let _ = empty_list.pop_front();
     }
 
-    if empty_slice.len() != 0 {
-        let _ = empty_slice.pop_front();
+    if empty_list.len() != 0 {
+        let _ = empty_list.pop_front();
     }
 }

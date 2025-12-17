@@ -20,8 +20,8 @@ fn generate_random_array_type(rng: &mut StdRng, config: GenerateTypeConfig) -> T
     )
 }
 
-fn generate_random_slice_type(rng: &mut StdRng, config: GenerateTypeConfig) -> Type {
-    Type::Slice(Arc::new(vec![generate_random_ssa_fuzzer_type(rng, config)]))
+fn generate_random_list_type(rng: &mut StdRng, config: GenerateTypeConfig) -> Type {
+    Type::List(Arc::new(vec![generate_random_ssa_fuzzer_type(rng, config)]))
 }
 
 pub(crate) fn generate_random_ssa_fuzzer_type(
@@ -35,7 +35,7 @@ pub(crate) fn generate_random_ssa_fuzzer_type(
         )),
         GenerateType::Reference => generate_random_reference_type(rng, config),
         GenerateType::Array => generate_random_array_type(rng, config),
-        GenerateType::Slice => generate_random_slice_type(rng, config),
+        GenerateType::List => generate_random_list_type(rng, config),
     }
 }
 

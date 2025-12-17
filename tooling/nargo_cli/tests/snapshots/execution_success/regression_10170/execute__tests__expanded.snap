@@ -9,30 +9,30 @@ struct foo {
 }
 
 fn main(cond: bool) {
-    let mut slice: [u32] = &[0_u32, 1_u32];
-    if cond { slice = slice.push_back(10_u32); };
+    let mut list: [u32] = &[0_u32, 1_u32];
+    if cond { list = list.push_back(10_u32); };
     for i in 0_u32..2_u32 {
-        slice = slice.push_back(i);
-        assert(slice[slice.len() - 1_u32] == i);
-        let (new_slice, _): ([u32], u32) = slice.pop_back();
-        slice = new_slice;
+        list = list.push_back(i);
+        assert(list[list.len() - 1_u32] == i);
+        let (new_list, _): ([u32], u32) = list.pop_back();
+        list = new_list;
     }
-    let mut slice: [foo] = &[
+    let mut list: [foo] = &[
         foo { a: 0_u32, b: 0_u32, c: [0_Field, 0_Field, 0_Field] },
         foo { a: 1_u32, b: 1_u32, c: [0_Field, 0_Field, 0_Field] },
     ];
     if cond {
-        slice = slice.push_back(foo { a: 10_u32, b: 10_u32, c: [0_Field, 0_Field, 0_Field] });
+        list = list.push_back(foo { a: 10_u32, b: 10_u32, c: [0_Field, 0_Field, 0_Field] });
     };
     for i in 0_u32..2_u32 {
-        slice = slice.push_back(foo { a: i, b: i, c: [0_Field, 0_Field, 0_Field] });
-        assert(slice[slice.len() - 1_u32].a == i);
-        let (new_slice, _): ([foo], foo) = slice.pop_back();
-        slice = new_slice;
+        list = list.push_back(foo { a: i, b: i, c: [0_Field, 0_Field, 0_Field] });
+        assert(list[list.len() - 1_u32].a == i);
+        let (new_list, _): ([foo], foo) = list.pop_back();
+        list = new_list;
     }
-    let mut slice: [Field] = &[0_Field, 1_Field];
-    if !cond { slice = slice.push_back(10_Field); };
-    let (new_slice, _): ([Field], Field) = slice.pop_back();
-    slice = new_slice.push_back(11_Field);
-    assert(slice[slice.len() - 1_u32] == 11_Field);
+    let mut list: [Field] = &[0_Field, 1_Field];
+    if !cond { list = list.push_back(10_Field); };
+    let (new_list, _): ([Field], Field) = list.pop_back();
+    list = new_list.push_back(11_Field);
+    assert(list[list.len() - 1_u32] == 11_Field);
 }

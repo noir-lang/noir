@@ -73,7 +73,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_array_or_slice_type() {
+        if let Some(typ) = self.parse_array_or_list_type() {
             return Some(typ);
         }
 
@@ -233,8 +233,8 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a slice start if this is an array or slice type
-        if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
+        // The `&` may be lexed as a list start if this is an array or list type
+        if self.eat(Token::Ampersand) || self.eat(Token::ListStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -246,7 +246,7 @@ impl Parser<'_> {
         None
     }
 
-    fn parse_array_or_slice_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_array_or_list_type(&mut self) -> Option<UnresolvedTypeData> {
         if !self.eat_left_bracket() {
             return None;
         }
@@ -262,12 +262,12 @@ impl Parser<'_> {
                 Err(error) => {
                     self.errors.push(error);
                     self.eat_or_error(Token::RightBracket);
-                    Some(UnresolvedTypeData::Slice(Box::new(typ)))
+                    Some(UnresolvedTypeData::List(Box::new(typ)))
                 }
             }
         } else {
             self.eat_or_error(Token::RightBracket);
-            Some(UnresolvedTypeData::Slice(Box::new(typ)))
+            Some(UnresolvedTypeData::List(Box::new(typ)))
         }
     }
 
@@ -451,15 +451,15 @@ mod tests {
     }
 
     #[test]
-    fn parses_slice_type() {
+    fn parses_list_type() {
         let src = "[Field]";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
+        let UnresolvedTypeData::List(typ) = typ.typ else { panic!("Expected a list type") };
         assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
-    fn errors_if_missing_right_bracket_after_slice_type() {
+    fn errors_if_missing_right_bracket_after_list_type() {
         let src = "
         [Field 
               ^

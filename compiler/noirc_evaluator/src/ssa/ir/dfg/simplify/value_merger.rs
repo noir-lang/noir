@@ -16,9 +16,9 @@ pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
 
-    /// Maps SSA array values with a slice type to their size.
+    /// Maps SSA array values with a list type to their size.
     /// This must be computed before merging values.
-    slice_sizes: &'a HashMap<ValueId, u32>,
+    list_sizes: &'a HashMap<ValueId, u32>,
 
     call_stack: CallStackId,
 }
@@ -27,10 +27,10 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a HashMap<ValueId, u32>,
+        list_sizes: &'a HashMap<ValueId, u32>,
         call_stack: CallStackId,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes, call_stack }
+        ValueMerger { dfg, block, list_sizes, call_stack }
     }
 
     /// Merge two values a and b to a single value.
@@ -64,8 +64,8 @@ impl<'a> ValueMerger<'a> {
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Slice(_) => {
-                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+            typ @ Type::List(_) => {
+                self.merge_list_values(typ, then_condition, else_condition, then_value, else_value)
             }
             Type::Reference(_) => {
                 // FIXME: none of then_value, else_value, then_condition, or else_condition have
@@ -182,7 +182,7 @@ impl<'a> ValueMerger<'a> {
         Ok(result.first())
     }
 
-    fn merge_slice_values(
+    fn merge_list_values(
         &mut self,
         typ: Type,
         then_condition: ValueId,
@@ -193,16 +193,16 @@ impl<'a> ValueMerger<'a> {
         let mut merged = im::Vector::new();
 
         let element_types = match &typ {
-            Type::Slice(elements) => elements.as_slice(),
-            _ => panic!("Expected slice type"),
+            Type::List(elements) => elements.as_slice(),
+            _ => panic!("Expected list type"),
         };
 
-        let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+        let then_len = self.list_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
+            panic!("ICE: Merging values during flattening encountered list {then_value_id} without a preset size");
         });
 
-        let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+        let else_len = self.list_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
+            panic!("ICE: Merging values during flattening encountered list {else_value_id} without a preset size");
         });
 
         let len = then_len.max(else_len);
@@ -231,16 +231,16 @@ impl<'a> ValueMerger<'a> {
                     results.first()
                 };
 
-                // If it's out of bounds for the "then" slice, a value in the "else" *must* exist.
+                // If it's out of bounds for the "then" list, a value in the "else" *must* exist.
                 // We can use that value directly as accessing it is always checked against the actual
-                // slice length.
+                // list length.
                 if index_u32 >= flat_then_length {
                     let else_element = get_element(else_value_id, typevars, flat_else_length);
                     merged.push_back(else_element);
                     continue;
                 }
 
-                // Same for if it's out of bounds for the "else" slice.
+                // Same for if it's out of bounds for the "else" list.
                 if index_u32 >= flat_else_length {
                     let then_element = get_element(then_value_id, typevars, flat_then_length);
                     merged.push_back(then_element);

@@ -1249,7 +1249,7 @@ impl HTMLCreator {
                 self.render_type(length);
                 self.output.push(']');
             }
-            Type::Slice { element } => {
+            Type::List { element } => {
                 self.output.push('[');
                 self.render_type(element);
                 self.output.push(']');
@@ -1833,7 +1833,7 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
                 type_to_string(length, self_type)
             )
         }
-        Type::Slice { element } => format!("[{}]", type_to_string(element, self_type)),
+        Type::List { element } => format!("[{}]", type_to_string(element, self_type)),
         Type::String { length } => format!("str&lt;{}&gt;", type_to_string(length, self_type)),
         Type::FmtString { length, element } => {
             format!(

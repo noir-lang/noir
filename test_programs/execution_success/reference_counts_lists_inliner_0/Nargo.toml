@@ -1,0 +1,6 @@
+[package]
+name = "reference_counts_lists_inliner_0"
+type = "bin"
+authors = [""]
+
+[dependencies]

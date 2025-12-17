@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Nested lists, i.e. lists within an array or list, are not supported
+  ┌─ src/main.nr:4:15
+  │
+4 │     let list: [[Field]] = [];
+  │               --------- Try to use a constant sized array or BoundedVec instead
+  │
+
+Aborting due to 1 previous error

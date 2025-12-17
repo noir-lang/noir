@@ -160,11 +160,11 @@ mod primitive_Quoted {}
 
 /// A dynamically-sized view into a contiguous sequence, `[T]`.
 ///
-/// There are two syntactic forms for creating a slice:
+/// There are two syntactic forms for creating a list:
 /// * A list with each element, i.e., `&[x, y, z]`.
-/// * A repeat expression `&[expr; N]` where `N` is how many times to repeat `expr` in the slice.
-#['nargo_doc_primitive slice]
-mod primitive_slice {}
+/// * A repeat expression `&[expr; N]` where `N` is how many times to repeat `expr` in the list.
+#['nargo_doc_primitive list]
+mod primitive_list {}
 
 /// The string type.
 ///

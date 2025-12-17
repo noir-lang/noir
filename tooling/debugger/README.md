@@ -335,7 +335,7 @@ There are currently 2 experimental features in the debugger:
 - Variables inspection
 - Stacktrace inspection
 
-NOTE: Supporting variables inspection requires extensive instrumentation of the compiler, handling all cases of variable creation, types, and value assignment. At the time of writing this README, some cases are still not supported. For example, if your program uses slices or references, this compiler version might panic when trying to compile them, or at some point during the debugger step-by-step execution. This is the main reason why this feature has not yet been merged into master.
+NOTE: Supporting variables inspection requires extensive instrumentation of the compiler, handling all cases of variable creation, types, and value assignment. At the time of writing this README, some cases are still not supported. For example, if your program uses lists or references, this compiler version might panic when trying to compile them, or at some point during the debugger step-by-step execution. This is the main reason why this feature has not yet been merged into master.
 
 ## Trying out REPL experimental features
 

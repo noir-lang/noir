@@ -507,7 +507,7 @@ pub(crate) enum GroupKind {
     /// This is a chunk that has a list of expression in it, for example:
     /// a call, a method call, an array literal, a tuple literal, etc.
     /// `prefix_width` is the width of whatever is before the actual expression list.
-    /// For example, for an array this is 1 (for "["), for a slice it's 2 ("&["), etc.
+    /// For example, for an array this is 1 (for "["), for a list it's 2 ("&["), etc.
     ExpressionList { prefix_width: usize, expressions_count: usize },
     /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters

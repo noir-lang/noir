@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(index: u32) {
-    let slice: [()] = &[(), (), ()];
-    println(slice);
-    let mut slice: [()] = &[(), (), ()];
-    slice[index] = ();
-    println(slice);
+    let list: [()] = &[(), (), ()];
+    println(list);
+    let mut list: [()] = &[(), (), ()];
+    list[index] = ();
+    println(list);
 }

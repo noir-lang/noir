@@ -63,7 +63,7 @@ pub enum Type {
     Numeric(NumericType),
     Reference(Arc<Type>),
     Array(Arc<Vec<Type>>, u32),
-    Slice(Arc<Vec<Type>>),
+    List(Arc<Vec<Type>>),
 }
 
 /// Used as default value for mutations
@@ -78,7 +78,7 @@ impl Type {
         match self {
             Type::Numeric(numeric_type) => numeric_type.bit_length(),
             Type::Array(_, _) => unreachable!("Array type unexpected"),
-            Type::Slice(_) => unreachable!("Slice type unexpected"),
+            Type::List(_) => unreachable!("List type unexpected"),
             Type::Reference(value_type) => value_type.bit_length(),
         }
     }
@@ -95,8 +95,8 @@ impl Type {
         matches!(self, Type::Array(_, _))
     }
 
-    pub fn is_slice(&self) -> bool {
-        matches!(self, Type::Slice(_))
+    pub fn is_list(&self) -> bool {
+        matches!(self, Type::List(_))
     }
 
     pub fn is_field(&self) -> bool {
@@ -229,8 +229,8 @@ impl From<SsaType> for Type {
             SsaType::Reference(element_type) => {
                 Type::Reference(Arc::new((*element_type).clone().into()))
             }
-            SsaType::Slice(element_types) => {
-                Type::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            SsaType::List(element_types) => {
+                Type::List(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
             _ => unreachable!("Not supported type: {:?}", type_),
         }
@@ -248,8 +248,8 @@ impl From<Type> for SsaType {
             Type::Reference(element_type) => {
                 SsaType::Reference(Arc::new((*element_type).clone().into()))
             }
-            Type::Slice(element_types) => {
-                SsaType::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            Type::List(element_types) => {
+                SsaType::List(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
         }
     }

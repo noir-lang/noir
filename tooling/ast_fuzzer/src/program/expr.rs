@@ -95,13 +95,13 @@ pub fn gen_literal(
             }
             Expression::Literal(Literal::Array(arr))
         }
-        Type::Slice(item_type) => {
+        Type::List(item_type) => {
             let len = u.int_in_range(0..=config.max_array_size)?;
             let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             for _ in 0..len {
                 arr.contents.push(gen_literal(u, item_type, config)?);
             }
-            Expression::Literal(Literal::Slice(arr))
+            Expression::Literal(Literal::List(arr))
         }
         Type::Tuple(items) => {
             let mut values = Vec::new();

@@ -147,13 +147,13 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
     }
 }
 
-pub(crate) fn get_slice(
+pub(crate) fn get_list(
     (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
-        Value::Slice(values, typ) => Ok((values, typ)),
+        Value::List(values, typ) => Ok((values, typ)),
         value => {
-            let expected = "slice";
+            let expected = "list";
             type_mismatch(value, expected, location)
         }
     }
@@ -549,11 +549,11 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
 }
 
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let typ = Type::List(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
-    Value::Slice(statements, typ)
+    Value::List(statements, typ)
 }
 
 pub(super) fn has_named_attribute(
@@ -640,9 +640,9 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
     )
 }
 
-/// Type to be used in `Value::Slice(<values>, <slice-type>)`.
-pub(crate) fn byte_slice_type() -> Type {
-    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
+/// Type to be used in `Value::List(<values>, <list-type>)`.
+pub(crate) fn byte_list_type() -> Type {
+    Type::List(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
 }
 
 /// Create a `Value::Array` from bytes.
@@ -650,9 +650,9 @@ pub(crate) fn to_byte_array(values: &[u8]) -> Value {
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
 }
 
-/// Create a `Value::Slice` from bytes.
-pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
-    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
+/// Create a `Value::List` from bytes.
+pub(crate) fn to_byte_list(values: &[u8]) -> Value {
+    Value::List(values.iter().copied().map(Value::U8).collect(), byte_list_type())
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.

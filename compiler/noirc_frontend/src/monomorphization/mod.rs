@@ -646,7 +646,7 @@ impl<'interner> Monomorphizer<'interner> {
                     self.repeated_array(expr, repeated_element, length, false)?
                 }
             },
-            HirExpression::Literal(HirLiteral::Slice(array)) => match array {
+            HirExpression::Literal(HirLiteral::List(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, true)?,
                 HirArrayLiteral::Repeated { repeated_element, length } => {
                     self.repeated_array(expr, repeated_element, length, true)?
@@ -843,7 +843,7 @@ impl<'interner> Monomorphizer<'interner> {
             Type::Reference(_, _) => true,
 
             Type::Array(_len, element) => Self::contains_reference(element),
-            Type::Slice(element) => Self::contains_reference(element),
+            Type::List(element) => Self::contains_reference(element),
             Type::FmtString(_, environment) => Self::contains_reference(environment),
             Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
             Type::DataType(datatype, generics) => {
@@ -886,13 +886,13 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         array: ExprId,
         array_elements: Vec<ExprId>,
-        is_slice: bool,
+        is_list: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
         let contents = try_vecmap(array_elements, |id| self.expr(id))?;
-        if is_slice {
-            Ok(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
+        if is_list {
+            Ok(ast::Expression::Literal(ast::Literal::List(ast::ArrayLiteral { contents, typ })))
         } else {
             Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
         }
@@ -904,7 +904,7 @@ impl<'interner> Monomorphizer<'interner> {
         array: ExprId,
         repeated_element: ExprId,
         length: HirType,
-        is_slice: bool,
+        is_list: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
@@ -943,8 +943,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Ident { location: Some(location), definition, mutable: false, name, typ, id };
             ast::Expression::Ident(ident)
         });
-        let array = if is_slice {
-            ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ }))
+        let array = if is_list {
+            ast::Expression::Literal(ast::Literal::List(ast::ArrayLiteral { contents, typ }))
         } else {
             ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
         };
@@ -1495,7 +1495,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns an error if the type was invalid somehow. For example, if the type contains:
     /// - an array with a size that does not evaluate to a positive integer
     /// - an unbound type variable without a default value
-    /// - a nested slice
+    /// - a nested list
     /// - a compile-time only type (these should all be evaluated beforehand and thus never monomorphized)
     /// - an infinitely recursive type
     /// - a failed checked-cast
@@ -1545,8 +1545,8 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
+                if element.contains_list() {
+                    return Err(MonomorphizationError::NestedLists { location });
                 }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
@@ -1563,13 +1563,13 @@ impl<'interner> Monomorphizer<'interner> {
                 };
                 ast::Type::Array(length, element)
             }
-            HirType::Slice(element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
+            HirType::List(element) => {
+                if element.contains_list() {
+                    return Err(MonomorphizationError::NestedLists { location });
                 }
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
-                ast::Type::Slice(element)
+                ast::Type::List(element)
             }
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
@@ -1756,14 +1756,14 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
+                if element.contains_list() {
+                    return Err(MonomorphizationError::NestedLists { location });
                 }
                 Self::check_type(element.as_ref(), location)
             }
-            HirType::Slice(element) => {
-                if element.contains_slice() {
-                    return Err(MonomorphizationError::NestedSlices { location });
+            HirType::List(element) => {
+                if element.contains_list() {
+                    return Err(MonomorphizationError::NestedLists { location });
                 }
                 Self::check_type(element.as_ref(), location)
             }
@@ -2147,9 +2147,9 @@ impl<'interner> Monomorphizer<'interner> {
         return_type: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if return_type.contains_slice() {
+        if return_type.contains_list() {
             let typ = return_type.to_string();
-            return Err(MonomorphizationError::UnconstrainedSliceReturnToConstrained {
+            return Err(MonomorphizationError::UnconstrainedListReturnToConstrained {
                 typ,
                 location,
             });
@@ -2222,19 +2222,19 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_list_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bits" => {
                         let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_list_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_be();
-                        Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
+                        Some(self.modulus_list_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     "modulus_le_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_le();
-                        Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
+                        Some(self.modulus_list_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     "checked_transmute" => {
                         Some(self.checked_transmute(*expr_id, arguments, argument_values)?)
@@ -2267,7 +2267,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn modulus_slice_literal(
+    fn modulus_list_literal(
         &self,
         bytes: Vec<u8>,
         arr_elem_bits: IntegerBitSize,
@@ -2282,9 +2282,9 @@ impl<'interner> Monomorphizer<'interner> {
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
-        let typ = Type::Slice(Box::new(int_type));
+        let typ = Type::List(Box::new(int_type));
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
-        Expression::Literal(Literal::Slice(arr_literal))
+        Expression::Literal(Literal::List(arr_literal))
     }
 
     fn queue_function(
@@ -2722,10 +2722,10 @@ impl<'interner> Monomorphizer<'interner> {
             })),
             ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
                 .create_zeroed_function(parameter_types, ret_type, env, *unconstrained, location),
-            ast::Type::Slice(element_type) => {
-                ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral {
+            ast::Type::List(element_type) => {
+                ast::Expression::Literal(ast::Literal::List(ast::ArrayLiteral {
                     contents: vec![],
-                    typ: ast::Type::Slice(element_type.clone()),
+                    typ: ast::Type::List(element_type.clone()),
                 }))
             }
             ast::Type::Reference(element, mutable) => {

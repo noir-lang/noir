@@ -473,7 +473,7 @@ pub(crate) enum GenerateType {
     Numeric,
     Reference,
     Array,
-    Slice,
+    List,
 }
 
 pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
@@ -481,7 +481,7 @@ pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = Generat
     (GenerateType::Numeric, 40),
     (GenerateType::Reference, 6),
     (GenerateType::Array, 5),
-    (GenerateType::Slice, 6),
+    (GenerateType::List, 6),
 ]);
 pub(crate) const MAX_ARRAY_SIZE: usize = 10;
 

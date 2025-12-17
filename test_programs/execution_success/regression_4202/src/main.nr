@@ -1,14 +1,14 @@
 fn main(input: [u32; 4]) {
-    let mut slice1: [u32] = &[1, 2, 3, 4];
-    if slice1[0] == 3 {
-        slice1[1] = 4;
+    let mut list1: [u32] = &[1, 2, 3, 4];
+    if list1[0] == 3 {
+        list1[1] = 4;
     }
 
-    if slice1[1] == 5 {
-        slice1[3] = 6;
+    if list1[1] == 5 {
+        list1[3] = 6;
     }
 
     for i in 0..4 {
-        assert(slice1[i] == input[i]);
+        assert(list1[i] == input[i]);
     }
 }

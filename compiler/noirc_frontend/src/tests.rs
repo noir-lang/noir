@@ -349,7 +349,7 @@ fn regression_10553() {
         let x = &[false];
         let s = f"{x}";
         let _ = &[s];
-                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+                ^^^^ Nested lists, i.e. lists within an array or list, are not supported
         println(s);
     }
     "#;
@@ -363,7 +363,7 @@ fn regression_10554() {
     fn main() {
         let x = &[false];
         let t = &[x];
-                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+                ^^^^ Nested lists, i.e. lists within an array or list, are not supported
         let s = f"{t}";
         println(s);
     }

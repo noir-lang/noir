@@ -191,7 +191,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
         Type::Array(item_typ, elem_count) => brillig_context
             .allocate_brillig_array(compute_array_length(&item_typ, elem_count as usize))
             .map(BrilligVariable::BrilligArray),
-        Type::Slice(_) => {
+        Type::List(_) => {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
         }
     }

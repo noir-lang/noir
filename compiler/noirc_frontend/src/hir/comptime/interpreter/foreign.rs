@@ -20,7 +20,7 @@ use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_bool, get_field, get_fixed_array_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_struct,
+        get_struct_fields, get_u8, get_u32, get_u64, to_byte_list, to_struct,
     },
 };
 
@@ -90,7 +90,7 @@ fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IRes
     let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(to_byte_slice(&output))
+    Ok(to_byte_list(&output))
 }
 
 /// Run one of the Blake hash functions.

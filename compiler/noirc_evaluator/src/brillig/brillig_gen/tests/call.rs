@@ -3,14 +3,14 @@ use crate::{
     ssa::ir::map::Id,
 };
 
-// Tests AsSlice intrinsic code-gen for Brillig.
+// Tests AsList intrinsic code-gen for Brillig.
 #[test]
-fn brillig_as_slice() {
+fn brillig_as_list() {
     let src = "
     brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
-        v1, v2 = call as_slice(v0) -> (u32, [u32])
+        v1, v2 = call as_list(v0) -> (u32, [u32])
         return v1
     }
     ";
@@ -179,15 +179,15 @@ fn brillig_array_ref_count() {
     ");
 }
 
-// Tests SliceRefCount intrinsic code-gen for Brillig.
+// Tests ListRefCount intrinsic code-gen for Brillig.
 #[test]
-fn brillig_slice_ref_count() {
+fn brillig_list_ref_count() {
     let src = "
     brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
-        v1, v2 = call as_slice(v0) -> (u32, [u32])
-        v3 = call slice_refcount(v1, v2) -> u32
+        v1, v2 = call as_list(v0) -> (u32, [u32])
+        v3 = call list_refcount(v1, v2) -> u32
         return v3
     }
     ";

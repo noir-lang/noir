@@ -124,7 +124,7 @@ impl core::fmt::Display for IntegerBitSize {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
-    Slice(Box<UnresolvedType>),
+    List(Box<UnresolvedType>),
     Expression(UnresolvedTypeExpression),
     Unit,
 
@@ -266,7 +266,7 @@ impl std::fmt::Display for UnresolvedTypeData {
         use UnresolvedTypeData::*;
         match self {
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
-            Slice(typ) => write!(f, "[{typ}]"),
+            List(typ) => write!(f, "[{typ}]"),
             Named(s, args, _) => write!(f, "{s}{args}"),
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {

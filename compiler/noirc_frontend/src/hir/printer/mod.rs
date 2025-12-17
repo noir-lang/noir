@@ -967,7 +967,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
                 self.push(']');
             }
-            Value::Slice(values, _) => {
+            Value::List(values, _) => {
                 self.push_str("&[");
                 for (index, value) in values.iter().enumerate() {
                     if index != 0 {

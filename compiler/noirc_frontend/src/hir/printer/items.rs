@@ -359,7 +359,7 @@ impl<'context> ItemBuilder<'context> {
                 self.type_only_mention_types_outside_current_crate(length)
                     && self.type_only_mention_types_outside_current_crate(typ)
             }
-            Type::Slice(typ) => self.type_only_mention_types_outside_current_crate(typ),
+            Type::List(typ) => self.type_only_mention_types_outside_current_crate(typ),
             Type::FmtString(length, typ) => {
                 self.type_only_mention_types_outside_current_crate(length)
                     && self.type_only_mention_types_outside_current_crate(typ)
@@ -452,7 +452,7 @@ impl<'context> ItemBuilder<'context> {
             items,
         );
         self.add_primitive_type(Type::Array(Box::new(Type::Error), Box::new(Type::Error)), items);
-        self.add_primitive_type(Type::Slice(Box::new(Type::Error)), items);
+        self.add_primitive_type(Type::List(Box::new(Type::Error)), items);
         for quoted_type in QuotedType::iter() {
             self.add_primitive_type(Type::Quoted(quoted_type), items);
         }
@@ -501,7 +501,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) 
             gather_named_type_vars(length, type_vars);
             gather_named_type_vars(typ, type_vars);
         }
-        Type::Slice(typ) => {
+        Type::List(typ) => {
             gather_named_type_vars(typ, type_vars);
         }
         Type::FmtString(length, typ) => {
@@ -568,7 +568,7 @@ fn type_mentions_data_type(typ: &Type, data_type: &crate::DataType) -> bool {
         Type::Array(length, typ) => {
             type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
-        Type::Slice(typ) => type_mentions_data_type(typ, data_type),
+        Type::List(typ) => type_mentions_data_type(typ, data_type),
         Type::FmtString(length, typ) => {
             type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
@@ -622,7 +622,7 @@ fn type_mentions_primitive_type(typ: &Type, target_type: &Type) -> bool {
             type_mentions_primitive_type(length, target_type)
                 || type_mentions_primitive_type(typ, target_type)
         }
-        Type::Slice(typ) => type_mentions_primitive_type(typ, target_type),
+        Type::List(typ) => type_mentions_primitive_type(typ, target_type),
         Type::FmtString(length, typ) => {
             type_mentions_primitive_type(length, target_type)
                 || type_mentions_primitive_type(typ, target_type)

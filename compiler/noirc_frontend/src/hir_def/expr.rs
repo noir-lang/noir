@@ -126,7 +126,7 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
-    Slice(HirArrayLiteral),
+    List(HirArrayLiteral),
     Bool(bool),
     Integer(SignedField),
     Str(String),

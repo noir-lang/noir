@@ -28,7 +28,7 @@ impl<T> PublicMutable<T> {
     where
         T: MyDeserialize<T_SERIALIZED_LEN>,
     {
-        // storage_read returns slice here
+        // storage_read returns list here
         let fields: [Field; T_SERIALIZED_LEN] = storage_read();
         T::deserialize(fields)
     }

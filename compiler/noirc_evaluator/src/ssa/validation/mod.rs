@@ -182,13 +182,13 @@ impl<'f> Validator<'f> {
                 if !array_type.contains_an_array() {
                     panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
                 }
-                assert!(!array_type.is_nested_slice(), "ICE: Nested slice type is not supported");
+                assert!(!array_type.is_nested_list(), "ICE: Nested list type is not supported");
                 let instruction_results = dfg.instruction_results(instruction);
                 for result in instruction_results {
                     let return_type = dfg.type_of_value(*result);
                     assert!(
-                        !return_type.is_nested_slice(),
-                        "ICE: Nested slice type is not supported"
+                        !return_type.is_nested_list(),
+                        "ICE: Nested list type is not supported"
                     );
                 }
             }
@@ -219,17 +219,17 @@ impl<'f> Validator<'f> {
                         }
                         composite_type
                     }
-                    Type::Slice(composite_type) => {
+                    Type::List(composite_type) => {
                         if composite_type.is_empty() {
                             if !elements.is_empty() {
                                 panic!(
-                                    "MakeArray slice has non-zero {} elements but composite type is empty",
+                                    "MakeArray list has non-zero {} elements but composite type is empty",
                                     elements.len(),
                                 );
                             }
                         } else if elements.len() % composite_type.len() != 0 {
                             panic!(
-                                "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
+                                "MakeArray list has {} elements but composite type has {} types which don't divide the number of elements",
                                 elements.len(),
                                 composite_type.len()
                             );
@@ -237,7 +237,7 @@ impl<'f> Validator<'f> {
                         composite_type
                     }
                     _ => {
-                        panic!("MakeArray must return an array or slice type, not {result_type}");
+                        panic!("MakeArray must return an array or list type, not {result_type}");
                     }
                 };
 
@@ -378,22 +378,22 @@ impl<'f> Validator<'f> {
                     "ArrayAsStrUnchecked array length must match string length"
                 );
             }
-            Intrinsic::AsSlice => {
-                // fn as_slice(self: [T; N]) -> [T] {}
-                let argument_type = self.assert_one_argument(arguments, "AsSlice");
-                let (array_types, _array_length) = assert_array(&argument_type, "AsSlice argument");
+            Intrinsic::AsList => {
+                // fn as_list(self: [T; N]) -> [T] {}
+                let argument_type = self.assert_one_argument(arguments, "AsList");
+                let (array_types, _array_length) = assert_array(&argument_type, "AsList argument");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 2, "Expected two results for AsSlice",);
+                assert_eq!(results.len(), 2, "Expected two results for AsList",);
 
                 let length_type = self.function.dfg.type_of_value(results[0]);
-                assert_u32(&length_type, "AsSlice length");
+                assert_u32(&length_type, "AsList length");
 
-                let slice_type = self.function.dfg.type_of_value(results[1]);
-                let slice_types = assert_slice(&slice_type, "AsSlice return");
+                let list_type = self.function.dfg.type_of_value(results[1]);
+                let list_types = assert_list(&list_type, "AsList return");
                 assert_eq!(
-                    array_types, slice_types,
-                    "AsSlice input array element types must match output slice element types"
+                    array_types, list_types,
+                    "AsList input array element types must match output list element types"
                 );
             }
             Intrinsic::AssertConstant => {
@@ -409,117 +409,117 @@ impl<'f> Validator<'f> {
 
                 self.assert_no_results(instruction, "StaticAssert");
             }
-            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront => {
+            Intrinsic::ListPushBack | Intrinsic::ListPushFront => {
                 // fn push_back(self: [T], elem: T) -> Self {}
                 // fn push_front(self: [T], elem: T) -> Self {}
-                assert!(arguments.len() >= 2, "SlicePush must have at least two arguments");
+                assert!(arguments.len() >= 2, "ListPush must have at least two arguments");
 
-                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
-                assert_u32(&slice_length_type, "SlicePush self length");
+                let list_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&list_length_type, "ListPush self length");
 
-                let slice_type = self.function.dfg.type_of_value(arguments[1]);
-                let slice_element_types = assert_slice(&slice_type, "SlicePush self slice");
+                let list_type = self.function.dfg.type_of_value(arguments[1]);
+                let list_element_types = assert_list(&list_type, "ListPush self list");
 
-                let (returned_slice_length_type, returned_slice_type) =
-                    self.assert_two_results(instruction, "SlicePush");
-                assert_u32(&returned_slice_length_type, "SlicePush returned length");
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SlicePush returned slice");
+                let (returned_list_length_type, returned_list_type) =
+                    self.assert_two_results(instruction, "ListPush");
+                assert_u32(&returned_list_length_type, "ListPush returned length");
+                let returned_list_element_types =
+                    assert_list(&returned_list_type, "ListPush returned list");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SlicePush self slice element types must match returned slice element types"
+                    list_element_types, returned_list_element_types,
+                    "ListPush self list element types must match returned list element types"
                 );
             }
-            Intrinsic::SlicePopBack => {
+            Intrinsic::ListPopBack => {
                 // fn pop_back(self: [T]) -> (Self, T) {}
-                let (slice_length_type, slice_type) =
-                    self.assert_two_arguments(arguments, "SlicePopBack");
-                assert_u32(&slice_length_type, "SlicePopBack self length");
-                let slice_element_types = assert_slice(&slice_type, "SlicePopBack self slice");
+                let (list_length_type, list_type) =
+                    self.assert_two_arguments(arguments, "ListPopBack");
+                assert_u32(&list_length_type, "ListPopBack self length");
+                let list_element_types = assert_list(&list_type, "ListPopBack self list");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert!(results.len() >= 2, "Expected at least two results for SlicePopBack");
+                assert!(results.len() >= 2, "Expected at least two results for ListPopBack");
 
-                let returned_slice_length_type = self.function.dfg.type_of_value(results[0]);
-                assert_u32(&returned_slice_length_type, "SlicePopBack returned length");
+                let returned_list_length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&returned_list_length_type, "ListPopBack returned length");
 
-                let returned_slice_type = self.function.dfg.type_of_value(results[1]);
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SlicePopBack returned slice");
+                let returned_list_type = self.function.dfg.type_of_value(results[1]);
+                let returned_list_element_types =
+                    assert_list(&returned_list_type, "ListPopBack returned list");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SlicePopBack self slice element types must match returned slice element types"
+                    list_element_types, returned_list_element_types,
+                    "ListPopBack self list element types must match returned list element types"
                 );
             }
-            Intrinsic::SlicePopFront => {
+            Intrinsic::ListPopFront => {
                 // fn pop_front(self: [T]) -> (T, Self) {}
-                let (slice_length_type, slice_type) =
-                    self.assert_two_arguments(arguments, "SlicePopFront");
-                assert_u32(&slice_length_type, "SlicePopFront self length");
-                let slice_element_types = assert_slice(&slice_type, "SlicePopFront self slice");
+                let (list_length_type, list_type) =
+                    self.assert_two_arguments(arguments, "ListPopFront");
+                assert_u32(&list_length_type, "ListPopFront self length");
+                let list_element_types = assert_list(&list_type, "ListPopFront self list");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert!(results.len() >= 2, "Expected at least two results for SlicePopFront");
+                assert!(results.len() >= 2, "Expected at least two results for ListPopFront");
 
-                let returned_slice_type =
+                let returned_list_type =
                     self.function.dfg.type_of_value(results[results.len() - 1]);
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SlicePopFront returned slice");
+                let returned_list_element_types =
+                    assert_list(&returned_list_type, "ListPopFront returned list");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SlicePopFront self slice element types must match returned slice element types"
+                    list_element_types, returned_list_element_types,
+                    "ListPopFront self list element types must match returned list element types"
                 );
 
-                let returned_slice_length_type =
+                let returned_list_length_type =
                     self.function.dfg.type_of_value(results[results.len() - 2]);
-                assert_u32(&returned_slice_length_type, "SlicePopFront returned length");
+                assert_u32(&returned_list_length_type, "ListPopFront returned length");
             }
-            Intrinsic::SliceInsert => {
+            Intrinsic::ListInsert => {
                 // fn insert(self: [T], index: u32, elem: T) -> Self {}
-                assert!(arguments.len() >= 3, "SliceInsert must have at least three arguments");
+                assert!(arguments.len() >= 3, "ListInsert must have at least three arguments");
 
-                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
-                assert_u32(&slice_length_type, "SliceInsert self length");
+                let list_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&list_length_type, "ListInsert self length");
 
-                let slice_type = self.function.dfg.type_of_value(arguments[1]);
-                let slice_element_types = assert_slice(&slice_type, "SliceInsert self slice");
+                let list_type = self.function.dfg.type_of_value(arguments[1]);
+                let list_element_types = assert_list(&list_type, "ListInsert self list");
 
                 let index_type = self.function.dfg.type_of_value(arguments[2]);
-                assert_u32(&index_type, "SliceInsert index");
+                assert_u32(&index_type, "ListInsert index");
 
-                let (returned_slice_length_type, returned_slice_type) =
-                    self.assert_two_results(instruction, "SliceInsert");
-                assert_u32(&returned_slice_length_type, "SliceInsert returned length");
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SliceInsert returned slice");
+                let (returned_list_length_type, returned_list_type) =
+                    self.assert_two_results(instruction, "ListInsert");
+                assert_u32(&returned_list_length_type, "ListInsert returned length");
+                let returned_list_element_types =
+                    assert_list(&returned_list_type, "ListInsert returned list");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SliceInsert self slice element types must match returned slice element types"
+                    list_element_types, returned_list_element_types,
+                    "ListInsert self list element types must match returned list element types"
                 );
             }
-            Intrinsic::SliceRemove => {
+            Intrinsic::ListRemove => {
                 // fn remove(self: [T], index: u32) -> (Self, T) {}
-                let (slice_length_type, slice_type, index_type) =
-                    self.assert_three_arguments(arguments, "SliceRemove");
+                let (list_length_type, list_type, index_type) =
+                    self.assert_three_arguments(arguments, "ListRemove");
 
-                assert_u32(&slice_length_type, "SliceRemove self length");
+                assert_u32(&list_length_type, "ListRemove self length");
 
-                let slice_element_types = assert_slice(&slice_type, "SliceRemove self slice");
+                let list_element_types = assert_list(&list_type, "ListRemove self list");
 
-                assert_u32(&index_type, "SliceRemove index");
+                assert_u32(&index_type, "ListRemove index");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert!(results.len() >= 2, "Expected at least two results for SliceRemove");
+                assert!(results.len() >= 2, "Expected at least two results for ListRemove");
 
-                let returned_slice_length_type = self.function.dfg.type_of_value(results[0]);
-                assert_u32(&returned_slice_length_type, "SliceRemove returned length");
+                let returned_list_length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&returned_list_length_type, "ListRemove returned length");
 
-                let returned_slice_type = self.function.dfg.type_of_value(results[1]);
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SliceRemove returned slice");
+                let returned_list_type = self.function.dfg.type_of_value(results[1]);
+                let returned_list_element_types =
+                    assert_list(&returned_list_type, "ListRemove returned list");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SliceRemove self slice element types must match returned slice element types"
+                    list_element_types, returned_list_element_types,
+                    "ListRemove self list element types must match returned list element types"
                 );
             }
             Intrinsic::ApplyRangeConstraint => {
@@ -602,15 +602,15 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "ArrayRefCount");
                 assert_u32(&result_type, "ArrayRefCount result");
             }
-            Intrinsic::SliceRefCount => {
-                // fn slice_refcount<T>(slice: [T]) -> u32 {}
-                let (slice_length_type, slice_type) =
-                    self.assert_two_arguments(arguments, "SliceRefCount");
-                assert_u32(&slice_length_type, "SliceRefCount length");
-                assert_slice(&slice_type, "SliceRefCount slice");
+            Intrinsic::ListRefCount => {
+                // fn list_refcount<T>(list: [T]) -> u32 {}
+                let (list_length_type, list_type) =
+                    self.assert_two_arguments(arguments, "ListRefCount");
+                assert_u32(&list_length_type, "ListRefCount length");
+                assert_list(&list_type, "ListRefCount list");
 
-                let result_type = self.assert_one_result(instruction, "SliceRefCount");
-                assert_u32(&result_type, "SliceRefCount result");
+                let result_type = self.assert_one_result(instruction, "ListRefCount");
+                assert_u32(&result_type, "ListRefCount result");
             }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
@@ -1089,9 +1089,9 @@ fn assert_u64(typ: &Type, object: &str) {
     }
 }
 
-fn assert_slice<'a>(typ: &'a Type, object: &str) -> &'a Arc<Vec<Type>> {
-    let Type::Slice(elements) = typ else {
-        panic!("{object} must be a slice");
+fn assert_list<'a>(typ: &'a Type, object: &str) -> &'a Arc<Vec<Type>> {
+    let Type::List(elements) = typ else {
+        panic!("{object} must be a list");
     };
     elements
 }
@@ -1605,9 +1605,9 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
+        expected = "MakeArray list has 3 elements but composite type has 2 types which don't divide the number of elements"
     )]
-    fn make_array_slice_returns_incorrect_length() {
+    fn make_array_list_returns_incorrect_length() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -1619,7 +1619,7 @@ mod tests {
     }
 
     #[test]
-    fn make_array_slice_empty_composite_type() {
+    fn make_array_list_empty_composite_type() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -1813,8 +1813,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "AsSlice argument must be an array")]
-    fn as_slice_length_on_slice_type() {
+    #[should_panic(expected = "AsList argument must be an array")]
+    fn as_list_length_on_list_type() {
         let src = "
         acir(inline) fn main f0 {
             b0():
@@ -1825,7 +1825,7 @@ mod tests {
 
         acir(inline) fn foo f1 {
             b0(v0: [Field]):
-              v2, v3 = call as_slice(v0) -> (u32, [Field])
+              v2, v3 = call as_list(v0) -> (u32, [Field])
               return v2
         }
         ";
@@ -1833,12 +1833,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "AsSlice argument must be an array")]
-    fn as_slice_length_on_numeric_type() {
+    #[should_panic(expected = "AsList argument must be an array")]
+    fn as_list_length_on_numeric_type() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_list(v0) -> (u32, [Field])
             return v2
         }
         ";
@@ -1847,13 +1847,13 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "assertion `left == right` failed: Expected AsSlice to have 1 arguments, got 0\n  left: 0\n right: 1"
+        expected = "assertion `left == right` failed: Expected AsList to have 1 arguments, got 0\n  left: 0\n right: 1"
     )]
-    fn as_slice_wrong_number_of_arguments() {
+    fn as_list_wrong_number_of_arguments() {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v1, v2 = call as_slice() -> (u32, [Field])
+            v1, v2 = call as_list() -> (u32, [Field])
             return v1
         }
         ";

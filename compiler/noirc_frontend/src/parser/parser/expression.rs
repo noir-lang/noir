@@ -732,7 +732,7 @@ impl Parser<'_> {
     ///     | fmtstr
     ///     | QuoteExpression
     ///     | ArrayExpression
-    ///     | SliceExpression
+    ///     | ListExpression
     ///     | BlockExpression
     ///     | ConstrainExpression
     ///
@@ -775,10 +775,10 @@ impl Parser<'_> {
             };
         }
 
-        if let Some(literal_or_error) = self.parse_slice_literal() {
+        if let Some(literal_or_error) = self.parse_list_literal() {
             return match literal_or_error {
                 ArrayLiteralOrError::ArrayLiteral(literal) => {
-                    Some(ExpressionKind::Literal(Literal::Slice(literal)))
+                    Some(ExpressionKind::Literal(Literal::List(literal)))
                 }
                 ArrayLiteralOrError::Error => Some(ExpressionKind::Error),
             };
@@ -862,9 +862,9 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// SliceExpression = '&' ArrayLiteral
-    fn parse_slice_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::SliceStart) && self.next_is(Token::LeftBracket)) {
+    /// ListExpression = '&' ArrayLiteral
+    fn parse_list_literal(&mut self) -> Option<ArrayLiteralOrError> {
+        if !(self.at(Token::ListStart) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -1415,12 +1415,12 @@ mod tests {
     }
 
     #[test]
-    fn parses_empty_slice_expression() {
+    fn parses_empty_list_expression() {
         let src = "&[]";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
+        let ExpressionKind::Literal(Literal::List(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
-            panic!("Expected slice literal");
+            panic!("Expected list literal");
         };
         assert!(exprs.is_empty());
     }

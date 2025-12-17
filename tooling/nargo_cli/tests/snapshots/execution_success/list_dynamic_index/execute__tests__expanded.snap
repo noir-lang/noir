@@ -1,0 +1,276 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32) {
+    regression_dynamic_list_index(x - 1_u32, x - 4_u32);
+}
+
+fn regression_dynamic_list_index(x: u32, y: u32) {
+    let mut list: [Field] = &[];
+    for i in 0_u32..5_u32 {
+        list = list.push_back(i as Field);
+    }
+    assert(list.len() == 5_u32);
+    dynamic_list_index_set_if(list, x, y);
+    dynamic_list_index_set_else(list, x, y);
+    dynamic_list_index_set_nested_if_else_else(list, x, y);
+    dynamic_list_index_set_nested_if_else_if(list, x, y + 1_u32);
+    dynamic_list_index_if(list, x);
+    dynamic_array_index_if([0_Field, 1_Field, 2_Field, 3_Field, 4_Field], x);
+    dynamic_list_index_else(list, x);
+    dynamic_list_merge_if(list, x);
+    dynamic_list_merge_else(list, x);
+    dynamic_list_merge_two_ifs(list, x);
+    dynamic_list_merge_mutate_between_ifs(list, x, y);
+    dynamic_list_merge_push_then_pop(list, x, y);
+}
+
+fn dynamic_list_index_set_if(mut list: [Field], x: u32, y: u32) {
+    assert(list[x] == 4_Field);
+    assert(list[y] == 1_Field);
+    list[y] = 0_Field;
+    assert(list[x] == 4_Field);
+    assert(list[1_u32] == 0_Field);
+    if (x as u32) < 10_u32 {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+        {
+            let i_4528: u32 = x - 1_u32;
+            list[i_4528] = list[x];
+        }
+    } else {
+        list[x] = 0_Field;
+    };
+    assert(list[3_u32] == 2_Field);
+    assert(list[4_u32] == 2_Field);
+}
+
+fn dynamic_list_index_set_else(mut list: [Field], x: u32, y: u32) {
+    assert(list[x] == 4_Field);
+    assert(list[y] == 1_Field);
+    list[y] = 0_Field;
+    assert(list[x] == 4_Field);
+    assert(list[1_u32] == 0_Field);
+    if (x as u32) > 10_u32 {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+        {
+            let i_4529: u32 = x - 1_u32;
+            list[i_4529] = list[x];
+        }
+    } else {
+        list[x] = 0_Field;
+    };
+    assert(list[4_u32] == 0_Field);
+}
+
+fn dynamic_list_index_if(mut list: [Field], x: u32) {
+    if (x as u32) < 10_u32 {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+    } else {
+        assert(list[x] == 0_Field);
+    };
+    assert(list[4_u32] == 2_Field);
+}
+
+fn dynamic_array_index_if(mut array: [Field; 5], x: u32) {
+    if (x as u32) < 10_u32 {
+        assert(array[x] == 4_Field);
+        array[x] = array[x] - 2_Field;
+    } else {
+        assert(array[x] == 0_Field);
+    };
+    assert(array[4_u32] == 2_Field);
+}
+
+fn dynamic_list_index_else(mut list: [Field], x: u32) {
+    if (x as u32) > 10_u32 {
+        assert(list[x] == 0_Field);
+    } else {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+    };
+    assert(list[4_u32] == 2_Field);
+}
+
+fn dynamic_list_merge_if(mut list: [Field], x: u32) {
+    if (x as u32) < 10_u32 {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+        list = list.push_back(10_Field);
+        list[x] = 10_Field;
+        assert(list[list.len() - 1_u32] == 10_Field);
+        assert(list.len() == 6_u32);
+        list[x] = 20_Field;
+        list[x] = list[x] + 10_Field;
+        list = list.push_front(11_Field);
+        assert(list[0_u32] == 11_Field);
+        assert(list.len() == 7_u32);
+        assert(list[5_u32] == 30_Field);
+        list = list.push_front(12_Field);
+        assert(list[0_u32] == 12_Field);
+        assert(list.len() == 8_u32);
+        assert(list[6_u32] == 30_Field);
+        let (popped_list, last_elem): ([Field], Field) = list.pop_back();
+        assert(last_elem == 10_Field);
+        assert(popped_list.len() == 7_u32);
+        let (first_elem, rest_of_list): (Field, [Field]) = popped_list.pop_front();
+        assert(first_elem == 12_Field);
+        assert(rest_of_list.len() == 6_u32);
+        list = rest_of_list.insert((x as u32) - 2_u32, 20_Field);
+        assert(list[2_u32] == 20_Field);
+        assert(list[6_u32] == 30_Field);
+        assert(list.len() == 7_u32);
+        let (removed_list, removed_elem): ([Field], Field) = list.remove((x as u32) - 1_u32);
+        list = removed_list;
+        assert(removed_elem == 1_Field);
+        assert(list.len() == 6_u32);
+    } else {
+        assert(list[x] == 0_Field);
+        list = list.push_back(20_Field);
+    };
+    assert(list.len() == 6_u32);
+    assert(list[list.len() - 1_u32] == 30_Field);
+}
+
+fn dynamic_list_merge_else(mut list: [Field], x: u32) {
+    if (x as u32) > 10_u32 {
+        assert(list[x] == 0_Field);
+        list[x] = 2_Field;
+    } else {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+        list = list.push_back(10_Field);
+    };
+    assert(list.len() == 6_u32);
+    assert(list[list.len() - 1_u32] == 10_Field);
+    list = list.push_back(20_Field);
+    assert(list.len() == 7_u32);
+    assert(list[list.len() - 1_u32] == 20_Field);
+}
+
+fn dynamic_list_index_set_nested_if_else_else(mut list: [Field], x: u32, y: u32) {
+    assert(list[x] == 4_Field);
+    assert(list[y] == 1_Field);
+    list[y] = 0_Field;
+    assert(list[x] == 4_Field);
+    assert(list[1_u32] == 0_Field);
+    if (x as u32) < 10_u32 {
+        list[x] = list[x] - 2_Field;
+        if y != 1_u32 {
+            list[x] = list[x] + 20_Field;
+        } else {
+            if x == 5_u32 {
+                assert(list[x] == 22_Field);
+            } else {
+                list[x] = 10_Field;
+                list = list.push_back(15_Field);
+                assert(list.len() == 6_u32);
+            };
+            assert(list[4_u32] == 10_Field);
+        }
+    } else {
+        list[x] = 0_Field;
+    };
+    assert(list[4_u32] == 10_Field);
+    assert(list.len() == 6_u32);
+    assert(list[list.len() - 1_u32] == 15_Field);
+    list = list.push_back(20_Field);
+    assert(list.len() == 7_u32);
+    assert(list[list.len() - 1_u32] == 20_Field);
+}
+
+fn dynamic_list_index_set_nested_if_else_if(mut list: [Field], x: u32, y: u32) {
+    assert(list[x] == 4_Field);
+    assert(list[y] == 2_Field);
+    list[y] = 0_Field;
+    assert(list[x] == 4_Field);
+    assert(list[2_u32] == 0_Field);
+    if (x as u32) < 10_u32 {
+        list[x] = list[x] - 2_Field;
+        if y == 1_u32 {
+            list[x] = list[x] + 20_Field;
+        } else {
+            if x == 4_u32 { list[x] = 5_Field; };
+            assert(list[4_u32] == 5_Field);
+        }
+    } else {
+        list[x] = 0_Field;
+    };
+    assert(list[4_u32] == 5_Field);
+}
+
+fn dynamic_list_merge_two_ifs(mut list: [Field], x: u32) {
+    if (x as u32) > 10_u32 {
+        assert(list[x] == 0_Field);
+        list[x] = 2_Field;
+    } else {
+        assert(list[x] == 4_Field);
+        list[x] = list[x] - 2_Field;
+        list = list.push_back(10_Field);
+    };
+    assert(list.len() == 6_u32);
+    assert(list[list.len() - 1_u32] == 10_Field);
+    if x == 20_u32 {
+        list = list.push_back(20_Field);
+    };
+    list = list.push_back(15_Field);
+    assert(list.len() == 7_u32);
+    assert(list[list.len() - 1_u32] == 15_Field);
+    list = list.push_back(20_Field);
+    assert(list.len() == 8_u32);
+    assert(list[list.len() - 1_u32] == 20_Field);
+}
+
+fn dynamic_list_merge_mutate_between_ifs(mut list: [Field], x: u32, y: u32) {
+    if x != y {
+        list[x] = 50_Field;
+        list = list.push_back(y as Field);
+        list = list.push_back(x as Field);
+    } else {
+        list[x] = list[x] - 2_Field;
+        list = list.push_back(x as Field);
+    };
+    list = list.push_back(30_Field);
+    assert(list.len() == 8_u32);
+    if x == 20_u32 {
+        list = list.push_back(20_Field);
+    };
+    list = list.push_back(15_Field);
+    if x != 20_u32 {
+        list = list.push_back(50_Field);
+    };
+    list = list.push_back(60_Field);
+    assert(list.len() == 11_u32);
+    assert(list[x] == 50_Field);
+    assert(list[list.len() - 4_u32] == 30_Field);
+    assert(list[list.len() - 3_u32] == 15_Field);
+    assert(list[list.len() - 2_u32] == 50_Field);
+    assert(list[list.len() - 1_u32] == 60_Field);
+}
+
+fn dynamic_list_merge_push_then_pop(mut list: [Field], x: u32, y: u32) {
+    if x != y {
+        list[x] = 5_Field;
+        list = list.push_back(y as Field);
+        list = list.push_back(x as Field);
+        assert(list.len() == 7_u32);
+        let (popped_list, elem): ([Field], Field) = list.pop_back();
+        assert(list.len() == 7_u32);
+        assert(elem == (x as Field));
+        list = popped_list;
+    } else {
+        list = list.push_back(x as Field);
+    };
+    list = list.push_back(30_Field);
+    assert(list.len() == 7_u32);
+    if x == 20_u32 {
+        list = list.push_back(20_Field);
+    };
+    let (list, elem): ([Field], Field) = list.pop_back();
+    assert(elem == 30_Field);
+    let (_, elem): ([Field], Field) = list.pop_back();
+    assert(elem == (y as Field));
+}

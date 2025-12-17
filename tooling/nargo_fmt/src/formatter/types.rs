@@ -22,7 +22,7 @@ impl Formatter<'_> {
                 self.format_type_expression(type_expr);
                 self.write_right_bracket();
             }
-            UnresolvedTypeData::Slice(typ) => {
+            UnresolvedTypeData::List(typ) => {
                 self.write_left_bracket();
                 self.format_type(*typ);
                 self.write_right_bracket();
@@ -55,17 +55,17 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersand or SliceStart in the lexer depending
+                // `&` can be represented with Ampersand or ListStart in the lexer depending
                 // on whether it's right next to a `[` or not.
                 match &self.token {
                     Token::Ampersand => {
                         self.write_token(Token::Ampersand);
                     }
-                    Token::SliceStart => {
-                        self.write_token(Token::SliceStart);
+                    Token::ListStart => {
+                        self.write_token(Token::ListStart);
                     }
                     _ => {
-                        panic!("Expected Ampersand or SliceStart, found {:?}", self.token);
+                        panic!("Expected Ampersand or ListStart, found {:?}", self.token);
                     }
                 }
                 if mutable {
@@ -250,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn format_slice_type() {
+    fn format_list_type() {
         let src = " [ Field  ] ";
         let expected = "[Field]";
         assert_format_type(src, expected);

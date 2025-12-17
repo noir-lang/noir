@@ -87,11 +87,11 @@ impl Context<'_> {
         ssa: &Ssa,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        // Check that we are not attempting to return a slice from
+        // Check that we are not attempting to return a list from
         // an unconstrained runtime to a constrained runtime
         for result_id in result_ids {
-            if dfg.type_of_value(*result_id).contains_slice_element() {
-                return Err(RuntimeError::UnconstrainedSliceReturnToConstrained {
+            if dfg.type_of_value(*result_id).contains_list_element() {
+                return Err(RuntimeError::UnconstrainedListReturnToConstrained {
                     call_stack: self.acir_context.get_call_stack(),
                 });
             }
@@ -184,29 +184,29 @@ impl Context<'_> {
             .iter()
             .map(|&value_id| {
                 let typ = dfg.type_of_value(value_id);
-                if let Type::Slice(item_types) = typ {
+                if let Type::List(item_types) = typ {
                     let len = match self
                         .ssa_values
                         .get(&value_id)
-                        .expect("ICE: Unknown slice input to brillig")
+                        .expect("ICE: Unknown list input to brillig")
                     {
                         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
-                            // len holds the flattened length of all elements in the slice,
+                            // len holds the flattened length of all elements in the list,
                             // so to get the no-flattened length we need to divide by the flattened
-                            // length of a single slice entry
+                            // length of a single list entry
                             let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
                             if sum == 0 { 0 } else { *len / sum as usize }
                         }
                         AcirValue::Array(array) => {
-                            // len holds the non-flattened length of all elements in the slice,
+                            // len holds the non-flattened length of all elements in the list,
                             // so here we need to divide by the non-flattened length of a single
-                            // slice entry
+                            // list entry
                             if item_types.is_empty() { 0 } else { array.len() / item_types.len() }
                         }
-                        _ => unreachable!("ICE: Slice value is not an array"),
+                        _ => unreachable!("ICE: List value is not an array"),
                     };
 
-                    BrilligParameter::Slice(
+                    BrilligParameter::List(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
                         len,
                     )
@@ -246,7 +246,7 @@ impl Context<'_> {
     /// Convert a `Vec<[AcirVar]>` into a `Vec<[AcirValue]>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single [AcirValue::Array] of the same length.
-    /// If the type of a result id is a slice, the slice length must precede it and we can
+    /// If the type of a result id is a list, the list length must precede it and we can
     /// convert to an [AcirValue::Array] when the length is known (constant).
     fn convert_vars_to_values(
         &self,
@@ -258,8 +258,8 @@ impl Context<'_> {
         let mut values: Vec<AcirValue> = Vec::new();
         for result in result_ids {
             let result_type = dfg.type_of_value(*result);
-            if let Type::Slice(elements_type) = result_type {
-                let error = "ICE - cannot get slice length when converting slice to AcirValue";
+            if let Type::List(elements_type) = result_type {
+                let error = "ICE - cannot get list length when converting list to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
                 let len = self.acir_context.constant(len).to_u128();
                 let mut element_values = im::Vector::new();

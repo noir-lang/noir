@@ -97,11 +97,11 @@ impl Type {
     pub comptime fn as_mutable_reference(self) -> Option<Type> {}
     // docs:end:as_mutable_reference
 
-    /// If this is a slice type, return the element type of the slice.
-    #[builtin(type_as_slice)]
-    // docs:start:as_slice
-    pub comptime fn as_slice(self) -> Option<Type> {}
-    // docs:end:as_slice
+    /// If this is a list type, return the element type of the list.
+    #[builtin(type_as_list)]
+    // docs:start:as_list
+    pub comptime fn as_list(self) -> Option<Type> {}
+    // docs:end:as_list
 
     /// If this is a `str<N>` type, returns the length `N` as a type.
     #[builtin(type_as_str)]

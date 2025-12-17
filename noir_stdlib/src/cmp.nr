@@ -576,14 +576,14 @@ mod cmp_tests {
     }
 
     #[test]
-    fn correctly_handles_unequal_length_slices() {
-        let slice_1 = &[0, 1, 2, 3];
-        let slice_2 = &[0, 1, 2];
-        assert(!slice_1.eq(slice_2));
+    fn correctly_handles_unequal_length_lists() {
+        let list_1 = &[0, 1, 2, 3];
+        let list_2 = &[0, 1, 2];
+        assert(!list_1.eq(list_2));
     }
 
     #[test]
-    fn lexicographic_ordering_for_slices() {
+    fn lexicographic_ordering_for_lists() {
         assert(&[2_u32].cmp(&[1_u32, 1_u32, 1_u32]) == super::Ordering::greater());
         assert(&[1_u32, 2_u32].cmp(&[1_u32, 2_u32, 3_u32]) == super::Ordering::less());
     }

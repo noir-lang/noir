@@ -96,7 +96,7 @@ impl FunctionContext {
     /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
     ///
     /// # Panics
-    /// Panics if called with a slice type, as a slice's memory layout cannot be inferred without runtime data.
+    /// Panics if called with a list type, as a list's memory layout cannot be inferred without runtime data.
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
             Type::Numeric(_) | Type::Reference(_) => {
@@ -106,8 +106,8 @@ impl FunctionContext {
                 vecmap(item_type.iter(), Self::ssa_type_to_parameter),
                 *size as usize,
             ),
-            Type::Slice(_) => {
-                panic!("ICE: Slice parameters cannot be derived from type information")
+            Type::List(_) => {
+                panic!("ICE: List parameters cannot be derived from type information")
             }
             // Treat functions as field values
             Type::Function => {

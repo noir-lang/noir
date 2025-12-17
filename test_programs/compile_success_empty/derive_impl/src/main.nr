@@ -40,9 +40,9 @@ comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     result
 }
 
-comptime fn join(slice: [Quoted]) -> Quoted {
+comptime fn join(list: [Quoted]) -> Quoted {
     let mut result = quote {};
-    for elem in slice {
+    for elem in list {
         result = quote { $result $elem };
     }
     result

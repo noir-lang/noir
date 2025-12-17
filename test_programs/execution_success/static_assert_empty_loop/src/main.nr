@@ -8,7 +8,7 @@ fn main() {
     // Safety: testing context
     let x = unsafe { foo() };
 
-    let _ = x.as_slice().map(|_| {
+    let _ = x.as_list().map(|_| {
         assert(false, "test");
         panic(f"test");
 
@@ -17,7 +17,7 @@ fn main() {
         0
     });
 
-    let _ = x.as_slice().mapi(|_, _| {
+    let _ = x.as_list().mapi(|_, _| {
         assert(false, "test");
         panic(f"test");
 
@@ -26,7 +26,7 @@ fn main() {
         0
     });
 
-    x.as_slice().for_each(|_| {
+    x.as_list().for_each(|_| {
         assert(false, "test");
         panic(f"test");
 
@@ -34,7 +34,7 @@ fn main() {
         assert_constant(x);
     });
 
-    x.as_slice().for_eachi(|_, _| {
+    x.as_list().for_eachi(|_, _| {
         assert(false, "test");
         panic(f"test");
 
@@ -42,7 +42,7 @@ fn main() {
         assert_constant(x);
     });
 
-    for _ in x.as_slice() {
+    for _ in x.as_list() {
         assert(false, "test");
         panic(f"test");
 
@@ -65,7 +65,7 @@ fn main() {
     }
 
     let empty_array: [Field; 0] = [];
-    for _ in empty_array.as_slice() {
+    for _ in empty_array.as_list() {
         std::static_assert(false, "test");
         assert(false, "test");
         panic(f"test");

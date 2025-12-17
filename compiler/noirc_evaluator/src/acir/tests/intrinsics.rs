@@ -3,8 +3,8 @@ use acvm::assert_circuit_snapshot;
 use crate::acir::tests::ssa_to_acir_program;
 
 #[test]
-fn slice_push_back_known_length() {
-    // This SSA would never be generated as we are writing to a slice without a preceding OOB check.
+fn list_push_back_known_length() {
+    // This SSA would never be generated as we are writing to a list without a preceding OOB check.
     // We forego the OOB check here for the succinctness of the test.
     let src = "
     acir(inline) predicate_pure fn main f0 {
@@ -12,9 +12,9 @@ fn slice_push_back_known_length() {
         v3 = make_array [Field 2, Field 3] : [Field]
         // Mutate it at index v0 (to make it non-constant in the circuit)
         v5 = array_set v3, index v0, value Field 4
-        v8, v9 = call slice_push_back(u32 2, v5, Field 10) -> (u32, [Field])
+        v8, v9 = call list_push_back(u32 2, v5, Field 10) -> (u32, [Field])
         constrain v8 == v1
-        // Mutate the new slice to make the result block observable
+        // Mutate the new list to make the result block observable
         v11 = array_set v9, index v0, value Field 20
         return
     }
@@ -45,8 +45,8 @@ fn slice_push_back_known_length() {
 }
 
 #[test]
-fn slice_push_back_unknown_length() {
-    // Here we use v2 as the length of the slice to show the generated ACIR when the
+fn list_push_back_unknown_length() {
+    // Here we use v2 as the length of the list to show the generated ACIR when the
     // length is now known at compile time.
     let src = "
     acir(inline) predicate_pure fn main f0 {
@@ -54,9 +54,9 @@ fn slice_push_back_unknown_length() {
         v3 = make_array [Field 2, Field 3] : [Field]
         // Mutate it at index v0 (to make it non-constant in the circuit)
         v5 = array_set v3, index v0, value Field 4
-        v8, v9 = call slice_push_back(v2, v5, Field 10) -> (u32, [Field])
+        v8, v9 = call list_push_back(v2, v5, Field 10) -> (u32, [Field])
         constrain v8 == v1
-        // Mutate the new slice to make the result block observable
+        // Mutate the new list to make the result block observable
         v11 = array_set v9, index v0, value Field 20
         return
     }
@@ -92,16 +92,16 @@ fn slice_push_back_unknown_length() {
 }
 
 #[test]
-fn slice_push_front() {
+fn list_push_front() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32):
         v3 = make_array [Field 2, Field 3] : [Field]
         // Mutate it at index v0 (to make it non-constant in the circuit)
         v5 = array_set v3, index v0, value Field 4
-        v8, v9 = call slice_push_front(u32 2, v5, Field 10) -> (u32, [Field])
+        v8, v9 = call list_push_front(u32 2, v5, Field 10) -> (u32, [Field])
         constrain v8 == v1
-        // Mutate the new slice to make the result block observable
+        // Mutate the new list to make the result block observable
         v11 = array_set v9, index v0, value Field 20
         return
     }
@@ -132,25 +132,25 @@ fn slice_push_front() {
 }
 
 #[test]
-fn slice_pop_back() {
+fn list_pop_back() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32):
         v3 = make_array [Field 2, Field 3] : [Field]
         // Mutate it at index v0 (to make it non-constant in the circuit)
         v5 = array_set v3, index v0, value Field 4
-        v8, v9, v10 = call slice_pop_back(u32 2, v5) -> (u32, [Field], Field)
+        v8, v9, v10 = call list_pop_back(u32 2, v5) -> (u32, [Field], Field)
         constrain v8 == v1
         constrain v10 == Field 3
-        // Mutate the new slice to make the result block observable
+        // Mutate the new list to make the result block observable
         v12 = array_set v9, index v0, value Field 20
         return
     }
     ";
     let program = ssa_to_acir_program(src);
 
-    // As you can see we read the entire slice in order (memory block 1) and that w1 has been asserted to equal 1
-    // In practice, when writing to the slice we would assert that the index is less than w1
+    // As you can see we read the entire list in order (memory block 1) and that w1 has been asserted to equal 1
+    // In practice, when writing to the list we would assert that the index is less than w1
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1]
@@ -175,19 +175,19 @@ fn slice_pop_back() {
 }
 
 #[test]
-fn slice_pop_back_zero_length() {
+fn list_pop_back_zero_length() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
         v7 = make_array [] : [Field]
         enable_side_effects v1
-        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        v9, v10, v11 = call list_pop_back(u32 0, v7) -> (u32, [Field], Field)
         return
     }
     ";
     let program = ssa_to_acir_program(src);
 
-    // An SSA with constant zero slice length should be removed in the "Remove unreachable instructions" pass,
+    // An SSA with constant zero list length should be removed in the "Remove unreachable instructions" pass,
     // however if it wasn't, we'd still want to generate a runtime constraint failure.
     // The constraint should be based off of the side effects variable.
     assert_circuit_snapshot!(program, @r"
@@ -201,7 +201,7 @@ fn slice_pop_back_zero_length() {
 }
 
 #[test]
-fn slice_pop_back_unknown_length() {
+fn list_pop_back_unknown_length() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -209,13 +209,13 @@ fn slice_pop_back_unknown_length() {
         v6 = unchecked_mul u32 1, v5
         v7 = make_array [Field 1]: [Field]
         enable_side_effects v1
-        v9, v10, v11 = call slice_pop_back(v6, v7) -> (u32, [Field], Field)
+        v9, v10, v11 = call list_pop_back(v6, v7) -> (u32, [Field], Field)
         return
     }
     ";
     let program = ssa_to_acir_program(src);
 
-    // In practice the multiplication will come from flattening, resulting in a slice
+    // In practice the multiplication will come from flattening, resulting in a list
     // that can have a semantic length of 0, but only when the side effects are disabled;
     // popping should not fail in such a scenario.
     assert_circuit_snapshot!(program, @r"
@@ -233,23 +233,23 @@ fn slice_pop_back_unknown_length() {
 }
 
 #[test]
-fn slice_pop_back_nested_arrays() {
+fn list_pop_back_nested_arrays() {
     let src = "
   acir(inline) predicate_pure fn main f0 {
     b0(v0: u32, v1: [u32; 3], v2: u32, v3: u32):
       v4 = make_array [v0, v1] : [(u32, [u32; 3])]
-      v7, v8 = call slice_push_back(u32 1, v4, v0, v1) -> (u32, [(u32, [u32; 3])])
-      v9, v10 = call slice_push_back(v7, v8, v2, v1) -> (u32, [(u32, [u32; 3])])
-      v12, v13, v14, v15 = call slice_pop_back(v9, v10) -> (u32, [(u32, [u32; 3])], u32, [u32; 3])
+      v7, v8 = call list_push_back(u32 1, v4, v0, v1) -> (u32, [(u32, [u32; 3])])
+      v9, v10 = call list_push_back(v7, v8, v2, v1) -> (u32, [(u32, [u32; 3])])
+      v12, v13, v14, v15 = call list_pop_back(v9, v10) -> (u32, [(u32, [u32; 3])], u32, [u32; 3])
       constrain v14 == v3
       return
   }
   ";
     let program = ssa_to_acir_program(src);
 
-    // After b3 you can see where we do our final push_back where (v2, v1) are attached to the slice
+    // After b3 you can see where we do our final push_back where (v2, v1) are attached to the list
     // rather than (v0, v1)
-    // We then read w18 from b3 at index `8` (the flattened starting index of the slice).
+    // We then read w18 from b3 at index `8` (the flattened starting index of the list).
     assert_circuit_snapshot!(program, @r"
   func 0
   private parameters: [w0, w1, w2, w3, w4, w5]
@@ -306,13 +306,13 @@ fn slice_pop_back_nested_arrays() {
 }
 
 #[test]
-fn slice_pop_front() {
+fn list_pop_front() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32):
         v3 = make_array [Field 2, Field 3] : [Field]
         v5 = array_set v3, index v0, value Field 4
-        v8, v9, v10 = call slice_pop_front(u32 2, v5) -> (Field, u32, [Field])
+        v8, v9, v10 = call list_pop_front(u32 2, v5) -> (Field, u32, [Field])
         constrain v8 == Field 2
         constrain v9 == v1
         v12 = array_set v10, index v0, value Field 20
@@ -321,8 +321,8 @@ fn slice_pop_front() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // As you can see we read the entire slice in order (memory block 1) and that w1 has been asserted to equal 1
-    // In practice, when writing to the slice we would assert that the index is less than w1
+    // As you can see we read the entire list in order (memory block 1) and that w1 has been asserted to equal 1
+    // In practice, when writing to the list we would assert that the index is less than w1
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1]
@@ -347,13 +347,13 @@ fn slice_pop_front() {
 }
 
 #[test]
-fn slice_insert_no_predicate() {
+fn list_insert_no_predicate() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32):
         v4 = make_array [Field 2, Field 3, Field 5] : [Field]
         v6 = array_set v4, index v0, value Field 4
-        v10, v11 = call slice_insert(u32 3, v6, v1, Field 10) -> (u32, [Field])
+        v10, v11 = call list_insert(u32 3, v6, v1, Field 10) -> (u32, [Field])
         constrain v10 == v1
         v13 = array_set mut v11, index v0, value Field 20
         return
@@ -361,14 +361,14 @@ fn slice_insert_no_predicate() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Insert does comparisons on every index for the value that should be written into the resulting slice
+    // Insert does comparisons on every index for the value that should be written into the resulting list
     //
     // You can see how w1 is asserted to equal 4
-    // Memory block 1 is our original slice
-    // Memory block 2 is our slice created by our insert operation. You can see its contents all start as w6 (which is equal to 0).
+    // Memory block 1 is our original list
+    // Memory block 2 is our list created by our insert operation. You can see its contents all start as w6 (which is equal to 0).
     // We then write into b2 four times at the appropriate shifted indices.
     //
-    // As we have marked the `array_set` as `mut` we then write directly into that slice.
+    // As we have marked the `array_set` as `mut` we then write directly into that list.
     // The Brillig calls are to our stdlib quotient directive
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -441,13 +441,13 @@ fn slice_insert_no_predicate() {
 }
 
 #[test]
-fn slice_remove() {
+fn list_remove() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32, v2: Field):
         v6 = make_array [Field 2, Field 3, Field 5] : [Field]
         v8 = array_set v6, index v0, value Field 4
-        v11, v12, v13 = call slice_remove(u32 3, v8, v1) -> (u32, [Field], Field)
+        v11, v12, v13 = call list_remove(u32 3, v8, v1) -> (u32, [Field], Field)
         constrain v11 == v1
         constrain v13 == v2
         v15 = array_set mut v12, index v0, value Field 20
@@ -456,16 +456,16 @@ fn slice_remove() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Remove does comparisons on every index for the value that should be written into the resulting slice
+    // Remove does comparisons on every index for the value that should be written into the resulting list
     // You can see how w1 is asserted to equal 2
     //
-    // Memory block 1 is our original slice
-    // Memory block 2 is our final slice which is one less element than our initial slice.
+    // Memory block 1 is our original list
+    // Memory block 2 is our final list which is one less element than our initial list.
     // You can see that it is initialized to contain all zeroes. It is then written to appropriately.
-    // We expect two writes to b2 and two reads from b1 at the shifted indices as we skip the removal window when reading from the initial slice input.
-    // We only expect as many writes to b2 and reads b1 as there are elements in the final slice.
+    // We expect two writes to b2 and two reads from b1 at the shifted indices as we skip the removal window when reading from the initial list input.
+    // We only expect as many writes to b2 and reads b1 as there are elements in the final list.
     //
-    // As we have marked the `array_set` as `mut` we then write directly into that slice.
+    // As we have marked the `array_set` as `mut` we then write directly into that list.
     // The Brillig calls are to our stdlib quotient directive
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -517,7 +517,7 @@ fn slice_remove() {
 }
 
 #[test]
-fn slice_push_back_not_affected_by_predicate() {
+fn list_push_back_not_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -525,7 +525,7 @@ fn slice_push_back_not_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10 = call slice_push_back(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call list_push_back(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -535,7 +535,7 @@ fn slice_push_back_not_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10 = call slice_push_back(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call list_push_back(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -546,7 +546,7 @@ fn slice_push_back_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_push_front_not_affected_by_predicate() {
+fn list_push_front_not_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -554,7 +554,7 @@ fn slice_push_front_not_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10 = call slice_push_front(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call list_push_front(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -564,7 +564,7 @@ fn slice_push_front_not_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10 = call slice_push_front(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call list_push_front(u32 1, v7, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -575,7 +575,7 @@ fn slice_push_front_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_positive_length_not_affected_by_predicate() {
+fn list_pop_back_positive_length_not_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -583,7 +583,7 @@ fn slice_pop_back_positive_length_not_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10, v11, v12 = call slice_pop_back(u32 1, v7) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
+        v9, v10, v11, v12 = call list_pop_back(u32 1, v7) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
         return
     }
     ";
@@ -593,7 +593,7 @@ fn slice_pop_back_positive_length_not_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10, v11, v12 = call slice_pop_back(u32 1, v7) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
+        v9, v10, v11, v12 = call list_pop_back(u32 1, v7) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
         return
     }
     ";
@@ -604,13 +604,13 @@ fn slice_pop_back_positive_length_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_zero_length_affected_by_predicate() {
+fn list_pop_back_zero_length_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
         v7 = make_array [] : [Field]
         enable_side_effects v1
-        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        v9, v10, v11 = call list_pop_back(u32 0, v7) -> (u32, [Field], Field)
         return
     }
     ";
@@ -618,7 +618,7 @@ fn slice_pop_back_zero_length_affected_by_predicate() {
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
         v7 = make_array [] : [Field]
-        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        v9, v10, v11 = call list_pop_back(u32 0, v7) -> (u32, [Field], Field)
         return
     }
     ";
@@ -629,7 +629,7 @@ fn slice_pop_back_zero_length_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_unknown_length_affected_by_predicate() {
+fn list_pop_back_unknown_length_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -637,7 +637,7 @@ fn slice_pop_back_unknown_length_affected_by_predicate() {
         v5 = unchecked_mul u32 1, v4
         v7 = make_array [Field 1] : [Field]
         enable_side_effects v1
-        v9, v10, v11 = call slice_pop_back(v5, v7) -> (u32, [Field], Field)
+        v9, v10, v11 = call list_pop_back(v5, v7) -> (u32, [Field], Field)
         return
     }
     ";
@@ -647,7 +647,7 @@ fn slice_pop_back_unknown_length_affected_by_predicate() {
         v4 = cast v1 as u32
         v5 = unchecked_mul u32 1, v4
         v7 = make_array [Field 1] : [Field]
-        v9, v10, v11 = call slice_pop_back(v5, v7) -> (u32, [Field], Field)
+        v9, v10, v11 = call list_pop_back(v5, v7) -> (u32, [Field], Field)
         return
     }
     ";
@@ -658,16 +658,16 @@ fn slice_pop_back_unknown_length_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_empty_slice_with_unknown_length_from_previous_pop() {
+fn list_pop_back_empty_list_with_unknown_length_from_previous_pop() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [u32; 1], v1: u32, v2: u32):
-        v4, v5 = call as_slice(v0) -> (u32, [u32])
+        v4, v5 = call as_list(v0) -> (u32, [u32])
         v7 = eq v1, u32 3
         v8 = not v7
         enable_side_effects v8
-        v11, v12, v13 = call slice_pop_back(u32 1, v5) -> (u32, [u32], u32)
-        v14, v15, v16 = call slice_pop_back(v11, v12) -> (u32, [u32], u32)
+        v11, v12, v13 = call list_pop_back(u32 1, v5) -> (u32, [u32], u32)
+        v14, v15, v16 = call list_pop_back(v11, v12) -> (u32, [u32], u32)
         v17 = cast v8 as u32
         v18 = unchecked_mul v16, v17
         v19 = unchecked_mul v2, v17
@@ -681,7 +681,7 @@ fn slice_pop_back_empty_slice_with_unknown_length_from_previous_pop() {
     let program = ssa_to_acir_program(src);
 
     // We read the element for the first pop back into w6
-    // However, by the second pop back we are working with an empty slice, thus
+    // However, by the second pop back we are working with an empty list, thus
     // we simply assert that the side effects predicate is equal to zero.
     // w1 is being checked whether it is equal to `3`.
     assert_circuit_snapshot!(program, @r"
@@ -714,7 +714,7 @@ fn slice_pop_back_empty_slice_with_unknown_length_from_previous_pop() {
 }
 
 #[test]
-fn slice_pop_front_not_affected_by_predicate() {
+fn list_pop_front_not_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -722,7 +722,7 @@ fn slice_pop_front_not_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10, v11, v12 = call slice_pop_front(u32 1, v7) -> (Field, [Field; 2], u32, [(Field, [Field; 2])])
+        v9, v10, v11, v12 = call list_pop_front(u32 1, v7) -> (Field, [Field; 2], u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -732,7 +732,7 @@ fn slice_pop_front_not_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10, v11, v12 = call slice_pop_front(u32 1, v7) -> (Field, [Field; 2], u32, [(Field, [Field; 2])])
+        v9, v10, v11, v12 = call list_pop_front(u32 1, v7) -> (Field, [Field; 2], u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -743,7 +743,7 @@ fn slice_pop_front_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_insert_affected_by_predicate() {
+fn list_insert_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -751,7 +751,7 @@ fn slice_insert_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10 = call slice_insert(u32 1, v7, u32 1, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call list_insert(u32 1, v7, u32 1, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -761,7 +761,7 @@ fn slice_insert_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10 = call slice_insert(u32 1, v7, u32 1, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call list_insert(u32 1, v7, u32 1, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -772,7 +772,7 @@ fn slice_insert_affected_by_predicate() {
 }
 
 #[test]
-fn slice_remove_affected_by_predicate() {
+fn list_remove_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -780,7 +780,7 @@ fn slice_remove_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10, v11, v12 = call slice_remove(u32 1, v7, u32 1) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
+        v9, v10, v11, v12 = call list_remove(u32 1, v7, u32 1) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
         return
     }
     ";
@@ -790,7 +790,7 @@ fn slice_remove_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10, v11, v12 = call slice_remove(u32 1, v7, u32 1) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
+        v9, v10, v11, v12 = call list_remove(u32 1, v7, u32 1) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
         return
     }
     ";
@@ -801,12 +801,12 @@ fn slice_remove_affected_by_predicate() {
 }
 
 #[test]
-fn as_slice_for_composite_slice() {
+fn as_list_for_composite_list() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0():
         v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [(Field, Field); 2]
-        v4, v5 = call as_slice(v3) -> (u32, [(Field, Field)])
+        v4, v5 = call as_list(v3) -> (u32, [(Field, Field)])
         return v4
     }
     ";

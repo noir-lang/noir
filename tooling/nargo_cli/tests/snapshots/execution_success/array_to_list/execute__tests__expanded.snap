@@ -1,0 +1,60 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn as_list_push<T, let N: u32>(xs: [T; N]) -> [T] {
+    let mut list: [T] = &[];
+    {
+        let ___i0: [T; N] = xs;
+        for ___i1 in 0_u32..___i0.len() {
+            let elem: T = ___i0[___i1];
+            {
+                list = list.push_back(elem);
+            }
+        }
+    };
+    list
+}
+
+fn main(x: u32, y: pub u32) {
+    let xs: [Field; 0] = [];
+    let ys: [Field; 1] = [1_Field];
+    let zs: [Field; 2] = [1_Field, 2_Field];
+    let ws: [Field; 3] = [1_Field; 3];
+    let qs: [Field; 4] = [3_Field, 2_Field, 1_Field, 0_Field];
+    let mut dynamic: [Field; 4] = [3_Field, 2_Field, 1_Field, 0_Field];
+    let dynamic_expected: [Field; 4] = [1000_Field, 2_Field, 1_Field, 0_Field];
+    dynamic[x] = 1000_Field;
+    assert(x != y);
+    assert(xs.as_list() == as_list_push(xs));
+    assert(ys.as_list() == as_list_push(ys));
+    assert(zs.as_list() == as_list_push(zs));
+    assert(ws.as_list() == as_list_push(ws));
+    assert(qs.as_list() == as_list_push(qs));
+    assert(dynamic.as_list()[0_u32] == dynamic_expected[0_u32]);
+    assert(dynamic.as_list()[1_u32] == dynamic_expected[1_u32]);
+    assert(dynamic.as_list()[2_u32] == dynamic_expected[2_u32]);
+    assert(dynamic.as_list()[3_u32] == dynamic_expected[3_u32]);
+    assert(dynamic.as_list().len() == 4_u32);
+    regression_4609_append_lists(x, y);
+    regression_4609_append_dynamic_lists(x, y);
+}
+
+fn regression_4609_append_lists(x: u32, y: u32) {
+    let sl: [u32] = [x, 1_u32, 2_u32, 3_u32].as_list();
+    let sl2: [u32] = [y, 5_u32, 6_u32].as_list();
+    let sl3: [u32] = sl.append(sl2);
+    assert(sl3[0_u32] == x);
+    assert(sl3[4_u32] == y);
+}
+
+fn regression_4609_append_dynamic_lists(x: u32, y: u32) {
+    let mut sl: [u32] = [x, 1_u32, 2_u32, 3_u32].as_list();
+    sl[x] = x + 10_u32;
+    let mut sl2: [u32] = [y, 5_u32, 6_u32].as_list();
+    sl2[y] = y + 5_u32;
+    let sl3: [u32] = sl.append(sl2);
+    assert(sl3[0_u32] == 10_u32);
+    assert(sl3[4_u32] == y);
+    assert(sl3[5_u32] == 6_u32);
+}

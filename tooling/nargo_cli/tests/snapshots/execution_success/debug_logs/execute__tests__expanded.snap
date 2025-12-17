@@ -102,12 +102,12 @@ fn regression_2906() {
 
 fn regression_4967() {
     let sentinel: u32 = 8888_u32;
-    let slice_of_tuples: [(i32, u8)] = &[(11_i32, 22_u8), (33_i32, 44_u8)];
-    println(f"slice_of_tuples: {slice_of_tuples}, sentinel: {sentinel}");
-    println(slice_of_tuples);
-    let slice_of_tuples_coerced: [(i32, u8)] = [(11_i32, 22_u8), (33_i32, 44_u8)].as_slice();
+    let list_of_tuples: [(i32, u8)] = &[(11_i32, 22_u8), (33_i32, 44_u8)];
+    println(f"list_of_tuples: {list_of_tuples}, sentinel: {sentinel}");
+    println(list_of_tuples);
+    let list_of_tuples_coerced: [(i32, u8)] = [(11_i32, 22_u8), (33_i32, 44_u8)].as_list();
     println(
-        f"slice_of_tuples: {slice_of_tuples_coerced}, sentinel: {sentinel}",
+        f"list_of_tuples: {list_of_tuples_coerced}, sentinel: {sentinel}",
     );
-    println(slice_of_tuples_coerced);
+    println(list_of_tuples_coerced);
 }

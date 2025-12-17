@@ -756,7 +756,7 @@ impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),
-            Type::Slice(typ) => self.gather_type_links(typ),
+            Type::List(typ) => self.gather_type_links(typ),
             Type::Tuple(types) => {
                 for typ in types {
                     self.gather_type_links(typ);
@@ -1036,7 +1036,7 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
             }
             string.push(']');
         }
-        Value::Slice(values, _) => {
+        Value::List(values, _) => {
             string.push_str("&[");
             for (index, value) in values.iter().enumerate() {
                 if index > 0 {

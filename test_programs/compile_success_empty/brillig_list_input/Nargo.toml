@@ -1,0 +1,6 @@
+[package]
+name = "brillig_list_input"
+type = "bin"
+authors = [""]
+
+[dependencies]

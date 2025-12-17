@@ -807,7 +807,7 @@ impl<'a> Context<'a> {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+            (_, Type::List(..)) | (Type::List(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
             // If either side is a numeric type, then we expect their types to be

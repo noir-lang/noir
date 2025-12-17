@@ -52,7 +52,7 @@ where
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
-            Literal::Slice(array_literal) => {
+            Literal::List(array_literal) => {
                 for expr in array_literal.contents.iter_mut() {
                     visit_expr_be_mut(expr, b, e, i);
                 }
@@ -217,7 +217,7 @@ where
                     visit_expr_be(expr, b, e, i);
                 }
             }
-            Literal::Slice(array_literal) => {
+            Literal::List(array_literal) => {
                 for expr in &array_literal.contents {
                     visit_expr_be(expr, b, e, i);
                 }

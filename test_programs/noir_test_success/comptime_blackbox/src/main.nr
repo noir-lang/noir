@@ -125,7 +125,7 @@ fn test_embedded_curve_ops() {
     assert_eq(sum, mul);
 }
 
-/// Parse a lowercase hexadecimal string (without 0x prefix) as byte slice.
+/// Parse a lowercase hexadecimal string (without 0x prefix) as byte list.
 comptime fn hex_to_bytes<let N: u32>(s: str<N>) -> [u8] {
     assert(N % 2 == 0);
     let mut out = &[];

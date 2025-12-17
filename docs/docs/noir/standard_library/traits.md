@@ -49,7 +49,7 @@ impl<A, B, C, D, E> Default for (A, B, C, D, E)
 
 For primitive integer types, the return value of `default` is `0`. Container
 types such as arrays are filled with default values of their element type,
-except slices whose length is unknown and thus defaulted to zero.
+except lists whose length is unknown and thus defaulted to zero.
 
 ---
 

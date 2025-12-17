@@ -53,8 +53,8 @@ fn main(
     // The public key is derived by multiplying the generator point with the secret key,
     // interpreted as a scalar.
     let generator: Curve<BabyJubJubParams> = Curve { x: BASE8[0], y: BASE8[1] };
-    // ScalarField is parameterised by the number of 4-bit slices it contains.
-    // Since secret key is already known to be max 251 bits, there are 63 slices.
+    // ScalarField is parameterised by the number of 4-bit lists it contains.
+    // Since secret key is already known to be max 251 bits, there are 63 lists.
     let secret_scalar: ScalarField<63> = ScalarField::from(secret_key);
     let pubkey = generator.mul(secret_scalar);
 

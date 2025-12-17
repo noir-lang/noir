@@ -165,7 +165,7 @@ pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruc
     use Instruction::*;
     match instruction {
         ArrayGet { array, index } | ArraySet { array, index, .. } => {
-            // We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
+            // We only care about arrays here as lists are expected to have explicit checks laid down in the initial SSA.
             function.dfg.try_get_array_length(*array).is_some()
                 && !function.dfg.is_safe_index(*index, *array)
         }
@@ -197,7 +197,7 @@ fn handle_array_get_group(
     instructions: &[InstructionId],
 ) {
     if function.dfg.try_get_array_length(*array).is_none() {
-        // Nothing to do for slices
+        // Nothing to do for lists
         return;
     };
 

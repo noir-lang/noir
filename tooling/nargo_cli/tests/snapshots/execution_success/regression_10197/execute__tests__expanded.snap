@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(index: u32) {
-    let mut slice: [(Field, [Field; 2])] =
+    let mut list: [(Field, [Field; 2])] =
         &[(0_Field, [1_Field, 2_Field]), (3_Field, [4_Field, 5_Field])];
-    slice[index] = (6_Field, [7_Field, 8_Field]);
-    println(slice);
+    list[index] = (6_Field, [7_Field, 8_Field]);
+    println(list);
 }

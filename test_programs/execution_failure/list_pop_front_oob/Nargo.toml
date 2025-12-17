@@ -1,0 +1,6 @@
+[package]
+name = "list_pop_front_oob"
+type = "bin"
+authors = [""]
+
+[dependencies]

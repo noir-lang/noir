@@ -319,7 +319,7 @@ impl LastUseContext {
 
             Literal::FmtStr(_, _, captures) => self.track_variables_in_expression(captures),
 
-            Literal::Array(array) | Literal::Slice(array) => {
+            Literal::Array(array) | Literal::List(array) => {
                 for element in array.contents.iter() {
                     self.track_variables_in_expression(element);
                 }

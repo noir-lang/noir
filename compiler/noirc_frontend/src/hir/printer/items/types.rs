@@ -39,7 +39,7 @@ impl ItemPrinter<'_, '_> {
                     self.push('>');
                 }
             }
-            Type::Slice(typ) => {
+            Type::List(typ) => {
                 if as_expression {
                     self.push('<');
                 }
@@ -230,7 +230,7 @@ fn type_needs_parentheses(typ: &Type) -> bool {
         Type::CheckedCast { from: _, to } => type_needs_parentheses(to),
         Type::FieldElement
         | Type::Array(..)
-        | Type::Slice(..)
+        | Type::List(..)
         | Type::Integer(..)
         | Type::Bool
         | Type::String(..)

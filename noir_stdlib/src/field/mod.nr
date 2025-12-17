@@ -18,10 +18,10 @@ impl Field {
     }
 
     /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
-    /// This slice will be zero padded should not all bits be necessary to represent `self`.
+    /// This list will be zero padded should not all bits be necessary to represent `self`.
     ///
     /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting list will not
     /// be able to represent the original `Field`.
     ///
     /// # Safety
@@ -53,7 +53,7 @@ impl Field {
     /// This array will be zero padded should not all bits be necessary to represent `self`.
     ///
     /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting list will not
     /// be able to represent the original `Field`.
     ///
     /// # Safety
@@ -245,10 +245,10 @@ fn __to_le_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
 fn __to_be_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
 
 /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
-/// This slice will be zero padded should not all bits be necessary to represent `self`.
+/// This list will be zero padded should not all bits be necessary to represent `self`.
 ///
 /// # Failures
-/// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+/// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting list will not
 /// be able to represent the original `Field`.
 ///
 /// # Safety
@@ -262,7 +262,7 @@ fn __to_le_bits<let N: u32>(value: Field) -> [u1; N] {}
 /// This array will be zero padded should not all bits be necessary to represent `self`.
 ///
 /// # Failures
-/// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+/// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting list will not
 /// be able to represent the original `Field`.
 ///
 /// # Safety

@@ -9,9 +9,9 @@ struct Point {
 
 impl<let N: u32> FromCallData<N, N - 1> for Field {
     fn from_calldata(calldata: [Field; N]) -> (Self, [Field; N - 1]) {
-        let slice = calldata.as_slice();
-        let (value, slice) = slice.pop_front();
-        (value, slice.as_array())
+        let list = calldata.as_list();
+        let (value, list) = list.pop_front();
+        (value, list.as_array())
     }
 }
 

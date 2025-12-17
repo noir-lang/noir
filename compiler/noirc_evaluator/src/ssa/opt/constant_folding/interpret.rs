@@ -103,14 +103,14 @@ fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -
             }
             InterpreterValue::array(elements, element_types.to_vec())
         }
-        Type::Slice(element_types) => {
+        Type::List(element_types) => {
             let (array_constant, _) =
                 dfg.get_array_constant(value_id).expect("Should have an array constant");
             let mut elements = Vec::new();
             for element in array_constant {
                 elements.push(const_ir_value_to_interpreter_value(element, dfg));
             }
-            InterpreterValue::slice(elements, element_types)
+            InterpreterValue::list(elements, element_types)
         }
         Type::Function => unreachable!("Functions cannot be constant values"),
     }
@@ -130,8 +130,8 @@ fn interpreter_value_to_ir_value(
         }
         Type::Array(element_types, length) => {
             let array = match value {
-                InterpreterValue::ArrayOrSlice(array) => array,
-                _ => unreachable!("Expected an ArrayOrSlice"),
+                InterpreterValue::ArrayOrList(array) => array,
+                _ => unreachable!("Expected an ArrayOrList"),
             };
 
             let mut elements = Vector::new();
@@ -146,10 +146,10 @@ fn interpreter_value_to_ir_value(
             dfg[block_id].instructions_mut().push(instruction_id);
             dfg.instruction_result::<1>(instruction_id)[0]
         }
-        Type::Slice(element_types) => {
+        Type::List(element_types) => {
             let array = match value {
-                InterpreterValue::ArrayOrSlice(array) => array,
-                _ => unreachable!("Expected an ArrayOrSlice"),
+                InterpreterValue::ArrayOrList(array) => array,
+                _ => unreachable!("Expected an ArrayOrList"),
             };
 
             let mut elements = Vector::new();
@@ -157,7 +157,7 @@ fn interpreter_value_to_ir_value(
                 elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
             }
 
-            let instruction = Instruction::MakeArray { elements, typ: Type::Slice(element_types) };
+            let instruction = Instruction::MakeArray { elements, typ: Type::List(element_types) };
 
             let instruction_id = dfg.make_instruction(instruction, None);
             dfg[block_id].instructions_mut().push(instruction_id);

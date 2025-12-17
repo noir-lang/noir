@@ -9,11 +9,11 @@ impl UnresolvedType {
     pub comptime fn as_mutable_reference(self) -> Option<UnresolvedType> {}
     // docs:end:as_mutable_reference
 
-    /// If this is a slice `&[T]`, returns the element type `T`.
-    #[builtin(unresolved_type_as_slice)]
-    // docs:start:as_slice
-    pub comptime fn as_slice(self) -> Option<UnresolvedType> {}
-    // docs:end:as_slice
+    /// If this is a list `&[T]`, returns the element type `T`.
+    #[builtin(unresolved_type_as_list)]
+    // docs:start:as_list
+    pub comptime fn as_list(self) -> Option<UnresolvedType> {}
+    // docs:end:as_list
 
     /// Returns `true` if this type is `bool`.
     #[builtin(unresolved_type_is_bool)]
