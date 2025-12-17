@@ -837,6 +837,15 @@ impl Context<'_> {
         }))
     }
 
+    /// Initializes the element types sizes array to enable indexing of non-homogenous SSA arrays
+    /// in a flat memory environment.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side "element type sizes"
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how this types sizes array is used.
     pub(super) fn init_element_type_sizes_array(
         &mut self,
         array_typ: &Type,
