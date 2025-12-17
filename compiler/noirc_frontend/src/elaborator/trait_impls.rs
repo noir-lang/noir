@@ -62,7 +62,8 @@ impl Elaborator<'_> {
             let previous_generics =
                 std::mem::replace(&mut self.generics, trait_impl.resolved_generics.clone());
 
-            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
+            let where_clause =
+                self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
             // Now solve the actual types of the associated types
             // (before this we only declared them without knowing their type)
@@ -129,10 +130,6 @@ impl Elaborator<'_> {
                 };
                 let object_type = &named_generic.typ;
                 for bound in bounds {
-                    // TODO(audit): rename `lookup_trait_implementation` to make it more clear that
-                    // it's running:
-                    // Type::apply_type_bindings(bindings)
-                    // ?
                     if let Err(error) = self.interner.lookup_trait_implementation(
                         object_type,
                         bound.trait_id,
@@ -176,8 +173,6 @@ impl Elaborator<'_> {
             let ident = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, _, _) => trait_path.last_ident(),
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
-                    // TODO(audit): can typ.to_string() produce something that isn't ident-friendly here, i.e.
-                    // check more matches other than TraitasType and error otherwise?
                     let typ = self.interner.get_quoted_type(*quoted_type_id);
                     let name = if let Type::TraitAsType(_, name, _) = typ {
                         name.to_string()
@@ -244,7 +239,6 @@ impl Elaborator<'_> {
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
-        // TODO(audit): consider using a HashMap instead of a Vec to avoid ordering differences?
         // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
         // for a particular method, the default implementation will be added at that slot.
         let mut ordered_methods = Vec::new();
@@ -897,7 +891,7 @@ impl Elaborator<'_> {
         // We need to resolve the where clause before any associated types to be
         // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
         // is a where constraint for `T: Foo`.
-        let constraints = self.resolve_trait_constraints(&trait_impl.where_clause);
+        let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
         // Attach any trait constraints on the impl to the function
         for (_, _, method) in trait_impl.methods.functions.iter_mut() {
@@ -928,11 +922,7 @@ impl Elaborator<'_> {
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = Type::NamedGeneric(NamedGeneric {
-                type_var: type_var.clone(),
-                name: std::rc::Rc::new(name.to_string()),
-                implicit: false,
-            });
+            let typ = type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()));
             let typ = self.interner.push_quoted_type(typ);
             let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)

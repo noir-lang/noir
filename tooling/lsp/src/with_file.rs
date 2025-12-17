@@ -1031,7 +1031,6 @@ fn trait_bounds_with_file(trait_bounds: Vec<TraitBound>, file: FileId) -> Vec<Tr
 fn trait_bound_with_file(trait_bound: TraitBound, file: FileId) -> TraitBound {
     TraitBound {
         trait_path: path_with_file(trait_bound.trait_path, file),
-        trait_id: trait_bound.trait_id,
         trait_generics: generic_type_args_with_file(trait_bound.trait_generics, file),
     }
 }

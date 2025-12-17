@@ -170,7 +170,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings, TypeVariable,
+    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariable,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, GenericTypeArgs,
         Ident, ItemVisibility, NoirFunction, Path, TraitBound, TraitItem, UnresolvedGeneric,
@@ -236,8 +236,9 @@ impl Elaborator<'_> {
                 });
                 this.generics.extend(new_generics);
 
-                let where_clause =
-                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+                let where_clause = this.resolve_trait_constraints_and_add_to_scope(
+                    &unresolved_trait.trait_def.where_clause,
+                );
                 this.remove_trait_constraints_from_scope(where_clause.iter());
 
                 let mut associated_type_bounds = rustc_hash::FxHashMap::default();
@@ -260,8 +261,8 @@ impl Elaborator<'_> {
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
                 }
 
-                // TODO(audit): make issue for this TODO?
-                // TODO: Is it necessary to have both `where_clause` and `resolved_trait_bounds`?
+                // TODO(https://github.com/noir-lang/noir/issues/10310): Is it necessary to have
+                // both `where_clause` and `resolved_trait_bounds`?
                 // They both seem to be expressing trait constraints on this trait with the bounds
                 // limited to just constraints on `Self`. These may be able to be combined.
                 this.interner.update_trait(*trait_id, |trait_def| {
@@ -308,18 +309,17 @@ impl Elaborator<'_> {
                     trait_def.set_methods(methods);
                 });
 
+                // This check needs to be after the trait's methods are set since
+                // the interner may set `interner.ordering_type` based on the result type
+                // of the Cmp trait, if this is it.
+                if this.crate_id.is_stdlib() {
+                    this.interner.try_add_infix_operator_trait(*trait_id);
+                    this.interner.try_add_prefix_operator_trait(*trait_id);
+                }
+
                 this.current_trait = previous_current_trait;
                 this.self_type = previous_self_type;
             });
-
-            // TODO(audit): can this be moved up into the above self.recover_generics block?
-            // This check needs to be after the trait's methods are set since
-            // the interner may set `interner.ordering_type` based on the result type
-            // of the Cmp trait, if this is it.
-            if self.crate_id.is_stdlib() {
-                self.interner.try_add_infix_operator_trait(*trait_id);
-                self.interner.try_add_prefix_operator_trait(*trait_id);
-            }
 
             self.local_module = previous_local_module;
         }
@@ -389,17 +389,9 @@ impl Elaborator<'_> {
                 let type_var = TypeVariable::unbound(new_generic_id, kind);
 
                 let location = bound.trait_path.location;
-                // TODO(audit): consider mentioning using this name instead of just
-                // 'associated_type.name' to avoid conflicting names with other generics in a
-                // trait and/or impl?
                 let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
                 let name = Rc::new(name);
-                // TODO(audit): use NamedGeneric helper here?
-                let typ = Type::NamedGeneric(NamedGeneric {
-                    type_var: type_var.clone(),
-                    name: name.clone(),
-                    implicit: true,
-                });
+                let typ = type_var.clone().into_implicit_named_generic(name.clone());
                 let typ = self.interner.push_quoted_type(typ);
                 let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                 let ident = Ident::new(associated_type.name.as_ref().clone(), location);
@@ -437,13 +429,8 @@ impl Elaborator<'_> {
         generics.push(new_generic.clone());
 
         let name = format!("impl {trait_path}");
-        // TODO(audit): make helper function for this and/or similar cases?
-        let generic_type = Type::NamedGeneric(NamedGeneric {
-            type_var: new_generic,
-            name: Rc::new(name),
-            implicit: false,
-        });
-        let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
+        let generic_type = new_generic.into_named_generic(Rc::new(name));
+        let trait_bound = TraitBound { trait_path, trait_generics };
 
         if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
             let new_constraint = TraitConstraint { typ: generic_type.clone(), trait_bound };
@@ -472,9 +459,6 @@ impl Elaborator<'_> {
         bound: &TraitBound,
         mode: PathResolutionMode,
     ) -> Option<ResolvedTraitBound> {
-        // TODO(audit): if this is always None, pass trait_path and trait_generics directly to this function OR remove that field from TraitBound?
-        assert!(bound.trait_id.is_none());
-
         let trait_path = self.validate_path(bound.trait_path.clone());
         let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;
@@ -493,7 +477,6 @@ impl Elaborator<'_> {
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
-    // TODO(audit): ensure these are getting manually removed from scopes after the desired items finish resolving?
     /// Adds the given trait constraints to scope as assumed trait impls.
     ///
     /// Since there is no global/local scope distinction for trait constraints,
@@ -547,7 +530,6 @@ impl Elaborator<'_> {
         }
     }
 
-    // TODO(audit): rename to make the adding-to-scope part more clear?
     /// Resolve the given trait constraints and add them to scope as we go.
     /// This second step is necessary to resolve subsequent constraints such
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
@@ -555,22 +537,21 @@ impl Elaborator<'_> {
     ///
     /// If these constraints are unwanted afterward they should be manually
     /// removed from the interner.
-    pub(super) fn resolve_trait_constraints(
+    pub(super) fn resolve_trait_constraints_and_add_to_scope(
         &mut self,
         where_clause: &[UnresolvedTraitConstraint],
     ) -> Vec<TraitConstraint> {
         where_clause
             .iter()
-            .filter_map(|constraint| self.resolve_trait_constraint(constraint))
+            .filter_map(|constraint| self.resolve_trait_constraint_and_add_to_scope(constraint))
             .collect()
     }
 
-    // TODO(audit): rename to make the adding-to-scope part more clear?
     /// Resolves a trait constraint and adds it to scope as an assumed impl.
     /// This second step is necessary to resolve subsequent constraints such
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
     /// by a previous constraint.
-    fn resolve_trait_constraint(
+    fn resolve_trait_constraint_and_add_to_scope(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
@@ -882,12 +863,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            // TODO(audit): use NamedGeneric helper?
-            let arg = Type::NamedGeneric(NamedGeneric {
-                type_var: impl_fn_generic.clone(),
-                name: name.clone(),
-                implicit: false,
-            });
+            let arg = impl_fn_generic.clone().into_named_generic(name.clone());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
@@ -938,7 +914,6 @@ fn check_function_type_matches_expected_type(
     ) = (expected, actual)
     {
         // Shouldn't need to unify envs, they should always be equal since they're both free functions
-        // TODO(audit): revert to debug_assert_eq?
         assert_eq!(env_a, env_b, "envs should match as they're both free functions");
 
         if unconstrained_a != unconstrained_b {

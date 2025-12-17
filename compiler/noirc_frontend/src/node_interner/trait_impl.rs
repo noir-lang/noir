@@ -13,8 +13,6 @@ use crate::{
 
 use super::NodeInterner;
 
-// TODO(audit): continue auditing this file?
-
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
@@ -93,6 +91,7 @@ impl NodeInterner {
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
         if object_type == Type::Error {
+            // TOOD(audit): return an "expecting other error" here
             return Ok(());
         }
 
@@ -280,7 +279,7 @@ impl NodeInterner {
 
             let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
                 |(trait_generic, impl_generic)| {
-                    let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
+                    let impl_generic = impl_generic.substitute(&instantiation_bindings);
                     trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                 },
             );
@@ -432,13 +431,13 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
-        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, HashSet::new());
     }
 
     fn remove_assumed_trait_implementations_for_trait_and_parents(
         &mut self,
         trait_id: TraitId,
-        starting_trait_id: TraitId,
+        mut visited_trait_ids: HashSet<TraitId>,
     ) {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
@@ -449,13 +448,14 @@ impl NodeInterner {
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
+                if visited_trait_ids.contains(&parent_trait_bound.trait_id) {
                     continue;
                 }
+                visited_trait_ids.insert(parent_trait_bound.trait_id);
 
                 self.remove_assumed_trait_implementations_for_trait_and_parents(
                     parent_trait_bound.trait_id,
-                    starting_trait_id,
+                    visited_trait_ids.clone(),
                 );
             }
         }

@@ -626,7 +626,7 @@ impl NodeInterner {
     }
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let value = self.traits.get_mut(&trait_id).unwrap();
+        let value = self.get_trait_mut(trait_id);
         f(value);
     }
 
