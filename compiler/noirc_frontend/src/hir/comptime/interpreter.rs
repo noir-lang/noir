@@ -5,7 +5,7 @@
 //! 2. A macro call `foo!()`
 //!   - The interpreter calls the function `foo` and inlines the resulting `Quoted` code at the callsite.
 //! 3. An attribute call `#[my_attr] struct Foo {}`
-//!   - The interpreter calls the function `my_attr` and, if `foo`returns a `Quoted` value,
+//!   - The interpreter calls the function `my_attr` and, if `my_attr` returns a `Quoted` value,
 //!     inlines the resulting `Quoted` code.
 //! 4. A global `global FOO = expr;`
 //!   - The interpreter evaluates `expr` to simplify the global to a constant.
@@ -320,7 +320,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             } else if oracle.starts_with("__debug") {
                 Ok(Value::Unit)
             } else {
-                let item = format!("Comptime evaluation for oracle functions like {oracle}");
+                let item = format!("Comptime evaluation for oracle functions like '{oracle}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
@@ -1555,14 +1555,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut result = Ok(Value::Unit);
 
         loop {
-            let condition = match self.evaluate(condition)? {
-                Value::Bool(value) => value,
-                value => {
+            let condition = match self.evaluate(condition) {
+                Ok(Value::Bool(value)) => value,
+                Ok(value) => {
                     let location = self.elaborator.interner.expr_location(&condition);
                     let typ = value.get_type().into_owned();
-                    return Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                    result = Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                    break;
+                }
+                Err(err) => {
+                    result = Err(err);
+                    break;
                 }
             };
+
             if !condition {
                 break;
             }
@@ -1588,6 +1594,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
+    /// Evaluate one iteration of a loop.
+    ///
+    /// Returns a flag to indicate whether the loop should be exited.
     fn evaluate_loop_body(&mut self, body: ExprId, result: &mut IResult<Value>) -> bool {
         match self.evaluate(body) {
             Ok(_) => false,
