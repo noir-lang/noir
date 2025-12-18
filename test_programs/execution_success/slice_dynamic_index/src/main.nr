@@ -165,11 +165,11 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: u32) {
 fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: u32, y: u32) {
     assert(slice[x] == 4);
     assert(slice[y] == 1);
-    slice[y] = 0;
+    slice[y] = 0; // [0, 0, 2, 3, 4];
     assert(slice[x] == 4);
     assert(slice[1] == 0);
     if x as u32 < 10 {
-        slice[x] = slice[x] - 2;
+        slice[x] = slice[x] - 2; // [0, 0, 2, 3, 2];
         if y != 1 {
             slice[x] = slice[x] + 20;
         } else {
@@ -177,8 +177,8 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: u32, y: u3
                 // We should not hit this case
                 assert(slice[x] == 22);
             } else {
-                slice[x] = 10;
-                slice = slice.push_back(15);
+                slice[x] = 10; // [0, 0, 2, 3, 10];
+                slice = slice.push_back(15); // [0, 0, 2, 3, 10, 15];
                 assert(slice.len() == 6);
             }
             assert(slice[4] == 10);
@@ -186,9 +186,9 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: u32, y: u3
     } else {
         slice[x] = 0;
     }
-    assert(slice[4] == 10);
+    assert(slice[4] == 10); // [0, 0, 2, 3, 10, 15];
     assert(slice.len() == 6);
-    assert(slice[slice.len() - 1] == 15);
+    assert(slice[slice.len() - 1] == 15); 
 
     slice = slice.push_back(20);
     assert(slice.len() == 7);

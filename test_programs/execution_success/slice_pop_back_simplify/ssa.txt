@@ -1,0 +1,1499 @@
+After Initial SSA:
+acir(inline) fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After expand signed checks (1) (step 1):
+acir(inline) fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After Removing Unreachable Functions (1) (step 2):
+acir(inline) fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After Defunctionalization (1) (step 3):
+acir(inline) fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After Inlining simple functions (1) (step 4):
+acir(inline) fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After Removing Paired rc_inc & rc_decs (1) (step 5):
+acir(inline) fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After Purity Analysis (1) (step 6):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    v30 = load v7 -> [(u32, u32)]
+    return v26, v28, v29
+}
+
+After Preprocessing Functions (1) (step 7):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    return v26, v28, v29
+}
+
+After Inlining (1) (step 8):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v10 = load v5 -> u32
+    v11 = load v7 -> [(u32, u32)]
+    v13, v14, v15, v16 = call slice_pop_back(v10, v11) -> (u32, [(u32, u32)], u32, u32)
+    v19, v20 = call slice_push_back(v13, v14, v1, u32 4) -> (u32, [(u32, u32)])
+    store v19 at v5
+    store v20 at v7
+    jmp b2()
+  b2():
+    v21 = load v5 -> u32
+    v22 = load v7 -> [(u32, u32)]
+    v23 = lt v2, v21
+    constrain v23 == u1 1, "Index out of bounds"
+    v25 = unchecked_mul v2, u32 2
+    v26 = array_get v22, index v25 -> u32
+    v27 = unchecked_add v25, u32 1
+    v28 = array_get v22, index v27 -> u32
+    v29 = load v5 -> u32
+    return v26, v28, v29
+}
+
+After Mem2Reg (1) (step 9):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Dead Instruction Elimination (1) (step 10):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Simplifying (1) (step 11):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After `as_slice` optimization (1) (step 12):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After `static_assert` and `assert_constant` (1) (step 13):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Purity Analysis (2) (step 14):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Loop Invariant Code Motion (1) (step 15):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Unrolling (1) (step 16):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Simplifying (2) (step 17):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Mem2Reg (2) (step 18):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Removing Bit Shifts (1) (step 19):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Expand signed math (1) (step 20):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Simplifying (3) (step 21):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    jmpif v9 then: b1, else: b2
+  b1():
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    store v13 at v5
+    store v14 at v7
+    jmp b2()
+  b2():
+    v15 = load v5 -> u32
+    v16 = load v7 -> [(u32, u32)]
+    v17 = lt v2, v15
+    constrain v17 == u1 1, "Index out of bounds"
+    v19 = unchecked_mul v2, u32 2
+    v20 = array_get v16, index v19 -> u32
+    v21 = unchecked_add v19, u32 1
+    v22 = array_get v16, index v21 -> u32
+    return v20, v22, v15
+}
+
+After Flattening (1) (step 22):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    store u32 1 at v5
+    v7 = allocate -> &mut [(u32, u32)]
+    store v4 at v7
+    v9 = lt v2, u32 10
+    enable_side_effects v9
+    v13, v14 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v15 = load v5 -> u32
+    v16 = not v9
+    v17 = cast v9 as u32
+    v18 = cast v16 as u32
+    v19 = unchecked_mul v17, v13
+    v20 = unchecked_mul v18, v15
+    v21 = unchecked_add v19, v20
+    store v21 at v5
+    v22 = load v7 -> [(u32, u32)]
+    v23 = if v9 then v14 else (if v16) v22
+    store v23 at v7
+    enable_side_effects u1 1
+    v25 = load v5 -> u32
+    v26 = load v7 -> [(u32, u32)]
+    v27 = lt v2, v25
+    constrain v27 == u1 1, "Index out of bounds"
+    v28 = unchecked_mul v2, u32 2
+    v29 = array_get v26, index v28 -> u32
+    v30 = unchecked_add v28, u32 1
+    v31 = array_get v26, index v30 -> u32
+    return v29, v31, v25
+}
+
+After Mem2Reg (3) (step 23):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    enable_side_effects v8
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    v19 = if v8 then v13 else (if v14) v4
+    enable_side_effects u1 1
+    v21 = lt v2, v18
+    constrain v21 == u1 1, "Index out of bounds"
+    v22 = unchecked_mul v2, u32 2
+    v23 = array_get v19, index v22 -> u32
+    v25 = unchecked_add v22, u32 1
+    v26 = array_get v19, index v25 -> u32
+    return v23, v26, v18
+}
+
+After Inlining (2) (step 24):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    enable_side_effects v8
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    v19 = if v8 then v13 else (if v14) v4
+    enable_side_effects u1 1
+    v21 = lt v2, v18
+    constrain v21 == u1 1, "Index out of bounds"
+    v22 = unchecked_mul v2, u32 2
+    v23 = array_get v19, index v22 -> u32
+    v25 = unchecked_add v22, u32 1
+    v26 = array_get v19, index v25 -> u32
+    return v23, v26, v18
+}
+
+After Remove IfElse (1) (step 25):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    enable_side_effects v8
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = cast v8 as u32
+    v22 = cast v14 as u32
+    v23 = unchecked_mul v21, v20
+    v24 = unchecked_mul v22, v0
+    v25 = unchecked_add v23, v24
+    v27 = array_get v13, index u32 1 -> u32
+    v28 = cast v8 as u32
+    v29 = cast v14 as u32
+    v30 = unchecked_mul v28, v27
+    v31 = unchecked_mul v29, u32 2
+    v32 = unchecked_add v30, v31
+    v33 = array_get v13, index u32 2 -> u32
+    v35 = array_get v13, index u32 3 -> u32
+    v36 = make_array [v25, v32, v33, v35] : [(u32, u32)]
+    enable_side_effects v8
+    enable_side_effects u1 1
+    v37 = lt v2, v18
+    constrain v37 == u1 1, "Index out of bounds"
+    v38 = unchecked_mul v2, u32 2
+    v39 = array_get v36, index v38 -> u32
+    v40 = unchecked_add v38, u32 1
+    v41 = array_get v36, index v40 -> u32
+    return v39, v41, v18
+}
+
+After Purity Analysis (3) (step 26):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    enable_side_effects v8
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = cast v8 as u32
+    v22 = cast v14 as u32
+    v23 = unchecked_mul v21, v20
+    v24 = unchecked_mul v22, v0
+    v25 = unchecked_add v23, v24
+    v27 = array_get v13, index u32 1 -> u32
+    v28 = cast v8 as u32
+    v29 = cast v14 as u32
+    v30 = unchecked_mul v28, v27
+    v31 = unchecked_mul v29, u32 2
+    v32 = unchecked_add v30, v31
+    v33 = array_get v13, index u32 2 -> u32
+    v35 = array_get v13, index u32 3 -> u32
+    v36 = make_array [v25, v32, v33, v35] : [(u32, u32)]
+    enable_side_effects v8
+    enable_side_effects u1 1
+    v37 = lt v2, v18
+    constrain v37 == u1 1, "Index out of bounds"
+    v38 = unchecked_mul v2, u32 2
+    v39 = array_get v36, index v38 -> u32
+    v40 = unchecked_add v38, u32 1
+    v41 = array_get v36, index v40 -> u32
+    return v39, v41, v18
+}
+
+After Constant Folding (1) (step 27):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    enable_side_effects v8
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    enable_side_effects u1 1
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Simplify conditionals for unconstrained (1) (step 28):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    enable_side_effects v8
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    enable_side_effects u1 1
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After EnableSideEffectsIf removal (1) (step 29):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Constant Folding using constraints (1) (step 30):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Unrolling (2) (step 31):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Adding constrain not equal (1) (step 32):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Check u128 mul overflow (1) (step 33):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Simplifying (4) (step 34):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Remove Unreachable Instructions (1) (step 35):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Mem2Reg (4) (step 36):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v5 = allocate -> &mut u32
+    v6 = allocate -> &mut [(u32, u32)]
+    v8 = lt v2, u32 10
+    v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v14 = not v8
+    v15 = cast v8 as u32
+    v16 = cast v14 as u32
+    v17 = unchecked_mul v15, v12
+    v18 = unchecked_add v17, v16
+    enable_side_effects u1 1
+    v20 = array_get v13, index u32 0 -> u32
+    v21 = unchecked_mul v15, v20
+    v22 = unchecked_mul v16, v0
+    v23 = unchecked_add v21, v22
+    v25 = array_get v13, index u32 1 -> u32
+    v26 = unchecked_mul v15, v25
+    v27 = unchecked_mul v16, u32 2
+    v28 = unchecked_add v26, v27
+    v29 = array_get v13, index u32 2 -> u32
+    v31 = array_get v13, index u32 3 -> u32
+    v32 = make_array [v23, v28, v29, v31] : [(u32, u32)]
+    v33 = lt v2, v18
+    constrain v33 == u1 1, "Index out of bounds"
+    v34 = unchecked_mul v2, u32 2
+    v35 = array_get v32, index v34 -> u32
+    v36 = unchecked_add v34, u32 1
+    v37 = array_get v32, index v36 -> u32
+    return v35, v37, v18
+}
+
+After Dead Instruction Elimination (2) (step 37):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Brillig Entry Point Analysis (1) (step 38):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Removing Truncate after RangeCheck (1) (step 39):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Checked to unchecked (1) (step 40):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Constant Folding using constraints (2) (step 41):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Inlining Brillig Calls (1) (step 42):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Remove Unreachable Instructions (2) (step 43):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Dead Instruction Elimination (3) (step 44):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Verifying no dynamic array indices to reference value elements (1) (step 45):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Array Set Optimizations (1) (step 46):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+
+After Brillig Array Get and Set Optimizations (1) (step 47):
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u32, v1: u32, v2: u32):
+    v4 = make_array [v0, u32 2] : [(u32, u32)]
+    v6 = lt v2, u32 10
+    v10, v11 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+    v12 = not v6
+    v13 = cast v6 as u32
+    v14 = cast v12 as u32
+    v15 = unchecked_mul v13, v10
+    v16 = unchecked_add v15, v14
+    enable_side_effects u1 1
+    v18 = array_get v11, index u32 0 -> u32
+    v19 = unchecked_mul v13, v18
+    v20 = unchecked_mul v14, v0
+    v21 = unchecked_add v19, v20
+    v23 = array_get v11, index u32 1 -> u32
+    v24 = unchecked_mul v13, v23
+    v25 = unchecked_mul v14, u32 2
+    v26 = unchecked_add v24, v25
+    v27 = array_get v11, index u32 2 -> u32
+    v29 = array_get v11, index u32 3 -> u32
+    v30 = make_array [v21, v26, v27, v29] : [(u32, u32)]
+    v31 = lt v2, v16
+    constrain v31 == u1 1, "Index out of bounds"
+    v32 = unchecked_mul v2, u32 2
+    v33 = array_get v30, index v32 -> u32
+    v34 = unchecked_add v32, u32 1
+    v35 = array_get v30, index v34 -> u32
+    return v33, v35, v16
+}
+

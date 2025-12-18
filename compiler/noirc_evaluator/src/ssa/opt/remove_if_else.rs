@@ -246,9 +246,33 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
+                                // If we have already determined a constant for the slice length, we can override the backing capacity
+                                // of the slice contents. There is no need to use the backing capacity if we have already determined the actual length of the slice.
+                                // Using the capacity over the slice length here, would just need to extra instructions to handle the extra padding
+                                // and prevent downstream passes or runtimes from implementing optimizations using the slice length.
+                                if let Some(const_len) =
+                                    context.dfg.get_numeric_constant(arguments[0])
+                                {
+                                    self.slice_sizes.insert(
+                                        old,
+                                        const_len.try_to_u32().expect("Type should be u32"),
+                                    );
+                                }
                                 self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
+                                // If we have already determined a constant for the slice length, we can override the backing capacity
+                                // of the slice contents. There is no need to use the backing capacity if we have already determined the actual length of the slice.
+                                // Using the capacity over the slice length here, would just need to extra instructions to handle the extra padding
+                                // and prevent downstream passes or runtimes from implementing optimizations using the slice length.
+                                if let Some(const_len) =
+                                    context.dfg.get_numeric_constant(arguments[0])
+                                {
+                                    self.slice_sizes.insert(
+                                        old,
+                                        const_len.try_to_u32().expect("Type should be u32"),
+                                    );
+                                }
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
                                 self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
@@ -472,7 +496,13 @@ fn remove_if_else_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            interpreter::{errors::InterpreterError, value::Value},
+            ssa_gen::Ssa,
+        },
+    };
 
     #[test]
     fn merge_basic_arrays() {
@@ -861,7 +891,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // Here [v22, v23] is the result of merging the original slice (`[Field 2, Field 3]`)
         // with the other slice, where `v21` merges the two values.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
@@ -1041,5 +1071,77 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn merge_slice_with_capacity_larger_than_length() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v5 = allocate -> &mut u32
+            v6 = allocate -> &mut [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            v19 = if v8 then v13 else (if v14) v4
+            enable_side_effects u1 1
+            v21 = lt v2, v18
+            constrain v21 == u1 1, "Index out of bounds"
+            v22 = unchecked_mul v2, u32 2
+            v23 = array_get v19, index v22 -> u32
+            v25 = unchecked_add v22, u32 1
+            v26 = array_get v19, index v25 -> u32
+            return v23, v26, v18
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_if_else().unwrap();
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(0)];
+        let result = ssa.interpret(args).unwrap();
+        assert_eq!(result, vec![Value::u32(10), Value::u32(4), Value::u32(1)]);
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(20)];
+        let result = ssa.interpret(args).unwrap_err();
+        let InterpreterError::ConstrainEqFailed { msg, .. } = result else {
+            panic!("Expected a constrain failure on the final slice access");
+        };
+        assert_eq!(msg, Some("Index out of bounds".to_string()));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v5 = allocate -> &mut u32
+            v6 = allocate -> &mut [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            enable_side_effects u1 1
+            v20 = array_get v13, index u32 0 -> u32
+            v22 = array_get v13, index u32 1 -> u32
+            v23 = make_array [v20, v22] : [(u32, u32)]
+            enable_side_effects v8
+            enable_side_effects u1 1
+            v24 = lt v2, v18
+            constrain v24 == u1 1, "Index out of bounds"
+            v25 = unchecked_mul v2, u32 2
+            v26 = array_get v23, index v25 -> u32
+            v27 = unchecked_add v25, u32 1
+            v28 = array_get v23, index v27 -> u32
+            return v26, v28, v18
+        }
+        "#);
     }
 }

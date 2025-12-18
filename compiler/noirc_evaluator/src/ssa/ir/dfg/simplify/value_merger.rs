@@ -216,10 +216,11 @@ impl<'a> ValueMerger<'a> {
                 let index_u32 = i * element_count + element_index as u32;
                 let index_value = u128::from(index_u32).into();
                 let index = self.dfg.make_constant(index_value, NumericType::length_type());
+                // let zero_index = self.dfg.make_constant(0u32.into(), NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
-                let mut get_element = |array, typevars, len| {
+                let mut get_element = |array, typevars, len, index| {
                     assert!(index_u32 < len, "get_element invoked with an out of bounds index");
                     let get = Instruction::ArrayGet { array, index };
                     let results = self.dfg.insert_instruction_and_results(
@@ -232,23 +233,25 @@ impl<'a> ValueMerger<'a> {
                 };
 
                 // If it's out of bounds for the "then" slice, a value in the "else" *must* exist.
-                // We can use that value directly as accessing it is always checked against the actual
-                // slice length.
+                // We simply fetch from the zero index of our "then" slice to act as padding to match the value for the "else" slice.
                 if index_u32 >= flat_then_length {
-                    let else_element = get_element(else_value_id, typevars, flat_else_length);
+                    let else_element =
+                        get_element(else_value_id, typevars, flat_else_length, index);
                     merged.push_back(else_element);
                     continue;
                 }
 
                 // Same for if it's out of bounds for the "else" slice.
                 if index_u32 >= flat_else_length {
-                    let then_element = get_element(then_value_id, typevars, flat_then_length);
+                    let then_element =
+                        get_element(then_value_id, typevars, flat_then_length, index);
                     merged.push_back(then_element);
                     continue;
                 }
 
-                let then_element = get_element(then_value_id, typevars.clone(), flat_then_length);
-                let else_element = get_element(else_value_id, typevars, flat_else_length);
+                let then_element =
+                    get_element(then_value_id, typevars.clone(), flat_then_length, index);
+                let else_element = get_element(else_value_id, typevars, flat_else_length, index);
 
                 merged.push_back(self.merge_values(
                     then_condition,
