@@ -22,9 +22,14 @@ fn parse_and_normalize_path(path: &str) -> Result<PathBuf, String> {
 
 #[derive(Parser, Debug)]
 #[command(name="noir-execute", author, version=VERSION_STRING, about, long_about = None)]
+#[command(args_conflicts_with_subcommands = true)]
 struct ExecutorCli {
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
+
+    /// Arguments for the default execute command (when no subcommand is specified).
+    #[command(flatten)]
+    execute_args: Option<execute_cmd::ExecuteCommand>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -56,11 +61,16 @@ pub fn start_cli() -> eyre::Result<()> {
     let cli = ExecutorCli::parse();
 
     match cli.command {
-        Command::Execute(cmd) => {
+        Some(Command::Execute(cmd)) => {
             execute_cmd::run(cmd)?;
         }
-        Command::CheckWitness { artifact_path, witness, contract_function } => {
+        Some(Command::CheckWitness { artifact_path, witness, contract_function }) => {
             check_witness_file(&witness, &artifact_path, contract_function.as_deref())?;
+        }
+        None => {
+            // Default behavior: run execute with flattened args
+            let args = cli.execute_args.expect("execute_args should be present when no subcommand");
+            execute_cmd::run(args)?;
         }
     }
 
