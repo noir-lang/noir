@@ -76,6 +76,18 @@ impl Function {
                 return;
             };
 
+            // Only transform if side effects is one, because
+            // `Constrain` does not use `enable_side_effects` while `ConstrainNotEqual` does.
+            // In that case (side effects is a variable), the instructions have different semantics
+            // and the transformation would be a mis-compilation.
+            if !context
+                .dfg
+                .get_numeric_constant(context.enable_side_effects)
+                .is_some_and(|c| c.is_one())
+            {
+                return;
+            }
+
             if !context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
                 return;
             }
@@ -135,6 +147,32 @@ mod tests {
             return
         }
         ";
+        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
+    }
+
+    #[test]
+    /// https://github.com/noir-lang/noir/issues/10929
+    /// When side effects is not one, the transformation
+    /// should NOT happen because `Constrain` and `ConstrainNotEqual` have different
+    /// semantics with respect to `enable_side_effects`:
+    /// - `Constrain` ignores `enable_side_effects` (always executes)
+    /// - `ConstrainNotEqual` respects `enable_side_effects` (only executes when enabled)
+    ///
+    /// Because `Constrain` ignores side effects, during the `remove_enable_side_effects`
+    /// pass it might end up under a different side effect than it started with after flattening,
+    /// which makes it unsafe to transform it into `ConstrainNotEqual`. Since we don't validate
+    /// whether an arbitrary SSA has a side effect variable above `Constrain` which is compatible
+    /// with its variables, the conservative thing to do is to only transform if we know it it is safe.
+    fn regression_10929() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            enable_side_effects v2
+            v3 = eq v0, v1
+            constrain v3 == u1 0
+            return
+        }
+        "#;
         assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
     }
 }
