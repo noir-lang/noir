@@ -91,7 +91,8 @@ fn unquoted_integer_as_integer_token() {
     let expanded = assert_no_errors_and_to_string(src);
     insta::assert_snapshot!(expanded, @r"
     trait Serialize<let N: u32> {
-        fn serialize();
+        fn serialize() {
+        }
     }
     
     impl Serialize<1> for Field {
