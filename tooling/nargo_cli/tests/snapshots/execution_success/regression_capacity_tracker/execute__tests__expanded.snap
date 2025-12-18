@@ -8,13 +8,13 @@ fn main(expected: pub Field, first: Field, input: [Field; 20]) {
     assert(hasher_vector[0_u32] == expected);
     if (expected as u32) > 10_u32 {
         {
-            let i_4484: u32 = (expected - 10_Field) as u32;
-            hasher_vector[i_4484] = 100_Field;
+            let i_4495: u32 = (expected - 10_Field) as u32;
+            hasher_vector[i_4495] = 100_Field;
         }
     } else {
         {
-            let i_4485: u32 = expected as u32;
-            hasher_vector[i_4485] = 100_Field;
+            let i_4496: u32 = expected as u32;
+            hasher_vector[i_4496] = 100_Field;
         }
     };
     assert(hasher_vector[0_u32] == expected);

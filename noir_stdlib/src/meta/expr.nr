@@ -158,12 +158,26 @@ impl Expr {
     pub comptime fn as_repeated_element_vector(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_repeated_element_vector
 
+    /// If this expression is a repeated element vector `[elem; length]`, return
+    /// the repeated element and the length expressions.
+    /// This method is deprecated in favor of `as_repeated_element_vector`
+    #[builtin(expr_as_repeated_element_vector)]
+    #[deprecated("This method has been renamed to `as_repeated_element_vector`")]
+    pub comptime fn as_repeated_element_slice(self) -> Option<(Expr, Expr)> {}
+
     /// If this expression is a vector literal `&[elem1, ..., elemN]`,
     /// return each element of the vector.
     #[builtin(expr_as_vector)]
     // docs:start:as_vector
     pub comptime fn as_vector(self) -> Option<[Expr]> {}
     // docs:end:as_vector
+
+    /// If this expression is a vector literal `&[elem1, ..., elemN]`,
+    /// return each element of the vector.
+    /// This method is deprecated in favor of `as_vector`
+    #[builtin(expr_as_vector)]
+    #[deprecated("This method has been renamed to `as_vector`")]
+    pub comptime fn as_slice(self) -> Option<[Expr]> {}
 
     /// If this expression is a tuple `(field1, ..., fieldN)`,
     /// return each element of the tuple.

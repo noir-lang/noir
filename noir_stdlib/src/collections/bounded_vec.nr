@@ -1,15 +1,14 @@
 use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 
-/// A `BoundedVec<T, MaxLen>` is a growable storage similar to a [`Vec`][crate::collections::vec::Vec]`<T>` except that it
-/// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
-/// via vectors and thus is not subject to the same restrictions vectors are (notably, nested
-/// vectors - and thus nested vectors as well - are disallowed).
+/// A `BoundedVec<T, MaxLen>` is a growable storage similar to a built-in vector except that it
+/// is bounded with a maximum possible length. `BoundedVec` is also not
+/// subject to the same restrictions vectors are (notably, nested vectors are disallowed).
 ///
 /// Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
 /// pushing an additional element is also more efficient - the length only needs to be increased
 /// by one.
 ///
-/// For these reasons `BoundedVec<T, N>` should generally be preferred over `Vec<T>` when there
+/// For these reasons `BoundedVec<T, N>` should generally be preferred over vectors when there
 /// is a reasonable maximum bound that can be placed on the vector.
 ///
 /// Example:

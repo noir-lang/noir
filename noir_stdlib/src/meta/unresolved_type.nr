@@ -15,6 +15,11 @@ impl UnresolvedType {
     pub comptime fn as_vector(self) -> Option<UnresolvedType> {}
     // docs:end:as_vector
 
+    /// If this is a vector `&[T]`, returns the element type `T`.
+    #[builtin(unresolved_type_as_vector)]
+    #[deprecated("This method has been renamed to `as_vector`")]
+    pub comptime fn as_slice(self) -> Option<UnresolvedType> {}
+
     /// Returns `true` if this type is `bool`.
     #[builtin(unresolved_type_is_bool)]
     // docs:start:is_bool

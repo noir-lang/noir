@@ -103,6 +103,11 @@ impl Type {
     pub comptime fn as_vector(self) -> Option<Type> {}
     // docs:end:as_vector
 
+    /// If this is a vector type, return the element type of the vector.
+    #[builtin(type_as_vector)]
+    #[deprecated("This method has been renamed to `as_vector`")]
+    pub comptime fn as_slice(self) -> Option<Type> {}
+
     /// If this is a `str<N>` type, returns the length `N` as a type.
     #[builtin(type_as_str)]
     // docs:start:as_str
