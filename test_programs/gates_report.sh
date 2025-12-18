@@ -4,7 +4,30 @@ set -e
 BACKEND=${BACKEND:-bb}
 
 # These tests are incompatible with gas reporting
-excluded_dirs=("workspace" "workspace_default_member" "databus" "databus_composite_calldata" "double_verify_honk_proof" "verify_honk_proof" "verify_rollup_honk_proof")
+excluded_dirs=( \
+    "workspace" \
+    "workspace_default_member" \
+    "databus" \
+    "double_verify_honk_proof" \
+    "verify_honk_proof" \
+    "verify_rollup_honk_proof" \
+    # UltraCircuitBuilder (standalone Noir application) does not support CallData/ReturnData block constraints. Use MegaCircuitBuilder (Aztec app) or fall back to RAM and ROM operations.
+        "databus_composite_calldata" \
+        "databus_two_calldata" \
+        "databus_two_calldata_simple" \
+        "regression_7143" \
+        "regression_7612" \
+    # For circuits which use #[fold]: circuit_buf_to_acir_format: expected single function in ACIR program
+        "fold_2_to_17" \
+        "fold_after_inlined_calls" \
+        "fold_basic" \
+        "fold_basic_nested_call" \
+        "fold_call_witness_condition" \
+        "fold_complex_outputs" \
+        "fold_distinct_return" \
+        "fold_fibonacci" \
+        "fold_numeric_generic_poseidon" \
+    )
 
 current_dir=$(pwd)
 artifacts_path="$current_dir/acir_artifacts"
