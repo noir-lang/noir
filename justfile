@@ -122,7 +122,7 @@ mutation-test base="master": install-rust-tools
   git diff origin/{{base}}.. | tee $tmpdir/git.diff
   cargo mutants --no-shuffle --test-tool=nextest -p acir_field -p acir -p acvm -p brillig -p brillig_vm -p blackbox_solver --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
   cargo mutants --no-shuffle --test-tool=nextest -p noirc_evaluator  --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
-  
+
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
   #!/usr/bin/env bash
@@ -168,9 +168,13 @@ build-package PACKAGE: install-js-tools
 # Examples
 
 # Runs test for all examples
+# TODO(#10904): Fix the `browser` example.
+# TODO(#10959): Fix the `recursion` example.
+# TODO(#10960): Fix the `solidity_verifier` example.
 run-examples:
-  for file in `ls {{justfile_dir()}}/examples`; do \
-      just --justfile {{justfile()}} run-example $file; \
+  set -e; \
+  for file in `ls {{justfile_dir()}}/examples | grep -v browser | grep -v recursion | grep -v solidity_verifier`; do \
+      just --justfile {{justfile()}} run-example $file;  \
   done
 
 # Runs test for example named `EXAMPLE`

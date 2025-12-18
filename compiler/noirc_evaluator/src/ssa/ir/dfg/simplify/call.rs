@@ -180,8 +180,8 @@ pub(super) fn simplify_call(
             }
 
             let slice = dfg.get_array_constant(arguments[1]);
-            if let Some((_, typ)) = slice {
-                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack)
+            if let Some((slice, typ)) = slice {
+                simplify_slice_pop_back(slice, typ, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
@@ -552,6 +552,7 @@ fn simplify_slice_push_back(
 }
 
 fn simplify_slice_pop_back(
+    mut slice: im::Vector<ValueId>,
     slice_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -585,9 +586,11 @@ fn simplify_slice_pop_back(
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
+        slice.pop_back();
     }
 
-    results.push_front(arguments[1]);
+    let new_slice = make_array(dfg, slice, slice_type, block, call_stack);
+    results.push_front(new_slice);
 
     results.push_front(new_slice_length);
     SimplifyResult::SimplifiedToMultiple(results.into())
