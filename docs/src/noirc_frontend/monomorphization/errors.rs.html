@@ -290,7 +290,7 @@
             }
             MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } =&gt; {
                 <span class="macro">format!</span>(
-                    <span class="string">"Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                    <span class="string">"Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 </span>)
             }
             MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } =&gt; {
