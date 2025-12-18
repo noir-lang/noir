@@ -91,11 +91,25 @@ pub(crate) fn solve<F: AcirField>(
         }
         BlackBoxFuncCall::Blake2s { outputs, .. } => {
             let inputs = bb_func.get_inputs_vec();
-            solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake2s)
+            solve_generic_256_hash_opcode(
+                initial_witness,
+                &inputs,
+                None,
+                outputs,
+                acir::BlackBoxFunc::Blake2s,
+                blake2s,
+            )
         }
         BlackBoxFuncCall::Blake3 { outputs, .. } => {
             let inputs = bb_func.get_inputs_vec();
-            solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake3)
+            solve_generic_256_hash_opcode(
+                initial_witness,
+                &inputs,
+                None,
+                outputs,
+                acir::BlackBoxFunc::Blake3,
+                blake3,
+            )
         }
         BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
             let mut state = [0; 25];
