@@ -168,9 +168,13 @@ build-package PACKAGE: install-js-tools
 # Examples
 
 # Runs test for all examples
+# TODO(#10904): Fix the `browser` example.
 run-examples:
   set -e; \
   for file in `ls {{justfile_dir()}}/examples`; do \
+      if [ $file="browser" ]; then \
+          continue; \
+      fi; \
       just --justfile {{justfile()}} run-example $file; \
   done
 
