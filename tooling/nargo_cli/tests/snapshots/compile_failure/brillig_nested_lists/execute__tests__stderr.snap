@@ -5,7 +5,7 @@ expression: stderr
 warning: unused variable value
    ┌─ src/main.nr:12:40
    │
-12 │ unconstrained fn create_foo(id: Field, value: Field) -> NestedListStruct {
+12 │ unconstrained fn create_foo(id: Field, value: Field) -> NestedVectorStruct {
    │                                        ----- unused variable
    │
 
@@ -16,38 +16,38 @@ error: No method named 'push_back' found for type '[Field; 1]'
    │           --------------------
    │
 
-error: Cannot assign an expression of type [NestedListStruct] to a value of type [NestedListStruct; 2]
+error: Cannot assign an expression of type [NestedVectorStruct] to a value of type [NestedVectorStruct; 2]
    ┌─ src/main.nr:27:12
    │
-27 │     list = push_back_to_list(list, create_foo(0, 42));
+27 │     vector = push_back_to_vector(vector, create_foo(0, 42));
    │            ------------------------------------------
    │
 
-error: No method named 'push_front' found for type '[NestedListStruct; 2]'
+error: No method named 'push_front' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:39:12
    │
-39 │     list = list.push_front(create_foo(1, 43));
+39 │     vector = vector.push_front(create_foo(1, 43));
    │            ----------------------------------
    │
 
-error: No method named 'push_back' found for type '[NestedListStruct; 2]'
+error: No method named 'push_back' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:40:12
    │
-40 │     list = list.push_back(create_foo(2, 44));
+40 │     vector = vector.push_back(create_foo(2, 44));
    │            ---------------------------------
    │
 
-error: No method named 'pop_front' found for type '[NestedListStruct; 2]'
+error: No method named 'pop_front' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:44:28
    │
-44 │     let pop_front_result = list.pop_front();
+44 │     let pop_front_result = vector.pop_front();
    │                            ----------------
    │
 
 error: Object type is unknown in field access
    ┌─ src/main.nr:45:29
    │
-45 │     list = pop_front_result.1;
+45 │     vector = pop_front_result.1;
    │                             - Type must be known by this point
    │
    = Try adding a type annotation for the object type before this expression
@@ -60,17 +60,17 @@ error: Object type is unknown in field access
    │
    = Try adding a type annotation for the object type before this expression
 
-error: No method named 'pop_back' found for type '[NestedListStruct; 2]'
+error: No method named 'pop_back' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:48:27
    │
-48 │     let pop_back_result = list.pop_back();
+48 │     let pop_back_result = vector.pop_back();
    │                           ---------------
    │
 
 error: Object type is unknown in field access
    ┌─ src/main.nr:49:28
    │
-49 │     list = pop_back_result.0;
+49 │     vector = pop_back_result.0;
    │                            - Type must be known by this point
    │
    = Try adding a type annotation for the object type before this expression
@@ -83,17 +83,17 @@ error: Object type is unknown in field access
    │
    = Try adding a type annotation for the object type before this expression
 
-error: No method named 'remove' found for type '[NestedListStruct; 2]'
+error: No method named 'remove' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:54:29
    │
-54 │     let mut remove_result = list.remove(0);
+54 │     let mut remove_result = vector.remove(0);
    │                             --------------
    │
 
 error: Object type is unknown in field access
    ┌─ src/main.nr:55:26
    │
-55 │     list = remove_result.0;
+55 │     vector = remove_result.0;
    │                          - Type must be known by this point
    │
    = Try adding a type annotation for the object type before this expression
@@ -114,17 +114,17 @@ error: Object type is unknown in field access
    │
    = Try adding a type annotation for the object type before this expression
 
-error: No method named 'remove' found for type '[NestedListStruct; 2]'
+error: No method named 'remove' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:59:21
    │
-59 │     remove_result = list.remove(1);
+59 │     remove_result = vector.remove(1);
    │                     --------------
    │
 
 error: Object type is unknown in field access
    ┌─ src/main.nr:60:26
    │
-60 │     list = remove_result.0;
+60 │     vector = remove_result.0;
    │                          - Type must be known by this point
    │
    = Try adding a type annotation for the object type before this expression
@@ -145,10 +145,10 @@ error: Object type is unknown in field access
    │
    = Try adding a type annotation for the object type before this expression
 
-error: No method named 'insert' found for type '[NestedListStruct; 2]'
+error: No method named 'insert' found for type '[NestedVectorStruct; 2]'
    ┌─ src/main.nr:67:12
    │
-67 │     list = list.insert(1, removed_item);
+67 │     vector = vector.insert(1, removed_item);
    │            ----------------------------
    │
 

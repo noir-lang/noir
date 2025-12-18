@@ -856,7 +856,7 @@ impl Elaborator<'_> {
         trait_id: Option<TraitId>,
         path_location: Location,
     ) {
-        // Add each associated type to the list of named type arguments
+        // Add each associated type to the vector of named type arguments
         let associated_types = self.take_unresolved_associated_types(trait_impl);
 
         // Put every associated type behind a type variable (inside a NamedGeneric).

@@ -3,24 +3,24 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Expected type &mut [Field], found type &mut [_; 0]
-  ┌─ src/main.nr:3:31
+  ┌─ src/main.nr:3:33
   │
-3 │     let list : &mut [Field] = &mut [];
-  │                               -------
+3 │     let vector : &mut [Field] = &mut [];
+  │                                 -------
   │
 
-error: Variable `list` must be mutable to be assigned to
+error: Variable `vector` must be mutable to be assigned to
   ┌─ src/main.nr:4:5
   │
-4 │     list = &mut (*list).push_back(1);
-  │     ----
+4 │     vector = &mut (*vector).push_back(1);
+  │     ------
   │
 
 error: Type annotation needed
-  ┌─ src/main.nr:3:36
+  ┌─ src/main.nr:3:38
   │
-3 │     let list : &mut [Field] = &mut [];
-  │                                    -- Could not determine the type of the array
+3 │     let vector : &mut [Field] = &mut [];
+  │                                      -- Could not determine the type of the array
   │
 
 Aborting due to 3 previous errors

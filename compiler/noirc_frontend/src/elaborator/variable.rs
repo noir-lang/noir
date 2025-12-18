@@ -602,7 +602,7 @@ impl Elaborator<'_> {
     }
 }
 
-/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+/// Bind the generics of the [Type] aliased by the [TypeAlias] to a vector of generic arguments,
 /// recursively expanding the generics aliased aliases, finally returning the generics of the
 /// innermost aliased struct.
 ///

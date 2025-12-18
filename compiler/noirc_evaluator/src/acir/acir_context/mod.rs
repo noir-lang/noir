@@ -1319,7 +1319,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_read_var = self.add_variable();
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
-        // Add the memory read operation to the list of opcodes
+        // Add the memory read operation to the vector of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
@@ -1341,7 +1341,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_write_var = self.get_or_create_witness_var(*value)?;
         let value_write_witness = self.var_to_witness(value_write_var)?;
 
-        // Add the memory write operation to the list of opcodes
+        // Add the memory write operation to the vector of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 

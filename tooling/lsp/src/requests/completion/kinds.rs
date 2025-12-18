@@ -18,7 +18,7 @@ pub(super) enum FunctionKind<'a> {
     SelfType(&'a Type),
 }
 
-/// When requesting completions, whether to list all items or just types.
+/// When requesting completions, whether to vector all items or just types.
 /// For example, when writing `let x: S` we only want to suggest types at this
 /// point (modules too, because they might include types too).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -12,7 +12,7 @@ warning: struct `FooParent` is never constructed
 error: No method named 'push_back' found for type '[Foo<[Field]>; 2]'
    ┌─ src/main.nr:21:12
    │
-21 │     list = list.push_back(foo);
+21 │     vector = vector.push_back(foo);
    │            -------------------
    │
 

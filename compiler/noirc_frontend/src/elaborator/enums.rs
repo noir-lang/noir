@@ -1022,7 +1022,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             }
             // We could match on these types in the future
             typ @ (Type::Array(_, _)
-            | Type::List(_)
+            | Type::Vector(_)
             | Type::String(_)
             // But we'll never be able to match on these
             | Type::Alias(_, _)
@@ -1128,11 +1128,11 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     ///    variable) and removes it from every row.
     /// 2. We add additional columns to this row, if the constructor takes any
     ///    arguments (which we'll handle in a nested match).
-    /// 3. We turn the resulting list of rows into a list of cases, then compile
+    /// 3. We turn the resulting vector of rows into a vector of cases, then compile
     ///    those into decision (sub) trees.
     ///
     /// If a row didn't include the branching variable, we simply copy that row
-    /// into the list of rows for every constructor to test.
+    /// into the vector of rows for every constructor to test.
     ///
     /// For this to work, the `cases` variable must be prepared such that it has
     /// a triple for every constructor we need to handle. For an ADT with 10

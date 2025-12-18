@@ -8,9 +8,9 @@ pub(crate) struct CallArguments {
 }
 
 impl Parser<'_> {
-    /// Arguments = '(' ArgumentsList? ')'
+    /// Arguments = '(' ArgumentsVector? ')'
     ///
-    /// ArgumentsList = Expression ( ',' Expression )? ','?
+    /// ArgumentsVector = Expression ( ',' Expression )? ','?
     pub(crate) fn parse_arguments(&mut self) -> Option<Vec<Expression>> {
         if !self.eat_left_paren() {
             return None;
@@ -19,7 +19,7 @@ impl Parser<'_> {
         let arguments = self.parse_many(
             "arguments",
             separated_by_comma_until_right_paren(),
-            Self::parse_expression_in_list,
+            Self::parse_expression_in_vector,
         );
 
         Some(arguments)

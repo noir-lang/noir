@@ -229,7 +229,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     assert_eq!(debug[0].brillig_locations.len(), 1);
     assert!(debug[0].brillig_locations.contains_key(&BrilligFunctionId(0)));
 
-    // Brillig stdlib IDs are expected to always come at the end of the Brillig functions list.
+    // Brillig stdlib IDs are expected to always come at the end of the Brillig functions vector.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2]

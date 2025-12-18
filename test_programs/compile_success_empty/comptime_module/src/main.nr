@@ -169,7 +169,7 @@ fn child_modules_test() {
 // docs:end:child_modules_example
 
 /// A longer test using all submodules in this crate. This shows that modules
-/// declaring separate files are currently listed before modules defined in the
+/// declaring separate files are currently vectored before modules defined in the
 /// same file. This is not desired so the order for `child_modules` is left unspecified
 /// so that this can be fixed in the future.
 #[test]

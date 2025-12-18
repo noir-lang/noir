@@ -30,15 +30,15 @@ impl Elaborator<'_> {
     /// The `expected_type` is always known, because we can first infer the type of the `<expr>` and try to match it to
     /// the pattern.
     ///
-    /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
-    /// patterns in a list. If a name is found multiple times, an error is captured.
+    /// `parameter_names_in_vector` keeps track of parameter names, and their location, across multiple
+    /// patterns in a vector. If a name is found multiple times, an error is captured.
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
-        parameter_names_in_list: &mut HashMap<String, Location>,
+        parameter_names_in_vector: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -48,15 +48,15 @@ impl Elaborator<'_> {
             &mut Vec::new(),
             warn_if_unused,
             &mut HashSet::default(),
-            parameter_names_in_list,
+            parameter_names_in_vector,
         )
     }
 
     /// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new `DefinitionIds` that were created to the given `Vec`.
     ///
-    /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
-    /// patterns in a list. If a name is found multiple times, an error is captured.
+    /// `parameter_names_in_vector` keeps track of parameter names, and their location, across multiple
+    /// patterns in a vector. If a name is found multiple times, an error is captured.
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
@@ -64,7 +64,7 @@ impl Elaborator<'_> {
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        parameter_names_in_list: &mut HashMap<String, Location>,
+        parameter_names_in_vector: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -74,7 +74,7 @@ impl Elaborator<'_> {
             created_ids,
             warn_if_unused,
             &mut HashSet::default(),
-            parameter_names_in_list,
+            parameter_names_in_vector,
         )
     }
 
@@ -83,8 +83,8 @@ impl Elaborator<'_> {
     ///
     /// - `pattern_names` keeps track of parameter names within this single pattern (or an outer
     ///   one, when called recursively). If a name is found multiple times, an error is captured.
-    /// - `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
-    ///   patterns in a list. If a name is found multiple times, an error is captured.
+    /// - `parameter_names_in_vector` keeps track of parameter names, and their location, across multiple
+    ///   patterns in a vector. If a name is found multiple times, an error is captured.
     #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
@@ -96,7 +96,7 @@ impl Elaborator<'_> {
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
         pattern_names: &mut HashSet<String>,
-        parameter_names_in_list: &mut HashMap<String, Location>,
+        parameter_names_in_vector: &mut HashMap<String, Location>,
     ) -> HirPattern {
         match pattern {
             // e.g. let <ident> = ...;
@@ -119,7 +119,7 @@ impl Elaborator<'_> {
                                 ident: name.clone(),
                             });
                         } else if let Some(first_location) =
-                            parameter_names_in_list.insert(name.to_string(), name.location())
+                            parameter_names_in_vector.insert(name.to_string(), name.location())
                         {
                             self.push_err(ResolverError::DuplicateDefinition {
                                 name: name.to_string(),
@@ -158,7 +158,7 @@ impl Elaborator<'_> {
                     new_definitions,
                     warn_if_unused,
                     pattern_names,
-                    parameter_names_in_list,
+                    parameter_names_in_vector,
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
@@ -208,7 +208,7 @@ impl Elaborator<'_> {
                         new_definitions,
                         warn_if_unused,
                         pattern_names,
-                        parameter_names_in_list,
+                        parameter_names_in_vector,
                     )
                 });
                 HirPattern::Tuple(fields, location)
@@ -225,7 +225,7 @@ impl Elaborator<'_> {
                     mutable,
                     new_definitions,
                     pattern_names,
-                    parameter_names_in_list,
+                    parameter_names_in_vector,
                 )
             }
             // e.g. let (<pattern>) = ...;
@@ -237,7 +237,7 @@ impl Elaborator<'_> {
                 new_definitions,
                 warn_if_unused,
                 pattern_names,
-                parameter_names_in_list,
+                parameter_names_in_vector,
             ),
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
@@ -249,7 +249,7 @@ impl Elaborator<'_> {
                     new_definitions,
                     warn_if_unused,
                     pattern_names,
-                    parameter_names_in_list,
+                    parameter_names_in_vector,
                 )
             }
         }
@@ -266,7 +266,7 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         pattern_names: &mut HashSet<String>,
-        parameter_names_in_list: &mut HashMap<String, Location>,
+        parameter_names_in_vector: &mut HashMap<String, Location>,
     ) -> HirPattern {
         let last_segment = name.last_segment();
         let name_location = last_segment.ident.location();
@@ -321,7 +321,7 @@ impl Elaborator<'_> {
             mutable,
             new_definitions,
             pattern_names,
-            parameter_names_in_list,
+            parameter_names_in_vector,
         );
 
         let struct_id = struct_type.borrow().id;
@@ -349,7 +349,7 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         pattern_names: &mut HashSet<String>,
-        parameter_names_in_list: &mut HashMap<String, Location>,
+        parameter_names_in_vector: &mut HashMap<String, Location>,
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
@@ -373,7 +373,7 @@ impl Elaborator<'_> {
                 new_definitions,
                 true, // warn_if_unused
                 pattern_names,
-                parameter_names_in_list,
+                parameter_names_in_vector,
             );
 
             if unseen_fields.contains(&field) {
@@ -622,7 +622,7 @@ impl Elaborator<'_> {
         self.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
     }
 
-    /// Given the generic [Kind]s of a type, and the list of generic types in a non-empty turbofish,
+    /// Given the generic [Kind]s of a type, and the vector of generic types in a non-empty turbofish,
     /// which have already been verified to match the expected number of generics, run type checking
     /// to ensure each turbofish generic matches the expected kind, and return the unified types.
     fn resolve_turbofish_generics(

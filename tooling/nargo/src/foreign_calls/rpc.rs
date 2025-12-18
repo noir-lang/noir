@@ -433,7 +433,7 @@ mod server_tests {
         }
     }
 
-    /// Start running the Oracle server or a random port, returning the listen URL.
+    /// Start running the Oracle server or a random port, returning the vectoren URL.
     async fn build_oracle_server() -> std::io::Result<String> {
         // Choosing port 0 results in a random port being assigned.
         let server = Server::builder().build("127.0.0.1:0").await?;

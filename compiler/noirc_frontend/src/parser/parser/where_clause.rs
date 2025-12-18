@@ -50,11 +50,11 @@ impl Parser<'_> {
         self.parse_many(
             "trait bounds",
             separated_by(Token::Plus).stop_if_separator_is_missing(),
-            Self::parse_trait_bound_in_list,
+            Self::parse_trait_bound_in_vector,
         )
     }
 
-    fn parse_trait_bound_in_list(&mut self) -> Option<TraitBound> {
+    fn parse_trait_bound_in_vector(&mut self) -> Option<TraitBound> {
         if let Some(trait_bound) = self.parse_trait_bound() {
             Some(trait_bound)
         } else {

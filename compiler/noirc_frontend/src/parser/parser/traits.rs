@@ -139,12 +139,12 @@ impl Parser<'_> {
         self.parse_many(
             "trait items",
             without_separator().until(Token::RightBrace),
-            Self::parse_trait_item_in_list,
+            Self::parse_trait_item_in_vector,
         )
     }
 
-    fn parse_trait_item_in_list(&mut self) -> Option<Documented<TraitItem>> {
-        self.parse_item_in_list(ParsingRuleLabel::TraitItem, |parser| {
+    fn parse_trait_item_in_vector(&mut self) -> Option<Documented<TraitItem>> {
+        self.parse_item_in_vector(ParsingRuleLabel::TraitItem, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
             parser.parse_trait_item().map(|item| Documented::new(item, doc_comments))
         })

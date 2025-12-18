@@ -76,7 +76,7 @@ pub enum IdentOrQuotedType {
     Ident(Ident),
 
     /// Already-resolved generics can be parsed as generics when a macro
-    /// splices existing types into a generic list. In this case we have
+    /// splices existing types into a generic vector. In this case we have
     /// to validate the type refers to a named generic and treat that
     /// as a ResolvedGeneric when this is resolved.
     Quoted(QuotedTypeId, Location),
@@ -424,7 +424,7 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
-    List(ArrayLiteral),
+    Vector(ArrayLiteral),
     Bool(bool),
     Integer(SignedField, Option<IntegerTypeSuffix>),
     Str(String),
@@ -533,7 +533,7 @@ pub struct CallExpression {
 pub struct MethodCallExpression {
     pub object: Expression,
     pub method_name: Ident,
-    /// Method calls have an optional list of generics if the turbofish operator was used
+    /// Method calls have an optional vector of generics if the turbofish operator was used
     pub generics: Option<Vec<UnresolvedType>>,
     pub arguments: Vec<Expression>,
     pub is_macro_call: bool,
@@ -680,11 +680,11 @@ impl Display for Literal {
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
             }
-            Literal::List(ArrayLiteral::Standard(elements)) => {
+            Literal::Vector(ArrayLiteral::Standard(elements)) => {
                 let contents = vecmap(elements, ToString::to_string);
                 write!(f, "&[{}]", contents.join(", "))
             }
-            Literal::List(ArrayLiteral::Repeated { repeated_element, length }) => {
+            Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),

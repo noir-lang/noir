@@ -1,6 +1,0 @@
-[package]
-name = "list_pop_back_oob_invalid_pred"
-type = "bin"
-authors = [""]
-
-[dependencies]

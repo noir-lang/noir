@@ -348,7 +348,7 @@ impl Parser<'_> {
         let mut types = self.parse_many(
             "tuple items",
             separated_by_comma_until_right_paren(),
-            Self::parse_type_in_list,
+            Self::parse_type_in_vector,
         );
 
         if !types.is_empty() && !comma_after_first_type {

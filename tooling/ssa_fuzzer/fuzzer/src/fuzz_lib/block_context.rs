@@ -905,12 +905,12 @@ impl BlockContext {
                 self.store_variable(&value);
                 value
             }
-            Type::List(list_type) => {
-                let values = list_type
+            Type::Vector(vector_type) => {
+                let values = vector_type
                     .iter()
                     .map(|element_type| self.find_values_with_type(builder, element_type, None))
                     .collect::<Vec<TypedValue>>();
-                let value = builder.insert_list(values.clone());
+                let value = builder.insert_vector(values.clone());
                 self.store_variable(&value);
                 value
             }

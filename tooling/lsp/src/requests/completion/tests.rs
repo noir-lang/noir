@@ -1864,7 +1864,7 @@ mod foo {
     }
 
     #[test]
-    async fn test_auto_imports_expands_existing_use_before_one_segment_not_in_list() {
+    async fn test_auto_imports_expands_existing_use_before_one_segment_not_in_vector() {
         let src = r#"use foo::bar::one_hello_world;
 
 mod foo {
@@ -1938,7 +1938,7 @@ fn main() {
     }
 
     #[test]
-    async fn test_auto_imports_expands_existing_use_before_one_segment_inside_list() {
+    async fn test_auto_imports_expands_existing_use_before_one_segment_inside_vector() {
         let src = r#"use foo::{bar::one_hello_world, baz};
 
 mod foo {
@@ -2059,7 +2059,7 @@ fn main() {
     }
 
     #[test]
-    async fn test_auto_imports_expands_existing_use_before_list() {
+    async fn test_auto_imports_expands_existing_use_before_vector() {
         let src = r#"use foo::bar::{one_hello_world, three_hello_world};
 
 mod foo {
@@ -2098,7 +2098,7 @@ fn main() {
     }
 
     #[test]
-    async fn test_auto_imports_expands_existing_use_before_empty_list() {
+    async fn test_auto_imports_expands_existing_use_before_empty_vector() {
         let src = r#"use foo::bar::{};
 
 mod foo {

@@ -435,7 +435,7 @@ impl Context {
         is_global: bool,
         is_main: bool,
         is_comptime_friendly: bool,
-        is_list_allowed: bool,
+        is_vector_allowed: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
@@ -445,7 +445,7 @@ impl Context {
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
-                .filter(|typ| is_list_allowed || !types::contains_list(typ))
+                .filter(|typ| is_vector_allowed || !types::contains_vector(typ))
                 .collect::<Vec<_>>();
 
             if !existing_types.is_empty() {
@@ -457,14 +457,14 @@ impl Context {
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
         // Generate the inner type for composite types with reduced maximum depth.
-        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_list_allowed: bool| {
+        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_vector_allowed: bool| {
             this.gen_type(
                 u,
                 max_depth - 1,
                 is_global,
                 is_main,
                 is_comptime_friendly,
-                is_list_allowed,
+                is_vector_allowed,
             )
         };
 
@@ -493,13 +493,13 @@ impl Context {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| gen_inner_type(self, u, is_list_allowed))
+                        .map(|_| gen_inner_type(self, u, is_vector_allowed))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
-                6 if is_list_allowed && !self.config.avoid_lists => {
+                6 if is_vector_allowed && !self.config.avoid_vectors => {
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::List(Box::new(typ))
+                    Type::Vector(Box::new(typ))
                 }
                 6 | 7 => {
                     let min_size = 0;
@@ -510,7 +510,7 @@ impl Context {
                 _ => unreachable!("unexpected arbitrary type index"),
             };
             // Looping is kinda dangerous, we could get stuck if we run out of randomness,
-            // so we have to make sure the first type on the list is acceptable.
+            // so we have to make sure the first type on the vector is acceptable.
             if is_global && !types::can_be_global(&typ) || is_main && !types::can_be_main(&typ) {
                 continue;
             } else {

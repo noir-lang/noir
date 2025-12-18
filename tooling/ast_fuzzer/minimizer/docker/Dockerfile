@@ -5,7 +5,7 @@ FROM rust:1.85.0-slim-bookworm AS builder
 
 RUN apt-get update && \
   apt-get install -y git && \
-  rm -rf /var/lib/apt/lists/*
+  rm -rf /var/lib/apt/vectors/*
 
 
 WORKDIR /noir
@@ -21,7 +21,7 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && \
   apt-get install -y cvise && \
-  rm -rf /var/lib/apt/lists/*
+  rm -rf /var/lib/apt/vectors/*
 
 WORKDIR /noir
 ENV SHELL=/bin/bash

@@ -67,11 +67,11 @@ impl ChunkFormatter<'_, '_> {
                     }
                 }));
             }
-            UseTreeKind::List(use_trees) => {
-                // We check if there are nested lists. If yes, then each item will be on a separate line
+            UseTreeKind::Vector(use_trees) => {
+                // We check if there are nested vectors. If yes, then each item will be on a separate line
                 // (it reads better, and this is what rustfmt seems to do too)
-                let has_nested_list =
-                    use_trees.iter().any(|use_tree| matches!(use_tree.kind, UseTreeKind::List(..)));
+                let has_nested_vector =
+                    use_trees.iter().any(|use_tree| matches!(use_tree.kind, UseTreeKind::Vector(..)));
 
                 let use_trees_len = use_trees.len();
 
@@ -104,7 +104,7 @@ impl ChunkFormatter<'_, '_> {
                         items_chunk.chunks.into_iter().filter_map(Chunk::group).next().unwrap();
                     group.chunks.extend(single_group.chunks);
                 } else {
-                    if has_nested_list {
+                    if has_nested_vector {
                         group.one_chunk_per_line = true;
                     }
 
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn format_use_list_two_items() {
+    fn format_use_vector_two_items() {
         let src = " use foo::{ bar,  baz  };";
         let expected = "use foo::{bar, baz};\n";
         assert_format(src, expected);
@@ -192,14 +192,14 @@ mod tests {
     }
 
     #[test]
-    fn format_use_list_one_item() {
+    fn format_use_vector_one_item() {
         let src = " use foo::{  bar,  };";
         let expected = "use foo::bar;\n";
         assert_format(src, expected);
     }
 
     #[test]
-    fn format_long_use_list_one_item() {
+    fn format_long_use_vector_one_item() {
         let src = "use one::two::{three::{four, five}};";
         let expected = "use one::two::three::{
     four, five,
@@ -209,14 +209,14 @@ mod tests {
     }
 
     #[test]
-    fn format_use_list_one_item_with_comments() {
+    fn format_use_vector_one_item_with_comments() {
         let src = " use foo::{  /* do not remove me */ bar,  };";
         let expected = "use foo::{/* do not remove me */ bar};\n";
         assert_format(src, expected);
     }
 
     #[test]
-    fn format_use_crate_with_list() {
+    fn format_use_crate_with_vector() {
         let src = " use crate :: hash :: { Hash, Hasher };  ";
         let expected = "use crate::hash::{Hash, Hasher};\n";
         assert_format(src, expected);

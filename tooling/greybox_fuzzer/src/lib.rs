@@ -429,12 +429,12 @@ impl<
         witness: &Option<WitnessStack<FieldElement>>,
         brillig_coverage: &Option<RawBrilligCoverage>,
     ) -> bool {
-        // Get a list of non-boolean witnesses (default or taken from accumulated coverage)
-        let mut non_bool_witness_list = accumulated_coverage.non_bool_witness_list.clone();
+        // Get a vector of non-boolean witnesses (default or taken from accumulated coverage)
+        let mut non_bool_witness_vector = accumulated_coverage.non_bool_witness_vector.clone();
 
         // If ACVM solved the witness, collect boolean states
         if let Some(witness) = witness {
-            non_bool_witness_list = non_bool_witness_list.merge_new(witness);
+            non_bool_witness_vector = non_bool_witness_vector.merge_new(witness);
         }
 
         // Form a coverage object with coverage from this run
@@ -443,7 +443,7 @@ impl<
             TestCaseId::default(),
             witness,
             brillig_coverage.clone().unwrap(),
-            &non_bool_witness_list,
+            &non_bool_witness_vector,
         );
         // Quickly detect if there is any new coverage so that later single-threaded check can quickly discard this testcase
         accumulated_coverage.detect_new_coverage(&new_coverage)
@@ -807,7 +807,7 @@ impl<
                 if acir_round {
                     if let Some(ref witness) = witness {
                         accumulated_coverage
-                            .update_non_bool_witness_list_with_witness_stack(witness);
+                            .update_non_bool_witness_vector_with_witness_stack(witness);
                     }
                 }
 
@@ -816,7 +816,7 @@ impl<
                     case_id,
                     &witness,
                     brillig_coverage.clone(),
-                    &accumulated_coverage.non_bool_witness_list,
+                    &accumulated_coverage.non_bool_witness_vector,
                 );
 
                 // In case this is just a brillig round, we need to detect first, since a merge might skip some witnesses that we haven't added from acir
@@ -925,14 +925,14 @@ impl<
 
                 // In case we got a witness from ACIR
                 if let Some(ref witness) = witness {
-                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(witness);
+                    accumulated_coverage.update_non_bool_witness_vector_with_witness_stack(witness);
                 }
 
                 let new_coverage = SingleTestCaseCoverage::new(
                     case_id,
                     &witness,
                     brillig_coverage,
-                    &accumulated_coverage.non_bool_witness_list,
+                    &accumulated_coverage.non_bool_witness_vector,
                 );
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);

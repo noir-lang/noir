@@ -177,9 +177,9 @@ impl Parser<'_> {
         }
     }
 
-    /// FunctionParameters = '(' FunctionParametersList? ')'
+    /// FunctionParameters = '(' FunctionParametersVector? ')'
     ///
-    /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
+    /// FunctionParametersVector = FunctionParameter ( ',' FunctionParameter )* ','?
     ///
     /// FunctionParameter = Visibility PatternOrSelf ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Option<Vec<Param>> {

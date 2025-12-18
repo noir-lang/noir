@@ -103,11 +103,11 @@ pub(crate) struct VariableLiveness {
     live_in: HashMap<BasicBlockId, Variables>,
     /// The variables that stop being alive after each specific instruction.
     last_uses: HashMap<BasicBlockId, LastUses>,
-    /// The list of block params the given block is defining.
+    /// The vector of block params the given block is defining.
     /// The order matters for the entry block, so it's a vec.
     ///
     /// By _defining_  we mean the allocation of variables that appear in the parameter
-    /// list of some other block which this one immediately dominates, with values to be
+    /// vector of some other block which this one immediately dominates, with values to be
     /// assigned in the terminators of the predecessors of that block.
     param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
 }
@@ -160,7 +160,7 @@ impl VariableLiveness {
         self.last_uses.get(block_id).expect("last_uses should have been calculated")
     }
 
-    /// Retrieves the list of block parameters the given block is defining.
+    /// Retrieves the vector of block parameters the given block is defining.
     ///
     /// Block parameters are defined before the block that owns them
     /// (since they are used by the predecessor blocks to pass values).
@@ -173,7 +173,7 @@ impl VariableLiveness {
 
     /// Compute [VariableLiveness::param_definitions].
     ///
-    /// Append the parameters of each block to the parameter definition list of
+    /// Append the parameters of each block to the parameter definition vector of
     /// its immediate dominator.
     fn compute_block_param_definitions(mut self, func: &Function, dom: &DominatorTree) -> Self {
         assert!(self.param_definitions.is_empty(), "only define parameters once");

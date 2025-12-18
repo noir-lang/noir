@@ -270,7 +270,7 @@ pub(crate) fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> F
 //
 // Library dependencies are transitive dependencies; for example, if the entry-point relies
 // upon some library `lib1`. Then the packages that `lib1` depend upon will be placed in the
-// `library_dependencies` list and the `lib1` will be placed in the `root_dependencies` list.
+// `library_dependencies` vector and the `lib1` will be placed in the `root_dependencies` vector.
 fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
     let mut crate_names: BTreeMap<&CrateName, CrateId> = BTreeMap::new();
 

@@ -88,7 +88,7 @@ fn format_merged_import(segment: Segment, import_tree: ImportTree) -> ChunkGroup
         return group;
     }
 
-    // We check if there are nested lists. If yes, then each item will be on a separate line
+    // We check if there are nested vectors. If yes, then each item will be on a separate line
     // (it reads better, and this is what rustfmt seems to do too)
     if import_tree.tree.values().all(|tree| tree.tree.is_empty()) {
         group.one_chunk_per_line = false;
@@ -287,7 +287,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
                     tree.insert(Segment::SelfReference);
                 }
             }
-            UseTreeKind::List(trees) => {
+            UseTreeKind::Vector(trees) => {
                 merge_imports_in_tree(trees, tree);
             }
         }
@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn format_use_list_two_items() {
+    fn format_use_vector_two_items() {
         let src = " use foo::{ bar,  baz  };";
         let expected = "use foo::{bar, baz};\n";
         assert_format(src, expected);
@@ -376,14 +376,14 @@ mod tests {
     }
 
     #[test]
-    fn format_use_list_one_item() {
+    fn format_use_vector_one_item() {
         let src = " use foo::{  bar,  };";
         let expected = "use foo::bar;\n";
         assert_format(src, expected);
     }
 
     #[test]
-    fn format_long_use_list_one_item() {
+    fn format_long_use_vector_one_item() {
         let src = "use one::two::{three::{four, five}};";
         let expected = "use one::two::three::{
     five, four,
@@ -393,14 +393,14 @@ mod tests {
     }
 
     #[test]
-    fn format_use_list_one_item_with_comments() {
+    fn format_use_vector_one_item_with_comments() {
         let src = " use foo::{  /* do not remove me */ bar,  };";
         let expected = "use foo::{/* do not remove me */ bar};\n";
         assert_format(src, expected);
     }
 
     #[test]
-    fn format_use_crate_with_list() {
+    fn format_use_crate_with_vector() {
         let src = " use crate :: hash :: { Hash, Hasher };  ";
         let expected = "use crate::hash::{Hash, Hasher};\n";
         assert_format(src, expected);

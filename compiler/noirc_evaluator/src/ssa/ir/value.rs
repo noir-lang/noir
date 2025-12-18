@@ -33,7 +33,7 @@ pub enum Value {
     /// This Value originates from a block parameter. Since function parameters
     /// are also represented as block parameters, this includes function parameters as well.
     ///
-    /// position -- the index of this Value in the block parameters list
+    /// position -- the index of this Value in the block parameters vector
     Param { block: BasicBlockId, position: usize, typ: Type },
 
     /// This Value originates from a numeric constant

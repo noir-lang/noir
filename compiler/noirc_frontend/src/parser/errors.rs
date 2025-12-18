@@ -280,7 +280,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::MissingParametersForFunctionDefinition => {
                     Diagnostic::simple_error(
                         "Missing parameters for function definition".into(),
-                        "Add a parameter list: `()`".into(),
+                        "Add a parameter vector: `()`".into(),
                         error.location(),
                     )
                 }

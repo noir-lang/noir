@@ -40,9 +40,9 @@ comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     result
 }
 
-comptime fn join(list: [Quoted]) -> Quoted {
+comptime fn join(vector: [Quoted]) -> Quoted {
     let mut result = quote {};
-    for elem in list {
+    for elem in vector {
         result = quote { $result $elem };
     }
     result

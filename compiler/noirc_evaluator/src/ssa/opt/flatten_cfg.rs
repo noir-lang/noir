@@ -21,7 +21,7 @@
 //!     references in constrained (ACIR) code.
 //!   - Flattening inserts `Instruction::IfElse` to merge the values from an if-expression's "then"
 //!     and "else" branches. These are immediately simplified out for numeric values, but for
-//!     arrays and lists we require the `remove_if_else` SSA pass to later be run to remove the
+//!     arrays and vectors we require the `remove_if_else` SSA pass to later be run to remove the
 //!     remaining `Instruction::IfElse` instructions.
 //!
 //! Implementation details & examples:
@@ -80,7 +80,7 @@
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
 //!    `c * then_arg + !c * else_arg` is used for each argument. Note that this is represented by
 //!    `Instruction::IfElse` which is often simplified to the above when inserted, but in the case
-//!    of complex values (arrays and lists) this simplification is delayed until the
+//!    of complex values (arrays and vectors) this simplification is delayed until the
 //!    `remove_if_else` SSA pass.
 //!
 //! ```text
@@ -300,7 +300,7 @@ struct ConditionalContext {
     else_branch: Option<ConditionalBranch>,
     /// Call stack where the final location is that of the entire `if` expression
     call_stack: CallStackId,
-    /// List of values which have been replaced with a predicated variant,
+    /// Vector of values which have been replaced with a predicated variant,
     /// mapping them to their original value.
     ///
     /// For example if we have `v1 = v2` predicated upon `v0`, then `v1` becomes `v0 * v2`,
@@ -330,7 +330,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
 /// Blocks enqueued for processing.
 ///
 /// It contains a block at most once.
-pub(crate) type WorkList = IndexSet<BasicBlockId>;
+pub(crate) type WorkVector = IndexSet<BasicBlockId>;
 
 impl<'f> Context<'f> {
     pub(crate) fn new(
@@ -372,12 +372,12 @@ impl<'f> Context<'f> {
     /// Information about the nested if statements is stored in the 'condition_stack' which
     /// is popped/pushed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
-        let mut work_list = WorkList::new();
-        work_list.insert(self.target_block);
-        while let Some(block) = work_list.pop() {
+        let mut work_vector = WorkVector::new();
+        work_vector.insert(self.target_block);
+        while let Some(block) = work_vector.pop() {
             self.inline_block(block, no_predicates);
-            let to_process = self.handle_terminator(block, &work_list);
-            work_list.extend(to_process);
+            let to_process = self.handle_terminator(block, &work_vector);
+            work_vector.extend(to_process);
         }
         assert!(self.next_arguments.is_none(), "no leftover arguments");
         self.inserter.map_data_bus_in_place();
@@ -428,7 +428,7 @@ impl<'f> Context<'f> {
     /// Panics if we already have something prepared.
     fn prepare_args(&mut self, args: Vec<ValueId>) {
         assert!(self.next_arguments.is_none(), "already prepared the arguments");
-        assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
+        assert!(!args.is_empty(), "only prepare args for non-empty parameter vector");
         self.next_arguments = Some(args);
     }
 
@@ -439,7 +439,7 @@ impl<'f> Context<'f> {
         self.next_arguments.take().expect("there are no arguments prepared")
     }
 
-    /// Inline all instructions from the given block into the target block, and track list capacities.
+    /// Inline all instructions from the given block into the target block, and track vector capacities.
     /// This is done by processing every instruction in the block and using the flattening context
     /// to push them in the target block.
     ///
@@ -482,7 +482,7 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Returns the list of blocks that need to be processed after the given block,
+    /// Returns the vector of blocks that need to be processed after the given block,
     /// and prepare any arguments for the next-to-be-inlined block to consume.
     ///
     /// For a normal block, it would be its successor.
@@ -494,13 +494,13 @@ impl<'f> Context<'f> {
     /// which perform the business logic when entering a conditional statement, finishing the 'then_branch'
     /// and the 'else_branch', respectively.
     ///
-    /// We know if a block is related to the conditional statement if is referenced by the `work_list`.
-    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the `work_list` when
+    /// We know if a block is related to the conditional statement if is referenced by the `work_vector`.
+    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the `work_vector` when
     /// starting to process a conditional statement.
     pub(crate) fn handle_terminator(
         &mut self,
         block: BasicBlockId,
-        work_list: &WorkList,
+        work_vector: &WorkVector,
     ) -> Vec<BasicBlockId> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
@@ -514,12 +514,12 @@ impl<'f> Context<'f> {
                 self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                // If the destination is already on the work list, it means it's an exit block in an if-then-else,
+                // If the destination is already on the work vector, it means it's an exit block in an if-then-else,
                 // and was put there by `if_start` as the last to be processed out of [then, else, exit].
-                if work_list.contains(destination) {
-                    // Since we enqueued [then, else, exit] after each other, if the next block on the work list
+                if work_vector.contains(destination) {
+                    // Since we enqueued [then, else, exit] after each other, if the next block on the work vector
                     // is the exit block, then this must be the else.
-                    if work_list.last().unwrap() == destination {
+                    if work_vector.last().unwrap() == destination {
                         // The arguments for the exit block will be prepared here.
                         self.else_stop(&block);
                     } else {
@@ -966,15 +966,15 @@ impl<'f> Context<'f> {
             // multiplying their arguments with the condition.
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsList
+            | Intrinsic::AsVector
             | Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
-            | Intrinsic::ListPushBack
-            | Intrinsic::ListPushFront
-            | Intrinsic::ListPopBack
-            | Intrinsic::ListPopFront
-            | Intrinsic::ListInsert
-            | Intrinsic::ListRemove
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorRemove
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)
@@ -983,7 +983,7 @@ impl<'f> Context<'f> {
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan
             | Intrinsic::ArrayRefCount
-            | Intrinsic::ListRefCount => arguments,
+            | Intrinsic::VectorRefCount => arguments,
         }
     }
 

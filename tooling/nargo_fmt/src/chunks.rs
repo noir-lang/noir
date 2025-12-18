@@ -77,13 +77,13 @@ impl Chunk {
         }
     }
 
-    /// Computes the width of this chunk considering it's inside an ExpressionList.
-    /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInList's
+    /// Computes the width of this chunk considering it's inside an ExpressionVector.
+    /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInVector's
     /// width is considered to be only the first line, so we can avoid splitting the entire call
     /// arguments into separate lines.
-    pub(crate) fn width_inside_an_expression_list(&self) -> usize {
+    pub(crate) fn width_inside_an_expression_vector(&self) -> usize {
         if let Chunk::Group(group) = &self {
-            if let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
+            if let GroupKind::LambdaAsLastExpressionInVector { first_line_width, .. } = &group.kind {
                 return *first_line_width;
             }
         }
@@ -179,7 +179,7 @@ pub(crate) struct ChunkGroup {
     pub(crate) tag: Option<GroupTag>,
 
     /// The kind of this group. Some group kinds are formatted in a special way
-    /// (mainly lambda arguments that are the last expression in a list).
+    /// (mainly lambda arguments that are the last expression in a vector).
     pub(crate) kind: GroupKind,
 
     /// This name is a bit long and explicit, but it's to make things clearer:
@@ -324,24 +324,24 @@ impl ChunkGroup {
         self.chunks.iter().map(|chunk| chunk.width()).sum()
     }
 
-    pub(crate) fn expression_list_width(&self) -> usize {
-        self.chunks.iter().map(|chunk| chunk.width_inside_an_expression_list()).sum()
+    pub(crate) fn expression_vector_width(&self) -> usize {
+        self.chunks.iter().map(|chunk| chunk.width_inside_an_expression_vector()).sum()
     }
 
     pub(crate) fn has_newlines(&self) -> bool {
         self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
 
-    /// Determines if this group has a LambdaAsLastExpressionInList chunk.
-    /// Note that if this group is a MethodCall, this is checked for the ExpressionList group
+    /// Determines if this group has a LambdaAsLastExpressionInVector chunk.
+    /// Note that if this group is a MethodCall, this is checked for the ExpressionVector group
     /// inside it.
-    pub(crate) fn has_lambda_as_last_expression_in_list(&self) -> bool {
+    pub(crate) fn has_lambda_as_last_expression_in_vector(&self) -> bool {
         self.chunks.iter().any(|chunk| {
             if let Chunk::Group(group) = chunk {
-                if self.kind.is_method_call() && group.kind.is_expression_list() {
-                    group.has_lambda_as_last_expression_in_list()
+                if self.kind.is_method_call() && group.kind.is_expression_vector() {
+                    group.has_lambda_as_last_expression_in_vector()
                 } else {
-                    matches!(group.kind, GroupKind::LambdaAsLastExpressionInList { .. })
+                    matches!(group.kind, GroupKind::LambdaAsLastExpressionInVector { .. })
                 }
             } else {
                 false
@@ -349,17 +349,17 @@ impl ChunkGroup {
         })
     }
 
-    /// Finds the `LambdaAsLastExpressionInList` associated to this group and sets its indentation
+    /// Finds the `LambdaAsLastExpressionInVector` associated to this group and sets its indentation
     /// to the given value.
-    pub(crate) fn set_lambda_as_last_expression_in_list_indentation(
+    pub(crate) fn set_lambda_as_last_expression_in_vector_indentation(
         &mut self,
         indentation_to_set: i32,
     ) {
         for chunk in self.chunks.iter_mut() {
             if let Chunk::Group(group) = chunk {
-                if self.kind.is_method_call() && group.kind.is_expression_list() {
-                    group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);
-                } else if let GroupKind::LambdaAsLastExpressionInList { indentation, .. } =
+                if self.kind.is_method_call() && group.kind.is_expression_vector() {
+                    group.set_lambda_as_last_expression_in_vector_indentation(indentation_to_set);
+                } else if let GroupKind::LambdaAsLastExpressionInVector { indentation, .. } =
                     &mut group.kind
                 {
                     if indentation.is_none() {
@@ -446,10 +446,10 @@ impl ChunkGroup {
             .next()
     }
 
-    fn has_expression_list_or_method_call_group(&self) -> bool {
+    fn has_expression_vector_or_method_call_group(&self) -> bool {
         for chunk in &self.chunks {
             if let Chunk::Group(group) = chunk {
-                if group.kind.is_expression_list() || group.kind.is_method_call() {
+                if group.kind.is_expression_vector() || group.kind.is_method_call() {
                     return true;
                 }
             }
@@ -458,15 +458,15 @@ impl ChunkGroup {
         false
     }
 
-    /// Assuming this is a MethodCall group, if the ExpressionList nested in it
-    /// has a LambdaAsLastExpressionInList, returns its `first_line_width`.
+    /// Assuming this is a MethodCall group, if the ExpressionVector nested in it
+    /// has a LambdaAsLastExpressionInVector, returns its `first_line_width`.
     fn method_call_lambda_first_line_width(&self) -> Option<usize> {
         for chunk in &self.chunks {
             let Chunk::Group(group) = chunk else {
                 continue;
             };
 
-            let GroupKind::ExpressionList { expressions_count: 1, .. } = group.kind else {
+            let GroupKind::ExpressionVector { expressions_count: 1, .. } = group.kind else {
                 continue;
             };
 
@@ -475,7 +475,7 @@ impl ChunkGroup {
                     continue;
                 };
 
-                let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = group.kind
+                let GroupKind::LambdaAsLastExpressionInVector { first_line_width, .. } = group.kind
                 else {
                     continue;
                 };
@@ -504,15 +504,15 @@ pub(crate) struct GroupTag(usize);
 pub(crate) enum GroupKind {
     /// Most chunks are regular chunks and are not of interest.
     Regular,
-    /// This is a chunk that has a list of expression in it, for example:
+    /// This is a chunk that has a vector of expression in it, for example:
     /// a call, a method call, an array literal, a tuple literal, etc.
-    /// `prefix_width` is the width of whatever is before the actual expression list.
-    /// For example, for an array this is 1 (for "["), for a list it's 2 ("&["), etc.
-    ExpressionList { prefix_width: usize, expressions_count: usize },
-    /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
+    /// `prefix_width` is the width of whatever is before the actual expression vector.
+    /// For example, for an array this is 1 (for "["), for a vector it's 2 ("&["), etc.
+    ExpressionVector { prefix_width: usize, expressions_count: usize },
+    /// This is a chunk for a lambda argument that is the last expression of an ExpressionVector.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
-    /// list and the left bracket.
-    LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<i32> },
+    /// vector and the left bracket.
+    LambdaAsLastExpressionInVector { first_line_width: usize, indentation: Option<i32> },
     /// The body of a lambda.
     /// We track this as a group kind so that when we have to write it, if it doesn't
     /// fit in the current line and it's not a block, instead of splitting that expression
@@ -548,8 +548,8 @@ impl GroupKind {
         matches!(self, GroupKind::MethodCall { .. })
     }
 
-    fn is_expression_list(&self) -> bool {
-        matches!(self, GroupKind::ExpressionList { .. })
+    fn is_expression_vector(&self) -> bool {
+        matches!(self, GroupKind::ExpressionVector { .. })
     }
 }
 
@@ -623,7 +623,7 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunk_group_impl(&mut self, group: ChunkGroup) {
-        if let GroupKind::LambdaAsLastExpressionInList { indentation: Some(indentation), .. } =
+        if let GroupKind::LambdaAsLastExpressionInVector { indentation: Some(indentation), .. } =
             group.kind
         {
             let previous_indentation = self.indentation;
@@ -690,13 +690,13 @@ impl<'a> Formatter<'a> {
                 if total_width <= self.max_width {
                     // Check if this method call has another call or method call nested in it.
                     // If not, it means this is the last nested call and after it we'll need to start
-                    // writing at least one closing parentheses. So the argument list will actually
+                    // writing at least one closing parentheses. So the argument vector will actually
                     // have one less character available for writing, and that's why we (temporarily) decrease
                     // max width.
-                    let expression_list_group = group.first_group().unwrap();
-                    let has_expression_list_or_call_group =
-                        expression_list_group.has_expression_list_or_method_call_group();
-                    if !has_expression_list_or_call_group {
+                    let expression_vector_group = group.first_group().unwrap();
+                    let has_expression_vector_or_call_group =
+                        expression_vector_group.has_expression_vector_or_method_call_group();
+                    if !has_expression_vector_or_call_group {
                         self.max_width -= 1;
                     }
 
@@ -707,22 +707,22 @@ impl<'a> Formatter<'a> {
                     self.format_chunk_group_in_one_line(group);
                     self.increase_indentation();
 
-                    if !has_expression_list_or_call_group {
+                    if !has_expression_vector_or_call_group {
                         self.max_width += 1;
                     }
                     return;
                 }
             }
 
-            // If this is an expression list with a single expression, see if we can fit whatever
+            // If this is an expression vector with a single expression, see if we can fit whatever
             // comes next until a line in the current line. For example, if we have this:
             //
             // foo(bar(baz(1)))
             //
-            // then `foo(...)` is an ExpressionList. We check if `foo(` fits in the current line.
+            // then `foo(...)` is an ExpressionVector. We check if `foo(` fits in the current line.
             // If yes, we write it in the current line and continue. Then we'll find `bar(...)`,
-            // which is also an ExpressionList, and if `bar(` fits the current line, we'll write it,
-            // etc. But we only do this if we have nested calls (nested expression lists, etc.)
+            // which is also an ExpressionVector, and if `bar(` fits the current line, we'll write it,
+            // etc. But we only do this if we have nested calls (nested expression vectors, etc.)
             //
             // This is to avoid formatting the above like this:
             //
@@ -735,9 +735,9 @@ impl<'a> Formatter<'a> {
             // )
             //
             // (rustfmt seems to do the same thing)
-            if let GroupKind::ExpressionList { prefix_width, expressions_count: 1 } = group.kind {
+            if let GroupKind::ExpressionVector { prefix_width, expressions_count: 1 } = group.kind {
                 if let Some(inner_group) = group.first_group() {
-                    if inner_group.kind.is_expression_list() || inner_group.kind.is_method_call() {
+                    if inner_group.kind.is_expression_vector() || inner_group.kind.is_method_call() {
                         let total_width = self.current_line_width()
                             + prefix_width
                             + inner_group.width_until_line().0;
@@ -757,29 +757,29 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        // When formatting an expression list we have to check if the last argument is a lambda,
+        // When formatting an expression vector we have to check if the last argument is a lambda,
         // because we format that in a special way:
         // 1. to compute the group width we'll consider only the `|...| {` part of the lambda
-        // 2. If it fits in a line, we'll format this expression list in a single line
-        // 3. However, an expression list is instructed to increase indentation after, say,
-        //    `(` or `[` (depending on the expression list) and then the `{` part of a lambda
+        // 2. If it fits in a line, we'll format this expression vector in a single line
+        // 3. However, an expression vector is instructed to increase indentation after, say,
+        //    `(` or `[` (depending on the expression vector) and then the `{` part of a lambda
         //    will also increase the indentation, resulting in too much indentation.
         // 4. For that reason we adjust the lambda to be formatted with the indentation
         //    we have right that (that is, that of the call that holds the lambda).
-        //    We do that by setting the `indentation` field of the LambdaAsLastExpressionInList.
+        //    We do that by setting the `indentation` field of the LambdaAsLastExpressionInVector.
         //
-        // Note that this logic is a bit complex because for method calls, the arguments list
+        // Note that this logic is a bit complex because for method calls, the arguments vector
         // is in a group so all arguments can potentially be formatted in a single line, and
-        // that group has the `ExpressionList` kind. The method call itself has the `MethodCall`
+        // that group has the `ExpressionVector` kind. The method call itself has the `MethodCall`
         // kind. So when determining the first line width of a method call with a lambda as
-        // the last argument we have to find the nested ExpressionList and do some nested calls.
-        if (group.kind.is_expression_list() || group.kind.is_method_call())
-            && group.has_lambda_as_last_expression_in_list()
+        // the last argument we have to find the nested ExpressionVector and do some nested calls.
+        if (group.kind.is_expression_vector() || group.kind.is_method_call())
+            && group.has_lambda_as_last_expression_in_vector()
         {
-            let chunks_width = group.expression_list_width();
+            let chunks_width = group.expression_vector_width();
             let total_width = self.current_line_width() + chunks_width;
             if total_width <= self.max_width {
-                group.set_lambda_as_last_expression_in_list_indentation(self.indentation);
+                group.set_lambda_as_last_expression_in_vector_indentation(self.indentation);
                 self.format_chunk_group_in_one_line(group);
                 return;
             }
@@ -842,7 +842,7 @@ impl<'a> Formatter<'a> {
                 self.write_indentation();
                 self.format_chunk_group_impl(group);
 
-                // If this lambda was in an expression list and it was formatted in multiple
+                // If this lambda was in an expression vector and it was formatted in multiple
                 // lines, it might be that the trailing comma happened after the lambda body:
                 //
                 // foo(
@@ -1067,7 +1067,7 @@ impl<'a> Formatter<'a> {
 
         let string = string.strip_prefix("{ ").unwrap();
 
-        // The lambda might have a trailing comma if it's inside an arguments list
+        // The lambda might have a trailing comma if it's inside an arguments vector
         if let Some(string) = string.strip_suffix(" },") {
             self.write(string);
             self.write(",");

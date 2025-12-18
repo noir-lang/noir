@@ -1,6 +1,6 @@
 ---
 title: Module
-description: Work with modules in `comptime`—query names, list functions/structs, detect contracts, and add new items.
+description: Work with modules in `comptime`—query names, vector functions/structs, detect contracts, and add new items.
 ---
 
 `std::meta::module` contains methods on the built-in `Module` type which represents a module in the source program.

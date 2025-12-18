@@ -8,9 +8,9 @@ Black box functions are functions in Noir that rely on backends implementing sup
 
 The ACVM spec defines a set of blackbox functions which backends will be expected to implement. This allows backends to use optimized implementations of these constraints if they have them, however they may also fallback to less efficient naive implementations if not.
 
-## Function list
+## Function vector
 
-Here is a list of the current black box functions:
+Here is a vector of the current black box functions:
 
 - [AES128](./cryptographic_primitives/ciphers.mdx#aes128)
 - [SHA256](./cryptographic_primitives/hashes.mdx#sha256)

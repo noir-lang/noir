@@ -1,14 +1,14 @@
 ---
 title: Bounded Vectors
-description: Growable vectors with a fixed maximum length; safer and more efficient than lists, with rich methods for access and mutation.
-keywords: [noir, vector, bounded vector, list]
+description: Growable vectors with a fixed maximum length; safer and more efficient than vectors, with rich methods for access and mutation.
+keywords: [noir, vector, bounded vector, vector]
 sidebar_position: 1
 ---
 
 A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
-via lists and thus is not subject to the same restrictions lists are (notably, nested
-lists - and thus nested vectors as well - are disallowed).
+via vectors and thus is not subject to the same restrictions vectors are (notably, nested
+vectors - and thus nested vectors as well - are disallowed).
 
 Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
 pushing an additional element is also more efficient - the length only needs to be increased

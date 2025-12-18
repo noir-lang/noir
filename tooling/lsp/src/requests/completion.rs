@@ -178,7 +178,7 @@ impl<'a> NodeFinder<'a> {
         } else {
             let mut items = std::mem::take(&mut self.completion_items);
 
-            // Show items that start with underscore last in the list
+            // Show items that start with underscore last in the vector
             for item in items.iter_mut() {
                 if item.label.starts_with('_') {
                     item.sort_text = Some(underscore_sort_text());
@@ -259,7 +259,7 @@ impl<'a> NodeFinder<'a> {
 
             // Check if we are in the middle of an ident
             if self.includes_span(ident.span()) {
-                // If so, take the substring and push that as the list of idents
+                // If so, take the substring and push that as the vector of idents
                 // we'll do autocompletion for
                 let offset = self.byte_index - ident.span().start() as usize;
                 let substring = ident.as_str()[0..offset].to_string();
@@ -461,7 +461,7 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_use_tree_path(prefixes, ident, alias);
                 prefixes.pop();
             }
-            UseTreeKind::List(use_trees) => {
+            UseTreeKind::Vector(use_trees) => {
                 prefixes.push(use_tree.prefix.clone());
                 for use_tree in use_trees {
                     self.find_in_use_tree(use_tree, prefixes);
@@ -633,7 +633,7 @@ impl<'a> NodeFinder<'a> {
             }
             Type::FieldElement
             | Type::Array(_, _)
-            | Type::List(_)
+            | Type::Vector(_)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::String(_)
@@ -1164,10 +1164,10 @@ impl<'a> NodeFinder<'a> {
             || filename.ends_with("mod.nr");
 
         let paths = if is_main_lib_or_mod {
-            // For a "main" file we list sibling files
+            // For a "main" file we vector sibling files
             std::fs::read_dir(filename.parent()?)
         } else {
-            // For a non-main files we list directory children
+            // For a non-main files we vector directory children
             std::fs::read_dir(filename.with_extension(""))
         };
         let paths = paths.ok()?;
@@ -1633,7 +1633,7 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_lvalue_index(&mut self, array: &LValue, _index: &Expression, span: Span) -> bool {
-        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/list element type,
+        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/vector element type,
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(array) {
@@ -1948,7 +1948,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
 
 fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
-        Type::Array(_, typ) | Type::List(typ) => Some(*typ),
+        Type::Array(_, typ) | Type::Vector(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)

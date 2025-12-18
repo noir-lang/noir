@@ -17,7 +17,7 @@ export interface DemonomorphizerConfig {
 }
 
 /**
- * Demonomorphizes a list of ABI types adding generics to structs.
+ * Demonomorphizes a vector of ABI types adding generics to structs.
  * Since monomorphization of the generics destroys information, this process is not guaranteed to return the original structure.
  * However, it should successfully unify all struct types that share the same name and field names.
  */

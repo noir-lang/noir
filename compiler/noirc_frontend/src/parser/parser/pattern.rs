@@ -166,9 +166,9 @@ impl Parser<'_> {
     }
 
     /// ParenthesizedPattern = '(' Pattern ')'
-    /// TuplePattern = '(' PatternList? ')'
+    /// TuplePattern = '(' PatternVector? ')'
     ///
-    /// PatternList = Pattern ( ',' Pattern )* ','?
+    /// PatternVector = Pattern ( ',' Pattern )* ','?
     fn parse_parenthesized_or_tuple_pattern(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
 

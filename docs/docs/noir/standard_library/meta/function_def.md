@@ -87,7 +87,7 @@ Mutates the function's parameters to a new set of parameters. This is only valid
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 
-Expects a list of (parameter pattern, parameter type) for each parameter. Requires
+Expects a vector of (parameter pattern, parameter type) for each parameter. Requires
 each parameter pattern to be a syntactically valid parameter.
 
 ### set_return_type

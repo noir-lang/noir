@@ -389,10 +389,10 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
     }
 
-    /// Insert a `make_array` instruction to create a new array or list.
-    /// Returns the new array value. Expects `typ` to be an array or list type.
+    /// Insert a `make_array` instruction to create a new array or vector.
+    /// Returns the new array value. Expects `typ` to be an array or vector type.
     pub fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
-        assert!(matches!(typ, Type::Array(..) | Type::List(_)));
+        assert!(matches!(typ, Type::Array(..) | Type::Vector(_)));
         self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
     }
 
@@ -507,8 +507,8 @@ impl FunctionBuilder {
         }
         match self.type_of_value(value) {
             Type::Numeric(_) | Type::Function | Type::Reference(_) => None,
-            Type::Array(..) | Type::List(..) => {
-                // If there are nested arrays or lists, we wait until ArrayGet
+            Type::Array(..) | Type::Vector(..) => {
+                // If there are nested arrays or vectors, we wait until ArrayGet
                 // is issued to increment the count of that array.
                 if increment {
                     self.insert_inc_rc(value);
@@ -602,10 +602,10 @@ mod tests {
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let list = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
-        assert_eq!(list[0], one);
-        assert_eq!(list[1], one);
-        assert_eq!(list[2], one);
-        assert_eq!(list[3], zero);
+        let vector = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
+        assert_eq!(vector[0], one);
+        assert_eq!(vector[1], one);
+        assert_eq!(vector[2], one);
+        assert_eq!(vector[3], zero);
     }
 }

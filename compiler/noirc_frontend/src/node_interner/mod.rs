@@ -216,7 +216,7 @@ pub struct NodeInterner {
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 
-    /// A list of all type aliases that are referenced in the program.
+    /// A vector of all type aliases that are referenced in the program.
     /// Searched by LSP to resolve [Location]s of [TypeAlias]s
     pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 
@@ -1468,7 +1468,7 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
-    List,
+    Vector,
     Bool,
     String,
     FmtString,
@@ -1486,7 +1486,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::List(_) => Some(List),
+        Type::Vector(_) => Some(Vector),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(var) => {
             if var.is_integer() || var.is_integer_or_field() {

@@ -73,7 +73,7 @@ impl Default for RuntimeType {
     }
 }
 
-/// A function holds a list of instructions.
+/// A function holds a vector of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
 /// All functions outside of the current function are seen as external.

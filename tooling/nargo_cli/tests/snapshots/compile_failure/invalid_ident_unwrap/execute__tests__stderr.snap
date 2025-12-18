@@ -419,7 +419,7 @@ error: Missing parameters for function definition
   ┌─ src/main.nr:9:4
   │
 9 │ fn rou
-  │    --- Add a parameter list: `()`
+  │    --- Add a parameter vector: `()`
   │
 
 error: Unexpected 'end of input', expected one of 'where', '{', '->'

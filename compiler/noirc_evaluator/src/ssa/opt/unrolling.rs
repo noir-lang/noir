@@ -3,7 +3,7 @@
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
 //! 2. For each loop:
-//!    1. If the loop is in our list of loops that previously failed to unroll, skip it.
+//!    1. If the loop is in our vector of loops that previously failed to unroll, skip it.
 //!    2. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
 //!    3. If not, try to unroll the loop. If successful, remember the modified
@@ -716,7 +716,7 @@ impl Loop {
     ///   store v12 at v2               // store updated `sum`
     ///   v13 = load v4 -> u32          // load length of `arr`
     ///   v14 = load v6 -> [u32]        // load storage of `arr`
-    ///   v16, v17 = call list_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
+    ///   v16, v17 = call vector_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
     ///   v19 = add v1, u32 1           // increase `arr`
     ///   jmp b1(v19)                   // back-edge of the loop
     /// b2():                           // after the loop

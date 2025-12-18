@@ -5,7 +5,7 @@ use crate::meta::op::UnaryOp;
 use crate::option::Option;
 
 impl Expr {
-    /// If this expression is an array literal `[elem1, ..., elemN]`, this returns a list of each element in the array.
+    /// If this expression is an array literal `[elem1, ..., elemN]`, this returns a vector of each element in the array.
     #[builtin(expr_as_array)]
     // docs:start:as_array
     pub comptime fn as_array(self) -> Option<[Expr]> {}
@@ -39,7 +39,7 @@ impl Expr {
     // docs:end:as_binary_op
 
     /// If this expression is a block `{ stmt1; stmt2; ...; stmtN }`, return
-    /// a list containing each statement.
+    /// a vector containing each statement.
     #[builtin(expr_as_block)]
     // docs:start:as_block
     pub comptime fn as_block(self) -> Option<[Expr]> {}
@@ -87,7 +87,7 @@ impl Expr {
     // docs:end:as_for_range
 
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
-    /// the function and a list of each argument.
+    /// the function and a vector of each argument.
     #[builtin(expr_as_function_call)]
     // docs:start:as_function_call
     pub comptime fn as_function_call(self) -> Option<(Expr, [Expr])> {}
@@ -138,7 +138,7 @@ impl Expr {
     // docs:end:as_member_access
 
     /// If this expression is a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`, return
-    /// the receiver, method name, a list of each generic argument, and a list of each argument.
+    /// the receiver, method name, a vector of each generic argument, and a vector of each argument.
     #[builtin(expr_as_method_call)]
     // docs:start:as_method_call
     pub comptime fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])> {}
@@ -151,19 +151,19 @@ impl Expr {
     pub comptime fn as_repeated_element_array(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_repeated_element_array
 
-    /// If this expression is a repeated element list `[elem; length]`, return
+    /// If this expression is a repeated element vector `[elem; length]`, return
     /// the repeated element and the length expressions.
-    #[builtin(expr_as_repeated_element_list)]
-    // docs:start:as_repeated_element_list
-    pub comptime fn as_repeated_element_list(self) -> Option<(Expr, Expr)> {}
-    // docs:end:as_repeated_element_list
+    #[builtin(expr_as_repeated_element_vector)]
+    // docs:start:as_repeated_element_vector
+    pub comptime fn as_repeated_element_vector(self) -> Option<(Expr, Expr)> {}
+    // docs:end:as_repeated_element_vector
 
-    /// If this expression is a list literal `&[elem1, ..., elemN]`,
-    /// return each element of the list.
-    #[builtin(expr_as_list)]
-    // docs:start:as_list
-    pub comptime fn as_list(self) -> Option<[Expr]> {}
-    // docs:end:as_list
+    /// If this expression is a vector literal `&[elem1, ..., elemN]`,
+    /// return each element of the vector.
+    #[builtin(expr_as_vector)]
+    // docs:start:as_vector
+    pub comptime fn as_vector(self) -> Option<[Expr]> {}
+    // docs:end:as_vector
 
     /// If this expression is a tuple `(field1, ..., fieldN)`,
     /// return each element of the tuple.
@@ -180,7 +180,7 @@ impl Expr {
     // docs:end:as_unary_op
 
     /// If this expression is an `unsafe { stmt1; ...; stmtN }` block,
-    /// return each statement inside in a list.
+    /// return each statement inside in a vector.
     #[builtin(expr_as_unsafe)]
     // docs:start:as_unsafe
     pub comptime fn as_unsafe(self) -> Option<[Expr]> {}
@@ -248,8 +248,8 @@ impl Expr {
         let result = result.or_else(|| modify_member_access(self, f));
         let result = result.or_else(|| modify_method_call(self, f));
         let result = result.or_else(|| modify_repeated_element_array(self, f));
-        let result = result.or_else(|| modify_repeated_element_list(self, f));
-        let result = result.or_else(|| modify_list(self, f));
+        let result = result.or_else(|| modify_repeated_element_vector(self, f));
+        let result = result.or_else(|| modify_vector(self, f));
         let result = result.or_else(|| modify_tuple(self, f));
         let result = result.or_else(|| modify_unary_op(self, f));
         let result = result.or_else(|| modify_unsafe(self, f));
@@ -443,21 +443,21 @@ comptime fn modify_repeated_element_array<Env>(
     })
 }
 
-comptime fn modify_repeated_element_list<Env>(
+comptime fn modify_repeated_element_vector<Env>(
     expr: Expr,
     f: fn[Env](Expr) -> Option<Expr>,
 ) -> Option<Expr> {
-    expr.as_repeated_element_list().map(|(expr, length)| {
+    expr.as_repeated_element_vector().map(|(expr, length)| {
         let expr = expr.modify(f);
         let length = length.modify(f);
-        new_repeated_element_list(expr, length)
+        new_repeated_element_vector(expr, length)
     })
 }
 
-comptime fn modify_list<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_list().map(|exprs| {
+comptime fn modify_vector<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_vector().map(|exprs| {
         let exprs = modify_expressions(exprs, f);
-        new_list(exprs)
+        new_vector(exprs)
     })
 }
 
@@ -621,11 +621,11 @@ comptime fn new_repeated_element_array(expr: Expr, length: Expr) -> Expr {
     quote { [$expr; $length] }.as_expr().unwrap()
 }
 
-comptime fn new_repeated_element_list(expr: Expr, length: Expr) -> Expr {
+comptime fn new_repeated_element_vector(expr: Expr, length: Expr) -> Expr {
     quote { &[$expr; $length] }.as_expr().unwrap()
 }
 
-comptime fn new_list(exprs: [Expr]) -> Expr {
+comptime fn new_vector(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { &[$exprs]}.as_expr().unwrap()
 }

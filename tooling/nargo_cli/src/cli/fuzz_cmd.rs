@@ -43,9 +43,9 @@ pub(crate) struct FuzzCommand {
     /// If given, store the failing input in the given folder
     #[arg(long)]
     fuzzing_failure_dir: Option<String>,
-    /// List all available harnesses that match the name
+    /// Vector all available harnesses that match the name
     #[clap(long)]
-    list_all: bool,
+    vector_all: bool,
 
     /// Display output of `println` statements
     #[arg(long)]
@@ -87,8 +87,8 @@ impl WorkspaceCommand for FuzzCommand {
     }
 }
 
-/// List the fuzzing harnesses for this program
-fn list_harnesses_command(
+/// Vector the fuzzing harnesses for this program
+fn vector_harnesses_command(
     args: FuzzCommand,
     workspace: Workspace,
     file_manager: &FileManager,
@@ -106,7 +106,7 @@ fn list_harnesses_command(
     let all_harnesses_by_package: Vec<(CrateName, Vec<String>)> = pool
         .install(|| {
             workspace.into_iter().par_bridge().map(|package| {
-                let harnesses = list_harnesses(
+                let harnesses = vector_harnesses(
                     file_manager,
                     parsed_files,
                     package,
@@ -154,8 +154,8 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
         None => FunctionNameMatch::Anything,
     };
 
-    if args.list_all {
-        return list_harnesses_command(args, workspace, &file_manager, &parsed_files, &pattern);
+    if args.vector_all {
+        return vector_harnesses_command(args, workspace, &file_manager, &parsed_files, &pattern);
     }
 
     let fuzz_folder_config = FuzzFolderConfig {
@@ -223,7 +223,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
     }
 }
 
-fn list_harnesses(
+fn vector_harnesses(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,

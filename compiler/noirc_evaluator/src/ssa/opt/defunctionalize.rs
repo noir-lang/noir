@@ -309,7 +309,7 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
 /// Collects all functions used as values that can be called by their signatures
 ///
 /// Groups all [FunctionId]s used as values by their [Signature] and [RuntimeType],
-/// producing a mapping from these tuples to the list of variant functions to be dynamically dispatched.
+/// producing a mapping from these tuples to the vector of variant functions to be dynamically dispatched.
 ///
 /// # Arguments
 /// - `ssa`: The full [Ssa] structure
@@ -543,7 +543,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
 /// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced with a field type.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
-/// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
+/// - `function_ids`: A non-empty vector of [FunctionId]s representing concrete functions to dispatch between.
 ///   This method will panic if `function_ids` is empty.
 ///
 /// # Returns
@@ -749,11 +749,11 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             }
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::List(_) => {
+        Type::Vector(_) => {
             let array = im::Vector::new();
-            // The contents of a list do not matter for a dummy function, we simply
+            // The contents of a vector do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
-            // Thus, we return an empty list here.
+            // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
         Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
@@ -801,7 +801,7 @@ fn defunctionalize_post_check(func: &Function) {
 /// Return what type a function value type should be replaced with:
 /// * Global functions are replaced with a `Field`.
 /// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
-/// * Array and lists that contain function types are handled recursively.
+/// * Array and vectors that contain function types are handled recursively.
 ///
 /// If the type doesn't need replacement, `None` is returned.
 fn replacement_type(typ: &Type) -> Option<Type> {
@@ -814,13 +814,13 @@ fn replacement_type(typ: &Type) -> Option<Type> {
         Type::Array(items, size) => {
             replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
         }
-        Type::List(items) => {
-            replacement_types(items.as_ref()).map(|types| Type::List(Arc::new(types)))
+        Type::Vector(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Vector(Arc::new(types)))
         }
     }
 }
 
-/// Take a list of types that might need replacement.
+/// Take a vector of types that might need replacement.
 /// Replaces the ones that need replacement, leaving all others as-is.
 /// If no type needs replacement, `None` is returned.
 fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {

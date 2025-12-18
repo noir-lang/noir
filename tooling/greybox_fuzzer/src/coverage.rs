@@ -49,13 +49,13 @@ pub type FeatureToIndexMap = HashMap<Feature, UniqueFeatureIndex>;
 /// Mechanism for excluding non-boolean witnesses from the ACIR witness map
 /// This mechanism was introduced after we started to use partial witness maps from failed executions
 #[derive(Default, Clone)]
-pub struct NonBoolWitnessList {
+pub struct NonBoolWitnessVector {
     // Set of witnesses that could be boolean values
     witness: HashSet<Witness>,
 }
 
-impl From<&WitnessStack<FieldElement>> for NonBoolWitnessList {
-    /// Generate a non-bool witness list by parsing the witnesses in the program
+impl From<&WitnessStack<FieldElement>> for NonBoolWitnessVector {
+    /// Generate a non-bool witness vector by parsing the witnesses in the program
     fn from(witness_stack: &WitnessStack<FieldElement>) -> Self {
         let mut witness_set = HashSet::new();
         // Should be only one function
@@ -72,17 +72,17 @@ impl From<&WitnessStack<FieldElement>> for NonBoolWitnessList {
     }
 }
 
-impl NonBoolWitnessList {
+impl NonBoolWitnessVector {
     pub fn new(given_set: HashSet<Witness>) -> Self {
         Self { witness: given_set }
     }
 
-    /// Given witnesses from a program, add non-boolean witnesses to the list
+    /// Given witnesses from a program, add non-boolean witnesses to the vector
     pub fn update_with_witness_stack(&mut self, witness_stack: &WitnessStack<FieldElement>) {
         assert!(witness_stack.length() == 1);
         let first_func_witnesses = witness_stack.peek().unwrap();
 
-        // Go through the list of perceived boolean witnesses
+        // Go through the vector of perceived boolean witnesses
         for (witness_index, value) in first_func_witnesses.witness.clone().into_iter() {
             if !(value.is_one() || value.is_zero()) {
                 self.witness.insert(witness_index);
@@ -90,11 +90,11 @@ impl NonBoolWitnessList {
         }
     }
 
-    /// Create a new list of non-boolean witnesses by merging the current list with the witnesses from a new execution
+    /// Create a new vector of non-boolean witnesses by merging the current vector with the witnesses from a new execution
     pub fn merge_new(&self, witness_stack: &WitnessStack<FieldElement>) -> Self {
-        let mut new_list = NonBoolWitnessList::new(self.witness.clone());
-        new_list.update_with_witness_stack(witness_stack);
-        new_list
+        let mut new_vector = NonBoolWitnessVector::new(self.witness.clone());
+        new_vector.update_with_witness_stack(witness_stack);
+        new_vector
     }
 }
 /// Represents a single encountered state of a boolean witness in the Acir program
@@ -133,7 +133,7 @@ pub type RawBrilligCoverage = Vec<u32>;
 pub struct SingleTestCaseCoverage {
     /// The id of the testcase
     testcase_id: TestCaseId,
-    /// A list of all boolean witness states
+    /// A vector of all boolean witness states
     acir_bool_coverage: Vec<AcirBoolState>,
     /// The raw coverage from brillig execution
     pub brillig_coverage: RawBrilligCoverage,
@@ -144,7 +144,7 @@ impl SingleTestCaseCoverage {
         testcase_id: TestCaseId,
         acir_witness_stack: &Option<WitnessStack<FieldElement>>,
         brillig_coverage: RawBrilligCoverage,
-        non_bool_witness_list: &NonBoolWitnessList,
+        non_bool_witness_vector: &NonBoolWitnessVector,
     ) -> Self {
         // Process all booleans
         let mut acir_bool_coverage = Vec::new();
@@ -153,10 +153,10 @@ impl SingleTestCaseCoverage {
         if let Some(acir_witnesses) = acir_witness_stack {
             let witness_map = &acir_witnesses.peek().unwrap().witness;
 
-            // For each witness, if it is a boolean and not in the non-bool witness list, add it to the acir bool coverage
+            // For each witness, if it is a boolean and not in the non-bool witness vector, add it to the acir bool coverage
             for (witness, value) in witness_map.clone().into_iter() {
                 if (value.is_zero() || value.is_one())
-                    && !non_bool_witness_list.witness.contains(&witness)
+                    && !non_bool_witness_vector.witness.contains(&witness)
                 {
                     acir_bool_coverage.push(AcirBoolState {
                         witness_id: witness.witness_index(),
@@ -215,8 +215,8 @@ pub struct AccumulatedFuzzerCoverage {
     brillig_branch_coverage: Vec<AccumulatedSingleBranchCoverage>,
     /// Comparison coverage in brillig that has been observed
     brillig_cmp_approach_coverage: Vec<AccumulatedCmpCoverage>,
-    /// The list of indices of all witnesses that are inferred to be non-boolean
-    pub non_bool_witness_list: NonBoolWitnessList,
+    /// The vector of indices of all witnesses that are inferred to be non-boolean
+    pub non_bool_witness_vector: NonBoolWitnessVector,
 }
 
 type UnusedTestcaseIdSet = HashSet<TestCaseId>;
@@ -272,7 +272,7 @@ impl AccumulatedFuzzerCoverage {
             bool_state_to_testcase_id: HashMap::new(),
             brillig_branch_coverage: single_branch_coverage,
             brillig_cmp_approach_coverage: cmp_coverage,
-            non_bool_witness_list: NonBoolWitnessList::new(HashSet::new()),
+            non_bool_witness_vector: NonBoolWitnessVector::new(HashSet::new()),
         }
     }
 
@@ -335,16 +335,16 @@ impl AccumulatedFuzzerCoverage {
         unused_testcases
     }
 
-    /// Update the non-bool witness list with a witness stack
-    pub fn update_non_bool_witness_list_with_witness_stack(
+    /// Update the non-bool witness vector with a witness stack
+    pub fn update_non_bool_witness_vector_with_witness_stack(
         &mut self,
         witness_stack: &WitnessStack<FieldElement>,
     ) {
-        self.non_bool_witness_list.update_with_witness_stack(witness_stack);
+        self.non_bool_witness_vector.update_with_witness_stack(witness_stack);
     }
     /// Merge the coverage of a testcase into accumulated coverage
     /// Returns (false, empty set) if there is no new coverage (true, set of no longer needed testcases' ids) if there is
-    /// We assume that the non-bool witness list is already updated and is the same in new_coverage
+    /// We assume that the non-bool witness vector is already updated and is the same in new_coverage
     pub fn merge(&mut self, new_coverage: &SingleTestCaseCoverage) -> (bool, UnusedTestcaseIdSet) {
         // Use quick detect first to see if we need to try and merge anything
         if !self.detect_new_coverage(new_coverage) {
@@ -517,8 +517,8 @@ impl AccumulatedFuzzerCoverage {
         // Insert all ACIR states and replace testcase association
         for acir_bool_state in new_coverage.acir_bool_coverage.iter() {
             let witness = Witness::new(acir_bool_state.witness_id);
-            // If the witness is non-boolean according the merged non-bool witness list, skip it
-            if self.non_bool_witness_list.witness.contains(&witness) {
+            // If the witness is non-boolean according the merged non-bool witness vector, skip it
+            if self.non_bool_witness_vector.witness.contains(&witness) {
                 continue;
             }
             add_to_leavers(
@@ -536,9 +536,9 @@ impl AccumulatedFuzzerCoverage {
     ) {
         let mut states_to_remove = Vec::new();
 
-        // Check that all boolean state witnesses observed in accumulated coverage are not in the non-bool witness list
+        // Check that all boolean state witnesses observed in accumulated coverage are not in the non-bool witness vector
         for state in self.acir_bool_coverage.iter() {
-            if self.non_bool_witness_list.witness.contains(&Witness::new(state.witness_id)) {
+            if self.non_bool_witness_vector.witness.contains(&Witness::new(state.witness_id)) {
                 states_to_remove.push(*state);
             }
         }

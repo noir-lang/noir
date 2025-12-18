@@ -117,7 +117,7 @@ not be the full path to the type definition, nor will it include any generics.
 
 #include_code set_fields noir_stdlib/src/meta/type_def.nr rust
 
-Sets the fields of this struct to the given fields list where each element
+Sets the fields of this struct to the given fields vector where each element
 is a pair of the field's name and the field's type. Expects each field name
 to be a single identifier. Note that this will override any previous fields
 on this struct. If those should be preserved, use `.fields()` to retrieve the

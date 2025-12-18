@@ -133,7 +133,7 @@ impl Loops {
 
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
-        // from the top of the list.
+        // from the top of the vector.
         while let Some(loop_) = self.yet_to_unroll.pop() {
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
             if let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) {
@@ -667,7 +667,7 @@ impl<'f> LoopInvariantContext<'f> {
         use CanBeHoistedResult::*;
 
         let mut is_loop_invariant = true;
-        // The list of blocks for a nested loop contain any inner loops as well.
+        // The vector of blocks for a nested loop contain any inner loops as well.
         // We may have already re-inserted new instructions if two loops share blocks
         // so we need to map all the values in the instruction which we want to check.
         let (instruction, _) = self.inserter.map_instruction(instruction_id);

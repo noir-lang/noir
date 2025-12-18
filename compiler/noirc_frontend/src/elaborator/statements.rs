@@ -142,13 +142,13 @@ impl Elaborator<'_> {
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
-        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let mut parameter_names_in_vector = rustc_hash::FxHashMap::default();
         let pattern = self.elaborate_pattern(
             let_stmt.pattern,
             r#type.clone(),
             definition,
             warn_if_unused,
-            &mut parameter_names_in_list,
+            &mut parameter_names_in_vector,
         );
 
         let attributes = let_stmt.attributes;
@@ -490,9 +490,9 @@ impl Elaborator<'_> {
                 let (mut lvalue, mut lvalue_type, mut mutable, mut statements) =
                     self.elaborate_lvalue(*array);
 
-                // Push the index expression to the end of the new statements list, referring to it
+                // Push the index expression to the end of the new statements vector, referring to it
                 // afterward with a let binding. Note that since we recur first then push to the
-                // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
+                // end of the vector we're evaluating side-effects such that in `a[i][j]`, `i` will
                 // be evaluated first, followed by `j`.
                 if let Some((index_definition, new_index)) =
                     self.fresh_definition_for_lvalue_index(index, index_type, expr_location)
@@ -518,7 +518,7 @@ impl Elaborator<'_> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::List(elem_type) => *elem_type,
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =

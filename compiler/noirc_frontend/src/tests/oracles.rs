@@ -30,7 +30,7 @@ fn errors_if_oracle_returns_multiple_vectors() {
     let src = r#"
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call() -> ([u32], [Field]) {}
-                         ^^^^^^^^^^^ Oracle functions cannot return multiple lists
+                         ^^^^^^^^^^^ Oracle functions cannot return multiple vectors
     "#;
     check_errors(src);
 }

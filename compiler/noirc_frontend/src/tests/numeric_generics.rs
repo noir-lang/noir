@@ -448,7 +448,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
-                         ^^^^^^^^ Indexing arrays and lists must be done with `u32`, not `u64`
+                         ^^^^^^^^ Indexing arrays and vectors must be done with `u32`, not `u64`
             self.len += 1;
         }
     }

@@ -17,7 +17,7 @@ To run the fuzzer, pick one of the available targets:
 
 ```console
 $ cd tooling/ast_fuzzer
-$ cargo fuzz list
+$ cargo fuzz vector
 acir_vs_brillig
 comptime_vs_brillig
 min_vs_full

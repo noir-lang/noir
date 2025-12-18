@@ -1,6 +1,6 @@
 ---
 title: TraitImpl
-description: Inspect concrete trait implementations—list methods and read trait generic arguments in `comptime`.
+description: Inspect concrete trait implementations—vector methods and read trait generic arguments in `comptime`.
 ---
 
 `std::meta::trait_impl` contains methods on the built-in `TraitImpl` type which represents a trait

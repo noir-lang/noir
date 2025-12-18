@@ -7,12 +7,12 @@ global GLOBAL_THREE: Field = GLOBAL_ONE + GLOBAL_TWO;
 // contents known at compile time
 // length known at compile time
 global GLOBAL_ARRAY_PAIR: [Field; 2] = [GLOBAL_ONE, GLOBAL_TWO];
-global GLOBAL_LIST_PAIR: [Field] = &[GLOBAL_ONE, GLOBAL_TWO];
+global GLOBAL_VECTOR_PAIR: [Field] = &[GLOBAL_ONE, GLOBAL_TWO];
 
 pub struct Foo {
     field: Field,
     array: [Field; 3],
-    list: [Field],
+    vector: [Field],
 }
 
 fn main(
@@ -22,7 +22,7 @@ fn main(
     // contents unknown at compile time
     // length known at compile time
     let dynamic_array_pair = [dynamic_one, dynamic_two];
-    let dynamic_list_pair = &[dynamic_one, dynamic_two];
+    let dynamic_vector_pair = &[dynamic_one, dynamic_two];
 
     static_assert(true, "");
 
@@ -36,10 +36,10 @@ fn main(
     static_assert(3 == GLOBAL_THREE, "");
 
     static_assert(GLOBAL_ARRAY_PAIR.len() == 2, "");
-    static_assert(GLOBAL_LIST_PAIR.len() == 2, "");
+    static_assert(GLOBAL_VECTOR_PAIR.len() == 2, "");
 
     static_assert(dynamic_array_pair.len() == 2, "");
-    static_assert(dynamic_list_pair.len() == 2, "");
+    static_assert(dynamic_vector_pair.len() == 2, "");
 
     assert_constant([1, 2, dynamic_one].len() == 4);
     static_assert([1, 2, dynamic_one].len() == 3, "");

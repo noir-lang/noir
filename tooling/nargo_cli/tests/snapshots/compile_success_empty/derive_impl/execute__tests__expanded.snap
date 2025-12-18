@@ -56,10 +56,10 @@ comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     result
 }
 
-comptime fn join(list: [Quoted]) -> Quoted {
+comptime fn join(vector: [Quoted]) -> Quoted {
     let mut result: Quoted = quote {  };
     {
-        let ___i0: [Quoted] = list;
+        let ___i0: [Quoted] = vector;
         for ___i1 in 0_u32..___i0.len() {
             let elem: Quoted = ___i0[___i1];
             {

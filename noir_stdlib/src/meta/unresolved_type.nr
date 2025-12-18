@@ -9,11 +9,11 @@ impl UnresolvedType {
     pub comptime fn as_mutable_reference(self) -> Option<UnresolvedType> {}
     // docs:end:as_mutable_reference
 
-    /// If this is a list `&[T]`, returns the element type `T`.
-    #[builtin(unresolved_type_as_list)]
-    // docs:start:as_list
-    pub comptime fn as_list(self) -> Option<UnresolvedType> {}
-    // docs:end:as_list
+    /// If this is a vector `&[T]`, returns the element type `T`.
+    #[builtin(unresolved_type_as_vector)]
+    // docs:start:as_vector
+    pub comptime fn as_vector(self) -> Option<UnresolvedType> {}
+    // docs:end:as_vector
 
     /// Returns `true` if this type is `bool`.
     #[builtin(unresolved_type_is_bool)]

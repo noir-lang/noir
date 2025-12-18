@@ -76,7 +76,7 @@ impl NodeInterner {
         true
     }
 
-    /// Adds a trait implementation to the list of known implementations.
+    /// Adds a trait implementation to the vector of known implementations.
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
@@ -159,8 +159,8 @@ impl NodeInterner {
     /// constraint, but when where clauses are involved, the failing constraint may be several
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
-    /// If this list of failing constraints is empty, this means type annotations are required.
-    /// Returns the list of instantiation bindings as well, which should be stored on the
+    /// If this vector of failing constraints is empty, this means type annotations are required.
+    /// Returns the vector of instantiation bindings as well, which should be stored on the
     /// expression.
     pub(crate) fn lookup_trait_implementation(
         &self,
@@ -395,7 +395,7 @@ impl NodeInterner {
                 &trait_generics,
                 &trait_associated_types,
                 // Use a fresh set of type bindings here since the constraint_type originates from
-                // our impl list, which we don't want to bind to.
+                // our impl vector, which we don't want to bind to.
                 type_bindings,
                 recursion_limit - 1,
             )
@@ -428,7 +428,7 @@ impl NodeInterner {
         format!("{object_type:?}: {name}{generics}")
     }
 
-    /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
+    /// Removes all TraitImplKind::Assumed from the vector of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
         self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
     }

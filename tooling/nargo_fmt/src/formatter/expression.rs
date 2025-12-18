@@ -138,30 +138,30 @@ impl ChunkFormatter<'_, '_> {
             })),
             Literal::Array(array_literal) => group.group(self.format_array_literal(
                 array_literal,
-                false, // is list
+                false, // is vector
             )),
-            Literal::List(array_literal) => {
+            Literal::Vector(array_literal) => {
                 group.group(self.format_array_literal(
                     array_literal,
-                    true, // is list
+                    true, // is vector
                 ));
             }
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral, is_list: bool) -> ChunkGroup {
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_vector: bool) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if is_list {
-                formatter.write_token(Token::ListStart);
+            if is_vector {
+                formatter.write_token(Token::VectorStart);
             }
             formatter.write_left_bracket();
         }));
 
         match literal {
             ArrayLiteral::Standard(exprs) => {
-                group.kind = GroupKind::ExpressionList {
+                group.kind = GroupKind::ExpressionVector {
                     prefix_width: group.width(),
                     expressions_count: exprs.len(),
                 };
@@ -202,7 +202,7 @@ impl ChunkFormatter<'_, '_> {
             formatter.write_left_paren();
         }));
 
-        group.kind = GroupKind::ExpressionList {
+        group.kind = GroupKind::ExpressionVector {
             prefix_width: group.width(),
             expressions_count: exprs.len(),
         };
@@ -420,7 +420,7 @@ impl ChunkFormatter<'_, '_> {
     }
 
     /// Returns the maximum width of each expression to format. For example,
-    /// if the list is [1, 234, 56], the maximum width is 3 (that of `234`).
+    /// if the vector is [1, 234, 56], the maximum width is 3 (that of `234`).
     pub(super) fn format_expressions_separated_by_comma(
         &mut self,
         exprs: Vec<Expression>,
@@ -443,7 +443,7 @@ impl ChunkFormatter<'_, '_> {
                 false, // surround with spaces
                 group,
                 |formatter, expr, chunks| {
-                    // If the last expression in the list is a lambda, we format it but we mark
+                    // If the last expression in the vector is a lambda, we format it but we mark
                     // the chunk in a special way: it likely has newlines, but we don't want
                     // those newlines to affect the parent group. For example:
                     //
@@ -454,7 +454,7 @@ impl ChunkFormatter<'_, '_> {
                     if expr_index == exprs_len - 1 {
                         if let ExpressionKind::Lambda(lambda) = expr.kind {
                             let mut lambda_group = formatter.format_lambda(*lambda);
-                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
+                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInVector {
                                 first_line_width: lambda_group.first_line_width,
                                 indentation: None,
                             };
@@ -1042,7 +1042,7 @@ impl ChunkFormatter<'_, '_> {
             formatter.write_left_paren();
         }));
 
-        group.kind = GroupKind::ExpressionList {
+        group.kind = GroupKind::ExpressionVector {
             prefix_width: group.width(),
             expressions_count: call.arguments.len(),
         };
@@ -1148,7 +1148,7 @@ impl ChunkFormatter<'_, '_> {
         };
 
         let mut args_group = ChunkGroup::new();
-        args_group.kind = GroupKind::ExpressionList {
+        args_group.kind = GroupKind::ExpressionVector {
             prefix_width: 0,
             expressions_count: method_call.arguments.len(),
         };
@@ -1188,7 +1188,7 @@ impl ChunkFormatter<'_, '_> {
             formatter.write_left_paren();
         }));
 
-        group.kind = GroupKind::ExpressionList {
+        group.kind = GroupKind::ExpressionVector {
             prefix_width: group.width(),
             expressions_count: constrain_statement.arguments.len(),
         };
@@ -1434,7 +1434,7 @@ mod tests {
     }
 
     #[test]
-    fn format_standard_list() {
+    fn format_standard_vector() {
         let src = "global x = & [ 1 , 2 , 3 , ] ;";
         let expected = "global x = &[1, 2, 3];\n";
         assert_format(src, expected);
@@ -2318,7 +2318,7 @@ global y = 1;
     }
 
     #[test]
-    fn format_lambda_with_block_simplifies_inside_arguments_list() {
+    fn format_lambda_with_block_simplifies_inside_arguments_vector() {
         let src = "global x = some_call(this_is_a_long_argument, | |  {  1  });";
         let expected = "global x = some_call(
     this_is_a_long_argument,

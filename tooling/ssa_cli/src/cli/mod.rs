@@ -45,8 +45,8 @@ struct SsaArgs {
 
 #[derive(Subcommand, Clone, Debug)]
 enum SsaCommand {
-    /// List the SSA passes we can apply.
-    List,
+    /// Vector the SSA passes we can apply.
+    Vector,
     /// Parse and (optionally) validate the SSA.
     /// Prints the normalized SSA, with canonical ID assignment.
     Check,
@@ -61,7 +61,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     let ssa = || read_source(args.source_path).and_then(|src| parse_ssa(&src, !args.no_validate));
 
     match command {
-        SsaCommand::List => {
+        SsaCommand::Vector => {
             // This command doesn't actually use the common parameters, but we could potentially
             // read the source, and figure out which passes we can apply to it based on its state.
             let options = CompileOptions::default().as_ssa_options(Default::default());
@@ -129,7 +129,7 @@ fn parse_ssa(src: &str, validate: bool) -> eyre::Result<Ssa> {
     }
 }
 
-/// List of the SSA passes in the primary pipeline, enriched with their "step"
+/// Vector of the SSA passes in the primary pipeline, enriched with their "step"
 /// count so we can use unambiguous naming in filtering.
 fn ssa_passes(options: &SsaEvaluatorOptions) -> Vec<(String, SsaPass<'_>)> {
     primary_passes(options)

@@ -886,9 +886,9 @@ fn array_set() {
     ",
     );
 
-    let v0 = values[0].as_array_or_list().unwrap();
-    let v1 = values[1].as_array_or_list().unwrap();
-    let v2 = values[2].as_array_or_list().unwrap();
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+    let v2 = values[2].as_array_or_vector().unwrap();
 
     // acir function, so all rcs are 1
     assert_eq!(*v0.rc.borrow(), 1);
@@ -924,9 +924,9 @@ fn array_set_disabled_by_enable_side_effects() {
     ",
     );
 
-    let v0 = values[0].as_array_or_list().unwrap();
-    let v1 = values[1].as_array_or_list().unwrap();
-    let v2 = values[2].as_array_or_list().unwrap();
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+    let v2 = values[2].as_array_or_vector().unwrap();
 
     // acir function, so all rcs are 1
     assert_eq!(*v0.rc.borrow(), 1);
@@ -957,8 +957,8 @@ fn array_set_with_offset() {
     ",
     );
 
-    let v0 = values[0].as_array_or_list().unwrap();
-    let v1 = values[1].as_array_or_list().unwrap();
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
 
     assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
     assert_eq!(*v1.rc.borrow(), 1);
@@ -985,7 +985,7 @@ fn increment_rc() {
         }
     ",
     );
-    let array = value.as_array_or_list().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 4);
 }
 
@@ -1003,7 +1003,7 @@ fn increment_rc_disabled_in_acir() {
         }
     ",
     );
-    let array = value.as_array_or_list().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 1);
 }
 
@@ -1019,7 +1019,7 @@ fn decrement_rc() {
         }
     ",
     );
-    let array = value.as_array_or_list().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 0);
 }
 
@@ -1035,7 +1035,7 @@ fn decrement_rc_disabled_in_acir() {
         }
     ",
     );
-    let array = value.as_array_or_list().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 1);
 }
 
@@ -1076,12 +1076,12 @@ fn make_array() {
         from_constant(2u128.into(), NumericType::NativeField),
     ];
     assert_eq!(values[0], Value::array(one_two.clone(), vec![Type::field()]));
-    assert_eq!(values[1], Value::list(one_two, Arc::new(vec![Type::field()])));
+    assert_eq!(values[1], Value::vector(one_two, Arc::new(vec![Type::field()])));
 
     let hello =
         vecmap(b"Hello", |char| from_constant(u32::from(*char).into(), NumericType::char()));
     assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
-    assert_eq!(values[3], Value::list(hello, Arc::new(vec![Type::char()])));
+    assert_eq!(values[3], Value::vector(hello, Arc::new(vec![Type::char()])));
 }
 
 #[test]

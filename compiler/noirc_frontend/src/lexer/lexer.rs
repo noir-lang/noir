@@ -112,7 +112,7 @@ impl<'a> Lexer<'a> {
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
         } else if self.peek_char_is('[') {
-            self.single_char_token(Token::ListStart)
+            self.single_char_token(Token::VectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -1468,7 +1468,7 @@ mod tests {
     //   (expected_token_discriminator, strings_to_lex)
     // expected_token_discriminator matches a given token when
     // std::mem::discriminant returns the same discriminant for both.
-    fn big_list_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
+    fn big_vector_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
         use base64::engine::general_purpose;
         use std::borrow::Cow;
         use std::io::Cursor;
@@ -1523,18 +1523,18 @@ mod tests {
     }
 
     #[test]
-    fn test_big_list_of_naughty_strings() {
+    fn test_big_vector_of_naughty_strings() {
         use std::mem::discriminant;
 
-        let big_list_contents = include_str!("./blns/blns.base64.json"); // cSpell:disable-line
-        let big_list_base64: Vec<String> =
-            serde_json::from_str(big_list_contents).expect("BLNS json invalid"); // cSpell:disable-line
-        for big_list_base64_str in big_list_base64 {
-            let statements = big_list_base64_to_statements(big_list_base64_str);
-            for (token_discriminator_opt, big_list_program_strings) in statements {
-                for big_list_program_str in big_list_program_strings {
+        let big_vector_contents = include_str!("./blns/blns.base64.json"); // cSpell:disable-line
+        let big_vector_base64: Vec<String> =
+            serde_json::from_str(big_vector_contents).expect("BLNS json invalid"); // cSpell:disable-line
+        for big_vector_base64_str in big_vector_base64 {
+            let statements = big_vector_base64_to_statements(big_vector_base64_str);
+            for (token_discriminator_opt, big_vector_program_strings) in statements {
+                for big_vector_program_str in big_vector_program_strings {
                     let mut expected_token_found = false;
-                    let mut lexer = Lexer::new_with_dummy_file(&big_list_program_str);
+                    let mut lexer = Lexer::new_with_dummy_file(&big_vector_program_str);
                     let mut result_tokens = Vec::new();
                     loop {
                         match lexer.next_token() {
@@ -1564,7 +1564,7 @@ mod tests {
                             }
                             Err(err) => {
                                 panic!(
-                                    "Unexpected lexer error found {err:?} for input string {big_list_program_str:?}"
+                                    "Unexpected lexer error found {err:?} for input string {big_vector_program_str:?}"
                                 )
                             }
                         }

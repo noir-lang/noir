@@ -1004,7 +1004,7 @@ fn empty_comptime_block() {
 }
 
 #[test]
-fn comptime_uhashmap_of_lists() {
+fn comptime_uhashmap_of_vectors() {
     let src = r#"
     pub struct Option<T> {
         _is_some: bool,
@@ -1037,7 +1037,7 @@ fn comptime_uhashmap_of_lists() {
 }
 
 #[test]
-fn comptime_uhashmap_of_lists_attribute() {
+fn comptime_uhashmap_of_vectors_attribute() {
     let src = r#"
     pub struct Option<T> {
         _is_some: bool,
@@ -1075,12 +1075,12 @@ fn comptime_uhashmap_of_lists_attribute() {
         }
     }
 
-    comptime fn empty_function_definition_list() -> [FunctionDefinition] {
+    comptime fn empty_function_definition_vector() -> [FunctionDefinition] {
         &[]
     }
 
     comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =
-        UHashMap::default_umap((false, empty_function_definition_list()));
+        UHashMap::default_umap((false, empty_function_definition_vector()));
 
     comptime fn add_to_registry(
         _registry: &mut UHashMap<bool, [FunctionDefinition]>,

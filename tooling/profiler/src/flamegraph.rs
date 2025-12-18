@@ -280,10 +280,10 @@ fn to_folded_sorted_lines(
 
     for (location, folded_stack_item) in folded_stack_items.iter() {
         if folded_stack_item.total_samples > 0 {
-            let frame_list: Vec<String> =
+            let frame_vector: Vec<String> =
                 parent_stacks.iter().cloned().chain(std::iter::once(location.clone())).collect();
             let line: String =
-                format!("{} {}", frame_list.join(";"), folded_stack_item.total_samples);
+                format!("{} {}", frame_vector.join(";"), folded_stack_item.total_samples);
 
             result_vector.push(line);
         };

@@ -73,7 +73,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_array_or_list_type() {
+        if let Some(typ) = self.parse_array_or_vector_type() {
             return Some(typ);
         }
 
@@ -233,8 +233,8 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a list start if this is an array or list type
-        if self.eat(Token::Ampersand) || self.eat(Token::ListStart) {
+        // The `&` may be lexed as a vector start if this is an array or vector type
+        if self.eat(Token::Ampersand) || self.eat(Token::VectorStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -246,7 +246,7 @@ impl Parser<'_> {
         None
     }
 
-    fn parse_array_or_list_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_array_or_vector_type(&mut self) -> Option<UnresolvedTypeData> {
         if !self.eat_left_bracket() {
             return None;
         }
@@ -262,12 +262,12 @@ impl Parser<'_> {
                 Err(error) => {
                     self.errors.push(error);
                     self.eat_or_error(Token::RightBracket);
-                    Some(UnresolvedTypeData::List(Box::new(typ)))
+                    Some(UnresolvedTypeData::Vector(Box::new(typ)))
                 }
             }
         } else {
             self.eat_or_error(Token::RightBracket);
-            Some(UnresolvedTypeData::List(Box::new(typ)))
+            Some(UnresolvedTypeData::Vector(Box::new(typ)))
         }
     }
 
@@ -283,7 +283,7 @@ impl Parser<'_> {
         let (mut types, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
             "tuple elements",
             separated_by_comma_until_right_paren(),
-            Self::parse_type_in_list,
+            Self::parse_type_in_vector,
         );
 
         Some(if types.len() == 1 && !trailing_comma {
@@ -293,7 +293,7 @@ impl Parser<'_> {
         })
     }
 
-    pub(super) fn parse_type_in_list(&mut self) -> Option<UnresolvedType> {
+    pub(super) fn parse_type_in_vector(&mut self) -> Option<UnresolvedType> {
         if let Some(typ) = self.parse_type() {
             Some(typ)
         } else {
@@ -451,15 +451,15 @@ mod tests {
     }
 
     #[test]
-    fn parses_list_type() {
+    fn parses_vector_type() {
         let src = "[Field]";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::List(typ) = typ.typ else { panic!("Expected a list type") };
+        let UnresolvedTypeData::Vector(typ) = typ.typ else { panic!("Expected a vector type") };
         assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
-    fn errors_if_missing_right_bracket_after_list_type() {
+    fn errors_if_missing_right_bracket_after_vector_type() {
         let src = "
         [Field 
               ^

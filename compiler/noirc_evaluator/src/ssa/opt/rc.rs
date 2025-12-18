@@ -45,7 +45,7 @@ pub(crate) struct RcInstruction {
 }
 
 impl Function {
-    /// This function is very simplistic for now. It takes advantage of the fact that dec_rc
+    /// This function is very simpvectoric for now. It takes advantage of the fact that dec_rc
     /// instructions are currently issued only at the end of a function for parameters and will
     /// only check the first and last block for inc & dec rc instructions to be removed. The rest
     /// of the function is still checked for array_set instructions.

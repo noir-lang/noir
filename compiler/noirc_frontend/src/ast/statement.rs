@@ -353,7 +353,7 @@ impl Display for UseTree {
 
                 Ok(())
             }
-            UseTreeKind::List(trees) => {
+            UseTreeKind::Vector(trees) => {
                 write!(f, "{{")?;
                 let tree = vecmap(trees, ToString::to_string).join(", ");
                 write!(f, "{tree}}}")
@@ -365,7 +365,7 @@ impl Display for UseTree {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UseTreeKind {
     Path(Ident, Option<Ident>),
-    List(Vec<UseTree>),
+    Vector(Vec<UseTree>),
 }
 
 impl UseTree {
@@ -383,7 +383,7 @@ impl UseTree {
                 let path = if name.as_str() == "self" { prefix } else { prefix.join(name) };
                 vec![ImportStatement { visibility, path, alias }]
             }
-            UseTreeKind::List(trees) => {
+            UseTreeKind::Vector(trees) => {
                 let trees = trees.into_iter();
                 trees.flat_map(|tree| tree.desugar(Some(prefix.clone()), visibility)).collect()
             }

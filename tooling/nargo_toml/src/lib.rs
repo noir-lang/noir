@@ -121,7 +121,7 @@ pub fn find_package_manifest(
             }
         }
 
-        // Return the shallowest Nargo.toml, which will be the last in the list
+        // Return the shallowest Nargo.toml, which will be the last in the vector
         found_toml_paths.pop().ok_or_else(|| ManifestError::MissingFile(current_path.to_path_buf()))
     } else {
         Err(ManifestError::NoCommonAncestor {
@@ -293,7 +293,7 @@ pub struct NargoToml {
 #[derive(Default, Debug, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct WorkspaceConfig {
-    /// List of members in this workspace.
+    /// Vector of members in this workspace.
     pub members: Vec<PathBuf>,
     /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
     pub default_member: Option<PathBuf>,
@@ -315,7 +315,7 @@ pub struct PackageMetadata {
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
     pub compiler_version: Option<String>,
-    /// List of unstable features we want the compiler to enable to compile this package.
+    /// Vector of unstable features we want the compiler to enable to compile this package.
     /// This is most useful with the LSP, so it can figure out what is allowed without CLI args.
     pub compiler_unstable_features: Option<Vec<String>>,
     pub license: Option<String>,

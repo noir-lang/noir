@@ -481,7 +481,7 @@ fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
 /// and also directly on the SSA IR using the SSA interpreter.
 /// The results are compared to ensure that both executions yield the same result.
 fn test_operators(
-    // The list of operators to test
+    // The vector of operators to test
     operators: &[&str],
     // the type of the input values
     typ: &str,

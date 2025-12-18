@@ -375,7 +375,7 @@ impl Elaborator<'_> {
     /// Resolves a path in the current module.
     ///
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
-    /// will be returned with a potential list of errors if, for example, one of the segments
+    /// will be returned with a potential vector of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
     pub(super) fn resolve_path_inner(
         &mut self,
@@ -748,7 +748,7 @@ impl Elaborator<'_> {
         // Otherwise, the function could be defined in zero, one or more traits.
         let starting_module = self.get_module(importing_module_id);
 
-        // Gather a list of items for which their trait is in scope.
+        // Gather a vector of items for which their trait is in scope.
         let mut results = Vec::new();
 
         for (trait_id, item) in values.iter() {

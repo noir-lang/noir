@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
 
     /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
     /// and returns the result (and any warnings) if the parser has no errors, and if the parser consumed all tokens.
-    /// Otherwise returns the list of errors.
+    /// Otherwise returns the vector of errors.
     pub fn parse_result<T, F>(
         mut self,
         parsing_function: F,

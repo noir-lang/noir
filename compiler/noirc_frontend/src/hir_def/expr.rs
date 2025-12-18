@@ -23,7 +23,7 @@ use super::types::{DataType, Type};
 /// from the definition that refers to them so there is no ambiguity with names.
 #[derive(Debug, Clone)]
 pub enum HirExpression {
-    // The optional vec here is the optional list of generics
+    // The optional vec here is the optional vector of generics
     // provided by the turbofish operator, if it was used
     Ident(HirIdent, Option<Vec<Type>>),
     Literal(HirLiteral),
@@ -126,7 +126,7 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
-    List(HirArrayLiteral),
+    Vector(HirArrayLiteral),
     Bool(bool),
     Integer(SignedField),
     Str(String),
@@ -223,7 +223,7 @@ pub struct HirCallExpression {
 pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
-    /// Method calls have an optional list of generics provided by the turbofish operator
+    /// Method calls have an optional vector of generics provided by the turbofish operator
     pub generics: Option<Vec<Type>>,
     pub arguments: Vec<ExprId>,
     pub location: Location,

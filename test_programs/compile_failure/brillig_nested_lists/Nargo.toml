@@ -1,5 +1,0 @@
-[package]
-name = "brillig_nested_lists"
-type = "bin"
-authors = [""]
-[dependencies]

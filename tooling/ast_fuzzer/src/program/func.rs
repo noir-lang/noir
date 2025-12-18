@@ -74,9 +74,9 @@ impl FunctionDeclaration {
         types::contains_reference(&self.return_type)
     }
 
-    /// Check if the return type contains a list.
-    pub(super) fn returns_lists(&self) -> bool {
-        types::contains_list(&self.return_type)
+    /// Check if the return type contains a vector.
+    pub(super) fn returns_vectors(&self) -> bool {
+        types::contains_vector(&self.return_type)
     }
 
     /// Check if any of the parameters or return value contain a reference.
@@ -152,8 +152,8 @@ pub(super) fn can_call(
     }
 
     // When calling Brillig from ACIR, we avoid calling functions that take or return
-    // references or lists, which cannot be passed between the two.
-    !callee_decl.has_refs() && !callee_decl.returns_lists()
+    // references or vectors, which cannot be passed between the two.
+    !callee_decl.has_refs() && !callee_decl.returns_vectors()
 }
 
 /// Make a name for a local variable.
@@ -407,7 +407,7 @@ impl<'a> FunctionContext<'a> {
         // If we are looking for the exact type, it's okay.
             || src_type == tgt_type
             // But we can't index an array with references.
-            || !(types::is_array_or_list(src_type) && types::contains_reference(src_type) )
+            || !(types::is_array_or_vector(src_type) && types::contains_reference(src_type) )
     }
 
     /// Choose a producer for a type, preferring local variables over global ones.
@@ -446,7 +446,7 @@ impl<'a> FunctionContext<'a> {
                 .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, producer_type)| {
                     *mutable
                         && (typ.as_ref() == producer_type
-                            || !types::is_array_or_list(producer_type))
+                            || !types::is_array_or_vector(producer_type))
                         && (!self.in_no_dynamic || !self.is_dynamic(id))
                         && (!self.in_dynamic
                             || self.can_be_used_in_dynamic(producer_type, typ.as_ref()))
@@ -666,13 +666,13 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         // If we found our type, we can return it without further ado.
         if src_type == tgt_type {
-            // If we want a list, we can push onto it.
-            if let Type::List(item_type) = src_type {
+            // If we want a vector, we can push onto it.
+            if let Type::Vector(item_type) = src_type {
                 if bool::arbitrary(u)? {
                     let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
                     // We can use push_back, push_front, or insert.
                     if bool::arbitrary(u)? {
-                        let push_expr = self.call_list_push(
+                        let push_expr = self.call_vector_push(
                             src_type.clone(),
                             item_type.as_ref().clone(),
                             src_expr,
@@ -682,7 +682,7 @@ impl<'a> FunctionContext<'a> {
                         return Ok(Some((push_expr, src_dyn || item_dyn)));
                     } else {
                         // Generate a random index and insert the item at it.
-                        return self.gen_list_access(
+                        return self.gen_vector_access(
                             u,
                             (src_expr, src_dyn || item_dyn),
                             src_type,
@@ -690,7 +690,7 @@ impl<'a> FunctionContext<'a> {
                             tgt_type,
                             max_depth,
                             |this, ident, idx| {
-                                this.call_list_insert(
+                                this.call_vector_insert(
                                     src_type.clone(),
                                     item_type.as_ref().clone(),
                                     Expression::Ident(ident),
@@ -712,7 +712,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         // Mutable references to array elements are currently unsupported.
-        if types::is_array_or_list(src_type) {
+        if types::is_array_or_vector(src_type) {
             src_mutable = false;
         }
 
@@ -792,13 +792,13 @@ impl<'a> FunctionContext<'a> {
                     max_depth,
                 )
             }
-            // Pop from the front of a list.
-            (Type::List(item_type), Type::Tuple(fields))
+            // Pop from the front of a vector.
+            (Type::Vector(item_type), Type::Tuple(fields))
                 if fields.len() == 2
                     && &fields[0] == item_type.as_ref()
                     && &fields[1] == src_type =>
             {
-                let pop_front = self.call_list_pop(
+                let pop_front = self.call_vector_pop(
                     src_type.clone(),
                     item_type.as_ref().clone(),
                     src_expr,
@@ -806,14 +806,14 @@ impl<'a> FunctionContext<'a> {
                 );
                 Ok(Some((pop_front, src_dyn)))
             }
-            // Pop from the back of a list, or remove an item.
-            (Type::List(item_type), Type::Tuple(fields))
+            // Pop from the back of a vector, or remove an item.
+            (Type::Vector(item_type), Type::Tuple(fields))
                 if fields.len() == 2
                     && &fields[0] == src_type
                     && &fields[1] == item_type.as_ref() =>
             {
                 if bool::arbitrary(u)? {
-                    let pop_back = self.call_list_pop(
+                    let pop_back = self.call_vector_pop(
                         src_type.clone(),
                         item_type.as_ref().clone(),
                         src_expr,
@@ -821,7 +821,7 @@ impl<'a> FunctionContext<'a> {
                     );
                     Ok(Some((pop_back, src_dyn)))
                 } else {
-                    self.gen_list_access(
+                    self.gen_vector_access(
                         u,
                         (src_expr, src_dyn),
                         src_type,
@@ -829,7 +829,7 @@ impl<'a> FunctionContext<'a> {
                         tgt_type,
                         max_depth,
                         |this, ident, idx| {
-                            this.call_list_remove(
+                            this.call_vector_remove(
                                 src_type.clone(),
                                 item_type.as_ref().clone(),
                                 Expression::Ident(ident),
@@ -839,8 +839,8 @@ impl<'a> FunctionContext<'a> {
                     )
                 }
             }
-            // Index a list (might fail at runtime if empty).
-            (Type::List(item_type), _) => self.gen_list_access(
+            // Index a vector (might fail at runtime if empty).
+            (Type::Vector(item_type), _) => self.gen_vector_access(
                 u,
                 (src_expr, src_dyn),
                 src_type,
@@ -848,7 +848,7 @@ impl<'a> FunctionContext<'a> {
                 tgt_type,
                 max_depth,
                 |_, ident, idx| {
-                    // Index the list, represented by a variable, using the generated index.
+                    // Index the vector, represented by a variable, using the generated index.
                     Expression::Index(Index {
                         collection: Box::new(Expression::Ident(ident)),
                         index: Box::new(idx),
@@ -888,13 +888,13 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Generate code to index an arbitrary item in a list.
+    /// Generate code to index an arbitrary item in a vector.
     ///
-    /// Since we don't know the length of the list at compile time,
+    /// Since we don't know the length of the vector at compile time,
     /// this can involve creating a temporary variable, getting the length at runtime,
     /// and using modulo to limit some random index to the runtime length.
     #[allow(clippy::too_many_arguments)]
-    fn gen_list_access<F>(
+    fn gen_vector_access<F>(
         &mut self,
         u: &mut Unstructured,
         (src_expr, src_dyn): TrackedExpression,
@@ -907,11 +907,11 @@ impl<'a> FunctionContext<'a> {
     where
         F: FnOnce(&mut Self, Ident, Expression) -> Expression,
     {
-        let Type::List(item_type) = src_type else {
-            unreachable!("only expected to be called with List");
+        let Type::Vector(item_type) = src_type else {
+            unreachable!("only expected to be called with Vector");
         };
 
-        // Unless the list is coming from an identifier or literal, we should create a let binding for it
+        // Unless the vector is coming from an identifier or literal, we should create a let binding for it
         // to avoid doubling up any side effects, or double using local variables when it was created.
         let (let_expr, ident_1) = if let Expression::Ident(ident) = src_expr {
             (None, ident)
@@ -935,7 +935,7 @@ impl<'a> FunctionContext<'a> {
 
         // The rules around dynamic indexing is the same as for arrays.
         let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
-            // Avoid any stack overflow where we look for an index in the list itself.
+            // Avoid any stack overflow where we look for an index in the vector itself.
             (self.gen_literal(u, &types::U32)?, false)
         } else {
             let no_dynamic =
@@ -1256,8 +1256,8 @@ impl<'a> FunctionContext<'a> {
         let comptime_friendly = self.config().comptime_friendly;
         let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
 
-        // If we picked the target type to be a list, we can consider popping from it.
-        if let Type::List(ref item_type) = typ {
+        // If we picked the target type to be a vector, we can consider popping from it.
+        if let Type::Vector(ref item_type) = typ {
             if bool::arbitrary(u)? {
                 let fields = if bool::arbitrary(u)? {
                     // ([T], T) <- pop_back or remove
@@ -2218,8 +2218,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Construct a `Call` to the `array_len` builtin function, calling it with the
-    /// identifier of a list or an array.
-    fn call_array_len(&mut self, array_or_list: Expression, typ: Type) -> Expression {
+    /// identifier of a vector or an array.
+    fn call_array_len(&mut self, array_or_vector: Expression, typ: Type) -> Expression {
         let func_ident = Ident {
             location: None,
             definition: Definition::Builtin("array_len".to_string()),
@@ -2230,14 +2230,14 @@ impl<'a> FunctionContext<'a> {
         };
         Expression::Call(Call {
             func: Box::new(Expression::Ident(func_ident)),
-            arguments: vec![array_or_list],
+            arguments: vec![array_or_vector],
             return_type: types::U32,
             location: Location::dummy(),
         })
     }
 
-    /// Construct a `Call` to one of the `list_*` builtin functions.
-    fn call_list_builtin(
+    /// Construct a `Call` to one of the `vector_*` builtin functions.
+    fn call_vector_builtin(
         &mut self,
         name: &str,
         return_type: Type,
@@ -2246,7 +2246,7 @@ impl<'a> FunctionContext<'a> {
     ) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin(format!("list_{name}")),
+            definition: Definition::Builtin(format!("vector_{name}")),
             mutable: false,
             name: name.to_string(),
             typ: Type::Function(
@@ -2265,79 +2265,79 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    /// Construct a `Call` to the `list_push_front` or `list_push_back` builtin function.
-    fn call_list_push(
+    /// Construct a `Call` to the `vector_push_front` or `vector_push_back` builtin function.
+    fn call_vector_push(
         &mut self,
-        list_type: Type,
+        vector_type: Type,
         item_type: Type,
-        list: Expression,
+        vector: Expression,
         is_front: bool,
         item: Expression,
     ) -> Expression {
-        self.call_list_builtin(
+        self.call_vector_builtin(
             if is_front { "push_front" } else { "push_back" },
-            list_type.clone(),
-            vec![list_type, item_type],
-            vec![list, item],
+            vector_type.clone(),
+            vec![vector_type, item_type],
+            vec![vector, item],
         )
     }
 
-    /// Construct a `Call` to the `list_pop_front` or `list_pop_back` builtin function.
-    fn call_list_pop(
+    /// Construct a `Call` to the `vector_pop_front` or `vector_pop_back` builtin function.
+    fn call_vector_pop(
         &mut self,
-        list_type: Type,
+        vector_type: Type,
         item_type: Type,
-        list: Expression,
+        vector: Expression,
         is_front: bool,
     ) -> Expression {
         let return_fields = if is_front {
-            vec![item_type, list_type.clone()]
+            vec![item_type, vector_type.clone()]
         } else {
-            vec![list_type.clone(), item_type]
+            vec![vector_type.clone(), item_type]
         };
-        self.call_list_builtin(
+        self.call_vector_builtin(
             if is_front { "pop_front" } else { "pop_back" },
             Type::Tuple(return_fields),
-            vec![list_type],
-            vec![list],
+            vec![vector_type],
+            vec![vector],
         )
     }
 
-    /// Construct a `Call` to the `list_remove` builtin function.
-    fn call_list_remove(
+    /// Construct a `Call` to the `vector_remove` builtin function.
+    fn call_vector_remove(
         &mut self,
-        list_type: Type,
+        vector_type: Type,
         item_type: Type,
-        list: Expression,
+        vector: Expression,
         idx: Expression,
     ) -> Expression {
-        self.call_list_builtin(
+        self.call_vector_builtin(
             "remove",
-            Type::Tuple(vec![list_type.clone(), item_type]),
-            vec![list_type, types::U32],
-            vec![list, idx],
+            Type::Tuple(vec![vector_type.clone(), item_type]),
+            vec![vector_type, types::U32],
+            vec![vector, idx],
         )
     }
 
-    /// Construct a `Call` to the `list_insert` builtin function.
-    fn call_list_insert(
+    /// Construct a `Call` to the `vector_insert` builtin function.
+    fn call_vector_insert(
         &mut self,
-        list_type: Type,
+        vector_type: Type,
         item_type: Type,
-        list: Expression,
+        vector: Expression,
         idx: Expression,
         item: Expression,
     ) -> Expression {
-        self.call_list_builtin(
+        self.call_vector_builtin(
             "insert",
-            Type::Tuple(vec![list_type.clone()]),
-            vec![list_type, types::U32, item_type],
-            vec![list, idx, item],
+            Type::Tuple(vec![vector_type.clone()]),
+            vec![vector_type, types::U32, item_type],
+            vec![vector, idx, item],
         )
     }
 
     /// Random decision whether to allow "Index out of bounds" errors to happen
-    /// on a specific array or list access operation.
+    /// on a specific array or vector access operation.
     ///
     /// If [Config::avoid_index_out_of_bounds] is turned on, then this is always `true`.
     ///

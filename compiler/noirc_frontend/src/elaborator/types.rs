@@ -131,8 +131,8 @@ impl Elaborator<'_> {
     ) -> Type {
         let location = typ.location;
         let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
-        if !self.in_comptime_context && resolved_type.is_nested_list() {
-            self.push_err(ResolverError::NestedLists { location });
+        if !self.in_comptime_context && resolved_type.is_nested_vector() {
+            self.push_err(ResolverError::NestedVectors { location });
         }
         resolved_type
     }
@@ -181,14 +181,14 @@ impl Elaborator<'_> {
                     self.convert_expression_type(size, &Kind::u32(), location, wildcard_allowed);
                 Type::Array(Box::new(size), elem)
             }
-            List(elem) => {
+            Vector(elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(
                     *elem,
                     kind,
                     mode,
                     wildcard_allowed,
                 ));
-                Type::List(elem)
+                Type::Vector(elem)
             }
             Expression(expr) => {
                 self.convert_expression_type(expr, kind, location, wildcard_allowed)
@@ -572,7 +572,7 @@ impl Elaborator<'_> {
     }
 
     /// Assuming that a [Generic] type accepts named type arguments, ie. has associated types,
-    /// go through a list of named [UnresolvedType]s and match them up to the named generics of the type,
+    /// go through a vector of named [UnresolvedType]s and match them up to the named generics of the type,
     /// returning the resolved [NamedType]s and pushing errors for any unexpected, duplicate or missing entries.
     fn resolve_associated_type_args(
         &mut self,
@@ -587,8 +587,8 @@ impl Elaborator<'_> {
         let mut required_args = item.named_generics(self.interner);
         let mut resolved = Vec::with_capacity(required_args.len());
 
-        // Go through each argument to check if it is in our required_args list.
-        // If it is remove it from the list, otherwise issue an error.
+        // Go through each argument to check if it is in our required_args vector.
+        // If it is remove it from the vector, otherwise issue an error.
         for (name, typ) in args {
             let index = required_args.iter().position(|item| item.name.as_ref() == name.as_str());
 
@@ -602,7 +602,7 @@ impl Elaborator<'_> {
                 continue;
             };
 
-            // Remove the argument from the required list so we remember that we already have it
+            // Remove the argument from the required vector so we remember that we already have it
             let expected = required_args.remove(index);
             seen_args.insert(name.to_string(), name.location());
 
@@ -2023,7 +2023,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Given a list of functions and the trait they belong to, returns the one function
+    /// Given a vector of functions and the trait they belong to, returns the one function
     /// that is in scope.
     fn return_trait_method_in_scope(
         &mut self,
@@ -2511,12 +2511,12 @@ impl Elaborator<'_> {
                     // instantiation bindings. We should avoid doing this if `select_impl` is
                     // not true since that means we're not solving for this expressions exact
                     // impl anyway. If we ignore this, we may rarely overwrite existing type
-                    // bindings causing incorrect types. The `list_regex` test is one example
+                    // bindings causing incorrect types. The `vector_regex` test is one example
                     // of that happening without this being behind `select_impl`.
                     let mut bindings =
                         self.interner.get_instantiation_bindings(function_ident_id).clone();
 
-                    // These can clash in the `list_regex` test which causes us to insert
+                    // These can clash in the `vector_regex` test which causes us to insert
                     // incorrect type bindings if they override the previous bindings.
                     for (id, binding) in instantiation_bindings {
                         let existing = bindings.insert(id, binding.clone());

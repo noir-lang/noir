@@ -67,7 +67,7 @@ fn has_unused_import(use_tree: &UseTree, unused_items: &HashMap<Ident, UnusedIte
             let ident = alias.as_ref().unwrap_or(name);
             unused_items.contains_key(ident)
         }
-        UseTreeKind::List(use_trees) => {
+        UseTreeKind::Vector(use_trees) => {
             use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_items))
         }
     }
@@ -83,7 +83,7 @@ fn use_tree_without_unused_import(
             let ident = alias.as_ref().unwrap_or(name);
             if unused_items.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
         }
-        UseTreeKind::List(use_trees) => {
+        UseTreeKind::Vector(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();
             let mut total_count = 0;
 
@@ -107,7 +107,7 @@ fn use_tree_without_unused_import(
             } else {
                 Some(UseTree {
                     prefix: use_tree.prefix.clone(),
-                    kind: UseTreeKind::List(new_use_trees),
+                    kind: UseTreeKind::Vector(new_use_trees),
                     location: use_tree.location,
                 })
             };

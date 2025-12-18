@@ -3,10 +3,14 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(input: [u32; 4]) {
-    let mut list1: [u32] = &[1_u32, 2_u32, 3_u32, 4_u32];
-    if list1[0_u32] == 3_u32 { list1[1_u32] = 4_u32; };
-    if list1[1_u32] == 5_u32 { list1[3_u32] = 6_u32; };
+    let mut vector1: [u32] = &[1_u32, 2_u32, 3_u32, 4_u32];
+    if vector1[0_u32] == 3_u32 {
+        vector1[1_u32] = 4_u32;
+    };
+    if vector1[1_u32] == 5_u32 {
+        vector1[3_u32] = 6_u32;
+    };
     for i in 0_u32..4_u32 {
-        assert(list1[i] == input[i]);
+        assert(vector1[i] == input[i]);
     }
 }

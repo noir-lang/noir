@@ -1,6 +1,0 @@
-[package]
-name = "list_remove_oob_invalid_pred"
-type = "bin"
-authors = [""]
-
-[dependencies]

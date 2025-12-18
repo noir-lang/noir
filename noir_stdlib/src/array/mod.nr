@@ -23,15 +23,15 @@ impl<T, let N: u32> [T; N] {
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
-    /// Returns this array as a list.
+    /// Returns this array as a vector.
     ///
     /// ```noir
     /// let array = [1, 2];
-    /// let list = array.as_list();
-    /// assert_eq(list, &[1, 2]);
+    /// let vector = array.as_vector();
+    /// assert_eq(vector, &[1, 2]);
     /// ```
-    #[builtin(as_list)]
-    pub fn as_list(self) -> [T] {}
+    #[builtin(as_vector)]
+    pub fn as_vector(self) -> [T] {}
 
     /// Applies a function to each element of this array, returning a new array containing the mapped elements.
     ///

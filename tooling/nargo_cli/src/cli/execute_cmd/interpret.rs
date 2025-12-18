@@ -269,7 +269,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let typ = alias.borrow().get_type(generics);
             input_value_to_comptime_value(input, &typ, location)
         }
-        Type::List(_)
+        Type::Vector(_)
         | Type::FmtString(_, _)
         | Type::TypeVariable(..)
         | Type::TraitAsType(..)
@@ -367,7 +367,7 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         Value::Function(..)
         | Value::Closure(..)
         | Value::Pointer(..)
-        | Value::List(..)
+        | Value::Vector(..)
         | Value::Quoted(..)
         | Value::TypeDefinition(..)
         | Value::TraitConstraint(..)

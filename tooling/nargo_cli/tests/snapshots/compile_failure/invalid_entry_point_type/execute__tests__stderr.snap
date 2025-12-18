@@ -16,7 +16,7 @@ error: Invalid type found in the entry point to a program
    │     ---
    │     │
    │     Field baz has an invalid entry point type
-   │     List is not a valid entry point type. Found: [Field]
+   │     Vector is not a valid entry point type. Found: [Field]
    ·
  9 │ type SomeAlias = Foo;
    │      --------- Alias SomeAlias has an invalid entry point type
@@ -24,6 +24,6 @@ error: Invalid type found in the entry point to a program
 11 │ fn main(_: SomeAlias) {}
    │            --------- This type has an invalid entry point type inside it
    │
-   = Note: lists, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
+   = Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
 
 Aborting due to 1 previous error

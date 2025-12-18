@@ -215,7 +215,7 @@ impl Block {
         }
     }
 
-    /// Collect all aliases used by the given value list
+    /// Collect all aliases used by the given value vector
     pub(super) fn collect_all_aliases(
         &self,
         values: impl IntoIterator<Item = ValueId>,

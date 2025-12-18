@@ -134,7 +134,7 @@ impl Ssa {
         }
 
         // Second pass to rewrite the calls sites in the cloned functions
-        // The list of structs mapping call site updates in `calls_to_update` only includes the original function IDs
+        // The vector of structs mapping call site updates in `calls_to_update` only includes the original function IDs
         // so we risk potentially not rewriting the call sites within the cloned functions themselves.
         // The cloned functions we are using are stored within the `new_functions_map`.
         for (_, new_functions_per_entry) in new_functions_map {

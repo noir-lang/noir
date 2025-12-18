@@ -3,7 +3,7 @@ use noirc_frontend::ast::ItemVisibility;
 use crate::items::{Item, Workspace};
 
 /// All items in a workspace.
-/// Each field is a list of (path, name) tuples.
+/// Each field is a vector of (path, name) tuples.
 pub(super) struct AllItems {
     pub(super) structs: Vec<(Vec<String>, String)>,
     pub(super) traits: Vec<(Vec<String>, String)>,

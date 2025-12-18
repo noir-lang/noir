@@ -74,7 +74,7 @@ fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 2]):
-            v2, v3 = call as_list(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             call f1(u32 2, v3)
             v7 = array_get v0, index u32 0 -> Field
             constrain v7 == Field 0

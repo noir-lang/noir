@@ -17,11 +17,11 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_module_items(&mut self, nested: bool) -> Vec<Item> {
         self.parse_many_to_many("items", without_separator(), |parser| {
-            parser.parse_module_item_in_list(nested)
+            parser.parse_module_item_in_vector(nested)
         })
     }
 
-    fn parse_module_item_in_list(&mut self, nested: bool) -> Vec<Item> {
+    fn parse_module_item_in_vector(&mut self, nested: bool) -> Vec<Item> {
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
             if nested && self.at(Token::RightBrace) {
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
     /// Parses an item inside an impl or trait, with good recovery:
     /// - If we run into EOF, we error that we expect a '}'
     /// - If we can't parse an item and we don't end up in '}', error but try with the next token
-    pub(super) fn parse_item_in_list<T, F>(
+    pub(super) fn parse_item_in_vector<T, F>(
         &mut self,
         label: ParsingRuleLabel,
         mut f: F,

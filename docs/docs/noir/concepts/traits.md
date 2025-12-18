@@ -207,7 +207,7 @@ fn example<T>()
 
 ## Generic Implementations
 
-You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
+You can add generics to a trait implementation by adding the generic vector after the `impl` keyword:
 
 ```rust
 trait Second {
@@ -543,7 +543,7 @@ unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
 
 ### Trait Inheritance
 
-Sometimes, you might need one trait to use another trait’s functionality (like "inheritance" in some other languages). In this case, you can specify this relationship by listing any child traits after the parent trait's name and a colon. Now, whenever the parent trait is implemented it will require the child traits to be implemented as well. A parent trait is also called a "super trait."
+Sometimes, you might need one trait to use another trait’s functionality (like "inheritance" in some other languages). In this case, you can specify this relationship by vectoring any child traits after the parent trait's name and a colon. Now, whenever the parent trait is implemented it will require the child traits to be implemented as well. A parent trait is also called a "super trait."
 
 ```rust
 trait Person {

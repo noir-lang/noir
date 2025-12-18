@@ -8,9 +8,9 @@ trait FromCallData<let N: u32, let M: u32> {
 
 impl<let N: u32> FromCallData<N, N - 1> for Field {
     fn from_calldata(calldata: [Self; N]) -> (Self, [Self; N - 1]) {
-        let list: [Self] = calldata.as_list();
-        let (value, list): (Self, [Self]) = list.pop_front();
-        (value, list.as_array())
+        let vector: [Self] = calldata.as_vector();
+        let (value, vector): (Self, [Self]) = vector.pop_front();
+        (value, vector.as_array())
     }
 }
 

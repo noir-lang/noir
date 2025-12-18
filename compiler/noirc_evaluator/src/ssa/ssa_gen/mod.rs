@@ -179,10 +179,10 @@ pub fn validate_ssa(ssa: &Ssa) {
 
 impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
-    /// For functions returning nothing, this will be an empty list.
+    /// For functions returning nothing, this will be an empty vector.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
         let return_value = self.codegen_expression(body)?;
-        let results = return_value.into_value_list(self);
+        let results = return_value.into_value_vector(self);
 
         self.builder.terminate_with_return(results);
         Ok(())
@@ -265,18 +265,18 @@ impl FunctionContext<'_> {
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::List(array) => {
+            ast::Literal::Vector(array) => {
                 let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
-                    ast::Type::List(_) => {
-                        let list_length =
+                    ast::Type::Vector(_) => {
+                        let vector_length =
                             self.builder.length_constant(array.contents.len() as u128);
-                        let list_contents = self.codegen_array_checked(elements, typ[1].clone())?;
-                        Tree::Branch(vec![list_length.into(), list_contents])
+                        let vector_contents = self.codegen_array_checked(elements, typ[1].clone())?;
+                        Tree::Branch(vec![vector_length.into(), vector_contents])
                     }
-                    _ => unreachable!("ICE: unexpected list literal type, got {}", array.typ),
+                    _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
                 })
             }
             ast::Literal::Integer(value, typ, location) => {
@@ -335,7 +335,7 @@ impl FunctionContext<'_> {
         self.codegen_array(elements, typ)
     }
 
-    // Codegen an array but make sure that we do not have a nested list
+    // Codegen an array but make sure that we do not have a nested vector
     ///
     /// The bool aspect of each array element indicates whether the element is an array constant
     /// or not. If it is, we avoid incrementing the reference count because we consider the
@@ -345,8 +345,8 @@ impl FunctionContext<'_> {
         elements: Vec<Values>,
         typ: Type,
     ) -> Result<Values, RuntimeError> {
-        if typ.is_nested_list() {
-            return Err(RuntimeError::NestedList { call_stack: self.builder.get_call_stack() });
+        if typ.is_nested_vector() {
+            return Err(RuntimeError::NestedVector { call_stack: self.builder.get_call_stack() });
         }
         Ok(self.codegen_array(elements, typ))
     }
@@ -460,13 +460,13 @@ impl FunctionContext<'_> {
         // Generate the index value first, it might modify the collection itself.
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
         // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
-        let array_or_list = self.codegen_expression(&index.collection)?.into_value_list(self);
-        // Lists are represented as a tuple in the form: (length, list contents).
-        // Thus, lists require two value ids for their representation.
-        let (array, list_length) = if array_or_list.len() > 1 {
-            (array_or_list[1], Some(array_or_list[0]))
+        let array_or_vector = self.codegen_expression(&index.collection)?.into_value_vector(self);
+        // Vectors are represented as a tuple in the form: (length, vector contents).
+        // Thus, vectors require two value ids for their representation.
+        let (array, vector_length) = if array_or_vector.len() > 1 {
+            (array_or_vector[1], Some(array_or_vector[0]))
         } else {
-            (array_or_list[0], None)
+            (array_or_vector[0], None)
         };
 
         self.codegen_array_index(
@@ -474,7 +474,7 @@ impl FunctionContext<'_> {
             index_value,
             &index.element_type,
             index.location,
-            list_length,
+            vector_length,
         )
     }
 
@@ -513,8 +513,8 @@ impl FunctionContext<'_> {
                     self.codegen_access_check(index, len);
                 }
             }
-            Type::List(_) => {
-                // The list length is dynamic however so we can't rely on it being equal to the underlying memory
+            Type::Vector(_) => {
+                // The vector length is dynamic however so we can't rely on it being equal to the underlying memory
                 // block as we can do for array types. We then inject a access check for both ACIR and brillig.
                 self.codegen_access_check(
                     index,
@@ -522,7 +522,7 @@ impl FunctionContext<'_> {
                 );
             }
 
-            _ => unreachable!("must have array or list but got {array_type}"),
+            _ => unreachable!("must have array or vector but got {array_type}"),
         }
 
         // This can overflow if the original index is already not in the bounds of the array
@@ -545,16 +545,16 @@ impl FunctionContext<'_> {
             field_index += 1;
 
             // Reference counting in brillig relies on us incrementing reference
-            // counts when nested arrays/lists are constructed or indexed. This
+            // counts when nested arrays/vectors are constructed or indexed. This
             // has no effect in ACIR code.
             let result = self.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }
 
-    /// Prepare an array or list access.
-    /// Check that the index being used to access an array/list element
-    /// is less than the (potentially dynamic) array/list length.
+    /// Prepare an array or vector access.
+    /// Check that the index being used to access an array/vector element
+    /// is less than the (potentially dynamic) array/vector length.
     fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
@@ -806,14 +806,14 @@ impl FunctionContext<'_> {
             let end_block = self.builder.insert_block();
 
             self.codegen_unless_break_or_continue(then_result, |this, then_value| {
-                let then_values = then_value.into_value_list(this);
+                let then_values = then_value.into_value_vector(this);
                 this.builder.terminate_with_jmp(end_block, then_values);
             })?;
 
             self.builder.switch_to_block(else_block);
             let else_result = self.codegen_expression(alternative);
             self.codegen_unless_break_or_continue(else_result, |this, else_value| {
-                let else_values = else_value.into_value_list(this);
+                let else_values = else_value.into_value_vector(this);
                 this.builder.terminate_with_jmp(end_block, else_values);
             })?;
 
@@ -900,7 +900,7 @@ impl FunctionContext<'_> {
             self.bind_case_arguments(variable.clone(), case);
             let results = self.codegen_expression(&case.branch);
             self.codegen_unless_break_or_continue(results, |this, results| {
-                let results = results.into_value_list(this);
+                let results = results.into_value_vector(this);
 
                 // Each branch will jump to a different end block for now. We have to merge them all
                 // later since SSA doesn't support more than two blocks jumping to the same end block.
@@ -918,7 +918,7 @@ impl FunctionContext<'_> {
         if let Some(branch) = &match_expr.default_case {
             let results = self.codegen_expression(branch);
             self.codegen_unless_break_or_continue(results, |this, results| {
-                let results = results.into_value_list(this);
+                let results = results.into_value_vector(this);
                 this.builder.terminate_with_jmp(last_local_end_block, results);
             })?;
         } else {
@@ -928,7 +928,7 @@ impl FunctionContext<'_> {
             self.bind_case_arguments(variable, case);
             let results = self.codegen_expression(&case.branch);
             self.codegen_unless_break_or_continue(results, |this, results| {
-                let results = results.into_value_list(this);
+                let results = results.into_value_vector(this);
                 this.builder.terminate_with_jmp(last_local_end_block, results);
             })?;
         }
@@ -957,15 +957,15 @@ impl FunctionContext<'_> {
                 let (new_merge, new_merge_results) = make_end_block(self);
                 blocks_to_merge.push((new_merge, new_merge_results));
 
-                let results = results.into_value_list(self);
+                let results = results.into_value_vector(self);
                 self.builder.terminate_with_jmp(new_merge, results);
 
                 self.builder.switch_to_block(block2);
-                let results2 = results2.into_value_list(self);
+                let results2 = results2.into_value_vector(self);
                 self.builder.terminate_with_jmp(new_merge, results2);
             } else {
                 // Finally done, jump to the end
-                let results = results.into_value_list(self);
+                let results = results.into_value_vector(self);
                 self.builder.terminate_with_jmp(end_block, results);
             }
         }
@@ -1083,7 +1083,7 @@ impl FunctionContext<'_> {
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
         for argument in &call.arguments {
-            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            let mut values = self.codegen_expression(argument)?.into_value_vector(self);
             arguments.append(&mut values);
         }
 
@@ -1104,12 +1104,12 @@ impl FunctionContext<'_> {
             self.builder.set_location(location).get_intrinsic_from_value(function)
         {
             match intrinsic {
-                Intrinsic::ListInsert => {
+                Intrinsic::VectorInsert => {
                     let one = self.builder.length_constant(1u128);
 
-                    // We add one here in the case of a list insert as a list insert at the length of the list
-                    // can be converted to a list push back
-                    // This is unchecked as the list length could be u32::max
+                    // We add one here in the case of a vector insert as a vector insert at the length of the vector
+                    // can be converted to a vector push back
+                    // This is unchecked as the vector length could be u32::max
                     let len_plus_one = self.builder.insert_binary(
                         arguments[0],
                         BinaryOp::Add { unchecked: false },
@@ -1118,17 +1118,17 @@ impl FunctionContext<'_> {
 
                     self.codegen_access_check(arguments[2], len_plus_one);
                 }
-                Intrinsic::ListRemove => {
+                Intrinsic::VectorRemove => {
                     self.codegen_access_check(arguments[2], arguments[0]);
                 }
-                Intrinsic::ListPopFront | Intrinsic::ListPopBack
+                Intrinsic::VectorPopFront | Intrinsic::VectorPopBack
                     if self.builder.current_function.runtime().is_brillig() =>
                 {
-                    // We need to put in a constraint to protect against accessing empty lists:
+                    // We need to put in a constraint to protect against accessing empty vectors:
                     // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
-                    // * In ACIR we do have protection against reading empty lists (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    // * In ACIR we do have protection against reading empty vectors (it returns "Index Out of Bounds"), so we don't get invalid reads.
                     //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
-                    //   when it inevitably tries to read from an empty list anyway. We have to handle that by removing operations which are known
+                    //   when it inevitably tries to read from an empty vector anyway. We have to handle that by removing operations which are known
                     //   to fail and replace them with conditional constraints that do take the side effect into account.
                     // By doing this in the SSA we might be able to optimize this away later.
                     let zero =
@@ -1198,7 +1198,7 @@ impl FunctionContext<'_> {
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
             let selector = error_type.selector();
-            let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
+            let values = self.codegen_expression(assert_message_expression)?.into_value_vector(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
             // Record custom types in the builder, outside of SSA instructions
             // This is made to avoid having Hir types in the SSA code.

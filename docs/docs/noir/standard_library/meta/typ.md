@@ -70,11 +70,11 @@ if the type is signed, as well as the number of bits of this integer type.
 
 If this is a mutable reference type `&mut T`, returns the mutable type `T`.
 
-### as_list
+### as_vector
 
-#include_code as_list noir_stdlib/src/meta/typ.nr rust
+#include_code as_vector noir_stdlib/src/meta/typ.nr rust
 
-If this is a list type, return the element type of the list.
+If this is a vector type, return the element type of the vector.
 
 ### as_str
 

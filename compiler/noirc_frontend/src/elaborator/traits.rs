@@ -47,7 +47,7 @@
 //! ## Self
 //!
 //! In addition to its declared generics, traits have an additional implicit generic
-//! called `Self`. This is not stored in the normal list of generics on a trait so it often
+//! called `Self`. This is not stored in the normal vector of generics on a trait so it often
 //! must be specially handled.
 //!
 //! When we have a trait and an impl:
@@ -68,7 +68,7 @@
 //! above is on the `foo` method itself rather than the trait or impl. If `B` were bound to a
 //! concrete type like `u32` in the impl bindings, `foo` would no longer be properly generic.
 //!
-//! Inlining `Self` into a trait's generics list directly may provide some
+//! Inlining `Self` into a trait's generics vector directly may provide some
 //! intuition in how `Self` should be handled (that is, like any other trait generic):
 //!
 //! ```noir
@@ -145,8 +145,8 @@
 //!   - Since the function is done being elaborated, we should have more type constraints now which
 //!     should hopefully bind the type variables `_0` and `_1` to concrete types. Our new trait
 //!     constraint may look like `A: Foo<i32>`.
-//!   - For each pushed trait constraint, solve the constraint by looking through the list of all
-//!     trait impls in the program for the relevant trait, along with the list of assumed impls.
+//!   - For each pushed trait constraint, solve the constraint by looking through the vector of all
+//!     trait impls in the program for the relevant trait, along with the vector of assumed impls.
 //!     A constraint is solved when a matching impl is found, along with a matching impl for any
 //!     nested trait constraints that impl may require (e.g. `[T]: Eq` requires `T: Eq`).
 //!     A matching impl here is simply one for which all types used in the impl unify with all the types
@@ -199,7 +199,7 @@ impl Elaborator<'_> {
     ///    mentioning all associated types.
     /// 2. Resolves the trait's where clause.
     /// 3. Resolves any bounds on associated types
-    /// 4. Resolves the trait's bounds (its listed super traits).
+    /// 4. Resolves the trait's bounds (its vectored super traits).
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = Some(unresolved_trait.module_id);
@@ -676,15 +676,15 @@ impl Elaborator<'_> {
                     let generics =
                         vecmap(&this.generics.clone(), |generic| generic.type_var.clone());
 
-                    let default_impl_list: Vec<_> = unresolved_trait
+                    let default_impl_vector: Vec<_> = unresolved_trait
                         .fns_with_default_impl
                         .functions
                         .iter()
                         .filter(|(_, _, q)| q.name() == name.as_str())
                         .collect();
 
-                    let default_impl = if default_impl_list.len() == 1 {
-                        Some(Box::new(default_impl_list[0].2.clone()))
+                    let default_impl = if default_impl_vector.len() == 1 {
+                        Some(Box::new(default_impl_vector[0].2.clone()))
                     } else {
                         None
                     };

@@ -200,8 +200,8 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
     )]
     UnconstrainedReferenceToConstrained { location: Location },
-    #[error("Lists cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedListReturnToConstrained { location: Location },
+    #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedVectorReturnToConstrained { location: Location },
     #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedFunctionReturnToConstrained { location: Location },
     #[error(
@@ -236,7 +236,7 @@ pub enum TypeCheckError {
     UnspecifiedType { location: Location },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, location: Location },
-    #[error("Type annotations required before indexing this array or list")]
+    #[error("Type annotations required before indexing this array or vector")]
     TypeAnnotationsNeededForIndex { location: Location },
     #[error("Unnecessary `unsafe` block")]
     UnnecessaryUnsafeBlock { location: Location },
@@ -334,7 +334,7 @@ impl TypeCheckError {
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedListReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
@@ -527,7 +527,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedListReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
@@ -613,7 +613,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                         return diagnostic
                     },
-                    Source::ArrayIndex => format!("Indexing arrays and lists must be done with `{expected}`, not `{actual}`"),
+                    Source::ArrayIndex => format!("Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), *location)
@@ -652,7 +652,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     diagnostic.add_secondary("This type has an invalid entry point type inside it".to_string(), *location);
                 }
 
-                diagnostic.add_note("Note: lists, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
                 add_invalid_type_to_diagnostic(invalid_type, *location, &mut diagnostic);
                 diagnostic
             },
@@ -718,8 +718,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } => {
                 Diagnostic::simple_error(
-                    "Type annotations required before indexing this array or list".into(),
-                    "Type annotations needed before this point, can't decide if this is an array or list".into(),
+                    "Type annotations required before indexing this array or vector".into(),
+                    "Type annotations needed before this point, can't decide if this is an array or vector".into(),
                     *location,
                 )
             },
@@ -792,8 +792,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } => {
                 let message = "Type annotation needed".into();
-                let array_or_list = if *is_array { "array" } else { "list" };
-                let secondary = format!("Could not determine the type of the {array_or_list}");
+                let array_or_vector = if *is_array { "array" } else { "vector" };
+                let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
         }
@@ -861,9 +861,9 @@ fn add_invalid_type_to_diagnostic(
                     location,
                 );
             }
-            Type::List(..) => {
+            Type::Vector(..) => {
                 diagnostic.add_secondary(
-                    format!("List is not a valid entry point type. Found: {typ}"),
+                    format!("Vector is not a valid entry point type. Found: {typ}"),
                     location,
                 );
             }

@@ -63,7 +63,7 @@ impl Parser<'_> {
     }
 
     fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Location)> {
-        self.parse_item_in_list(ParsingRuleLabel::Function, |parser| {
+        self.parse_item_in_vector(ParsingRuleLabel::Function, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
             let start_location = parser.current_token_location;
             let attributes = parser.parse_attributes();
@@ -116,7 +116,7 @@ impl Parser<'_> {
     }
 
     fn parse_trait_impl_item(&mut self) -> Option<Documented<TraitImplItem>> {
-        self.parse_item_in_list(ParsingRuleLabel::TraitImplItem, |parser| {
+        self.parse_item_in_vector(ParsingRuleLabel::TraitImplItem, |parser| {
             let start_location = parser.current_token_location;
             let doc_comments = parser.parse_outer_doc_comments();
 

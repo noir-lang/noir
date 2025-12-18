@@ -19,7 +19,7 @@ excluded_dirs=(
   "reference_counts_inliner_min"
   "reference_counts_inliner_0"
   "reference_counts_inliner_max"
-  "reference_counts_lists_inliner_0"
+  "reference_counts_vectors_inliner_0"
 )
 
 current_dir=$(pwd)

@@ -191,7 +191,7 @@ pub struct Struct {
     pub generics: Vec<Generic>,
     /// All `pub` fields of the struct.
     pub fields: Vec<StructField>,
-    /// `true` if the struct has any private fields, besides the public ones listed in `fields`.
+    /// `true` if the struct has any private fields, besides the public ones vectored in `fields`.
     pub has_private_fields: bool,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
@@ -402,7 +402,7 @@ pub enum Type {
         length: Box<Type>,
         element: Box<Type>,
     },
-    List {
+    Vector {
         element: Box<Type>,
     },
     String {
@@ -494,7 +494,7 @@ pub enum PrimitiveTypeKind {
     Str,
     Fmtstr,
     Array,
-    List,
+    Vector,
     Expr,
     Quoted,
     Type,
@@ -527,7 +527,7 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::Str => "str",
             PrimitiveTypeKind::Fmtstr => "fmtstr",
             PrimitiveTypeKind::Array => "array",
-            PrimitiveTypeKind::List => "list",
+            PrimitiveTypeKind::Vector => "vector",
             PrimitiveTypeKind::Expr => "Expr",
             PrimitiveTypeKind::Quoted => "Quoted",
             PrimitiveTypeKind::Type => "Type",

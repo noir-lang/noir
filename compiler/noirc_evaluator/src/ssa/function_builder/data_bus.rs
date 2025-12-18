@@ -179,7 +179,7 @@ impl FunctionBuilder {
                         }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
-                            Type::Array(_, _) | Type::List(_) => subitem_typ.element_size(),
+                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size(),
                             Type::Numeric(_) => 1,
                             _ => unreachable!("Unsupported type for databus"),
                         };
@@ -190,12 +190,12 @@ impl FunctionBuilder {
             Type::Reference(_) => {
                 unreachable!("Attempted to add invalid type (reference) to databus")
             }
-            Type::List(_) => unreachable!("Attempted to add invalid type (list) to databus"),
+            Type::Vector(_) => unreachable!("Attempted to add invalid type (vector) to databus"),
             Type::Function => unreachable!("Attempted to add invalid type (function) to databus"),
         }
     }
 
-    /// Create a data bus builder from a list of values
+    /// Create a data bus builder from a vector of values
     pub(crate) fn initialize_data_bus(
         &mut self,
         values: &[ValueId],
@@ -252,7 +252,7 @@ impl FunctionBuilder {
             }
         }
 
-        // create the call-data-bus from the filtered lists
+        // create the call-data-bus from the filtered vectors
         let mut result = Vec::new();
         for id in databus_param.keys() {
             let builder = DataBusBuilder::new();

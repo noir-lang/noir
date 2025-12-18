@@ -31,11 +31,11 @@ mod id_to_info;
 mod markdown_utils;
 mod trait_impls;
 
-/// Returns a list of (path, contents) representing the HTML files for the given crates.
+/// Returns a vector of (path, contents) representing the HTML files for the given crates.
 /// The paths are relative paths that can be joined to a base directory.
 ///
 /// Not all returned files are linked to items. For example, there's an "all.html" file
-/// that lists all items, and a "styles.css" file for styling.
+/// that vectors all items, and a "styles.css" file for styling.
 pub fn to_html(workspace: &Workspace) -> Vec<(PathBuf, String)> {
     let mut creator = HTMLCreator::new(workspace);
     creator.process_workspace(workspace);
@@ -122,26 +122,26 @@ impl HTMLCreator {
         self.sidebar_end();
         self.main_start(false);
         self.h1(&format!("All items in {}", workspace.name));
-        self.render_all_items_list("Structs", "struct", &all_items.structs);
-        self.render_all_items_list("Traits", "trait", &all_items.traits);
-        self.render_all_items_list("Type aliases", "type", &all_items.type_aliases);
-        self.render_all_items_list("Primitive types", "primitive", &all_items.primitive_types);
-        self.render_all_items_list("Globals", "global", &all_items.globals);
-        self.render_all_items_list("Functions", "fn", &all_items.functions);
+        self.render_all_items_vector("Structs", "struct", &all_items.structs);
+        self.render_all_items_vector("Traits", "trait", &all_items.traits);
+        self.render_all_items_vector("Type aliases", "type", &all_items.type_aliases);
+        self.render_all_items_vector("Primitive types", "primitive", &all_items.primitive_types);
+        self.render_all_items_vector("Globals", "global", &all_items.globals);
+        self.render_all_items_vector("Functions", "fn", &all_items.functions);
         self.main_end();
         self.html_end();
 
         self.push_file(PathBuf::from("all.html"));
     }
 
-    fn render_all_items_list(&mut self, title: &str, class: &str, items: &[(Vec<String>, String)]) {
+    fn render_all_items_vector(&mut self, title: &str, class: &str, items: &[(Vec<String>, String)]) {
         if items.is_empty() {
             return;
         }
 
         self.output.push_str(&format!("<span id=\"{class}\"></span>"));
         self.h2(title);
-        self.output.push_str("<ul class=\"item-list\">\n");
+        self.output.push_str("<ul class=\"item-vector\">\n");
         for (path, name) in items {
             let url_path = path.join("/");
             let module = path.join("::");
@@ -156,7 +156,7 @@ impl HTMLCreator {
 
     fn render_all_items_sidebar(&mut self, all_items: &AllItems) {
         self.h2("Workspace items");
-        self.output.push_str("<ul class=\"sidebar-list\">\n");
+        self.output.push_str("<ul class=\"sidebar-vector\">\n");
         if !all_items.structs.is_empty() {
             self.output.push_str("<li><a href=\"#struct\">Structs</a></li>\n");
         }
@@ -192,14 +192,14 @@ impl HTMLCreator {
             redirect,
         );
 
-        // This sidebar is empty because there's not much we can list here.
+        // This sidebar is empty because there's not much we can vector here.
         // It's here so that every page has a sidebar.
         self.sidebar_start();
         self.sidebar_end();
 
         self.main_start(false);
         self.h1(&format!("{} documentation", workspace.name));
-        self.render_list("Crates", "crates", false, 0, &crates);
+        self.render_vector("Crates", "crates", false, 0, &crates);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -231,7 +231,7 @@ impl HTMLCreator {
         self.render_module_items_sidebar("Crate items", &krate.root_module);
 
         self.h3("Crates");
-        self.output.push_str("<ul class=\"sidebar-list\">\n");
+        self.output.push_str("<ul class=\"sidebar-vector\">\n");
         for krate in &workspace.crates {
             if !krate.root_module.has_public_items() {
                 continue;
@@ -261,7 +261,7 @@ impl HTMLCreator {
     fn render_reexports(&mut self, items: &[(ItemVisibility, Item)]) {
         let reexports = get_reexports(items);
         if !reexports.is_empty() {
-            self.render_reexports_list("Re-exports", "re-exports", &reexports);
+            self.render_reexports_vector("Re-exports", "re-exports", &reexports);
         }
     }
 
@@ -273,28 +273,28 @@ impl HTMLCreator {
     ) {
         let modules = get_contracts(items);
         if !modules.is_empty() {
-            self.render_list("Contracts", "contracts", sidebar, nesting, &modules);
+            self.render_vector("Contracts", "contracts", sidebar, nesting, &modules);
         }
     }
 
     fn render_modules(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let modules = get_modules(items);
         if !modules.is_empty() {
-            self.render_list("Modules", "modules", sidebar, nesting, &modules);
+            self.render_vector("Modules", "modules", sidebar, nesting, &modules);
         }
     }
 
     fn render_structs(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let structs = get_structs(items);
         if !structs.is_empty() {
-            self.render_list("Structs", "structs", sidebar, nesting, &structs);
+            self.render_vector("Structs", "structs", sidebar, nesting, &structs);
         }
     }
 
     fn render_traits(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let traits = get_traits(items);
         if !traits.is_empty() {
-            self.render_list("Traits", "traits", sidebar, nesting, &traits);
+            self.render_vector("Traits", "traits", sidebar, nesting, &traits);
         }
     }
 
@@ -306,7 +306,7 @@ impl HTMLCreator {
     ) {
         let type_aliases = get_type_aliases(items);
         if !type_aliases.is_empty() {
-            self.render_list("Type aliases", "type-aliases", sidebar, nesting, &type_aliases);
+            self.render_vector("Type aliases", "type-aliases", sidebar, nesting, &type_aliases);
         }
     }
 
@@ -318,7 +318,7 @@ impl HTMLCreator {
     ) {
         let primitive_types = get_primitive_types(items);
         if !primitive_types.is_empty() {
-            self.render_list(
+            self.render_vector(
                 "Primitive types",
                 "primitive-types",
                 sidebar,
@@ -331,7 +331,7 @@ impl HTMLCreator {
     fn render_globals(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let globals = get_globals(items);
         if !globals.is_empty() {
-            self.render_list("Globals", "globals", sidebar, nesting, &globals);
+            self.render_vector("Globals", "globals", sidebar, nesting, &globals);
         }
     }
 
@@ -343,11 +343,11 @@ impl HTMLCreator {
     ) {
         let functions = get_functions(items);
         if !functions.is_empty() {
-            self.render_list("Functions", "functions", sidebar, nesting, &functions);
+            self.render_vector("Functions", "functions", sidebar, nesting, &functions);
         }
     }
 
-    fn render_list<T: ItemProperties + HasUri + HasClass>(
+    fn render_vector<T: ItemProperties + HasUri + HasClass>(
         &mut self,
         title: &str,
         anchor: &str,
@@ -360,7 +360,7 @@ impl HTMLCreator {
         } else {
             self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
         }
-        self.output.push_str("<ul class=\"item-list\">\n");
+        self.output.push_str("<ul class=\"item-vector\">\n");
 
         let mut items = items.to_vec();
         items.sort_by_key(|item| item.name().to_lowercase());
@@ -404,11 +404,11 @@ impl HTMLCreator {
         self.output.push_str("</ul>\n");
     }
 
-    fn render_reexports_list(&mut self, title: &str, anchor: &str, reexports: &[&Reexport]) {
+    fn render_reexports_vector(&mut self, title: &str, anchor: &str, reexports: &[&Reexport]) {
         let nesting = self.current_path.len();
 
         self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
-        self.output.push_str("<ul class=\"item-list\">\n");
+        self.output.push_str("<ul class=\"item-vector\">\n");
 
         for reexport in reexports {
             let info = &self.id_to_info[&reexport.id];
@@ -494,7 +494,7 @@ impl HTMLCreator {
             return;
         }
         self.h3(title);
-        self.output.push_str("<ul class=\"sidebar-list\">\n");
+        self.output.push_str("<ul class=\"sidebar-vector\">\n");
         if !get_reexports(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#re-exports\">Re-exports</a></li>\n");
         }
@@ -565,7 +565,7 @@ impl HTMLCreator {
             fields.sort_by_key(|field| field.name.clone());
 
             self.h3("Fields");
-            self.output.push_str("<ul class=\"sidebar-list\">\n");
+            self.output.push_str("<ul class=\"sidebar-vector\">\n");
             for field in fields {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!(
@@ -582,7 +582,7 @@ impl HTMLCreator {
 
         if !methods.is_empty() {
             self.h3("Methods");
-            self.output.push_str("<ul class=\"sidebar-list\">\n");
+            self.output.push_str("<ul class=\"sidebar-vector\">\n");
             for method in methods {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
@@ -635,7 +635,7 @@ impl HTMLCreator {
 
         if !methods.is_empty() {
             self.h3(title);
-            self.output.push_str("<ul class=\"sidebar-list\">\n");
+            self.output.push_str("<ul class=\"sidebar-vector\">\n");
             for method in methods {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
@@ -667,7 +667,7 @@ impl HTMLCreator {
         }
 
         self.h3(title);
-        self.output.push_str("<ul class=\"sidebar-list\">\n");
+        self.output.push_str("<ul class=\"sidebar-vector\">\n");
         for trait_impl in trait_impls {
             self.output.push_str("<li>");
             self.output.push_str(&format!(
@@ -762,7 +762,7 @@ impl HTMLCreator {
 
         if !methods.is_empty() {
             self.h3("Methods");
-            self.output.push_str("<ul class=\"sidebar-list\">\n");
+            self.output.push_str("<ul class=\"sidebar-vector\">\n");
             for method in methods {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
@@ -1249,7 +1249,7 @@ impl HTMLCreator {
                 self.render_type(length);
                 self.output.push(']');
             }
-            Type::List { element } => {
+            Type::Vector { element } => {
                 self.output.push('[');
                 self.render_type(element);
                 self.output.push(']');
@@ -1833,7 +1833,7 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
                 type_to_string(length, self_type)
             )
         }
-        Type::List { element } => format!("[{}]", type_to_string(element, self_type)),
+        Type::Vector { element } => format!("[{}]", type_to_string(element, self_type)),
         Type::String { length } => format!("str&lt;{}&gt;", type_to_string(length, self_type)),
         Type::FmtString { length, element } => {
             format!(

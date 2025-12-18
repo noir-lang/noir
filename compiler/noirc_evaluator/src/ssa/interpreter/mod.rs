@@ -424,12 +424,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.lookup_helper(value_id, instruction, "numeric", Value::as_numeric)
     }
 
-    fn lookup_array_or_list(
+    fn lookup_array_or_vector(
         &self,
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<ArrayValue> {
-        self.lookup_helper(value_id, instruction, "array or list", Value::as_array_or_list)
+        self.lookup_helper(value_id, instruction, "array or vector", Value::as_array_or_vector)
     }
 
     /// Look up an array index.
@@ -454,7 +454,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
-        let array = self.lookup_array_or_list(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -472,7 +472,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array = self.lookup_array_or_list(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -490,7 +490,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array = self.lookup_array_or_list(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -512,7 +512,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array = self.lookup_array_or_list(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -983,7 +983,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
             }
 
-            Value::ArrayOrList(array_value) => {
+            Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
                 for element in elements.iter_mut() {
                     Self::reset_array_state(element)?;
@@ -1050,7 +1050,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
 
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_list(array, "array get")?;
+        let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
         let index = match self.lookup_array_index(index, "array get index", length) {
@@ -1093,15 +1093,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
-                if let Some(array) = element.as_array_or_list() {
+                if let Some(array) = element.as_array_or_vector() {
                     // In the ACIR runtime we expect fresh arrays when accessing a nested array.
                     // If we do not clone the elements here a mutable array set afterwards could mutate
                     // not just this returned array but the array we are fetching from in this array get.
-                    Value::ArrayOrList(ArrayValue {
+                    Value::ArrayOrVector(ArrayValue {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_list: array.is_list,
+                        is_vector: array.is_vector,
                     })
                 } else {
                     element.clone()
@@ -1125,7 +1125,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         side_effects_enabled: bool,
     ) -> IResult<()> {
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_list(array, "array set")?;
+        let array = self.lookup_array_or_vector(array, "array set")?;
 
         let result_array = if side_effects_enabled {
             let length = array.elements.borrow().len() as u32;
@@ -1142,7 +1142,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrList(array.clone())
+                Value::ArrayOrVector(array.clone())
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);
@@ -1152,12 +1152,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_list = array.is_list;
-                Value::ArrayOrList(ArrayValue { elements, rc, element_types, is_list })
+                let is_vector = array.is_vector;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
             }
         } else {
             // Side effects are disabled, return the original array
-            Value::ArrayOrList(array)
+            Value::ArrayOrVector(array)
         };
         self.define(result, result_array)?;
         Ok(())
@@ -1172,7 +1172,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_list(value_id, "inc_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "inc_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1185,7 +1185,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_dec_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_list(value_id, "dec_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "dec_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1242,7 +1242,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_list = matches!(&result_type, Type::List(..));
+        let is_vector = matches!(&result_type, Type::Vector(..));
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1277,11 +1277,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
         }
 
-        let array = Value::ArrayOrList(ArrayValue {
+        let array = Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_list,
+            is_vector,
         });
         self.define(result, array)
     }

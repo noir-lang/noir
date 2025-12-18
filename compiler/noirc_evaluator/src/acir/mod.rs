@@ -807,7 +807,7 @@ impl<'a> Context<'a> {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            (_, Type::List(..)) | (Type::List(..), _) => {
+            (_, Type::Vector(..)) | (Type::Vector(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
             // If either side is a numeric type, then we expect their types to be
@@ -874,7 +874,7 @@ impl<'a> Context<'a> {
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
 
-    /// Fetch a flat list of [AcirVar].
+    /// Fetch a flat vector of [AcirVar].
     ///
     /// Flattens an [AcirValue] into a vector of `AcirVar`.
     ///

@@ -1,6 +1,0 @@
-[package]
-name = "list_remove_oob"
-type = "bin"
-authors = [""]
-
-[dependencies]

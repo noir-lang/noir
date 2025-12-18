@@ -72,7 +72,7 @@ We can experiment with applying various SSA passes with the `transform` command,
 cargo run -q -p noir_ssa_cli -- transform --source-path example.ssa --ssa-pass Unrolling
 ```
 
-Use the `list` command to see the available options for `--ssa-pass`.
+Use the `vector` command to see the available options for `--ssa-pass`.
 
 ### Interpret
 

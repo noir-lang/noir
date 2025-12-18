@@ -330,7 +330,7 @@ impl Elaborator<'_> {
             Literal::Array(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, true)
             }
-            Literal::List(array_literal) => {
+            Literal::Vector(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, false)
             }
         }
@@ -413,10 +413,10 @@ impl Elaborator<'_> {
                 (HirArrayLiteral::Repeated { repeated_element, length }, elem_type, length_clone)
             }
         };
-        let constructor = if is_array { HirLiteral::Array } else { HirLiteral::List };
+        let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ =
-            if is_array { Type::Array(Box::new(length), elem_type) } else { Type::List(elem_type) };
+            if is_array { Type::Array(Box::new(length), elem_type) } else { Type::Vector(elem_type) };
         (HirExpression::Literal(constructor(expr)), typ)
     }
 
@@ -579,7 +579,7 @@ impl Elaborator<'_> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
-            Type::List(base_type) => *base_type,
+            Type::Vector(base_type) => *base_type,
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex {
@@ -1394,7 +1394,7 @@ impl Elaborator<'_> {
         self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
-        let mut parameter_names_in_list = HashMap::default();
+        let mut parameter_names_in_vector = HashMap::default();
         let parameters =
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
@@ -1421,7 +1421,7 @@ impl Elaborator<'_> {
                         typ.clone(),
                         parameter,
                         true,
-                        &mut parameter_names_in_list,
+                        &mut parameter_names_in_vector,
                     ),
                     typ,
                 )

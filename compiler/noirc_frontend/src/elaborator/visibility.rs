@@ -18,7 +18,7 @@ use super::Elaborator;
 
 impl Elaborator<'_> {
     /// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
-    /// from the current location. If not, a visibility error is pushed to the error list.
+    /// from the current location. If not, a visibility error is pushed to the error vector.
     /// The passed `name` is used for error reporting.
     pub(super) fn check_method_call_visibility(
         &mut self,
@@ -67,7 +67,7 @@ impl Elaborator<'_> {
 
     /// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
     /// the given `visibility`, is allowed from the current location. If not, a visibility
-    /// error is pushed to the error list.
+    /// error is pushed to the error vector.
     pub(super) fn check_struct_field_visibility(
         &mut self,
         struct_type: &DataType,
@@ -211,7 +211,7 @@ impl Elaborator<'_> {
                 );
                 self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::Reference(typ, _) | Type::Array(_, typ) | Type::List(typ) => {
+            Type::Reference(typ, _) | Type::Array(_, typ) | Type::Vector(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {

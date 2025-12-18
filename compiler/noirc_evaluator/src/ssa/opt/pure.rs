@@ -19,7 +19,7 @@ impl Ssa {
     /// There is no constraint on when this pass needs to be run, but it is generally more
     /// beneficial to perform this pass before inlining or loop unrolling so that it can:
     /// 1. Run faster by processing fewer instructions.
-    /// 2. Be run earlier in the pass list so that more passes afterward can use the results of
+    /// 2. Be run earlier in the pass vector so that more passes afterward can use the results of
     ///    this pass.
     ///
     /// Performing this pass after defunctionalization may also help more function calls be

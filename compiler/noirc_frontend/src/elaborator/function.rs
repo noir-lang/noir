@@ -181,7 +181,7 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
-        // Temporary allow lists for contract functions, until contracts are re-factored.
+        // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
                 &return_type,
@@ -331,7 +331,7 @@ impl Elaborator<'_> {
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
-        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let mut parameter_names_in_vector = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
@@ -367,7 +367,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
-                &mut parameter_names_in_list,
+                &mut parameter_names_in_vector,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -378,7 +378,7 @@ impl Elaborator<'_> {
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a list or NamedGeneric type), an
+    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program_input(
         &mut self,
@@ -436,7 +436,7 @@ impl Elaborator<'_> {
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
-        self.run_lint(|_| lints::oracle_returns_multiple_lists(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });

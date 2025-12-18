@@ -32,7 +32,7 @@ pub(crate) enum InstructionLocation {
 pub(crate) struct ConstantAllocation {
     /// Map each constant to the blocks and instructions in which it is used.
     constant_usage: BTreeMap<ValueId, BTreeMap<BasicBlockId, Vec<InstructionLocation>>>,
-    /// Map each block and instruction to the list of constants that should be allocated at that point.
+    /// Map each block and instruction to the vector of constants that should be allocated at that point.
     allocation_points: BTreeMap<BasicBlockId, BTreeMap<InstructionLocation, Vec<ValueId>>>,
     /// The dominator tree is used to find the common dominator of all the blocks that share a constant.
     dominator_tree: DominatorTree,
@@ -141,7 +141,7 @@ impl ConstantAllocation {
         }
     }
 
-    /// Decide where to allocate a constant, based on the common dominator of the provided block list.
+    /// Decide where to allocate a constant, based on the common dominator of the provided block vector.
     fn decide_allocation_point(
         &self,
         constant_id: ValueId,

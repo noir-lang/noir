@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: List `[Field]` cannot be returned from an unconstrained runtime to a constrained runtime
+error: Vector `[Field]` cannot be returned from an unconstrained runtime to a constrained runtime
   ┌─ src/main.nr:8:9
   │
 8 │         foo(x)

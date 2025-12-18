@@ -169,7 +169,7 @@ impl Context<'_, '_> {
         local_crate.main_function()
     }
 
-    /// Returns a list of all functions in the current crate marked with #[test]
+    /// Returns a vector of all functions in the current crate marked with #[test]
     /// whose names contain the given pattern string. An empty pattern string
     /// will return all functions marked with #[test].
     pub fn get_all_test_functions_in_crate_matching(
@@ -185,7 +185,7 @@ impl Context<'_, '_> {
         )
     }
 
-    /// Returns a list of all functions in the current crate marked with `#[fuzz]`
+    /// Returns a vector of all functions in the current crate marked with `#[fuzz]`
     /// whose names contain the given pattern string. An empty pattern string
     /// will return all functions marked with `#[fuzz]`.
     pub fn get_all_fuzzing_harnesses_in_crate_matching(
@@ -236,7 +236,7 @@ impl Context<'_, '_> {
     /// Generics need to be resolved before elaboration to distinguish
     /// between normal and numeric generics.
     /// This method is expected to be used during definition collection.
-    /// Each result is returned in a list rather than returned as a single result as to allow
+    /// Each result is returned in a vector rather than returned as a single result as to allow
     /// definition collection to provide an error for each ill-formed numeric generic.
     pub(crate) fn resolve_generics(
         interner: &NodeInterner,

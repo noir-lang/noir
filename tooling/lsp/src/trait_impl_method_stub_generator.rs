@@ -164,7 +164,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_type(n);
                 self.string.push(']');
             }
-            Type::List(typ) => {
+            Type::Vector(typ) => {
                 self.string.push('[');
                 self.append_type(typ);
                 self.string.push(']');

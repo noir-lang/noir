@@ -158,7 +158,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 /// Resolves a Path in a `use` statement, assuming it's located in `importing_module`.
 ///
 /// If the imported name can't be found, `Err` will be returned. If it can be found, `Ok`
-/// will be returned with a potential list of errors if, for example, one of the segments
+/// will be returned with a potential vector of errors if, for example, one of the segments
 /// is not accessible from the importing module (e.g. because it's private).
 pub fn resolve_import(
     path: Path,

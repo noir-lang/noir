@@ -6,7 +6,7 @@ use crate::{
 use super::Interpreter;
 
 impl Interpreter<'_, '_> {
-    /// Evaluates any expressions within UnquoteMarkers in the given token list
+    /// Evaluates any expressions within UnquoteMarkers in the given token vector
     /// and replaces the expression held by the marker with the evaluated value
     /// in expression form.
     pub(super) fn substitute_unquoted_values_into_tokens(

@@ -55,7 +55,7 @@
 //!   - If any argument of the call is a reference, remove the known value of each alias of that
 //!     reference
 //!   - Any builtin functions that may return aliases if their input also contains a
-//!     reference should be tracked. Examples: `list_push_back`, `list_insert`, `list_remove`, etc.
+//!     reference should be tracked. Examples: `vector_push_back`, `vector_insert`, `vector_remove`, etc.
 //!   - Remove the instance of the last load instruction for any reference arguments and their aliases
 //!
 //! On a terminator instruction:
@@ -2339,7 +2339,7 @@ mod tests {
     #[test]
     fn analyzes_instruction_simplified_to_multiple() {
         // This is a test to make sure that if an instruction is simplified to multiple instructions,
-        // like in the case of `list_push_back`, those are handled correctly.
+        // like in the case of `vector_push_back`, those are handled correctly.
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -2348,7 +2348,7 @@ mod tests {
             v7 = make_array [v4] : [&mut u1]
             v8 = allocate -> &mut u1
             store u1 0 at v8
-            v11, v12 = call list_push_back(u32 2, v7, v8) -> (u32, [&mut u1])
+            v11, v12 = call vector_push_back(u32 2, v7, v8) -> (u32, [&mut u1])
             v16 = array_get v12, index u32 1 -> &mut u1
             v17 = load v16 -> u1
             jmpif v17 then: b1, else: b2

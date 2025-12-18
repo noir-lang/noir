@@ -244,9 +244,9 @@ pub enum Token {
     /// &
     Ampersand,
     /// & followed immediately by '['
-    /// This is a lexer hack to distinguish lists
+    /// This is a lexer hack to distinguish vectors
     /// from taking a reference to an array
-    ListStart,
+    VectorStart,
     /// ^
     Caret,
     /// <<
@@ -348,7 +348,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
-        Token::ListStart => BorrowedToken::Ampersand,
+        Token::VectorStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -586,7 +586,7 @@ impl Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::ListStart => write!(f, "&"),
+            Token::VectorStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -864,7 +864,7 @@ impl Display for FuzzingScope {
 // Calls to functions which have the foreign attribute are executed in the host language
 pub struct Attributes {
     // Each function can have a single Primary Attribute
-    pub function: Option<(FunctionAttribute, usize /* index in list */)>,
+    pub function: Option<(FunctionAttribute, usize /* index in vector */)>,
     // Each function can have many Secondary Attributes
     pub secondary: Vec<SecondaryAttribute>,
 }
@@ -879,7 +879,7 @@ impl Attributes {
     }
 
     pub fn set_function(&mut self, function: FunctionAttribute) {
-        // Assume the index in the list doesn't matter anymore at this point
+        // Assume the index in the vector doesn't matter anymore at this point
         self.function = Some((function, 0));
     }
 

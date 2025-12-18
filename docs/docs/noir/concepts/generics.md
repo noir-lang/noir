@@ -129,11 +129,11 @@ The name "turbofish" comes from that `::<>` looks like a little fish.
 Examples:
 ```rust
 fn main() {
-    let mut list = [];
-    list = list.push_back(1);
-    list = list.push_back(2);
+    let mut vector = [];
+    vector = vector.push_back(1);
+    vector = vector.push_back(2);
     // Without turbofish a type annotation would be needed on the left hand side
-    let array = list.as_array::<2>();
+    let array = vector.as_array::<2>();
 }
 ```
 

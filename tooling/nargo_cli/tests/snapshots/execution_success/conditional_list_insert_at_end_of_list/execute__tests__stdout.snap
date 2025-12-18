@@ -1,5 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: stdout
----
-[conditional_list_insert_at_end_of_list] Circuit output: 3

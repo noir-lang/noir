@@ -27,7 +27,7 @@ pub struct Ssa {
     /// Maps SSA entry point function ID -> Final generated ACIR artifact index.
     /// There can be functions specified in SSA which do not act as ACIR entry points.
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
-    /// as the final program artifact will be a list of only entry point functions.
+    /// as the final program artifact will be a vector of only entry point functions.
     #[serde(skip)]
     entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
     // We can skip serializing this field as the error selector types end up as part of the

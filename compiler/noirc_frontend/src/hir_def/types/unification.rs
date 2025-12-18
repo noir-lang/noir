@@ -163,7 +163,7 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
-            (List(elem_a), List(elem_b)) => elem_a.try_unify(elem_b, bindings),
+            (Vector(elem_a), Vector(elem_b)) => elem_a.try_unify(elem_b, bindings),
 
             (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
 
@@ -497,9 +497,9 @@ impl Type {
 
     /// Similar to `unify` but if the check fails this will attempt to coerce the
     /// argument to the target type. When this happens, the given expression is wrapped in
-    /// a new expression to convert its type. E.g. `array` -> `array.as_list()`
+    /// a new expression to convert its type. E.g. `array` -> `array.as_vector()`
     ///
-    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_list()`.
+    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_vector()`.
     pub fn unify_with_coercions(
         &self,
         expected: &Type,
@@ -516,7 +516,7 @@ impl Type {
             return;
         }
 
-        if self.try_array_to_list_coercion(expected, expression, interner) {
+        if self.try_array_to_vector_coercion(expected, expression, interner) {
             return;
         }
 
@@ -568,9 +568,9 @@ impl Type {
         }
     }
 
-    /// Try to apply the array to list coercion to this given type pair and expression.
+    /// Try to apply the array to vector coercion to this given type pair and expression.
     /// If self can be converted to target this way, do so and return true to indicate success.
-    fn try_array_to_list_coercion(
+    fn try_array_to_vector_coercion(
         &self,
         target: &Type,
         expression: ExprId,
@@ -579,15 +579,15 @@ impl Type {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Array(_size, element1), Type::List(element2)) = (&this, &target) {
-            // We can only do the coercion if the `as_list` method exists.
+        if let (Type::Array(_size, element1), Type::Vector(element2)) = (&this, &target) {
+            // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
-            if let Some(as_list) = interner.lookup_direct_method(&this, "as_list", true) {
+            if let Some(as_vector) = interner.lookup_direct_method(&this, "as_vector", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::default();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
-                    invoke_function_on_expression(expression, this, target, as_list, interner);
+                    invoke_function_on_expression(expression, this, target, as_vector, interner);
                     Self::apply_type_bindings(bindings);
                     return true;
                 }
@@ -658,14 +658,14 @@ fn invoke_function_on_expression(
 ) {
     let method_id = interner.function_definition_id(method);
     let location = interner.expr_location(&expression);
-    let as_list = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
+    let as_vector = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
     let func_type = Type::Function(
         vec![expression_type.clone()],
         Box::new(target_type.clone()),
         Box::new(Type::Unit),
         false,
     );
-    let func = interner.push_expr_full(as_list, location, func_type);
+    let func = interner.push_expr_full(as_vector, location, func_type);
 
     // Copy the expression and give it a new ExprId. The old one
     // will be mutated in place into a Call expression.

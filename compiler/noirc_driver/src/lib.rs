@@ -488,7 +488,7 @@ pub fn compute_function_abi(
 /// Run the frontend to check the crate for errors then compile the main function if there were none
 ///
 /// On success this returns the compiled program alongside any warnings that were found.
-/// On error this returns the non-empty list of warnings and errors.
+/// On error this returns the non-empty vector of warnings and errors.
 ///
 /// See [compile_no_check] for further information about the use of `cached_program`.
 pub fn compile_main(

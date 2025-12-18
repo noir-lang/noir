@@ -116,7 +116,7 @@ pub struct SsaEvaluatorOptions {
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
 
-    /// A list of SSA pass messages to skip, for testing purposes.
+    /// A vector of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
 }
 
@@ -160,7 +160,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Dead Instruction Elimination",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_list_optimization, "`as_list` optimization")
+        SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
@@ -258,7 +258,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     ]
 }
 
-/// For testing purposes we want a list of the minimum number of SSA passes that should
+/// For testing purposes we want a vector of the minimum number of SSA passes that should
 /// return the same result as the full pipeline.
 ///
 /// Due to it being minimal, it can only be executed with the Brillig VM; the ACIR runtime

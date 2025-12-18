@@ -27,7 +27,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
-    opt::flatten_cfg::WorkList,
+    opt::flatten_cfg::WorkVector,
 };
 
 use super::flatten_cfg::Context;
@@ -62,7 +62,7 @@ impl Ssa {
 /// 'Small' basic blocks means that we expect their execution cost to be small.
 ///
 /// In case the block is the entry of a 'simple conditional', the function returns a BasicConditional which
-/// consist of the list of the conditional blocks:
+/// consist of the vector of the conditional blocks:
 ///     block_entry
 ///      /       \
 /// block_then   block_else
@@ -250,7 +250,7 @@ fn flatten_function(function: &mut Function, no_predicates: &mut HashMap<Functio
     let cfg = ControlFlowGraph::with_function(function);
     let mut stack = vec![function.entry_block()];
     let mut processed = HashSet::new();
-    // List of all the simple conditionals that we will identify in the function
+    // Vector of all the simple conditionals that we will identify in the function
     let mut conditionals = Vec::new();
 
     // 1. Process all blocks of the cfg, starting from the root and following the successors
@@ -285,7 +285,7 @@ fn flatten_function(function: &mut Function, no_predicates: &mut HashMap<Functio
 /// flattening results are then propagated throughout the entire function.
 ///
 /// # Parameters
-/// * `conditionals` - The list of basic conditionals to flatten, assumed in reverse order
+/// * `conditionals` - The vector of basic conditionals to flatten, assumed in reverse order
 /// * `function` - The function being optimized
 /// * `no_predicates` - Map of function IDs to their no_predicates attribute for handling function calls
 ///
@@ -336,7 +336,7 @@ impl Context<'_> {
     /// - Sets up context state (target_block, no_predicate) to enable proper inlining
     /// - Inlines each block's instructions into the entry block
     /// - Handles terminators to manage control flow during inlining
-    /// - Uses a WorkList to track which blocks need processing
+    /// - Uses a WorkVector to track which blocks need processing
     /// - Copies the exit block's terminator to the entry block after inlining
     /// - Restores original context state after completion
     fn flatten_single_conditional(
@@ -352,23 +352,23 @@ impl Context<'_> {
         self.no_predicate = true;
         //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
-        let mut work_list = WorkList::new();
-        let to_process = self.handle_terminator(conditional.block_entry, &work_list);
-        work_list.extend(to_process);
+        let mut work_vector = WorkVector::new();
+        let to_process = self.handle_terminator(conditional.block_entry, &work_vector);
+        work_vector.extend(to_process);
 
         if let Some(then) = conditional.block_then {
-            assert_eq!(work_list.pop(), conditional.block_then);
+            assert_eq!(work_vector.pop(), conditional.block_then);
             self.inline_block(then, no_predicates);
-            let to_process = self.handle_terminator(then, &work_list);
-            work_list.extend(to_process);
+            let to_process = self.handle_terminator(then, &work_vector);
+            work_vector.extend(to_process);
         }
 
         //2. process 'else' branch, in case there is no 'then'
-        let next = work_list.pop();
+        let next = work_vector.pop();
         if next == conditional.block_else {
             let next = next.unwrap();
             self.inline_block(next, no_predicates);
-            let _ = self.handle_terminator(next, &work_list);
+            let _ = self.handle_terminator(next, &work_vector);
         } else {
             assert_eq!(next, Some(conditional.block_exit));
         }

@@ -41,7 +41,7 @@ pub struct GenericOptions<'a, T> {
     pub pedantic_solving: bool,
 
     /// Unstable compiler features that were explicitly enabled. Any unstable features
-    /// that are not in this list result in an error when used.
+    /// that are not in this vector result in an error when used.
     pub enabled_unstable_features: &'a [UnstableFeature],
 
     /// Deny crates from requiring unstable features.

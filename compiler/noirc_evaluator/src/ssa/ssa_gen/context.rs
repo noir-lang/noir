@@ -147,9 +147,9 @@ impl<'a> FunctionContext<'a> {
         self.add_parameters_to_scope(&func.parameters);
     }
 
-    /// Add each parameter to the current scope, and return the list of parameter types.
+    /// Add each parameter to the current scope, and return the vector of parameter types.
     ///
-    /// The returned parameter type list will be flattened, so any struct parameters will
+    /// The returned parameter type vector will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
         for (id, mutable, _, typ, _visibility) in parameters {
@@ -222,11 +222,11 @@ impl<'a> FunctionContext<'a> {
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
-            ast::Type::List(elements) => {
+            ast::Type::Vector(elements) => {
                 let element_types = Self::convert_type(elements).flatten();
                 Tree::Branch(vec![
                     Tree::Leaf(f(Type::length_type())),
-                    Tree::Leaf(f(Type::List(Arc::new(element_types)))),
+                    Tree::Leaf(f(Type::Vector(Arc::new(element_types)))),
                 ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
@@ -262,7 +262,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
-            ast::Type::List(_) => panic!("convert_non_tuple_type called on a list: {typ}"),
+            ast::Type::Vector(_) => panic!("convert_non_tuple_type called on a vector: {typ}"),
             ast::Type::Reference(element, _) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
@@ -693,8 +693,8 @@ impl<'a> FunctionContext<'a> {
     /// Compile the given `array[index]` expression as a reference.
     /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing lists rather than arrays since lists
-    /// are represented as a tuple in the form: (length, list contents).
+    /// The optional length is for indexing vectors rather than arrays since vectors
+    /// are represented as a tuple in the form: (length, vector contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
@@ -704,19 +704,19 @@ impl<'a> FunctionContext<'a> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
         let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
-        let array_values = old_array.clone().into_value_list(self);
+        let array_values = old_array.clone().into_value_vector(self);
 
         let location = *location;
-        // A list is represented as a tuple (length, list contents).
+        // A vector is represented as a tuple (length, vector contents).
         // We need to fetch the second value.
         Ok(if array_values.len() > 1 {
-            let list_lvalue = LValue::ListIndex {
-                old_list: old_array,
+            let vector_lvalue = LValue::VectorIndex {
+                old_vector: old_array,
                 index,
-                list_lvalue: array_lvalue,
+                vector_lvalue: array_lvalue,
                 location,
             };
-            (array_values[1], index, list_lvalue, Some(array_values[0]))
+            (array_values[1], index, vector_lvalue, Some(array_values[0]))
         } else {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
@@ -795,31 +795,31 @@ impl<'a> FunctionContext<'a> {
                             self.codegen_access_check(index, len);
                         }
                     }
-                    _ => unreachable!("must have array or list but got {array_type}"),
+                    _ => unreachable!("must have array or vector but got {array_type}"),
                 }
 
                 array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
-            LValue::ListIndex { old_list: list, index, list_lvalue, location } => {
-                let mut list_values = list.into_value_list(self);
+            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } => {
+                let mut vector_values = vector.into_value_vector(self);
 
-                let array_type = &self.builder.type_of_value(list_values[1]);
+                let array_type = &self.builder.type_of_value(vector_values[1]);
 
                 // Checks for index Out-of-bounds
                 match array_type {
-                    Type::List(_) => {
-                        self.codegen_access_check(index, list_values[0]);
+                    Type::Vector(_) => {
+                        self.codegen_access_check(index, vector_values[0]);
                     }
-                    _ => unreachable!("must have array or list but got {array_type}"),
+                    _ => unreachable!("must have array or vector but got {array_type}"),
                 }
 
-                list_values[1] =
-                    self.assign_lvalue_index(new_value, list_values[1], index, location);
+                vector_values[1] =
+                    self.assign_lvalue_index(new_value, vector_values[1], index, location);
 
-                // The size of the list does not change in a list index assignment so we can reuse the same length value
-                let new_list = Tree::Branch(vec![list_values[0].into(), list_values[1].into()]);
-                self.assign_new_value(*list_lvalue, new_list);
+                // The size of the vector does not change in a vector index assignment so we can reuse the same length value
+                let new_vector = Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
+                self.assign_new_value(*vector_lvalue, new_vector);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
@@ -1024,7 +1024,7 @@ impl SharedContext {
 pub(super) enum LValue {
     Ident,
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
-    ListIndex { old_list: Values, index: ValueId, list_lvalue: Box<LValue>, location: Location },
+    VectorIndex { old_vector: Values, index: ValueId, vector_lvalue: Box<LValue>, location: Location },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
 }

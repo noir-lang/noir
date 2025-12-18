@@ -124,7 +124,7 @@ impl Elaborator<'_> {
                     Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
                         Ok((type_var.clone(), name))
                     }
-                    other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
+                    other => Err(ResolverError::MacroResultInGenericsVectorNotAGeneric {
                         location: *location,
                         typ: other.clone(),
                     }),
@@ -250,7 +250,7 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
                 self.visit_type(length);
                 self.visit_type(element);
             }
-            Type::List(element) => {
+            Type::Vector(element) => {
                 self.visit_type(element);
             }
             Type::FmtString(length, element) => {

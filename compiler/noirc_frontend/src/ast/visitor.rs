@@ -136,7 +136,7 @@ pub trait Visitor {
 
     fn visit_use_tree_path(&mut self, _: &UseTree, _ident: &Ident, _alias: &Option<Ident>) {}
 
-    fn visit_use_tree_list(&mut self, _: &UseTree, _: &[UseTree]) -> bool {
+    fn visit_use_tree_vector(&mut self, _: &UseTree, _: &[UseTree]) -> bool {
         true
     }
 
@@ -166,7 +166,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_literal_list(&mut self, _: &ArrayLiteral, _: Span) -> bool {
+    fn visit_literal_vector(&mut self, _: &ArrayLiteral, _: Span) -> bool {
         true
     }
 
@@ -383,7 +383,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_list_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+    fn visit_vector_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
         true
     }
 
@@ -824,8 +824,8 @@ impl UseTree {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match &self.kind {
             UseTreeKind::Path(ident, alias) => visitor.visit_use_tree_path(self, ident, alias),
-            UseTreeKind::List(use_trees) => {
-                if visitor.visit_use_tree_list(self, use_trees) {
+            UseTreeKind::Vector(use_trees) => {
+                if visitor.visit_use_tree_vector(self, use_trees) {
                     for use_tree in use_trees {
                         use_tree.accept(visitor);
                     }
@@ -1000,8 +1000,8 @@ impl Literal {
                     array_literal.accept(span, visitor);
                 }
             }
-            Literal::List(array_literal) => {
-                if visitor.visit_literal_list(array_literal, span) {
+            Literal::Vector(array_literal) => {
+                if visitor.visit_literal_vector(array_literal, span) {
                     array_literal.accept(span, visitor);
                 }
             }
@@ -1425,8 +1425,8 @@ impl UnresolvedType {
                     unresolved_type.accept(visitor);
                 }
             }
-            UnresolvedTypeData::List(unresolved_type) => {
-                if visitor.visit_list_type(unresolved_type, self.location.span) {
+            UnresolvedTypeData::Vector(unresolved_type) => {
+                if visitor.visit_vector_type(unresolved_type, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }

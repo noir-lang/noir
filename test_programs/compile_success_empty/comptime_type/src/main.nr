@@ -67,13 +67,13 @@ fn main() {
         assert_eq(tuple_types[0], i32_type);
         assert_eq(tuple_types[1], u8_type);
 
-        // Check Type::as_list
-        assert(u8_type.as_list().is_none());
+        // Check Type::as_vector
+        assert(u8_type.as_vector().is_none());
 
-        let list = &[1];
-        let list_type = type_of(list);
-        let list_type_element_type = list_type.as_list().unwrap();
-        assert_eq(list_type_element_type, field_type_1);
+        let vector = &[1];
+        let vector_type = type_of(vector);
+        let vector_type_element_type = vector_type.as_vector().unwrap();
+        assert_eq(vector_type_element_type, field_type_1);
 
         // Check Type::as_array
         assert(u8_type.as_array().is_none());

@@ -173,9 +173,9 @@ impl Tree<Type> {
 }
 
 impl Tree<Value> {
-    /// Flattens and evaluates this `Tree<Value>` into a list of ir values
+    /// Flattens and evaluates this `Tree<Value>` into a vector of ir values
     /// for return statements, branching instructions, or function parameters.
-    pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
+    pub(super) fn into_value_vector(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
         vecmap(self.flatten(), |value| value.eval(ctx))
     }
 }

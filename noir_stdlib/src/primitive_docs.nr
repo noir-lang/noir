@@ -2,7 +2,7 @@
 /// and the non-negative compile-time constant size, `N`.
 ///
 /// There are two syntactic forms for creating an array:
-/// * A list with each element, i.e., `[x, y, z]`.
+/// * A vector with each element, i.e., `[x, y, z]`.
 /// * A repeat expression `[expr; N]` where `N` is how many times to repeat `expr` in the array.
 #['nargo_doc_primitive array]
 mod primitive_array {}
@@ -160,11 +160,11 @@ mod primitive_Quoted {}
 
 /// A dynamically-sized view into a contiguous sequence, `[T]`.
 ///
-/// There are two syntactic forms for creating a list:
-/// * A list with each element, i.e., `&[x, y, z]`.
-/// * A repeat expression `&[expr; N]` where `N` is how many times to repeat `expr` in the list.
-#['nargo_doc_primitive list]
-mod primitive_list {}
+/// There are two syntactic forms for creating a vector:
+/// * A vector with each element, i.e., `&[x, y, z]`.
+/// * A repeat expression `&[expr; N]` where `N` is how many times to repeat `expr` in the vector.
+#['nargo_doc_primitive vector]
+mod primitive_vector {}
 
 /// The string type.
 ///

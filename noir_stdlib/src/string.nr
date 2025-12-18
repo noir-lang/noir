@@ -1,4 +1,3 @@
-use crate::collections::vec::Vec;
 use crate::convert::From;
 
 impl<let N: u32> str<N> {
@@ -7,8 +6,8 @@ impl<let N: u32> str<N> {
     pub fn as_bytes(self) -> [u8; N] {}
 
     /// return a byte vector of the str content
-    pub fn as_bytes_vec(self: Self) -> Vec<u8> {
-        Vec::from_list(self.as_bytes().as_list())
+    pub fn as_bytes_vec(self: Self) -> [u8] {
+        self.as_bytes().as_vector()
     }
 }
 

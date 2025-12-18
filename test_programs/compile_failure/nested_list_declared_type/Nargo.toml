@@ -1,7 +1,0 @@
-[package]
-name = "nested_list_declared_type"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.22.0"
-
-[dependencies]

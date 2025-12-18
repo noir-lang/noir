@@ -43,8 +43,8 @@ Additional fuzzing-specific options include:
           If given, perform corpus minimization instead of fuzzing and store results in the given folder
       --fuzzing-failure-dir <FUZZING_FAILURE_DIR>
           If given, store the failing input in the given folder
-      --list-all
-          List all available harnesses that match the name (doesn't perform any fuzzing)
+      --vector-all
+          Vector all available harnesses that match the name (doesn't perform any fuzzing)
       --num-threads <NUM_THREADS>
           The number of threads to use for fuzzing [default: 1]
       --exact

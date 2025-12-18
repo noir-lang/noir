@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Oracle functions cannot return multiple lists
+error: Oracle functions cannot return multiple vectors
   ┌─ src/main.nr:5:18
   │
 5 │ unconstrained fn void_to_vectors_oracle() -> ([Field], [Field]) {}

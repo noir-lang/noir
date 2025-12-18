@@ -33,14 +33,14 @@ pub(crate) enum UseSegmentPosition {
     ///
     /// use foo::bar::{qux, baz};
     BeforeSegment { segment_span_until_end: Span },
-    /// The segment happens before a list:
+    /// The segment happens before a vector:
     ///
     /// use foo::bar::{qux, another};
     ///
     /// Auto-import will transform it to this:
     ///
     /// use foo::bar::{qux, another, baz};
-    BeforeList { first_entry_span: Span, list_is_empty: bool },
+    BeforeVector { first_entry_span: Span, vector_is_empty: bool },
 }
 
 /// Remembers where each segment in a `use` statement is located.
@@ -145,7 +145,7 @@ impl UseSegmentPositions {
                     self.insert_use_segment_position(prefix, UseSegmentPosition::NoneOrMultiple);
                 }
             }
-            UseTreeKind::List(use_trees) => {
+            UseTreeKind::Vector(use_trees) => {
                 for use_tree in use_trees {
                     self.gather_use_tree_segments(use_tree, prefix.clone());
                 }
@@ -169,23 +169,23 @@ impl UseSegmentPositions {
                     },
                 );
             }
-            UseTreeKind::List(use_trees) => {
+            UseTreeKind::Vector(use_trees) => {
                 if let Some(first_use_tree) = use_trees.first() {
                     self.insert_use_segment_position(
                         prefix,
-                        UseSegmentPosition::BeforeList {
+                        UseSegmentPosition::BeforeVector {
                             first_entry_span: first_use_tree.prefix.span(),
-                            list_is_empty: false,
+                            vector_is_empty: false,
                         },
                     );
                 } else {
                     self.insert_use_segment_position(
                         prefix,
-                        UseSegmentPosition::BeforeList {
+                        UseSegmentPosition::BeforeVector {
                             first_entry_span: Span::from(
                                 use_tree.location.span.end() - 1..use_tree.location.span.end() - 1,
                             ),
-                            list_is_empty: true,
+                            vector_is_empty: true,
                         },
                     );
                 }
@@ -290,7 +290,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
                 new_use_completion_item_additional_text_edits(request)
             }
         }
-        UseSegmentPosition::BeforeList { first_entry_span, list_is_empty } => {
+        UseSegmentPosition::BeforeVector { first_entry_span, vector_is_empty } => {
             // We have
             //
             // use foo::bar::{one, two};
@@ -308,7 +308,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: if list_is_empty { name } else { format!("{name}, ") },
+                    new_text: if vector_is_empty { name } else { format!("{name}, ") },
                     range: Range { start: range.start, end: range.start },
                 }]
             } else {

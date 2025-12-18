@@ -2,10 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Nested lists, i.e. lists within an array or list, are not supported
+error: Nested vectors, i.e. vectors within an array or vector, are not supported
   ┌─ src/main.nr:4:15
   │
-4 │     let list: [[Field]] = [];
+4 │     let vector: [[Field]] = [];
   │               --------- Try to use a constant sized array or BoundedVec instead
   │
 

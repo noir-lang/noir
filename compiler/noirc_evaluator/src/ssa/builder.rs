@@ -13,7 +13,7 @@ use super::{Ssa, SsaLogging};
 
 type SsaPassResult = Result<Ssa, RuntimeError>;
 
-/// An SSA pass reified as a construct we can put into a list,
+/// An SSA pass reified as a construct we can put into a vector,
 /// which facilitates equivalence testing between different
 /// stages of the processing pipeline.
 pub struct SsaPass<'a> {
@@ -82,7 +82,7 @@ pub struct SsaBuilder<'local> {
     /// Counters indexed by the message in the SSA pass, so we can distinguish between multiple
     /// runs of the same pass in the printed messages.
     passed: HashMap<String, usize>,
-    /// List of SSA pass message fragments that we want to skip, for testing purposes.
+    /// Vector of SSA pass message fragments that we want to skip, for testing purposes.
     skip_passes: Vec<String>,
 
     /// Providing a file manager is optional - if provided it can be used to print source
@@ -145,7 +145,7 @@ impl<'local> SsaBuilder<'local> {
         self.ssa.generate_entry_point_index()
     }
 
-    /// Run a list of SSA passes.
+    /// Run a vector of SSA passes.
     pub fn run_passes(mut self, passes: &[SsaPass]) -> Result<Self, RuntimeError> {
         for pass in passes {
             self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg)?;

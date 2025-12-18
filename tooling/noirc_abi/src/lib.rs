@@ -173,7 +173,7 @@ pub struct AbiReturnType {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
-    /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
+    /// An ordered vector of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
     #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
@@ -457,7 +457,7 @@ pub enum AbiErrorType {
 /// Decode the raw revert data according to some error type descriptor.
 ///
 /// By contrast to how arguments are passed to foreign calls, the revert data is already flattened,
-/// so we don't have control over how we flatten the data before decoding, however note that lists
+/// so we don't have control over how we flatten the data before decoding, however note that vectors
 /// are not allowed in revert data, so this shouldn't be a problem.
 pub fn display_abi_error<F: AcirField>(
     fields: &[F],

@@ -40,8 +40,8 @@ use crate::{
 pub(super) struct SharedContext<F: AcirField> {
     brillig_stdlib: BrilligStdLib<F>,
 
-    /// Final list of Brillig functions which will be part of the final program
-    /// This is shared across `Context` structs as we want one list of Brillig
+    /// Final vector of Brillig functions which will be part of the final program
+    /// This is shared across `Context` structs as we want one vector of Brillig
     /// functions across all ACIR artifacts
     generated_brillig: Vec<GeneratedBrillig<F>>,
 
@@ -49,7 +49,7 @@ pub(super) struct SharedContext<F: AcirField> {
     /// There can be Brillig functions specified in SSA which do not act as
     /// entry points in ACIR (e.g. only called by other Brillig functions)
     /// This mapping is necessary to use the correct function pointer for a Brillig call.
-    /// This uses the brillig parameters in the map since using lists with different lengths
+    /// This uses the brillig parameters in the map since using vectors with different lengths
     /// needs to create different brillig entrypoints
     brillig_generated_func_pointers:
         BTreeMap<(FunctionId, Vec<BrilligParameter>), BrilligFunctionId>,
@@ -160,7 +160,7 @@ impl<F: AcirField> SharedContext<F> {
         self.brillig_stdlib_calls_to_resolve.entry(func_id).or_default().push(call_to_resolve);
     }
 
-    /// Get and remove the list of unresolved stdlib call sites for a given function
+    /// Get and remove the vector of unresolved stdlib call sites for a given function
     pub(super) fn remove_call_to_resolve(
         &mut self,
         func_id: FunctionId,
@@ -313,7 +313,7 @@ mod tests {
         context
             .brillig_generated_func_pointers
             .insert((func_id, args.clone()), BrilligFunctionId(0));
-        // This should panic because the list of Brillig artifacts is empty
+        // This should panic because the vector of Brillig artifacts is empty
         let pointer = context.generated_brillig_pointer(func_id, args).unwrap();
         let _ = &context.generated_brillig(pointer.as_usize());
     }

@@ -424,7 +424,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 var.unbind(var.id(), kind.clone());
             }
         }
-        // Push a new bindings list for the current function
+        // Push a new bindings vector for the current function
         self.bound_generics.push(HashMap::default());
     }
 
@@ -741,7 +741,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_format_string(fragments, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
-            HirLiteral::List(array) => self.evaluate_list(array, id),
+            HirLiteral::Vector(array) => self.evaluate_vector(array, id),
         }
     }
 
@@ -859,9 +859,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_list(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_vector(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
         self.evaluate_array(array, id).map(|value| match value {
-            Value::Array(array, typ) => Value::List(array, typ),
+            Value::Array(array, typ) => Value::Vector(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
         })
     }
@@ -1315,7 +1315,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let constructor = match &array_value {
                     Value::Array(..) => Value::Array,
-                    _ => Value::List,
+                    _ => Value::Vector,
                 };
 
                 let typ = array_value.get_type().into_owned();
@@ -1695,7 +1695,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
-        Value::List(array, _) => array,
+        Value::Vector(array, _) => array,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonArrayIndexed { typ, location });

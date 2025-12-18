@@ -124,15 +124,15 @@ pub(super) fn oracle_not_marked_unconstrained(
     }
 }
 
-/// Oracle functions cannot return more than 1 list in their output.
+/// Oracle functions cannot return more than 1 vector in their output.
 ///
-/// This is currently a limitation with the AVM: to return multiple lists
+/// This is currently a limitation with the AVM: to return multiple vectors
 /// of unknown length, it would need to support allocating memory for
 /// them in the call handler, and return their final address. Currently
 /// only the Brillig codegen knows about the Free Memory Pointer, and
 /// the VM writes to whatever address is in the destination, so we
 /// can only safely deal with one vector.
-pub(super) fn oracle_returns_multiple_lists(
+pub(super) fn oracle_returns_multiple_vectors(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
@@ -141,27 +141,27 @@ pub(super) fn oracle_returns_multiple_lists(
         return None;
     }
 
-    fn list_count(typ: &Type) -> usize {
+    fn vector_count(typ: &Type) -> usize {
         match typ {
-            Type::Array(_, item) => list_count(item),
-            Type::List(typ) => 1 + list_count(typ),
-            Type::FmtString(_, item) => list_count(item),
-            Type::Tuple(items) => items.iter().map(list_count).sum(),
+            Type::Array(_, item) => vector_count(item),
+            Type::Vector(typ) => 1 + vector_count(typ),
+            Type::FmtString(_, item) => vector_count(item),
+            Type::Tuple(items) => items.iter().map(vector_count).sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, typ, _)| list_count(typ)).sum()
+                    fields.iter().map(|(_, typ, _)| vector_count(typ)).sum()
                 } else if let Some(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(_, types)| types).map(list_count).sum()
+                    variants.iter().flat_map(|(_, types)| types).map(vector_count).sum()
                 } else {
                     0
                 }
             }
-            Type::Alias(def, args) => list_count(&def.borrow().get_type(args)),
+            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args)),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => list_count(binding),
+                    TypeBinding::Bound(binding) => vector_count(binding),
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -182,9 +182,9 @@ pub(super) fn oracle_returns_multiple_lists(
         }
     }
 
-    if list_count(func.return_type()) > 1 {
+    if vector_count(func.return_type()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleReturnsMultipleLists { location: ident.location() })
+        Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {
         None
     }
@@ -220,15 +220,15 @@ pub(super) fn unconstrained_function_args(
 }
 
 /// Check that that a type returned from an unconstrained to a constrained runtime is safe:
-/// * cannot return lists
+/// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
 ) -> Option<TypeCheckError> {
-    if return_type.contains_list() {
-        Some(TypeCheckError::UnconstrainedListReturnToConstrained { location })
+    if return_type.contains_vector() {
+        Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } else if return_type.contains_function() {
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {

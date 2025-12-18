@@ -1,6 +1,0 @@
-[package]
-name = "global_list_rc_regression_8259"
-type = "bin"
-authors = [""]
-
-[dependencies]

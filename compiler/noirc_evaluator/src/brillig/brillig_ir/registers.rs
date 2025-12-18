@@ -115,7 +115,7 @@ pub(crate) trait RegisterAllocator {
     fn end(&self) -> usize;
     /// Allocates a new register.
     fn allocate_register(&mut self) -> MemoryAddress;
-    /// Push a register to the deallocation list, ready for reuse.
+    /// Push a register to the deallocation vector, ready for reuse.
     fn deallocate_register(&mut self, register: MemoryAddress);
     /// Ensures a register is allocated, allocating it if necessary.
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
@@ -135,13 +135,13 @@ pub(crate) trait RegisterAllocator {
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
 pub(crate) struct Stack {
-    storage: DeallocationListAllocator,
+    storage: DeallocationVectorAllocator,
     layout: LayoutConfig,
 }
 
 impl Stack {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()), layout }
+        Self { storage: DeallocationVectorAllocator::new(Self::start()), layout }
     }
 
     /// Check if a `Relative` address is within the bounds of the stack.
@@ -194,7 +194,7 @@ impl RegisterAllocator for Stack {
         }
 
         Self {
-            storage: DeallocationListAllocator::from_preallocated_registers(
+            storage: DeallocationVectorAllocator::from_preallocated_registers(
                 empty.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_relative()),
             ),
@@ -215,13 +215,13 @@ impl RegisterAllocator for Stack {
 /// This avoids having to dump and restore the stack to call procedures.
 /// The scratch space is a much smaller set of memory cells.
 pub(crate) struct ScratchSpace {
-    storage: DeallocationListAllocator,
+    storage: DeallocationVectorAllocator,
     layout: LayoutConfig,
 }
 
 impl ScratchSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()), layout }
+        Self { storage: DeallocationVectorAllocator::new(Self::start()), layout }
     }
 
     /// Check if a `Direct` address is within the bounds of the scratch space.
@@ -277,7 +277,7 @@ impl RegisterAllocator for ScratchSpace {
         }
 
         Self {
-            storage: DeallocationListAllocator::from_preallocated_registers(
+            storage: DeallocationVectorAllocator::from_preallocated_registers(
                 empty.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
@@ -299,7 +299,7 @@ impl RegisterAllocator for ScratchSpace {
 /// and is read-only.
 #[derive(Default)]
 pub(crate) struct GlobalSpace {
-    storage: DeallocationListAllocator,
+    storage: DeallocationVectorAllocator,
     max_memory_address: usize,
     layout: LayoutConfig,
 }
@@ -307,7 +307,7 @@ pub(crate) struct GlobalSpace {
 impl GlobalSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         let start = Self::start_with_layout(&layout);
-        Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
+        Self { storage: DeallocationVectorAllocator::new(start), max_memory_address: start, layout }
     }
 
     /// Expand the global space to fit a new register if necessary.
@@ -378,8 +378,8 @@ impl RegisterAllocator for GlobalSpace {
 /// When asked to allocate a new register, it returns a deallocated one,
 /// or expands the high water mark of registers.
 #[derive(Default)]
-struct DeallocationListAllocator {
-    /// A free-list of registers that have been deallocated and can be used again.
+struct DeallocationVectorAllocator {
+    /// A free-vector of registers that have been deallocated and can be used again.
     deallocated_registers: BTreeSet<usize>,
     /// A usize indicating the next unused register.
     next_free_register_index: usize,
@@ -387,7 +387,7 @@ struct DeallocationListAllocator {
     start_register_index: usize,
 }
 
-impl DeallocationListAllocator {
+impl DeallocationVectorAllocator {
     /// Create a new allocator, starting a specific slot (could be direct or relative).
     fn new(start: usize) -> Self {
         Self {
@@ -404,7 +404,7 @@ impl DeallocationListAllocator {
     /// If the register is already allocated (ie. it fits and isn't deallocated) then nothing happens.
     fn ensure_register_is_allocated(&mut self, index: usize) {
         if index < self.next_free_register_index {
-            // If it could be allocated, check if it's in the deallocated list and remove it from there
+            // If it could be allocated, check if it's in the deallocated vector and remove it from there
             self.deallocated_registers.remove(&index);
         } else {
             // If it couldn't yet be, expand the register space.
@@ -414,7 +414,7 @@ impl DeallocationListAllocator {
 
     /// Returns the first deallocated register, or expands the range to fit a new one.
     fn allocate_register(&mut self) -> usize {
-        // If we have a register in our free list of deallocated registers,
+        // If we have a register in our free vector of deallocated registers,
         // consume it first. This prioritizes reuse.
         if let Some(register) = self.deallocated_registers.pop_first() {
             return register;
@@ -425,7 +425,7 @@ impl DeallocationListAllocator {
         register
     }
 
-    /// Adds the register to the deallocation list.
+    /// Adds the register to the deallocation vector.
     ///
     /// Panics if:
     /// * The register is already deallocated.
@@ -441,7 +441,7 @@ impl DeallocationListAllocator {
     }
 
     /// Create an allocator that ranges from `start` to just after the highest
-    /// preallocated register, with everything not on that list considered deallocated
+    /// preallocated register, with everything not on that vector considered deallocated
     /// and ready to be used.
     fn from_preallocated_registers(start: usize, preallocated_registers: Vec<usize>) -> Self {
         let next_free_register_index = preallocated_registers.iter().fold(
@@ -496,7 +496,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         Allocated::new_addr(addr, self.registers.clone())
     }
 
-    /// Resets the registers to a new list of allocated ones.
+    /// Resets the registers to a new vector of allocated ones.
     pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
         self.registers = Rc::new(RefCell::new(Registers::from_preallocated_registers(
             allocated_registers,
@@ -586,14 +586,14 @@ pub(crate) struct Allocated<T, R: RegisterAllocator> {
     inner: Option<AllocatedInner<T, R>>,
 }
 
-/// Address list with enough slots for `HeapVector`.
-type AddressList = SmallVec<[MemoryAddress; 2]>;
+/// Address vector with enough slots for `HeapVector`.
+type AddressVector = SmallVec<[MemoryAddress; 2]>;
 
 struct AllocatedInner<A, R> {
     /// The value that we actually wanted to use, holding the allocated `MemoryAddress`.
     value: A,
     /// Addresses allocated.
-    addresses: AddressList,
+    addresses: AddressVector,
     /// Reference to the registers, for deallocation.
     /// Optional so that pure values don't have to clone the registers.
     registers: Option<Rc<RefCell<R>>>,
@@ -630,7 +630,7 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
     }
 
     /// Create an [Allocated] value that deallocates its associated addresses at the end.
-    pub(crate) fn new(value: A, addresses: AddressList, registers: Rc<RefCell<R>>) -> Self {
+    pub(crate) fn new(value: A, addresses: AddressVector, registers: Rc<RefCell<R>>) -> Self {
         Self::from_inner(AllocatedInner { value, addresses, registers: Some(registers) })
     }
 
@@ -690,7 +690,7 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
         })
     }
 
-    fn merge_addresses(mut a: AddressList, mut b: AddressList) -> AddressList {
+    fn merge_addresses(mut a: AddressVector, mut b: AddressVector) -> AddressVector {
         a.append(&mut b);
         a.sort();
         a.dedup();
@@ -730,7 +730,7 @@ impl<A, R: RegisterAllocator> DerefMut for Allocated<A, R> {
 mod tests {
     use crate::brillig::brillig_ir::{
         LayoutConfig,
-        registers::{DeallocationListAllocator, RegisterAllocator, Stack},
+        registers::{DeallocationVectorAllocator, RegisterAllocator, Stack},
     };
 
     #[test]
@@ -749,22 +749,22 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn deallocation_list_deallocate_before_start() {
-        let mut allocator = DeallocationListAllocator::new(10);
+    fn deallocation_vector_deallocate_before_start() {
+        let mut allocator = DeallocationVectorAllocator::new(10);
         allocator.deallocate_register(5);
     }
 
     #[test]
     #[should_panic]
-    fn deallocation_list_deallocate_after_end() {
-        let mut allocator = DeallocationListAllocator::new(10);
+    fn deallocation_vector_deallocate_after_end() {
+        let mut allocator = DeallocationVectorAllocator::new(10);
         allocator.deallocate_register(15);
     }
 
     #[test]
     #[should_panic]
-    fn deallocation_list_deallocate_twice() {
-        let mut allocator = DeallocationListAllocator::from_preallocated_registers(0, vec![10]);
+    fn deallocation_vector_deallocate_twice() {
+        let mut allocator = DeallocationVectorAllocator::from_preallocated_registers(0, vec![10]);
         allocator.deallocate_register(5);
     }
 }

@@ -1,0 +1,155 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable value
+   ┌─ src/main.nr:12:40
+   │
+12 │ unconstrained fn create_foo(id: Field, value: Field) -> NestedVectorStruct {
+   │                                        ----- unused variable
+   │
+
+error: No method named 'push_back' found for type '[Field; 1]'
+   ┌─ src/main.nr:14:11
+   │
+14 │     arr = arr.push_back(value);
+   │           --------------------
+   │
+
+error: Cannot assign an expression of type [NestedVectorStruct] to a value of type [NestedVectorStruct; 2]
+   ┌─ src/main.nr:27:14
+   │
+27 │     vector = push_back_to_vector(vector, create_foo(0, 42));
+   │              ----------------------------------------------
+   │
+
+error: No method named 'push_front' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:39:14
+   │
+39 │     vector = vector.push_front(create_foo(1, 43));
+   │              ------------------------------------
+   │
+
+error: No method named 'push_back' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:40:14
+   │
+40 │     vector = vector.push_back(create_foo(2, 44));
+   │              -----------------------------------
+   │
+
+error: No method named 'pop_front' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:44:28
+   │
+44 │     let pop_front_result = vector.pop_front();
+   │                            ------------------
+   │
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:45:31
+   │
+45 │     vector = pop_front_result.1;
+   │                               - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:46:29
+   │
+46 │     assert(pop_front_result.0.id == 1);
+   │                             - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: No method named 'pop_back' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:48:27
+   │
+48 │     let pop_back_result = vector.pop_back();
+   │                           -----------------
+   │
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:49:30
+   │
+49 │     vector = pop_back_result.0;
+   │                              - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:50:28
+   │
+50 │     assert(pop_back_result.1.id == 2);
+   │                            - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: No method named 'remove' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:54:29
+   │
+54 │     let mut remove_result = vector.remove(0);
+   │                             ----------------
+   │
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:55:28
+   │
+55 │     vector = remove_result.0;
+   │                            - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:56:42
+   │
+56 │     let mut removed_item = remove_result.1;
+   │                                          - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:57:25
+   │
+57 │     assert(removed_item.arr[0] == a);
+   │                         --- Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: No method named 'remove' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:59:21
+   │
+59 │     remove_result = vector.remove(1);
+   │                     ----------------
+   │
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:60:28
+   │
+60 │     vector = remove_result.0;
+   │                            - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:61:34
+   │
+61 │     removed_item = remove_result.1;
+   │                                  - Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: Object type is unknown in field access
+   ┌─ src/main.nr:62:25
+   │
+62 │     assert(removed_item.arr[0] == 0);
+   │                         --- Type must be known by this point
+   │
+   = Try adding a type annotation for the object type before this expression
+
+error: No method named 'insert' found for type '[NestedVectorStruct; 2]'
+   ┌─ src/main.nr:67:14
+   │
+67 │     vector = vector.insert(1, removed_item);
+   │              ------------------------------
+   │
+
+Aborting due to 19 previous errors

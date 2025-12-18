@@ -51,7 +51,7 @@ impl Ssa {
             // Start with an inline pass.
             let mut function = function.inlined(&self, &should_inline_call)?;
             // Help unrolling determine bounds.
-            function.as_list_optimization();
+            function.as_vector_optimization();
             // Prepare for unrolling
             function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.

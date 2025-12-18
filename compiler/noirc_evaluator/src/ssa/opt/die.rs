@@ -189,19 +189,19 @@ impl Function {
             );
 
             let parameters = self.dfg[*block].parameters();
-            let mut keep_list = Vec::with_capacity(parameters.len());
+            let mut keep_vector = Vec::with_capacity(parameters.len());
             let unused_params = parameters
                 .iter()
                 .filter(|value| {
                     let keep = context.used_values.contains(value);
-                    keep_list.push(keep);
+                    keep_vector.push(keep);
                     !keep
                 })
                 .copied()
                 .collect::<Vec<_>>();
 
             unused_params_per_block.insert(*block, unused_params);
-            context.parameter_keep_list.insert(*block, keep_list);
+            context.parameter_keep_vector.insert(*block, keep_vector);
         }
 
         // If we inserted out of bounds check, let's run the pass again with those new
@@ -237,16 +237,16 @@ struct Context {
     /// them just yet.
     flattened: bool,
 
-    /// A per-block list indicating which block parameters are still considered alive.
+    /// A per-block vector indicating which block parameters are still considered alive.
     ///
     /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
     /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
     /// be preserved. A value of `false` means it is unused and can be pruned.
     ///
-    /// This keep list is used during terminator analysis to avoid incorrectly marking values as used
+    /// This keep vector is used during terminator analysis to avoid incorrectly marking values as used
     /// simply because they appear as terminator arguments. Only parameters marked as live here
     /// should result in values being marked as used in terminator arguments.
-    parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
+    parameter_keep_vector: HashMap<BasicBlockId, Vec<bool>>,
 }
 
 impl Context {
@@ -367,8 +367,8 @@ impl Context {
         };
 
         block.unwrap_terminator().for_eachi_value(|index, value| {
-            let keep_list = jmp_destination.and_then(|dest| self.parameter_keep_list.get(&dest));
-            let should_keep = keep_list.is_none_or(|list| list[index]);
+            let keep_vector = jmp_destination.and_then(|dest| self.parameter_keep_vector.get(&dest));
+            let should_keep = keep_vector.is_none_or(|vector| vector[index]);
             if should_keep {
                 self.mark_used_instruction_results(&function.dfg, value);
             }

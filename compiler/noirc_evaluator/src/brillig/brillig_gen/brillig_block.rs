@@ -300,10 +300,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 unreachable!("ICE: Only Param type values should appear in block parameters");
             };
             match param_type {
-                Type::Numeric(_) | Type::Array(..) | Type::List(..) | Type::Reference(_) => {
+                Type::Numeric(_) | Type::Array(..) | Type::Vector(..) | Type::Reference(_) => {
                     // Simple parameters and arrays are passed as already filled registers.
                     // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
-                    // For lists, two registers are passed, the pointer to the data and a register holding the size of the list.
+                    // For vectors, two registers are passed, the pointer to the data and a register holding the size of the vector.
                     self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
@@ -726,7 +726,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (_, Type::Array(..)) | (Type::Array(..), _) => {
             unreachable!("Arrays are invalid in binary operations")
         }
-        (_, Type::List(..)) | (Type::List(..), _) => {
+        (_, Type::Vector(..)) | (Type::Vector(..), _) => {
             unreachable!("Arrays are invalid in binary operations")
         }
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {

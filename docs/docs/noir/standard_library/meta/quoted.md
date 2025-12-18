@@ -55,7 +55,7 @@ stream doesn't parse to a type or if the type isn't a valid type in scope.
 
 #include_code tokens noir_stdlib/src/meta/quoted.nr rust
 
-Returns a list of the individual tokens that form this token stream.
+Returns a vector of the individual tokens that form this token stream.
 
 ## Trait Implementations
 

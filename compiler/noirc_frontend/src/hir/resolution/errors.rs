@@ -62,8 +62,8 @@ pub enum ResolverError {
     ParserError(Box<ParserError>),
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, location: Location },
-    #[error("Nested lists, i.e. lists within an array or list, are not supported")]
-    NestedLists { location: Location },
+    #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
+    NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
     #[error(
@@ -72,8 +72,8 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
-    #[error("Oracle functions cannot return multiple lists")]
-    OracleReturnsMultipleLists { location: Location },
+    #[error("Oracle functions cannot return multiple vectors")]
+    OracleReturnsMultipleVectors { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -118,8 +118,8 @@ pub enum ResolverError {
     MacroIsNotComptime { location: Location },
     #[error("Annotation name must refer to a comptime function")]
     NonFunctionInAnnotation { location: Location },
-    #[error("Type `{typ}` was inserted into the generics list from a macro, but is not a generic")]
-    MacroResultInGenericsListNotAGeneric { location: Location, typ: Type },
+    #[error("Type `{typ}` was inserted into the generics vector from a macro, but is not a generic")]
+    MacroResultInGenericsVectorNotAGeneric { location: Location, typ: Type },
     #[error("Named type arguments aren't allowed in a {item_kind}")]
     NamedTypeArgs { location: Location, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
@@ -177,7 +177,7 @@ pub enum ResolverError {
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
-        "Indexing an array or list with a type other than `u32` is deprecated and will soon be an error"
+        "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"
     )]
     NonU32Index { location: Location },
     #[error(
@@ -222,7 +222,7 @@ impl ResolverError {
             | ResolverError::GenericsOnSelfType { location }
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
-            | ResolverError::NestedLists { location }
+            | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
@@ -241,7 +241,7 @@ impl ResolverError {
             | ResolverError::InvalidSyntaxInMacroCall { location }
             | ResolverError::MacroIsNotComptime { location }
             | ResolverError::NonFunctionInAnnotation { location }
-            | ResolverError::MacroResultInGenericsListNotAGeneric { location, .. }
+            | ResolverError::MacroResultInGenericsVectorNotAGeneric { location, .. }
             | ResolverError::NamedTypeArgs { location, .. }
             | ResolverError::AssociatedConstantsMustBeNumeric { location }
             | ResolverError::BinaryOpError { location, .. }
@@ -263,7 +263,7 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::OracleReturnsMultipleLists { location, .. }
+            | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -454,8 +454,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *location
             ),
-            ResolverError::NestedLists { location } => Diagnostic::simple_error(
-                "Nested lists, i.e. lists within an array or list, are not supported".into(),
+            ResolverError::NestedVectors { location } => Diagnostic::simple_error(
+                "Nested vectors, i.e. vectors within an array or vector, are not supported".into(),
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
@@ -480,7 +480,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
                 diagnostic
             },
-            ResolverError::OracleReturnsMultipleLists { location } => {
+            ResolverError::OracleReturnsMultipleVectors { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
@@ -640,9 +640,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::MacroResultInGenericsListNotAGeneric { location, typ } => {
+            ResolverError::MacroResultInGenericsVectorNotAGeneric { location, typ } => {
                 Diagnostic::simple_error(
-                    format!("Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"),
+                    format!("Type `{typ}` was inserted into a generics vector from a macro, but it is not a generic"),
                     format!("Type `{typ}` is not a generic"),
                     *location,
                 )
@@ -796,7 +796,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::NonU32Index { location } => {
                 Diagnostic::simple_warning(
-                    "Indexing an array or list with a type other than `u32` is deprecated and will soon be an error".to_string(),
+                    "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error".to_string(),
                     String::new(),
                     *location,
                 )

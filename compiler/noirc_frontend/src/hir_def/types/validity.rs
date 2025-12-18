@@ -16,7 +16,7 @@ pub enum InvalidType {
 impl Type {
     /// Returns this type, or a nested one, that cannot be used as a parameter to `main`
     /// or a contract function.
-    /// This is only Some for unsized types like lists or lists that do not make sense
+    /// This is only Some for unsized types like vectors or vectors that do not make sense
     /// as a program input such as named generics or mutable references.
     ///
     /// This function should match the same check done in `create_value_from_type` in acir_gen.
@@ -44,7 +44,7 @@ impl Type {
             | Type::Reference(..)
             | Type::Forall(_, _)
             | Type::Quoted(_)
-            | Type::List(_)
+            | Type::Vector(_)
             | Type::TraitAsType(..) => Some(InvalidType::Primitive(self.clone())),
 
             Type::CheckedCast { to, .. } => to.program_input_validity(),
@@ -135,7 +135,7 @@ impl Type {
             // To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
             | Type::Function(_, _, _, _)
-            | Type::List(_)
+            | Type::Vector(_)
             | Type::Reference(..)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
@@ -199,7 +199,7 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Constant(_, _)
-            | Type::List(_)
+            | Type::Vector(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::InfixExpr(..)

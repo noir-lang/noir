@@ -29,7 +29,7 @@
 //! indenting things as we go deep inside structures, etc.
 //!
 //! But that's not all. The formatter will try to not exceed the configurable maximum width.
-//! It will do that but, for simplicity, only for function parameters list, statements and expressions
+//! It will do that but, for simplicity, only for function parameters vector, statements and expressions
 //! (we assume an `impl Foo ...` line won't exceed the maximum length, and if it does it's not a big deal,
 //! or we can always improve things later). For this, read the comments in chunks.rs.
 mod chunks;

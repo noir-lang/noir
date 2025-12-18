@@ -34,7 +34,7 @@ comptime fn inject_context(f: FunctionDefinition) {
     let parameters = parameters.push_front((quote { _context }, quote { Context }.as_type()));
     f.set_parameters(parameters);
 
-    // Create a new body where every function call has `_context` added to the list of arguments.
+    // Create a new body where every function call has `_context` added to the vector of arguments.
     let body = f.body().modify(|expr| mapping_function(expr, f));
     f.set_body(body);
 }

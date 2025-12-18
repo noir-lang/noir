@@ -451,7 +451,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             push_type_parts(size, parts, files);
             parts.push(string_part("]"));
         }
-        Type::List(typ) => {
+        Type::Vector(typ) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("]"));

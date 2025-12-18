@@ -732,7 +732,7 @@ impl Parser<'_> {
     ///     | fmtstr
     ///     | QuoteExpression
     ///     | ArrayExpression
-    ///     | ListExpression
+    ///     | VectorExpression
     ///     | BlockExpression
     ///     | ConstrainExpression
     ///
@@ -775,10 +775,10 @@ impl Parser<'_> {
             };
         }
 
-        if let Some(literal_or_error) = self.parse_list_literal() {
+        if let Some(literal_or_error) = self.parse_vector_literal() {
             return match literal_or_error {
                 ArrayLiteralOrError::ArrayLiteral(literal) => {
-                    Some(ExpressionKind::Literal(Literal::List(literal)))
+                    Some(ExpressionKind::Literal(Literal::Vector(literal)))
                 }
                 ArrayLiteralOrError::Error => Some(ExpressionKind::Error),
             };
@@ -850,7 +850,7 @@ impl Parser<'_> {
         let mut exprs = self.parse_many(
             "expressions",
             separated_by_comma().until(Token::RightBracket),
-            Self::parse_expression_in_list,
+            Self::parse_expression_in_vector,
         );
 
         if !exprs.is_empty() && !comma_after_first_expr {
@@ -862,9 +862,9 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// ListExpression = '&' ArrayLiteral
-    fn parse_list_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::ListStart) && self.next_is(Token::LeftBracket)) {
+    /// VectorExpression = '&' ArrayLiteral
+    fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
+        if !(self.at(Token::VectorStart) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -909,7 +909,7 @@ impl Parser<'_> {
         let (mut exprs, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
             "expressions",
             separated_by_comma_until_right_paren(),
-            Self::parse_expression_in_list,
+            Self::parse_expression_in_vector,
         );
 
         // If it's `(..)::ident`, give an error that it's missing `<...>`
@@ -935,7 +935,7 @@ impl Parser<'_> {
         })
     }
 
-    pub(super) fn parse_expression_in_list(&mut self) -> Option<Expression> {
+    pub(super) fn parse_expression_in_vector(&mut self) -> Option<Expression> {
         if let Some(expr) = self.parse_expression() {
             Some(expr)
         } else {
@@ -1415,12 +1415,12 @@ mod tests {
     }
 
     #[test]
-    fn parses_empty_list_expression() {
+    fn parses_empty_vector_expression() {
         let src = "&[]";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::List(ArrayLiteral::Standard(exprs))) = expr.kind
+        let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
-            panic!("Expected list literal");
+            panic!("Expected vector literal");
         };
         assert!(exprs.is_empty());
     }

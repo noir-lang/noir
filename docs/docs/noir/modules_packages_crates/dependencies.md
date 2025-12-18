@@ -114,7 +114,7 @@ fn main(x : u32, y : pub u32) {
 
 ## Available Libraries
 
-Noir does not currently have an official package manager. You can find a list of available Noir libraries in the [awesome-noir repo here](https://github.com/noir-lang/awesome-noir#libraries).
+Noir does not currently have an official package manager. You can find a vector of available Noir libraries in the [awesome-noir repo here](https://github.com/noir-lang/awesome-noir#libraries).
 
 Some libraries that are available today include:
 

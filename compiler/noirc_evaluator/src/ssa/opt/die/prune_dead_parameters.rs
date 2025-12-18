@@ -10,9 +10,9 @@
 //! - Detects and removes unused block parameters, except for those on entry blocks of program entry point
 //!   functions (e.g., `main`, foldable functions). Brillig entry points (except `main`) are not counted
 //!   here as their signature does not determine the ABI and is safe to update.
-//! - Clears the list of unused block parameters after removing them from the block.
-//! - Updates the corresponding argument lists in predecessor terminator instructions to keep
-//!   them aligned with the new parameter lists.
+//! - Clears the vector of unused block parameters after removing them from the block.
+//! - Updates the corresponding argument vectors in predecessor terminator instructions to keep
+//!   them aligned with the new parameter vectors.
 //! - **Entry block parameters** of non-program entry point functions may be pruned if they are unused,
 //!   and the corresponding call instructions are rewritten to remove the dead arguments.
 //! - Entry point functions often correspond to ABI inputs and must remain to preserve the program's external interface.
@@ -94,18 +94,18 @@ impl Ssa {
         mut self,
         unused_parameters: &HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
     ) -> Self {
-        let mut entry_block_keep_lists = HashMap::default();
+        let mut entry_block_keep_vectors = HashMap::default();
         for (func_id, unused_parameters) in unused_parameters {
             let function = self.functions.get_mut(func_id).expect("ICE: Function should exist");
-            if let Some(entry_keep_list) =
+            if let Some(entry_keep_vector) =
                 function.prune_dead_parameters(unused_parameters, self.main_id)
             {
-                entry_block_keep_lists.insert(*func_id, entry_keep_list);
+                entry_block_keep_vectors.insert(*func_id, entry_keep_vector);
             }
         }
 
         let call_graph = CallGraph::from_ssa(&self);
-        self.rewrite_calls_to_pruned_entry_blocks(&call_graph, &entry_block_keep_lists);
+        self.rewrite_calls_to_pruned_entry_blocks(&call_graph, &entry_block_keep_vectors);
 
         self
     }
@@ -114,11 +114,11 @@ impl Ssa {
     fn rewrite_calls_to_pruned_entry_blocks(
         &mut self,
         call_graph: &CallGraph,
-        entry_block_keep_lists: &HashMap<FunctionId, Vec<bool>>,
+        entry_block_keep_vectors: &HashMap<FunctionId, Vec<bool>>,
     ) {
         let callers = call_graph.callers();
 
-        for (callee_id, keep_list) in entry_block_keep_lists {
+        for (callee_id, keep_vector) in entry_block_keep_vectors {
             let Some(caller_map) = callers.get(callee_id) else {
                 continue;
             };
@@ -144,10 +144,10 @@ impl Ssa {
                             continue;
                         }
 
-                        // Filter the arguments using keep_list
+                        // Filter the arguments using keep_vector
                         let new_args: Vec<ValueId> = arguments
                             .iter()
-                            .zip(keep_list.iter())
+                            .zip(keep_vector.iter())
                             .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
                             .collect();
 
@@ -183,7 +183,7 @@ impl Function {
         let is_main = self.id() == main_id;
         let can_prune_entry_block = !(is_entry_point || is_main);
 
-        let mut entry_block_keep_list = None;
+        let mut entry_block_keep_vector = None;
         for &block in post_order.as_slice() {
             // We do not support removing the function arguments of entry points. This is because function signatures,
             // which are used for setting up the program artifact inputs, are set by the frontend.
@@ -200,14 +200,14 @@ impl Function {
 
             let old_params = self.dfg[block].take_parameters();
 
-            // Create the list of new params for updating the block with unused parameters
-            // as well as an indexed list of the removed parameters to update each predecessor's terminator argument list.
-            let mut keep_list = Vec::with_capacity(old_params.len());
+            // Create the vector of new params for updating the block with unused parameters
+            // as well as an indexed vector of the removed parameters to update each predecessor's terminator argument vector.
+            let mut keep_vector = Vec::with_capacity(old_params.len());
             let mut new_params = Vec::with_capacity(old_params.len());
             let unused_set = unused_params.iter().copied().collect::<HashSet<_>>();
             for param in old_params {
                 let keep = !unused_set.contains(&param);
-                keep_list.push(keep);
+                keep_vector.push(keep);
                 if keep {
                     new_params.push(param);
                 }
@@ -215,14 +215,14 @@ impl Function {
 
             self.dfg[block].set_parameters(new_params);
 
-            // Update the predecessor argument list to match the new parameter list
-            self.update_predecessor_terminators(&cfg, block, &keep_list);
+            // Update the predecessor argument vector to match the new parameter vector
+            self.update_predecessor_terminators(&cfg, block, &keep_vector);
 
             if block == self.entry_block() {
-                entry_block_keep_list = Some(keep_list);
+                entry_block_keep_vector = Some(keep_vector);
             }
         }
-        entry_block_keep_list
+        entry_block_keep_vector
     }
 
     /// Update terminator arguments of predecessor blocks after pruning.
@@ -230,7 +230,7 @@ impl Function {
         &mut self,
         cfg: &ControlFlowGraph,
         target_block: BasicBlockId,
-        keep_list: &[bool],
+        keep_vector: &[bool],
     ) {
         let predecessors = cfg.predecessors(target_block);
         for pred in predecessors {
@@ -245,7 +245,7 @@ impl Function {
                     assert_eq!(*destination, target_block);
                     let new_args = arguments
                         .iter()
-                        .zip(keep_list.iter())
+                        .zip(keep_vector.iter())
                         .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
                         .collect();
                     *arguments = new_args;

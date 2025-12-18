@@ -51,7 +51,7 @@ use std::path::PathBuf;
 /// Even if the address space is continuous, the `addresses` tree only
 /// keeps track of the ACIR opcodes, since the Brillig opcode addresses can be
 /// calculated from the initial opcode address.
-/// As a result the flattened indexed addresses list may have "holes".
+/// As a result the flattened indexed addresses vector may have "holes".
 ///
 /// If between two consequent `addresses` nodes there is a "hole" (an address jump),
 /// this means that the first one is actually a ACIR Brillig call
@@ -148,7 +148,7 @@ impl AddressMap {
                 Err(insert_index) => insert_index - 1,
             };
 
-        // We binary search among the selected `circuit_id`` list of opcodes
+        // We binary search among the selected `circuit_id`` vector of opcodes
         // If Err(insert_index) this means that the given address
         // is a Brillig addresses that's contained in previous index ACIR opcode index
         let (opcode_location, brillig_function_id) =

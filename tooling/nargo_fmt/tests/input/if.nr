@@ -2,7 +2,7 @@
 fn main() {
     let (x,y) = if is_square(gx1) {(x1, sqrt(gx1))} else {(x2, sqrt(gx2))};
 
-    let n = if x != y { if x != 20 { list.push_back(y) } else { list } } else { list };
+    let n = if x != y { if x != 20 { vector.push_back(y) } else { vector } } else { vector };
 
     if false
     {

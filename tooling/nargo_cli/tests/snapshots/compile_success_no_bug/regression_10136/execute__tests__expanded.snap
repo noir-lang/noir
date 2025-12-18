@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(array: [Field; 1], cond: bool) -> pub u32 {
-    let list: [Field] = array.as_list();
-    let mut list: [Field] = std::hint::black_box(list);
-    if cond { list = list.push_back(1_Field); };
-    list.len()
+    let vector: [Field] = array.as_vector();
+    let mut vector: [Field] = std::hint::black_box(vector);
+    if cond { vector = vector.push_back(1_Field); };
+    vector.len()
 }

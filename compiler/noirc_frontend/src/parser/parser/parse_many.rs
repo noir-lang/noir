@@ -3,7 +3,7 @@ use crate::token::Token;
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    /// Parses a list of items separated by a token, optionally ending when another token is found.
+    /// Parses a vector of items separated by a token, optionally ending when another token is found.
     /// The given function `f` must parse one item (eventually parsing many, if separators are found).
     /// If no item is parsed, `f` must report an error and return `None`.
     pub(super) fn parse_many<T, F>(

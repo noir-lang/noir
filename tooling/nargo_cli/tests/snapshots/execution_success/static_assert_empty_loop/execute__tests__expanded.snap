@@ -10,34 +10,34 @@ unconstrained fn foo() -> [Field; 0] {
 fn main() {
     // Safety: comment added by `nargo expand`
     let x: [Field; 0] = unsafe { foo() };
-    let _: [Field] = x.as_list().map(|_: Field| -> Field {
+    let _: [Field] = x.as_vector().map(|_: Field| -> Field {
         assert(false, "test");
         panic(f"test");
         std::static_assert(false, "test");
         assert_constant(x);
         0_Field
     });
-    let _: [Field] = x.as_list().mapi(|_: u32, _: Field| -> Field {
+    let _: [Field] = x.as_vector().mapi(|_: u32, _: Field| -> Field {
         assert(false, "test");
         panic(f"test");
         std::static_assert(false, "test");
         assert_constant(x);
         0_Field
     });
-    x.as_list().for_each(|_: Field| {
+    x.as_vector().for_each(|_: Field| {
         assert(false, "test");
         panic(f"test");
         std::static_assert(false, "test");
         assert_constant(x);
     });
-    x.as_list().for_eachi(|_: u32, _: Field| {
+    x.as_vector().for_eachi(|_: u32, _: Field| {
         assert(false, "test");
         panic(f"test");
         std::static_assert(false, "test");
         assert_constant(x);
     });
     {
-        let ___i0: [Field] = x.as_list();
+        let ___i0: [Field] = x.as_vector();
         for ___i1 in 0_u32..___i0.len() {
             let _: Field = ___i0[___i1];
             {
@@ -68,7 +68,7 @@ fn main() {
     };
     let empty_array: [Field; 0] = [];
     {
-        let ___i0: [Field] = empty_array.as_list();
+        let ___i0: [Field] = empty_array.as_vector();
         for ___i1 in 0_u32..___i0.len() {
             let _: Field = ___i0[___i1];
             {

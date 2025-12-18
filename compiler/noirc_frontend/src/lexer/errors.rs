@@ -184,7 +184,7 @@ impl LexerErrorKind {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
             }
             LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, location } => {
-                // List taken from https://en.wikipedia.org/wiki/Whitespace_character
+                // Vector taken from https://en.wikipedia.org/wiki/Whitespace_character
                 let char_name = match char {
                     '\u{0085}' => Some("Next Line"),
                     '\u{00A0}' => Some("No-Break Space"),

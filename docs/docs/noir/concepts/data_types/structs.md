@@ -19,7 +19,7 @@ name each field.
 > **Note:** The usage of _field_ here refers to each element of the struct and is unrelated to the
 > field type of Noir.
 
-Defining a struct requires giving it a name and listing each field within as `<Key>: <Type>` pairs:
+Defining a struct requires giving it a name and vectoring each field within as `<Key>: <Type>` pairs:
 
 ```rust
 struct Animal {

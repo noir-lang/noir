@@ -53,7 +53,7 @@ pub(crate) struct TestCommand {
 
     /// Print all matching test names, without running them.
     #[clap(long)]
-    list_tests: bool,
+    vector_tests: bool,
 
     /// Only compile the tests, without running them.
     #[clap(long)]
@@ -231,7 +231,7 @@ impl<'a> TestRunner<'a> {
         // First compile all packages and collect their tests
         let packages_tests = self.collect_packages_tests()?;
 
-        if self.args.list_tests {
+        if self.args.vector_tests {
             for (package_name, package_tests) in packages_tests {
                 for test in package_tests {
                     println!("{} {}", package_name, test.name);

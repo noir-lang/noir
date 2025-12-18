@@ -1,4 +1,4 @@
-//! The noir compiler is separated into the following passes which are listed
+//! The noir compiler is separated into the following passes which are vectored
 //! in order in square brackets. The inputs and outputs of each pass are also given:
 //!
 //! ```verbatim

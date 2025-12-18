@@ -223,7 +223,7 @@ fn is_same_type_regardless_generics(type1: &Type, type2: &Type) -> bool {
 
     match (type1.follow_bindings(), type2.follow_bindings()) {
         (Type::Array(..), Type::Array(..)) => true,
-        (Type::List(..), Type::List(..)) => true,
+        (Type::Vector(..), Type::Vector(..)) => true,
         (Type::String(..), Type::String(..)) => true,
         (Type::FmtString(..), Type::FmtString(..)) => true,
         (Type::Tuple(..), Type::Tuple(..)) => true,

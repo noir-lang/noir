@@ -500,7 +500,7 @@ impl<'context> Elaborator<'context> {
     fn mark_type_as_used(&mut self, typ: &Type) {
         match typ {
             Type::Array(_n, typ) => self.mark_type_as_used(typ),
-            Type::List(typ) => self.mark_type_as_used(typ),
+            Type::Vector(typ) => self.mark_type_as_used(typ),
             Type::Tuple(types) => {
                 for typ in types {
                     self.mark_type_as_used(typ);

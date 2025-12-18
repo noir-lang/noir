@@ -155,7 +155,7 @@ async fn test_series_of_use() {
 }
 
 #[test]
-async fn test_use_list() {
+async fn test_use_vector() {
     let src = "
         use one::{
             two::{
@@ -180,7 +180,7 @@ async fn test_use_list() {
 }
 
 #[test]
-async fn test_series_of_use_when_there_is_a_list() {
+async fn test_series_of_use_when_there_is_a_vector() {
     let src = "
         use one;
         use two::{

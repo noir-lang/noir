@@ -47,7 +47,7 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
                 passes.iter().find(|(msg, _)| msg.to_lowercase().contains(&name.to_lowercase()))
             else {
                 bail!(
-                    "cannot find SSA pass (use the `list` command to see available passes): '{}'",
+                    "cannot find SSA pass (use the `vector` command to see available passes): '{}'",
                     name
                 );
             };

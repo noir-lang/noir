@@ -132,7 +132,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
-                    BrilligParameter::List(item_type, item_count),
+                    BrilligParameter::Vector(item_type, item_count),
                 ) => {
                     let flattened_size = Self::flattened_size(argument);
                     self.usize_const_instruction(vector.pointer, current_calldata_pointer.into());
@@ -163,7 +163,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     let flattened_size = Self::flattened_size(argument);
                     self.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::List(_, _) => {
+                BrilligParameter::Vector(_, _) => {
                     self.allocate_brillig_vector().map(BrilligVariable::from)
                 }
             })
@@ -182,7 +182,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             match param {
                 BrilligParameter::SingleAddr(bit_size) => Box::new(std::iter::once(*bit_size)),
                 BrilligParameter::Array(item_types, item_count)
-                | BrilligParameter::List(item_types, item_count) => Box::new(
+                | BrilligParameter::Vector(item_types, item_count) => Box::new(
                     (0..*item_count).flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
             }
@@ -291,7 +291,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
                             source_offset += Self::flattened_size(subitem);
                         }
-                        BrilligParameter::List(..) => unreachable!("ICE: Cannot deflatten lists"),
+                        BrilligParameter::Vector(..) => unreachable!("ICE: Cannot deflatten vectors"),
                     }
                 }
             }
@@ -327,7 +327,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 BrilligParameter::Array(item_types, item_count) => self
                     .allocate_brillig_array(item_types.len() * item_count)
                     .map(BrilligVariable::from),
-                BrilligParameter::List(..) => unreachable!("ICE: Cannot return lists"),
+                BrilligParameter::Vector(..) => unreachable!("ICE: Cannot return vectors"),
             })
             .collect();
 
@@ -363,8 +363,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
                     return_data_index += Self::flattened_size(return_param);
                 }
-                BrilligParameter::List(..) => {
-                    unreachable!("ICE: Cannot return lists from brillig entrypoints")
+                BrilligParameter::Vector(..) => {
+                    unreachable!("ICE: Cannot return vectors from brillig entrypoints")
                 }
             }
         }

@@ -11,9 +11,9 @@ use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 impl Parser<'_> {
     /// Use = 'use' PathKind PathNoTurbofish UseTree
     ///
-    /// UseTree = PathNoTurbofish ( '::' '{' UseTreeList? '}' )?
+    /// UseTree = PathNoTurbofish ( '::' '{' UseTreeVector? '}' )?
     ///
-    /// UseTreeList = UseTree (',' UseTree)* ','?
+    /// UseTreeVector = UseTree (',' UseTree)* ','?
     pub(super) fn parse_use_tree(&mut self) -> UseTree {
         let start_location = self.current_token_location;
 
@@ -53,12 +53,12 @@ impl Parser<'_> {
                 let use_trees = self.parse_many(
                     "use trees",
                     separated_by_comma_until_right_brace(),
-                    Self::parse_use_tree_in_list,
+                    Self::parse_use_tree_in_vector,
                 );
 
                 UseTree {
                     prefix,
-                    kind: UseTreeKind::List(use_trees),
+                    kind: UseTreeKind::Vector(use_trees),
                     location: self.location_since(start_location),
                 }
             } else {
@@ -70,7 +70,7 @@ impl Parser<'_> {
         }
     }
 
-    fn parse_use_tree_in_list(&mut self) -> Option<UseTree> {
+    fn parse_use_tree_in_vector(&mut self) -> Option<UseTree> {
         let start_location = self.current_token_location;
 
         // Special case: "self" cannot be followed by anything else
@@ -246,33 +246,33 @@ mod tests {
     }
 
     #[test]
-    fn parse_list() {
+    fn parse_vector() {
         let src = "use foo::{bar, baz};";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
         assert_eq!("foo::{bar, baz}", use_tree.to_string());
-        let UseTreeKind::List(use_trees) = &use_tree.kind else {
-            panic!("Expected list");
+        let UseTreeKind::Vector(use_trees) = &use_tree.kind else {
+            panic!("Expected vector");
         };
         assert_eq!(use_trees.len(), 2);
     }
 
     #[test]
-    fn parse_list_trailing_comma() {
+    fn parse_vector_trailing_comma() {
         let src = "use foo::{bar, baz, };";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
         assert_eq!(use_tree.prefix.kind, PathKind::Plain);
         assert_eq!("foo::{bar, baz}", use_tree.to_string());
-        let UseTreeKind::List(use_trees) = &use_tree.kind else {
-            panic!("Expected list");
+        let UseTreeKind::Vector(use_trees) = &use_tree.kind else {
+            panic!("Expected vector");
         };
         assert_eq!(use_trees.len(), 2);
     }
 
     #[test]
-    fn parse_list_that_starts_with_crate() {
+    fn parse_vector_that_starts_with_crate() {
         let src = "use crate::{foo, bar};";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);

@@ -1,7 +1,0 @@
-[package]
-name = "comptime_as_list"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.24.0"
-
-[dependencies]

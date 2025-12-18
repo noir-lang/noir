@@ -146,8 +146,8 @@ pub enum Type {
     /// An immutable array value with the given element type and length
     Array(Arc<CompositeType>, u32),
 
-    /// An immutable list value with a given element type
-    List(Arc<CompositeType>),
+    /// An immutable vector value with a given element type
+    Vector(Arc<CompositeType>),
 
     /// A function that may be called directly
     Function,
@@ -224,39 +224,39 @@ impl Type {
         }
     }
 
-    /// Returns the size of the element type for this array/list.
+    /// Returns the size of the element type for this array/vector.
     /// The size of a type is defined as representing how many Fields are needed
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
     ///
     /// Equivalent to `self.element_types().len()`.
     ///
-    /// Panics if `self` is not a [`Type::Array`] or [`Type::List`].
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
     pub(crate) fn element_size(&self) -> usize {
         match self {
-            Type::Array(elements, _) | Type::List(elements) => elements.len(),
-            other => panic!("element_size: Expected array or list, found {other}"),
+            Type::Array(elements, _) | Type::Vector(elements) => elements.len(),
+            other => panic!("element_size: Expected array or vector, found {other}"),
         }
     }
 
-    /// Return the types of items in this array/list.
+    /// Return the types of items in this array/vector.
     ///
-    /// Panics if `self` is not a [`Type::Array`] or [`Type::List`].
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
     pub(crate) fn element_types(&self) -> Arc<Vec<Type>> {
         match self {
-            Type::Array(element_types, _) | Type::List(element_types) => element_types.clone(),
-            other => panic!("element_types: Expected array or list, found {other}"),
+            Type::Array(element_types, _) | Type::Vector(element_types) => element_types.clone(),
+            other => panic!("element_types: Expected array or vector, found {other}"),
         }
     }
 
-    pub(crate) fn contains_list_element(&self) -> bool {
+    pub(crate) fn contains_vector_element(&self) -> bool {
         match self {
             Type::Array(elements, _) => {
-                elements.iter().any(|element| element.contains_list_element())
+                elements.iter().any(|element| element.contains_vector_element())
             }
-            Type::List(_) => true,
+            Type::Vector(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(element) => element.contains_list_element(),
+            Type::Reference(element) => element.contains_vector_element(),
             Type::Function => false,
         }
     }
@@ -271,31 +271,31 @@ impl Type {
             Type::Array(elements, len) => {
                 elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
             }
-            Type::List(_) => {
-                unimplemented!("ICE: cannot fetch flattened list size");
+            Type::Vector(_) => {
+                unimplemented!("ICE: cannot fetch flattened vector size");
             }
             _ => 1,
         }
     }
 
-    /// True if this type is an array (or list)
+    /// True if this type is an array (or vector)
     pub(crate) fn is_array(&self) -> bool {
-        matches!(self, Type::Array(_, _) | Type::List(_))
+        matches!(self, Type::Array(_, _) | Type::Vector(_))
     }
 
-    pub(crate) fn is_nested_list(&self) -> bool {
-        if let Type::List(element_types) | Type::Array(element_types, _) = self {
-            element_types.as_ref().iter().any(|typ| typ.contains_list_element())
+    pub(crate) fn is_nested_vector(&self) -> bool {
+        if let Type::Vector(element_types) | Type::Array(element_types, _) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_vector_element())
         } else {
             false
         }
     }
 
-    /// True if this type is an array (or list) or internally contains an array (or list)
+    /// True if this type is an array (or vector) or internally contains an array (or vector)
     pub(crate) fn contains_an_array(&self) -> bool {
         match self {
             Type::Numeric(_) | Type::Function => false,
-            Type::Array(_, _) | Type::List(_) => true,
+            Type::Array(_, _) | Type::Vector(_) => true,
             Type::Reference(element) => element.contains_an_array(),
         }
     }
@@ -304,7 +304,7 @@ impl Type {
         match self {
             Type::Numeric(_) | Type::Function => self.clone(),
             Type::Reference(typ) => typ.first(),
-            Type::List(element_types) | Type::Array(element_types, _) => element_types[0].first(),
+            Type::Vector(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
 
@@ -313,7 +313,7 @@ impl Type {
         match self {
             Type::Reference(_) => true,
             Type::Numeric(_) | Type::Function => false,
-            Type::Array(elements, _) | Type::List(elements) => {
+            Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_reference())
             }
         }
@@ -325,7 +325,7 @@ impl Type {
             Type::Reference(element_type) => element_type.contains_function(),
             Type::Function => true,
             Type::Numeric(_) => false,
-            Type::Array(elements, _) | Type::List(elements) => {
+            Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_function())
             }
         }
@@ -350,7 +350,7 @@ impl std::fmt::Display for Type {
                     write!(f, "[({}); {length}]", elements.join(", "))
                 }
             }
-            Type::List(element) => {
+            Type::Vector(element) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 if elements.len() == 1 {
                     write!(f, "[{}]", elements.join(", "))

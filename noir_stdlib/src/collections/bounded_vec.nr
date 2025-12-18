@@ -2,8 +2,8 @@ use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a [`Vec`][crate::collections::vec::Vec]`<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
-/// via lists and thus is not subject to the same restrictions lists are (notably, nested
-/// lists - and thus nested vectors as well - are disallowed).
+/// via vectors and thus is not subject to the same restrictions vectors are (notably, nested
+/// vectors - and thus nested vectors as well - are disallowed).
 ///
 /// Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
 /// pushing an additional element is also more efficient - the length only needs to be increased
@@ -275,7 +275,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len = new_len;
     }
 
-    /// Pushes each element from the given list to this vector.
+    /// Pushes each element from the given vector to this vector.
     ///
     /// Panics if pushing each element would cause the length of this vector
     /// to exceed the maximum length.
@@ -284,17 +284,17 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// ```noir
     /// let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
-    /// vec.extend_from_list(&[2, 4]);
+    /// vec.extend_from_vector(&[2, 4]);
     ///
     /// assert(vec.len == 2);
     /// assert(vec.get(0) == 2);
     /// assert(vec.get(1) == 4);
     /// ```
-    pub fn extend_from_list(&mut self, list: [T]) {
-        let new_len = self.len + list.len();
-        assert(new_len <= MaxLen, "extend_from_list out of bounds");
-        for i in 0..list.len() {
-            self.storage[self.len + i] = list[i];
+    pub fn extend_from_vector(&mut self, vector: [T]) {
+        let new_len = self.len + vector.len();
+        assert(new_len <= MaxLen, "extend_from_vector out of bounds");
+        for i in 0..vector.len() {
+            self.storage[self.len + i] = vector[i];
         }
         self.len = new_len;
     }
@@ -1228,10 +1228,10 @@ mod bounded_vec_tests {
         }
 
         #[test]
-        fn extend_from_list() {
+        fn extend_from_vector() {
             let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
             vec.push(1);
-            vec.extend_from_list(&[2, 3]);
+            vec.extend_from_vector(&[2, 3]);
 
             assert_eq(vec.len(), 3);
             assert_eq(vec.get(0), 1);
@@ -1263,11 +1263,11 @@ mod bounded_vec_tests {
             vec.extend_from_array([2, 3, 4]); // should panic
         }
 
-        #[test(should_fail_with = "extend_from_list out of bounds")]
-        fn extend_list_beyond_max_len() {
+        #[test(should_fail_with = "extend_from_vector out of bounds")]
+        fn extend_vector_beyond_max_len() {
             let mut vec: BoundedVec<u32, 3> = BoundedVec::new();
             vec.push(1);
-            vec.extend_from_list(&[2, 3, 4]); // S]should panic
+            vec.extend_from_vector(&[2, 3, 4]); // S]should panic
         }
 
         #[test(should_fail_with = "extend_from_bounded_vec out of bounds")]
@@ -1285,7 +1285,7 @@ mod bounded_vec_tests {
             vec.extend_from_array([]);
             assert_eq(vec.len(), original_len);
 
-            vec.extend_from_list(&[]);
+            vec.extend_from_vector(&[]);
             assert_eq(vec.len(), original_len);
 
             let empty: BoundedVec<u32, 3> = BoundedVec::new();

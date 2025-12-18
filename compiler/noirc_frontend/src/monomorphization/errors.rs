@@ -20,11 +20,11 @@ pub enum MonomorphizationError {
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
-    NestedLists { location: Location },
+    NestedVectors { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
-    UnconstrainedListReturnToConstrained { typ: String, location: Location },
+    UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -41,14 +41,14 @@ impl MonomorphizationError {
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
-            | MonomorphizationError::NestedLists { location }
+            | MonomorphizationError::NestedVectors { location }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
             | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
             | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::UnconstrainedListReturnToConstrained { location, .. } => {
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. } => {
                 *location
             }
             MonomorphizationError::InterpreterError(error) => error.location(),
@@ -122,8 +122,8 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 };
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
-            MonomorphizationError::NestedLists { .. } => {
-                "Nested lists, i.e. lists within an array or list, are not supported".to_string()
+            MonomorphizationError::NestedVectors { .. } => {
+                "Nested vectors, i.e. vectors within an array or vector, are not supported".to_string()
             }
             MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
                 let message = format!("Invalid type {typ} used in the error message");
@@ -140,9 +140,9 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
-            MonomorphizationError::UnconstrainedListReturnToConstrained { typ, .. } => {
+            MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } => {
                 format!(
-                    "List `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                    "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
         };

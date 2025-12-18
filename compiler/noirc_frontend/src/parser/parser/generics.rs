@@ -19,9 +19,9 @@ impl Parser<'_> {
         self.parse_generics(true)
     }
 
-    /// Generics = ( '<' GenericsList? '>' )?
+    /// Generics = ( '<' GenericsVector? '>' )?
     ///
-    /// GenericsList = Generic ( ',' Generic )* ','?
+    /// GenericsVector = Generic ( ',' Generic )* ','?
     fn parse_generics(&mut self, allow_trait_bounds: bool) -> UnresolvedGenerics {
         if !self.eat_less() {
             return Vec::new();
@@ -30,11 +30,11 @@ impl Parser<'_> {
         self.parse_many(
             "generic parameters",
             separated_by_comma().until(Token::Greater),
-            |parser| parser.parse_generic_in_list(allow_trait_bounds),
+            |parser| parser.parse_generic_in_vector(allow_trait_bounds),
         )
     }
 
-    fn parse_generic_in_list(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
+    fn parse_generic_in_vector(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
         if let Some(generic) = self.parse_generic(allow_trait_bounds) {
             Some(generic)
         } else {
@@ -126,9 +126,9 @@ impl Parser<'_> {
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
 
-    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )
+    /// GenericTypeArgs = ( '<' GenericTypeArgsVector? '>' )
     ///
-    /// GenericTypeArgsList = GenericTypeArg ( ',' GenericTypeArg )* ','?
+    /// GenericTypeArgsVector = GenericTypeArg ( ',' GenericTypeArg )* ','?
     ///
     /// GenericTypeArg
     ///     = NamedTypeArg

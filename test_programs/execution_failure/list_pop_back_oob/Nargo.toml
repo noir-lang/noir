@@ -1,6 +1,0 @@
-[package]
-name = "list_pop_back_oob"
-type = "bin"
-authors = [""]
-
-[dependencies]

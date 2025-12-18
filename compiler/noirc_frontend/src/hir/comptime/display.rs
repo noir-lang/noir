@@ -284,7 +284,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::ListStart
+            | Token::VectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -462,7 +462,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
             }
-            Value::List(values, _) => {
+            Value::Vector(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "&[{}]", values.join(", "))
             }
@@ -772,7 +772,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
         Literal::Array(array_literal) => {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
-        Literal::List(array_literal) => {
+        Literal::Vector(array_literal) => {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
@@ -917,8 +917,8 @@ fn remove_interned_in_unresolved_type_data(
             expr,
             Box::new(remove_interned_in_unresolved_type(interner, *typ)),
         ),
-        UnresolvedTypeData::List(typ) => {
-            UnresolvedTypeData::List(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
+        UnresolvedTypeData::Vector(typ) => {
+            UnresolvedTypeData::Vector(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
         }
         UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, *typ),

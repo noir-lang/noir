@@ -485,17 +485,17 @@ impl DependencyContext {
                                 Intrinsic::ArrayLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsList
+                                | Intrinsic::AsVector
                                 | Intrinsic::BlackBox(..)
                                 | Intrinsic::DerivePedersenGenerators
                                 | Intrinsic::Hint(..)
-                                | Intrinsic::ListPushBack
-                                | Intrinsic::ListPushFront
-                                | Intrinsic::ListPopBack
-                                | Intrinsic::ListPopFront
-                                | Intrinsic::ListRefCount
-                                | Intrinsic::ListInsert
-                                | Intrinsic::ListRemove
+                                | Intrinsic::VectorPushBack
+                                | Intrinsic::VectorPushFront
+                                | Intrinsic::VectorPopBack
+                                | Intrinsic::VectorPopFront
+                                | Intrinsic::VectorRefCount
+                                | Intrinsic::VectorInsert
+                                | Intrinsic::VectorRemove
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -677,7 +677,7 @@ impl Context {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        // Go through each block in the function and create a list of sets of ValueIds connected by instructions
+        // Go through each block in the function and create a vector of sets of ValueIds connected by instructions
         self.block_queue.push_back(function.entry_block());
         while let Some(block) = self.block_queue.pop_back() {
             self.connect_value_ids_in_block(function, block, all_functions);
@@ -799,17 +799,17 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsList
+                            | Intrinsic::AsVector
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::ListInsert
-                            | Intrinsic::ListPushBack
-                            | Intrinsic::ListPushFront
-                            | Intrinsic::ListPopBack
-                            | Intrinsic::ListPopFront
-                            | Intrinsic::ListRefCount
-                            | Intrinsic::ListRemove
+                            | Intrinsic::VectorInsert
+                            | Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorPopFront
+                            | Intrinsic::VectorRefCount
+                            | Intrinsic::VectorRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)

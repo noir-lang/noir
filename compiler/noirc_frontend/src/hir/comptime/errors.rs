@@ -477,8 +477,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonArrayIndexed { typ, location } => {
-                let msg = format!("Expected an array or list but found a(n) {typ}");
-                let secondary = "Only arrays or lists may be indexed".into();
+                let msg = format!("Expected an array or vector but found a(n) {typ}");
+                let secondary = "Only arrays or vectors may be indexed".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonIntegerUsedAsIndex { typ, location } => {
@@ -699,7 +699,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::ExpectedIdentForStructField { value, index, location } => {
                 let msg =
-                    format!("Quoted value in index {index} of this list is not a valid field name");
+                    format!("Quoted value in index {index} of this vector is not a valid field name");
                 let secondary = format!("`{value}` is not a valid field name for `set_fields`");
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }

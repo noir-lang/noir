@@ -1,7 +1,0 @@
-[package]
-name = "conditional_list_insert_at_end_of_list"
-version = "0.1.0"
-type = "bin"
-authors = [""]
-
-[dependencies]

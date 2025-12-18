@@ -22,7 +22,7 @@ use super::IResult;
 pub enum Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
-    ArrayOrList(ArrayValue),
+    ArrayOrVector(ArrayValue),
     Function(FunctionId),
     Intrinsic(Intrinsic),
     ForeignFunction(String),
@@ -135,7 +135,7 @@ pub struct ArrayValue {
     pub rc: Shared<u32>,
 
     pub element_types: Arc<CompositeType>,
-    pub is_list: bool,
+    pub is_vector: bool,
 }
 
 impl Value {
@@ -144,8 +144,8 @@ impl Value {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
             Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
-            Value::ArrayOrList(array) if array.is_list => Type::List(array.element_types.clone()),
-            Value::ArrayOrList(array) => {
+            Value::ArrayOrVector(array) if array.is_vector => Type::Vector(array.element_types.clone()),
+            Value::ArrayOrVector(array) => {
                 let len = array.elements.borrow().len().checked_div(array.element_types.len());
                 let len = len.unwrap_or(0) as u32;
                 Type::Array(array.element_types.clone(), len)
@@ -201,9 +201,9 @@ impl Value {
         }
     }
 
-    pub(crate) fn as_array_or_list(&self) -> Option<ArrayValue> {
+    pub(crate) fn as_array_or_vector(&self) -> Option<ArrayValue> {
         match self {
-            Value::ArrayOrList(value) => Some(value.clone()),
+            Value::ArrayOrVector(value) => Some(value.clone()),
             _ => None,
         }
     }
@@ -265,20 +265,20 @@ impl Value {
     }
 
     pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
-        Self::ArrayOrList(ArrayValue {
+        Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
-            is_list: false,
+            is_vector: false,
         })
     }
 
-    pub(crate) fn list(elements: Vec<Value>, element_types: Arc<Vec<Type>>) -> Self {
-        Self::ArrayOrList(ArrayValue {
+    pub(crate) fn vector(elements: Vec<Value>, element_types: Arc<Vec<Type>>) -> Self {
+        Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_list: true,
+            is_vector: true,
         })
     }
 
@@ -306,13 +306,13 @@ impl Value {
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
             }
-            Type::List(element_types) => Self::list(Vec::new(), element_types.clone()),
+            Type::Vector(element_types) => Self::vector(Vec::new(), element_types.clone()),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
     }
 
     pub(crate) fn as_string(&self) -> Option<String> {
-        let array = self.as_array_or_list()?;
+        let array = self.as_array_or_vector()?;
         let elements = array.elements.borrow();
         let bytes = elements.iter().map(|element| element.as_u8()).collect::<Option<Vec<_>>>()?;
         Some(String::from_utf8_lossy(&bytes).into_owned())
@@ -334,13 +334,13 @@ impl Value {
                     element_type: r.element_type.clone(),
                 })
             }
-            Value::ArrayOrList(a) => {
+            Value::ArrayOrVector(a) => {
                 let elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
-                Value::ArrayOrList(ArrayValue {
+                Value::ArrayOrVector(ArrayValue {
                     elements: Shared::new(elements),
                     rc: Shared::new(*a.rc.borrow()),
                     element_types: a.element_types.clone(),
-                    is_list: a.is_list,
+                    is_vector: a.is_vector,
                 })
             }
             Value::Function(id) => Value::Function(*id),
@@ -538,7 +538,7 @@ impl std::fmt::Display for Value {
         match self {
             Value::Numeric(numeric_value) => write!(f, "{numeric_value}"),
             Value::Reference(reference_value) => write!(f, "{reference_value}"),
-            Value::ArrayOrList(array_value) => write!(f, "{array_value}"),
+            Value::ArrayOrVector(array_value) => write!(f, "{array_value}"),
             Value::Function(id) => write!(f, "{id}"),
             Value::Intrinsic(intrinsic) => write!(f, "{intrinsic}"),
             Value::ForeignFunction(name) => write!(f, "ForeignFunction(\"{name}\")"),
@@ -588,8 +588,8 @@ impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let rc = self.rc.borrow();
 
-        let is_list = if self.is_list { "&" } else { "" };
-        write!(f, "rc{rc} {is_list}")?;
+        let is_vector = if self.is_vector { "&" } else { "" };
+        write!(f, "rc{rc} {is_vector}")?;
 
         // Check if the array could be shown as a string literal
         if self.element_types.len() == 1
@@ -659,7 +659,7 @@ impl PartialEq for ArrayValue {
         // Don't compare RC
         self.elements == other.elements
             && self.element_types == other.element_types
-            && self.is_list == other.is_list
+            && self.is_vector == other.is_vector
     }
 }
 

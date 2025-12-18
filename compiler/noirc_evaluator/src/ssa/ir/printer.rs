@@ -133,7 +133,7 @@ fn display_block(
 ) -> Result {
     let block = &dfg[block_id];
 
-    writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
+    writeln!(f, "  {}({}):", block_id, value_vector_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
         display_instruction(dfg, *instruction, false, fm, f)?;
@@ -178,7 +178,7 @@ fn number(number: FieldElement, typ: &NumericType) -> String {
 }
 
 /// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
-fn value_list_with_types(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
+fn value_vector_with_types(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
     vecmap(values, |id| {
         let value = value(dfg, *id);
         let typ = dfg.type_of_value(*id);
@@ -188,7 +188,7 @@ fn value_list_with_types(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
 }
 
 /// Display each value separated by a comma
-fn value_list(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
+fn value_vector(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
     vecmap(values, |id| value(dfg, *id)).join(", ")
 }
 
@@ -200,7 +200,7 @@ fn display_terminator(
 ) -> Result {
     match terminator {
         Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
-            writeln!(f, "    jmp {}({})", destination, value_list(dfg, arguments))
+            writeln!(f, "    jmp {}({})", destination, value_vector(dfg, arguments))
         }
         Some(TerminatorInstruction::JmpIf {
             condition,
@@ -220,7 +220,7 @@ fn display_terminator(
             if return_values.is_empty() {
                 writeln!(f, "    return")
             } else {
-                writeln!(f, "    return {}", value_list(dfg, return_values))
+                writeln!(f, "    return {}", value_vector(dfg, return_values))
             }
         }
         Some(TerminatorInstruction::Unreachable { .. }) => {
@@ -262,11 +262,11 @@ fn display_instruction_buffer(
 
     let results = dfg.instruction_results(instruction);
     if !results.is_empty() {
-        let mut value_list = value_list(dfg, results);
+        let mut value_vector = value_vector(dfg, results);
         if in_global_space {
-            value_list = value_list.replace('v', "g");
+            value_vector = value_vector.replace('v', "g");
         }
-        write!(buffer, "{value_list} = ").map_err(|_| ())?;
+        write!(buffer, "{value_vector} = ").map_err(|_| ())?;
     }
 
     display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, &mut buffer)
@@ -348,7 +348,7 @@ fn display_instruction_inner(
             if let Some(error) = error { display_constrain_error(dfg, error, f) } else { Ok(()) }
         }
         Instruction::Call { func, arguments } => {
-            let arguments = value_list(dfg, arguments);
+            let arguments = value_vector(dfg, arguments);
             write!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
         }
         Instruction::Allocate => {
@@ -417,16 +417,16 @@ fn display_instruction_inner(
             // It could happen that the byte array is a random byte sequence that happens to be printable
             // (it didn't come from a string literal) but this still reduces the noise in the output
             // and actually represents the same value.
-            let (element_types, is_list) = match typ {
+            let (element_types, is_vector) = match typ {
                 Type::Array(types, _) => (types, false),
-                Type::List(types) => (types, true),
-                _ => panic!("Expected array or list type for MakeArray"),
+                Type::Vector(types) => (types, true),
+                _ => panic!("Expected array or vector type for MakeArray"),
             };
             if element_types.len() == 1
                 && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
             {
                 if let Some(string) = try_byte_array_to_string(elements, dfg) {
-                    if is_list {
+                    if is_vector {
                         return write!(f, "make_array &b{string:?}");
                     } else {
                         return write!(f, "make_array b{string:?}");
@@ -456,7 +456,7 @@ fn display_instruction_inner(
 fn display_array_offset(offset: &ArrayOffset) -> String {
     match offset {
         ArrayOffset::None => String::new(),
-        ArrayOffset::Array | ArrayOffset::List => format!(" minus {}", offset.to_u32()),
+        ArrayOffset::Array | ArrayOffset::Vector => format!(" minus {}", offset.to_u32()),
     }
 }
 
@@ -526,7 +526,7 @@ fn display_constrain_error(
             {
                 write!(f, ", {constant_string:?}")
             } else {
-                write!(f, ", data {}", value_list(dfg, values))
+                write!(f, ", data {}", value_vector(dfg, values))
             }
         }
     }

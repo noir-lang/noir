@@ -618,7 +618,7 @@ impl ItemPrinter<'_, '_> {
                 self.show_hir_array_literal(hir_array_literal);
                 self.push(']');
             }
-            HirLiteral::List(hir_array_literal) => {
+            HirLiteral::Vector(hir_array_literal) => {
                 self.push_str("&[");
                 self.show_hir_array_literal(hir_array_literal);
                 self.push(']');
@@ -928,7 +928,7 @@ impl ItemPrinter<'_, '_> {
         match expr {
             HirExpression::Ident(..) => false,
             HirExpression::Literal(hir_literal) => match hir_literal {
-                HirLiteral::Array(hir_array_literal) | HirLiteral::List(hir_array_literal) => {
+                HirLiteral::Array(hir_array_literal) | HirLiteral::Vector(hir_array_literal) => {
                     match hir_array_literal {
                         HirArrayLiteral::Standard(expr_ids) => {
                             expr_ids.iter().any(|expr_id| self.expression_id_has_unsafe(*expr_id))
