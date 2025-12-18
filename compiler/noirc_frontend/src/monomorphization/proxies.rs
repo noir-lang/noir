@@ -288,7 +288,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
 mod tests {
     use crate::{
         hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized_no_emit_test, get_monomorphized_with_error_filter},
+        test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
     };
 
     #[test]
@@ -306,7 +306,7 @@ mod tests {
         }
         ";
 
-        let program = get_monomorphized_no_emit_test(src).unwrap();
+        let program = get_monomorphized(src).unwrap();
         insta::assert_snapshot!(program, @r"
         fn main$f0() -> () {
             {
@@ -336,7 +336,7 @@ mod tests {
         }
         ";
 
-        let program = get_monomorphized_no_emit_test(src).unwrap();
+        let program = get_monomorphized(src).unwrap();
         insta::assert_snapshot!(program, @r"
         unconstrained fn main$f0() -> () {
             foo$f1((bar$f2, bar$f2));

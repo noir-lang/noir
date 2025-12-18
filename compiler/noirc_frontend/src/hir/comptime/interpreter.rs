@@ -922,7 +922,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         use BinaryOpKind::*;
         match operator {
             NotEqual => evaluate_prefix_with_value(value, UnaryOp::Not, location),
-            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            Less | LessEqual | Greater | GreaterEqual => {
+                self.evaluate_ordering(value, operator, location)
+            }
             _ => Ok(value),
         }
     }
@@ -946,13 +948,41 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
-    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
-        let ordering = match ordering {
-            Value::Struct(fields, _) => match &*fields.into_iter().next().unwrap().1.borrow() {
-                Value::Field(ordering) => *ordering,
-                _ => unreachable!("`cmp` should always return an Ordering value"),
-            },
-            _ => unreachable!("`cmp` should always return an Ordering value"),
+    fn evaluate_ordering(
+        &self,
+        ordering: Value,
+        operator: BinaryOpKind,
+        location: Location,
+    ) -> IResult<Value> {
+        let field_ordering = match &ordering {
+            Value::Struct(fields, typ) => {
+                // Check the struct is named "Ordering"
+                let is_ordering_type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def.borrow().name.as_str() == "Ordering",
+                    _ => false,
+                };
+                if is_ordering_type {
+                    let first_field = fields.iter().next();
+                    match first_field {
+                        Some((_, value)) => match &*value.borrow() {
+                            Value::Field(ordering) => Some(*ordering),
+                            _ => None,
+                        },
+                        None => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        // Error if there is no ordering field
+        let Some(ordering) = field_ordering else {
+            return Err(InterpreterError::TypeMismatch {
+                expected: "Ordering".to_string(),
+                actual: ordering.get_type().into_owned(),
+                location,
+            });
         };
 
         // Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
