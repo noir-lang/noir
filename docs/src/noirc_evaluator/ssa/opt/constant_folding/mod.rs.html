@@ -2459,7 +2459,25 @@
 <a href="#2458" id="2458">2458</a>
 <a href="#2459" id="2459">2459</a>
 <a href="#2460" id="2460">2460</a>
-<a href="#2461" id="2461">2461</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a>
+<a href="#2472" id="2472">2472</a>
+<a href="#2473" id="2473">2473</a>
+<a href="#2474" id="2474">2474</a>
+<a href="#2475" id="2475">2475</a>
+<a href="#2476" id="2476">2476</a>
+<a href="#2477" id="2477">2477</a>
+<a href="#2478" id="2478">2478</a>
+<a href="#2479" id="2479">2479</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2606,11 +2624,29 @@
             <span class="comment">// Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
             </span><span class="kw">let </span>blocks_to_revisit = context.blocks_to_revisit;
 
+            <span class="comment">// Preserve the values_to_replace mapping across iterations.
+            // This is necessary because instructions that were simplified or deduplicated in earlier
+            // iterations may still be referenced by instructions in blocks that are revisited.
+            // Without preserving this mapping, those references could point to orphaned instructions.
+            </span><span class="kw">let </span>values_to_replace = context.values_to_replace;
+
             <span class="comment">// Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             </span>context = Context::new(use_constraint_info);
+            context.values_to_replace = values_to_replace;
             context.enqueue(<span class="kw-2">&amp;</span>dom, blocks_to_revisit);
+        }
+
+        <span class="comment">// After all iterations, apply the final values_to_replace mapping to all instructions
+        // in all reachable blocks. This is necessary in case an instruction uses a value re-mapped
+        // in another block that is processed after the instruction's block.
+        // By applying the final mapping here, we ensure consistency.
+        </span><span class="kw">if </span>!context.values_to_replace.is_empty() {
+            <span class="kw">for </span>block_id <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
+                <span class="self">self</span>.dfg.replace_values_in_block(block_id, <span class="kw-2">&amp;</span>context.values_to_replace);
+            }
+            <span class="self">self</span>.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>context.values_to_replace);
         }
     }
 }
