@@ -80,15 +80,13 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, ExprId, GlobalId, NodeInterner, StmtId, TraitId, TraitImplId, TypeAliasId,
-        TypeId,
+        DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
 };
-use rustc_hash::FxHashSet as HashSet;
 
 mod comptime;
 mod enums;
