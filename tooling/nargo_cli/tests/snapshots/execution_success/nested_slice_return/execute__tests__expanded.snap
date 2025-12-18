@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(i: u32) -> pub [[u32; 5]; 4] {
+    let mut arr: [[u32; 5]; 4] = [
+        [1_u32, 2_u32, 3_u32, 4_u32, 5_u32],
+        [6_u32, 7_u32, 8_u32, 9_u32, 10_u32],
+        [11_u32, 12_u32, 13_u32, 14_u32, 15_u32],
+        [16_u32, 17_u32, 18_u32, 19_u32, 20_u32],
+    ];
+    arr[i][1_u32] = 100_u32;
+    let slice: [[u32; 5]] = arr.as_slice();
+    slice.as_array()
+}

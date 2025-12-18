@@ -39,15 +39,11 @@ impl Context<'_> {
         let slice = self.convert_value(slice_contents, dfg);
         let slice_typ = dfg.type_of_value(slice_contents);
 
-        let (new_slice_length, new_slice_val) = if let Some(len_const) =
-            dfg.get_numeric_constant(arguments[0])
-        {
+        let new_slice_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
-            let old_slice_len = new_slice.len();
             // length of Acir Values slice
             let len = len_const.to_u128() as usize * elements_to_push.len();
-
             for (i, elem) in elements_to_push.iter().enumerate() {
                 let element = self.convert_value(*elem, dfg);
                 let write_index = len + i;
@@ -60,12 +56,7 @@ impl Context<'_> {
                     new_slice.push_back(element);
                 }
             }
-            let new_slice_length = if new_slice.len() > old_slice_len {
-                self.acir_context.add_var(slice_length, one)?
-            } else {
-                slice_length
-            };
-            (new_slice_length, AcirValue::Array(new_slice))
+            AcirValue::Array(new_slice)
         } else {
             // Length is not known, we are going to:
             // 1. Push dummy data to the slice, so that it's capacity covers for the push_back
@@ -154,10 +145,10 @@ impl Context<'_> {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
                 flatten_idx = self.acir_context.add_var(flatten_idx, one)?;
             }
-            let new_slice_length = self.acir_context.add_var(slice_length, one)?;
-            (new_slice_length, AcirValue::DynamicArray(flattened_dynamic_array))
+            AcirValue::DynamicArray(flattened_dynamic_array)
         };
 
+        let new_slice_length = self.acir_context.add_var(slice_length, one)?;
         Ok(vec![AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
@@ -188,7 +179,8 @@ impl Context<'_> {
         let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
         let slice = self.convert_value(slice_contents, dfg);
-        let mut new_slice = self.read_array(slice)?;
+        let slice_type = dfg.type_of_value(slice_contents);
+        let mut new_slice = self.read_array_with_type(slice, &slice_type)?;
 
         // We must directly push front elements for non-nested slices
         for elem in elements_to_push.iter().rev() {
@@ -396,14 +388,11 @@ impl Context<'_> {
         let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
         let slice = self.convert_value(slice_contents, dfg);
-        let is_dynamic = matches!(slice, AcirValue::DynamicArray(_));
 
-        let mut new_slice = self.read_array(slice)?;
-
+        let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
         let element_size = slice_typ.element_size();
 
         let mut popped_elements: Vec<AcirValue> = Vec::new();
-        let mut popped_elements_size = 0;
         let mut var_index = self.acir_context.add_constant(FieldElement::zero());
         // Fetch the values we are popping off of the slice.
         // In the case of non-nested slice the logic is simple as we do not
@@ -411,19 +400,12 @@ impl Context<'_> {
         for res in &result_ids[..element_size] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
-            let elem_size = super::arrays::flattened_value_size(&element);
-            popped_elements_size += elem_size;
             popped_elements.push(element);
         }
 
-        // It is expected that the `popped_elements_size` is the flattened size of the elements,
-        // as the input slice should be a dynamic array which is represented by flat memory.
-        // However in some cases the input slice is an Array with a nested structure,
-        // in which case we only need to pop the items that represent a single entry.
-        let popped_elements_size = if is_dynamic { popped_elements_size } else { element_size };
+        let popped_elements_size = popped_elements.len();
 
         new_slice = new_slice.slice(popped_elements_size..);
-
         popped_elements.push(AcirValue::Var(new_slice_length, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_slice));
 

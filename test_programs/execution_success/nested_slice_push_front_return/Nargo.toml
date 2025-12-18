@@ -1,0 +1,6 @@
+[package]
+name = "nested_slice_push_front_return"
+type = "bin"
+authors = [""]
+
+[dependencies]

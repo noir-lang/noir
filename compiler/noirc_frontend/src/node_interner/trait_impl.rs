@@ -305,13 +305,20 @@ impl NodeInterner {
                 }
             }
 
-            let associated_types_unify = trait_associated_types
-                .iter()
-                .zip(&impl_trait_generics.named)
-                .all(|(trait_generic, impl_generic)| {
-                    let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
-                    trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                });
+            // Match associated types by name, not position
+            let associated_types_unify = trait_associated_types.iter().all(|trait_generic| {
+                // Find the matching impl generic by name
+                let Some(impl_generic) = impl_trait_generics
+                    .named
+                    .iter()
+                    .find(|impl_g| impl_g.name.as_str() == trait_generic.name.as_str())
+                else {
+                    // If the impl doesn't have this associated type, it doesn't match
+                    return false;
+                };
+                let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
+                trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
+            });
             if !associated_types_unify {
                 continue;
             }
