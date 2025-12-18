@@ -1155,7 +1155,7 @@
     }
     name.reverse();
     <span class="kw">let </span><span class="kw-2">mut </span>name = name.into_iter().collect::&lt;String&gt;();
-    <span class="kw">if </span><span class="macro">matches!</span>(name.as_str(), <span class="string">"as" </span>| <span class="string">"if" </span>| <span class="string">"fn" </span>| <span class="string">"for" </span>| <span class="string">"loop"</span>) {
+    <span class="kw">if </span><span class="macro">matches!</span>(name.as_str(), <span class="string">"as" </span>| <span class="string">"if" </span>| <span class="string">"in" </span>| <span class="string">"fn" </span>| <span class="string">"for" </span>| <span class="string">"loop"</span>) {
         name = <span class="macro">format!</span>(<span class="string">"{name}_"</span>);
     }
     <span class="kw">if </span>is_global { <span class="macro">format!</span>(<span class="string">"G_{name}"</span>) } <span class="kw">else </span>{ name }
