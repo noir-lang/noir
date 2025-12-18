@@ -882,11 +882,9 @@ impl Context<'_> {
 
         // An instruction representing the slice means it has been processed previously during ACIR gen.
         // Use the previously defined result of an array operation to fetch the internal type information.
-        let array_acir_value = if let Some(value) = supplied_acir_value {
-            value
-        } else {
+        let array_acir_value = supplied_acir_value.unwrap_or_else(|| {
             self.convert_value(array_id, dfg)
-        };
+        });
         let flattened_len = flattened_value_size(&array_acir_value);
         match array_acir_value {
             AcirValue::Array(_) => self.init_type_sizes_helper(
