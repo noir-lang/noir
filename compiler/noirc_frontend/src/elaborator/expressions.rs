@@ -63,7 +63,7 @@ impl Elaborator<'_> {
             self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
 
         if has_errors {
-            self.exprs_with_errors.insert(id);
+            self.interner.exprs_with_errors.insert(id);
         }
 
         (id, typ)

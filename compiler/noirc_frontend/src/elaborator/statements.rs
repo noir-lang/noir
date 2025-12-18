@@ -76,7 +76,7 @@ impl Elaborator<'_> {
             self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
 
         if has_errors {
-            self.stmts_with_errors.insert(id);
+            self.interner.stmts_with_errors.insert(id);
         }
 
         (id, typ)

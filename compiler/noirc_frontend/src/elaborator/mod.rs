@@ -262,14 +262,6 @@ pub struct Elaborator<'context> {
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
 
-    /// Tracks expressions that encountered errors during elaboration.
-    /// Used by the interpreter to skip evaluation of errored expressions.
-    pub(crate) exprs_with_errors: HashSet<ExprId>,
-
-    /// Tracks statements that encountered errors during elaboration.
-    /// Used by the interpreter to skip evaluation of errored statements.
-    pub(crate) stmts_with_errors: HashSet<StmtId>,
-
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     pub(crate) comptime_evaluation_halted: bool,
@@ -340,8 +332,6 @@ impl<'context> Elaborator<'context> {
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
-            exprs_with_errors: HashSet::default(),
-            stmts_with_errors: HashSet::default(),
             comptime_evaluation_halted: false,
         }
     }

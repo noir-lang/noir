@@ -589,7 +589,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         // Skip expressions that had errors during elaboration and halt all future execution
-        if self.elaborator.exprs_with_errors.contains(&id) {
+        if self.elaborator.interner.exprs_with_errors.contains(&id) {
             self.elaborator.comptime_evaluation_halted = true;
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
@@ -1233,7 +1233,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         // Skip statements that had errors during elaboration and halt all future execution
-        if self.elaborator.stmts_with_errors.contains(&statement) {
+        if self.elaborator.interner.stmts_with_errors.contains(&statement) {
             self.elaborator.comptime_evaluation_halted = true;
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
