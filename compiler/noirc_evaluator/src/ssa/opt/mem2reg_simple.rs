@@ -47,81 +47,127 @@ impl Function {
         let mut entry_states = BTreeMap::default();
         let mut exit_states = BTreeMap::default();
 
+        let start0 = std::time::Instant::now();
         let variables = collect_all_eligible_variables(inserter.function, &blocks);
+        let vars_time = start0.elapsed();
+        println!("collect_all_eligible_variables took {}ms", vars_time.as_millis());
 
-        // Find the starting & ending states of each variable in each block
-        for block in blocks.iter().copied() {
-            // All variables visible at the start of the current block
-            let entry_state = add_visible_variables_as_block_arguments(
-                &variables,
-                &mut dom_tree,
-                block,
-                &mut inserter.function.dfg,
-            );
-            entry_states.insert(block, entry_state.clone());
+        let start = std::time::Instant::now();
+        step1(
+            &blocks,
+            &variables,
+            &mut dom_tree,
+            &mut inserter,
+            &mut entry_states,
+            &mut exit_states,
+        );
+        println!("step1 took {}ms", start.elapsed().as_millis());
 
-            let exit_state = abstract_interpret_block(&mut inserter, block, entry_state);
-            exit_states.insert(block, exit_state);
-        }
+        let start = std::time::Instant::now();
+        step2(&blocks, &variables, &mut inserter, &mut entry_states, &mut exit_states, &cfg);
+        println!("step2 took {}ms", start.elapsed().as_millis());
 
-        // Link entry & exit states by adding block parameters & terminator arguments for every variable stored to
-        for block in blocks.iter().copied() {
-            for (address, entry_value) in entry_states[&block].iter() {
-                // If the current block is this variable's source block, no merge is needed.
-                if block == variables[address] {
-                    continue;
-                }
+        let start = std::time::Instant::now();
 
-                // Remember any value stored to address in this block. The initial value given here is unused and thus arbitrary.
-                let mut last_value = *entry_value;
-                let predecessors = cfg.predecessors(block);
-                let predecessor_count = predecessors.len();
+        step3(&blocks, &mut inserter, &cfg);
+        println!("step3 took {}ms", start.elapsed().as_millis());
 
-                for predecessor in predecessors {
-                    let exit_value = exit_states[&predecessor][address];
-                    last_value = exit_value;
-
-                    if predecessor_count > 1 {
-                        let index =
-                            add_terminator_argument(inserter.function, exit_value, predecessor);
-                        let parameter = inserter.function.dfg[block].parameters()[index];
-
-                        let expected_type = inserter.function.dfg.type_of_value(parameter);
-                        let actual_type = inserter.function.dfg.type_of_value(exit_value);
-                        assert_eq!(
-                            actual_type, expected_type,
-                            "mem2reg_simple argument type {actual_type} does not match expected type {expected_type} for block {block} and pred {predecessor}, argument {index}"
-                        );
-                    }
-                }
-
-                if predecessor_count == 1 {
-                    inserter.map_value(*entry_value, last_value);
-                }
-            }
-        }
-
-        // Simplify block parameters where all arguments are identical
-        for block in blocks.iter().copied() {
-            let parameters = inserter.function.dfg.block_parameters(block).to_vec();
-
-            // Mask of whether each parameter has non-identical arguments,
-            // E.g. if parameter 2's arguments are all identical, then keep_parameters[2] would be false
-            let mask = keep_argument_mask(&mut inserter, &cfg, block, &parameters);
-
-            // Remove unneeded parameters from the block
-            retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
-
-            // And remove the corresponding parameter's arguments from each predecessor
-            for predecessor in cfg.predecessors(block) {
-                let terminator = inserter.function.dfg[predecessor].unwrap_terminator_mut();
-                if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
-                    retain_items_from_mask(arguments, &mask);
-                }
-            }
-        }
+        let start = std::time::Instant::now();
 
         commit(&mut inserter, &variables, blocks);
+        println!("commit took {}ms", start.elapsed().as_millis());
+        println!("total is {}ms", start0.elapsed().as_millis());
+    }
+}
+
+fn step1(
+    blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    dom_tree: &mut DominatorTree,
+    inserter: &mut FunctionInserter,
+    entry_states: &mut BTreeMap<BasicBlockId, StateVec>,
+    exit_states: &mut BTreeMap<BasicBlockId, StateVec>,
+) {
+    // Find the starting & ending states of each variable in each block
+    for block in blocks.iter().copied() {
+        // All variables visible at the start of the current block
+        let entry_state = add_visible_variables_as_block_arguments(
+            &variables,
+            dom_tree,
+            block,
+            &mut inserter.function.dfg,
+        );
+        entry_states.insert(block, entry_state.clone());
+
+        let exit_state = abstract_interpret_block(inserter, block, entry_state);
+        exit_states.insert(block, exit_state);
+    }
+}
+
+fn step2(
+    blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    inserter: &mut FunctionInserter,
+    entry_states: &mut BTreeMap<BasicBlockId, StateVec>,
+    exit_states: &mut BTreeMap<BasicBlockId, StateVec>,
+    cfg: &ControlFlowGraph,
+) {
+    // Link entry & exit states by adding block parameters & terminator arguments for every variable stored to
+    for block in blocks.iter().copied() {
+        for (address, entry_value) in entry_states[&block].iter() {
+            // If the current block is this variable's source block, no merge is needed.
+            if block == variables[address] {
+                continue;
+            }
+
+            // Remember any value stored to address in this block. The initial value given here is unused and thus arbitrary.
+            let mut last_value = *entry_value;
+            let predecessors = cfg.predecessors(block);
+            let predecessor_count = predecessors.len();
+
+            for predecessor in predecessors {
+                let exit_value = exit_states[&predecessor][address];
+                last_value = exit_value;
+
+                if predecessor_count > 1 {
+                    let index = add_terminator_argument(inserter.function, exit_value, predecessor);
+                    let parameter = inserter.function.dfg[block].parameters()[index];
+
+                    let expected_type = inserter.function.dfg.type_of_value(parameter);
+                    let actual_type = inserter.function.dfg.type_of_value(exit_value);
+                    assert_eq!(
+                        actual_type, expected_type,
+                        "mem2reg_simple argument type {actual_type} does not match expected type {expected_type} for block {block} and pred {predecessor}, argument {index}"
+                    );
+                }
+            }
+
+            if predecessor_count == 1 {
+                inserter.map_value(*entry_value, last_value);
+            }
+        }
+    }
+}
+
+fn step3(blocks: &[BasicBlockId], inserter: &mut FunctionInserter, cfg: &ControlFlowGraph) {
+    // Simplify block parameters where all arguments are identical
+    for block in blocks.iter().copied() {
+        let parameters = inserter.function.dfg.block_parameters(block).to_vec();
+
+        // Mask of whether each parameter has non-identical arguments,
+        // E.g. if parameter 2's arguments are all identical, then keep_parameters[2] would be false
+        let mask = keep_argument_mask(inserter, &cfg, block, &parameters);
+
+        // Remove unneeded parameters from the block
+        retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
+
+        // And remove the corresponding parameter's arguments from each predecessor
+        for predecessor in cfg.predecessors(block) {
+            let terminator = inserter.function.dfg[predecessor].unwrap_terminator_mut();
+            if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
+                retain_items_from_mask(arguments, &mask);
+            }
+        }
     }
 }
 
