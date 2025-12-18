@@ -950,7 +950,10 @@
 <a href="#949" id="949">949</a>
 <a href="#950" id="950">950</a>
 <a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -1132,8 +1135,8 @@
             }
 
             <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, typ)) = slice {
-                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack)
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((slice, typ)) = slice {
+                simplify_slice_pop_back(slice, typ, arguments, dfg, block, call_stack)
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
@@ -1504,6 +1507,7 @@
 }
 
 <span class="kw">fn </span>simplify_slice_pop_back(
+    <span class="kw-2">mut </span>slice: im::Vector&lt;ValueId&gt;,
     slice_type: Type,
     arguments: <span class="kw-2">&amp;</span>[ValueId],
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
@@ -1537,9 +1541,11 @@
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
+        slice.pop_back();
     }
 
-    results.push_front(arguments[<span class="number">1</span>]);
+    <span class="kw">let </span>new_slice = make_array(dfg, slice, slice_type, block, call_stack);
+    results.push_front(new_slice);
 
     results.push_front(new_slice_length);
     SimplifyResult::SimplifiedToMultiple(results.into())
