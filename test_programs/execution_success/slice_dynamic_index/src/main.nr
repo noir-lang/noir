@@ -188,7 +188,7 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: u32, y: u3
     }
     assert(slice[4] == 10); // [0, 0, 2, 3, 10, 15];
     assert(slice.len() == 6);
-    assert(slice[slice.len() - 1] == 15); 
+    assert(slice[slice.len() - 1] == 15);
 
     slice = slice.push_back(20);
     assert(slice.len() == 7);
