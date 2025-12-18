@@ -45,6 +45,51 @@ fn slice_push_back_known_length() {
 }
 
 #[test]
+fn slice_push_back_known_length_with_padding() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32):
+        v3 = make_array [Field 2, Field 3, Field 0, Field 0, Field 0] : [Field]
+        // Mutate it at index v0 (to make it non-constant in the circuit)
+        v5 = array_set v3, index v0, value Field 4
+        v8, v9 = call slice_push_back(u32 2, v5, Field 10) -> (u32, [Field])
+        constrain v8 == v1
+        // Mutate the new slice to make the result block observable
+        v11 = array_set v9, index v0, value Field 20
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Note that w12 is now the third element in b3 and followed by two zero values from the pre-existing padding.
+    // w1 has also been asserted to equal 3, the dynamic length of the slice.
+    // Aside the extra padding in the memory blocks we expect this ACIR to closely match a slice whose contents do not contain padding.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    ASSERT w2 = 2
+    ASSERT w3 = 3
+    ASSERT w4 = 0
+    INIT b1 = [w2, w3, w4, w4, w4]
+    ASSERT w5 = 4
+    WRITE b1[w0] = w5
+    READ w6 = b1[w4]
+    ASSERT w7 = 1
+    READ w8 = b1[w7]
+    READ w9 = b1[w2]
+    READ w10 = b1[w3]
+    READ w11 = b1[w5]
+    ASSERT w12 = 10
+    ASSERT w1 = 3
+    INIT b3 = [w6, w8, w12, w10, w11]
+    ASSERT w13 = 20
+    WRITE b3[w0] = w13
+    ");
+}
+
+#[test]
 fn slice_push_back_unknown_length() {
     // Here we use v2 as the length of the slice to show the generated ACIR when the
     // length is now known at compile time.
