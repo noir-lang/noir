@@ -189,9 +189,9 @@ fn allows_multiple_underscore_parameters() {
 #[test]
 fn cannot_return_slice_from_main() {
     let src = r#"
-    fn main() -> pub [Field]{
-       ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Slice is not a valid entry point type. Found: [Field]
+    fn main() -> pub [Field] {
+                     ^^^^^^^ Invalid type found in the entry point to a program
+                     ~~~~~~~ Slice is not a valid entry point type. Found: [Field]
         &[1,2]
 
     }
