@@ -247,9 +247,8 @@ impl<'a> ValueMerger<'a> {
                     continue;
                 }
 
-                let then_element =
-                    get_element(then_value_id, typevars.clone(), flat_then_length, index);
-                let else_element = get_element(else_value_id, typevars, flat_else_length, index);
+                let then_element = get_element(then_value_id, typevars.clone(), flat_then_length);
+                let else_element = get_element(else_value_id, typevars, flat_else_length);
 
                 merged.push_back(self.merge_values(
                     then_condition,
