@@ -891,7 +891,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v22, v23] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
         // with the other slice, where `v21` merges the two values.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
