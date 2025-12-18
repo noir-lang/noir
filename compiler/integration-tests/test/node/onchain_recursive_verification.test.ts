@@ -7,8 +7,10 @@ import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json' ass
 import recursionCircuit from '../../circuits/recursion/target/recursion.json' assert { type: 'json' };
 
 it(`smart contract can verify a recursive proof`, async () => {
+  const api = await Barretenberg.new({ threads: 1 });
+
   // Inner circuit
-  const innerBackend = new UltraHonkBackend(assertLtCircuit.bytecode, {}, { recursive: true });
+  const innerBackend = new UltraHonkBackend(assertLtCircuit.bytecode, api);
   const inner = new Noir(assertLtCircuit as CompiledCircuit);
   const innerInputs = {
     x: '2',
@@ -22,13 +24,12 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   // Get verification key for inner circuit as fields
   const innerCircuitVerificationKey = await innerBackend.getVerificationKey();
-  const barretenbergAPI = await Barretenberg.new({ threads: 1 });
-  const vkAsFields = await barretenbergAPI.vkAsFields({ verificationKey: innerCircuitVerificationKey });
-  const vkHash = await barretenbergAPI.poseidon2Hash({ inputs: vkAsFields.fields });
+  const vkAsFields = await api.vkAsFields({ verificationKey: innerCircuitVerificationKey });
+  const vkHash = await api.poseidon2Hash({ inputs: vkAsFields.fields });
 
   // Generate proof of the recursive circuit
   const recursiveCircuitNoir = new Noir(recursionCircuit as CompiledCircuit);
-  const recursiveBackend = new UltraHonkBackend(recursionCircuit.bytecode, { threads: 1 });
+  const recursiveBackend = new UltraHonkBackend(recursionCircuit.bytecode, api);
 
   const vkAsFieldsReal = vkAsFields.fields.map((field) => {
     let fieldBigint = 0n;
@@ -79,4 +80,6 @@ it(`smart contract can verify a recursive proof`, async () => {
   const result = await contract.verify.staticCall(recursiveProof, recursivePublicInputs);
 
   expect(result).to.be.true;
+
+  await api.destroy();
 });
