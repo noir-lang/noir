@@ -30,24 +30,24 @@ fn do_not_infer_globals_to_u32_from_type_use() {
         global ARRAY_LEN = 3;
                ^^^^^^^^^ Globals must have a specified type
                            ~ Inferred type is `Field`
-                           ^ Global failed to evaluate
         global STR_LEN: _ = 2;
                         ^ The placeholder `_` is not allowed in global definitions
                ^^^^^^^ Globals must have a specified type
                             ~ Inferred type is `Field`
-                            ^ Global failed to evaluate
         global FMT_STR_LEN = 2;
                ^^^^^^^^^^^ Globals must have a specified type
                              ~ Inferred type is `Field`
-                             ^ Global failed to evaluate
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                          ^^^^^^^^^ expected type got global
+                    ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
+                    ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                        ^^^^^^^ expected type got global
+                        ^^^^^^^ The numeric generic is not of type `u32`
+                        ~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                           ^^^^^^^^^^^ expected type got global
+                           ^^^^^^^^^^^ The numeric generic is not of type `u32`
+                           ~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
     check_errors(src);

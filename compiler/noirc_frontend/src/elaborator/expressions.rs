@@ -59,6 +59,21 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+
+        if has_errors {
+            self.interner.exprs_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    fn elaborate_expression_inner(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
         let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
         let (hir_expr, typ) = match expr.kind {
@@ -611,14 +626,10 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let is_macro_call = call.is_macro_call;
 
-        let ((hir_call, mut typ), has_errors) =
-            self.with_error_guard(|this| this.elaborate_call_inner(call, location, is_macro_call));
+        let (hir_call, mut typ) = self.elaborate_call_inner(call, location, is_macro_call);
 
         // Only check has_errors when we need to call the interpreter
         if is_macro_call && !self.in_comptime_context() {
-            if has_errors {
-                return (HirExpression::Error, Type::Error);
-            }
             return self
                 .call_macro(hir_call.func, hir_call.arguments, location, typ)
                 .unwrap_or((HirExpression::Error, Type::Error));
@@ -696,14 +707,10 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let is_macro_call = method_call.is_macro_call;
 
-        let ((function_call, mut typ), has_errors) =
-            self.with_error_guard(|this| this.elaborate_method_call_inner(method_call, location));
+        let (function_call, mut typ) = self.elaborate_method_call_inner(method_call, location);
 
         // Only check has_errors when we need to call the interpreter
         if is_macro_call && !self.in_comptime_context() {
-            if has_errors {
-                return (HirExpression::Error, Type::Error);
-            }
             let args = function_call.arguments;
             return self
                 .call_macro(function_call.func, args, location, typ)
@@ -1525,18 +1532,12 @@ impl Elaborator<'_> {
         location: Location,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let ((block, _typ), has_errors) = self.with_error_guard(|this| {
-            this.elaborate_in_comptime_context(|this| {
-                this.elaborate_block_expression(block, target_type)
-            })
+        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
+            this.elaborate_block_expression(block, target_type)
         });
 
-        let value = if has_errors {
-            Err(InterpreterError::SkippedDueToEarlierErrors)
-        } else {
-            let mut interpreter = self.setup_interpreter();
-            interpreter.evaluate_block(block)
-        };
+        let mut interpreter = self.setup_interpreter();
+        let value = interpreter.evaluate_block(block);
 
         let (id, typ) = self.inline_comptime_value(value, location);
 
