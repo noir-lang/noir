@@ -68,8 +68,8 @@ impl Interpreter<'_, '_> {
         return_type: Type,
         location: Location,
     ) -> IResult<Value> {
+        let call_stack = &self.elaborator.interpreter_call_stack().clone();
         let interner = &mut self.elaborator.interner;
-        let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
