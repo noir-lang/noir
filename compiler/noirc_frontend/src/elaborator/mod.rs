@@ -124,12 +124,18 @@ use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 
-/// Maximum number of items on the interpreter stack, limiting recursion during comptime.
+/// Maximum number of recursive calls allowed at comptime.
 ///
-/// Ideally we would like this to be 1000, to match what we do in ACIR, however due to
-/// the overhead of the interpreter itself, which recursively evaluates expressions,
-/// we cannot currently raise this higher to somewhere between 300 and 350.
-pub const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+/// Ideally we would like this to be 1000 to match what happens in ACIR,
+/// however due to the overhead of the `Interpreter` itself Rust itself
+/// would exhaust the stack earlier (or later, because `nargo` increases
+/// the stack size for parsing for example).
+///
+/// Potentially we could increase this if the `Interpreter` used an iterative
+/// strategy instead of recursion.
+///
+/// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
+const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -739,7 +745,7 @@ impl<'context> Elaborator<'context> {
 
     /// Push a new location to the interpreter call stack.
     ///
-    /// Returns an error if the stack size exceeds the maximum.
+    /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
     pub(crate) fn push_interpreter_call_stack(
         &mut self,
         location: Location,
