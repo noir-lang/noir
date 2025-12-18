@@ -968,7 +968,12 @@ fn generate_nargo_expand_compile_tests(
     test_file: &mut File,
     test_data_dir: &Path,
 ) {
-    generate_nargo_expand_compile_tests_with_ignore_vector(test_type, test_file, test_data_dir, &[]);
+    generate_nargo_expand_compile_tests_with_ignore_vector(
+        test_type,
+        test_file,
+        test_data_dir,
+        &[],
+    );
 }
 
 fn generate_nargo_expand_compile_tests_with_ignore_vector(

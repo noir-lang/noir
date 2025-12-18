@@ -83,7 +83,8 @@ impl Chunk {
     /// arguments into separate lines.
     pub(crate) fn width_inside_an_expression_vector(&self) -> usize {
         if let Chunk::Group(group) = &self {
-            if let GroupKind::LambdaAsLastExpressionInVector { first_line_width, .. } = &group.kind {
+            if let GroupKind::LambdaAsLastExpressionInVector { first_line_width, .. } = &group.kind
+            {
                 return *first_line_width;
             }
         }
@@ -623,8 +624,9 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_chunk_group_impl(&mut self, group: ChunkGroup) {
-        if let GroupKind::LambdaAsLastExpressionInVector { indentation: Some(indentation), .. } =
-            group.kind
+        if let GroupKind::LambdaAsLastExpressionInVector {
+            indentation: Some(indentation), ..
+        } = group.kind
         {
             let previous_indentation = self.indentation;
             self.indentation = indentation;
@@ -737,7 +739,8 @@ impl<'a> Formatter<'a> {
             // (rustfmt seems to do the same thing)
             if let GroupKind::ExpressionVector { prefix_width, expressions_count: 1 } = group.kind {
                 if let Some(inner_group) = group.first_group() {
-                    if inner_group.kind.is_expression_vector() || inner_group.kind.is_method_call() {
+                    if inner_group.kind.is_expression_vector() || inner_group.kind.is_method_call()
+                    {
                         let total_width = self.current_line_width()
                             + prefix_width
                             + inner_group.width_until_line().0;

@@ -134,7 +134,12 @@ impl HTMLCreator {
         self.push_file(PathBuf::from("all.html"));
     }
 
-    fn render_all_items_vector(&mut self, title: &str, class: &str, items: &[(Vec<String>, String)]) {
+    fn render_all_items_vector(
+        &mut self,
+        title: &str,
+        class: &str,
+        items: &[(Vec<String>, String)],
+    ) {
         if items.is_empty() {
             return;
         }

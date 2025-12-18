@@ -178,8 +178,10 @@ fn test_sha256() {
         return v2
     }
       ";
-    let input =
-        from_u32_vector(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6], NumericType::unsigned(32));
+    let input = from_u32_vector(
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6],
+        NumericType::unsigned(32),
+    );
     let state = from_u32_vector(&[1, 2, 3, 4, 5, 6, 7, 8], NumericType::unsigned(32));
 
     let values = expect_values_with_args(src, vec![input, state]);

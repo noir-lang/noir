@@ -70,8 +70,9 @@ impl ChunkFormatter<'_, '_> {
             UseTreeKind::Vector(use_trees) => {
                 // We check if there are nested vectors. If yes, then each item will be on a separate line
                 // (it reads better, and this is what rustfmt seems to do too)
-                let has_nested_vector =
-                    use_trees.iter().any(|use_tree| matches!(use_tree.kind, UseTreeKind::Vector(..)));
+                let has_nested_vector = use_trees
+                    .iter()
+                    .any(|use_tree| matches!(use_tree.kind, UseTreeKind::Vector(..)));
 
                 let use_trees_len = use_trees.len();
 

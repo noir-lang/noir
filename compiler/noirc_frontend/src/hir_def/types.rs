@@ -1616,7 +1616,8 @@ impl Type {
                         return true;
                     }
                 } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_vector()) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_vector())
+                    {
                         return true;
                     }
                 }

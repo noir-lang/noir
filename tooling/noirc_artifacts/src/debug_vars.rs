@@ -104,7 +104,10 @@ impl<F: AcirField> DebugVars<F> {
                     }
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
-                (PrintableValue::Vec { array_elements, is_vector }, PrintableType::Vector { typ }) => {
+                (
+                    PrintableValue::Vec { array_elements, is_vector },
+                    PrintableType::Vector { typ },
+                ) => {
                     assert!(*is_vector, "vector doesn't have vector type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }

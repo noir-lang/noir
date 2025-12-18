@@ -118,7 +118,9 @@ pub enum ResolverError {
     MacroIsNotComptime { location: Location },
     #[error("Annotation name must refer to a comptime function")]
     NonFunctionInAnnotation { location: Location },
-    #[error("Type `{typ}` was inserted into the generics vector from a macro, but is not a generic")]
+    #[error(
+        "Type `{typ}` was inserted into the generics vector from a macro, but is not a generic"
+    )]
     MacroResultInGenericsVectorNotAGeneric { location: Location, typ: Type },
     #[error("Named type arguments aren't allowed in a {item_kind}")]
     NamedTypeArgs { location: Location, item_kind: &'static str },

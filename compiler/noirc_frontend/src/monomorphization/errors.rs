@@ -123,7 +123,8 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::NestedVectors { .. } => {
-                "Nested vectors, i.e. vectors within an array or vector, are not supported".to_string()
+                "Nested vectors, i.e. vectors within an array or vector, are not supported"
+                    .to_string()
             }
             MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
                 let message = format!("Invalid type {typ} used in the error message");

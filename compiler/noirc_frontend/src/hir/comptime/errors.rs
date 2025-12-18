@@ -698,8 +698,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 error
             }
             InterpreterError::ExpectedIdentForStructField { value, index, location } => {
-                let msg =
-                    format!("Quoted value in index {index} of this vector is not a valid field name");
+                let msg = format!(
+                    "Quoted value in index {index} of this vector is not a valid field name"
+                );
                 let secondary = format!("`{value}` is not a valid field name for `set_fields`");
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }

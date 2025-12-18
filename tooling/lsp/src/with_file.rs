@@ -847,7 +847,9 @@ fn literal_with_file(literal: Literal, file: FileId) -> Literal {
         Literal::Array(array_literal) => {
             Literal::Array(array_literal_with_file(array_literal, file))
         }
-        Literal::Vector(array_literal) => Literal::Vector(array_literal_with_file(array_literal, file)),
+        Literal::Vector(array_literal) => {
+            Literal::Vector(array_literal_with_file(array_literal, file))
+        }
         Literal::FmtStr(fragments, length) => Literal::FmtStr(
             vecmap(fragments, |fragment| fmt_str_fragment_with_file(fragment, file)),
             length,

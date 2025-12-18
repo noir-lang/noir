@@ -273,7 +273,8 @@ impl FunctionContext<'_> {
                     ast::Type::Vector(_) => {
                         let vector_length =
                             self.builder.length_constant(array.contents.len() as u128);
-                        let vector_contents = self.codegen_array_checked(elements, typ[1].clone())?;
+                        let vector_contents =
+                            self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![vector_length.into(), vector_contents])
                     }
                     _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
@@ -1198,7 +1199,8 @@ impl FunctionContext<'_> {
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
             let selector = error_type.selector();
-            let values = self.codegen_expression(assert_message_expression)?.into_value_vector(self);
+            let values =
+                self.codegen_expression(assert_message_expression)?.into_value_vector(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
             // Record custom types in the builder, outside of SSA instructions
             // This is made to avoid having Hir types in the SSA code.

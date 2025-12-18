@@ -141,7 +141,8 @@ pub(super) fn simplify_call(
                             let new_vector_length =
                                 increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                            let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                            let new_vector =
+                                make_array(dfg, vector, element_type, block, call_stack);
                             return SimplifyResult::SimplifiedToMultiple(vec![
                                 new_vector_length,
                                 new_vector,
@@ -163,7 +164,8 @@ pub(super) fn simplify_call(
                     vector.push_front(*elem);
                 }
 
-                let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    increment_vector_length(arguments[0], dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, element_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
@@ -203,7 +205,8 @@ pub(super) fn simplify_call(
                     vector.pop_front().expect("There are no elements in this vector to be removed")
                 });
 
-                let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    decrement_vector_length(arguments[0], dfg, block, call_stack);
 
                 results.push(new_vector_length);
 
@@ -236,7 +239,8 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    increment_vector_length(arguments[0], dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
@@ -274,7 +278,8 @@ pub(super) fn simplify_call(
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 results.insert(0, new_vector);
 
-                let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    decrement_vector_length(arguments[0], dfg, block, call_stack);
 
                 results.insert(0, new_vector_length);
 

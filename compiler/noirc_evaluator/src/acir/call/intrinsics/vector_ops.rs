@@ -90,7 +90,9 @@ impl Context<'_> {
                         }
                     }
                     AcirValue::DynamicArray(_) => {
-                        unimplemented!("pushing a dynamic array into a vector is not yet supported");
+                        unimplemented!(
+                            "pushing a dynamic array into a vector is not yet supported"
+                        );
                     }
                 }
             }
@@ -601,13 +603,17 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes = if super::arrays::array_has_constant_element_size(&vector_typ)
-            .is_none()
-        {
-            Some(self.init_element_type_sizes_array(&vector_typ, vector_contents, Some(&vector), dfg)?)
-        } else {
-            None
-        };
+        let element_type_sizes =
+            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                Some(self.init_element_type_sizes_array(
+                    &vector_typ,
+                    vector_contents,
+                    Some(&vector),
+                    dfg,
+                )?)
+            } else {
+                None
+            };
 
         let value_types = flat_numeric_types(&vector_typ);
 
@@ -779,13 +785,17 @@ impl Context<'_> {
             self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let element_type_sizes = if super::arrays::array_has_constant_element_size(&vector_typ)
-            .is_none()
-        {
-            Some(self.init_element_type_sizes_array(&vector_typ, vector_contents, Some(&vector), dfg)?)
-        } else {
-            None
-        };
+        let element_type_sizes =
+            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                Some(self.init_element_type_sizes_array(
+                    &vector_typ,
+                    vector_contents,
+                    Some(&vector),
+                    dfg,
+                )?)
+            } else {
+                None
+            };
 
         let value_types = flat_numeric_types(&vector_typ);
 
@@ -796,7 +806,8 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        let mut result = vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result];
+        let mut result =
+            vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result];
         result.append(&mut popped_elements);
 
         Ok(result)

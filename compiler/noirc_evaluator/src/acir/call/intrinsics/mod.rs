@@ -103,7 +103,10 @@ impl Context<'_> {
             Intrinsic::AsVector => {
                 let array_contents = arguments[0];
                 let array_type = dfg.type_of_value(array_contents);
-                assert!(!array_type.is_nested_vector(), "ICE: Nested vector used in ACIR generation");
+                assert!(
+                    !array_type.is_nested_vector(),
+                    "ICE: Nested vector used in ACIR generation"
+                );
                 let Type::Array(_, vector_length) = array_type else {
                     unreachable!("Expected Array input for `as_vector` intrinsic");
                 };

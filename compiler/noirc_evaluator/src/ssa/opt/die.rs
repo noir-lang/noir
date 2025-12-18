@@ -367,7 +367,8 @@ impl Context {
         };
 
         block.unwrap_terminator().for_eachi_value(|index, value| {
-            let keep_vector = jmp_destination.and_then(|dest| self.parameter_keep_vector.get(&dest));
+            let keep_vector =
+                jmp_destination.and_then(|dest| self.parameter_keep_vector.get(&dest));
             let should_keep = keep_vector.is_none_or(|vector| vector[index]);
             if should_keep {
                 self.mark_used_instruction_results(&function.dfg, value);
