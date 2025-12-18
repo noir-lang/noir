@@ -110,7 +110,7 @@ impl Context<'_> {
                         Some(new_slice_array.clone()),
                         dfg,
                         // We do not need extra capacity here as `new_slice_array` has already pushed back new elements
-                        None,
+                        0,
                     )?)
                 } else {
                     None
@@ -611,7 +611,7 @@ impl Context<'_> {
                     result_ids[1],
                     Some(slice),
                     dfg,
-                    Some(1),
+                    1,
                 )?)
             } else {
                 None
@@ -794,7 +794,7 @@ impl Context<'_> {
                     slice_contents,
                     Some(slice),
                     dfg,
-                    None,
+                    0,
                 )?)
             } else {
                 None

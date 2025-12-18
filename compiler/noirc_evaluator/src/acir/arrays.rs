@@ -816,13 +816,7 @@ impl Context<'_> {
 
         let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
             let acir_value = self.convert_value(array, dfg);
-            Some(self.init_element_type_sizes_array(
-                &array_typ,
-                array,
-                Some(acir_value),
-                dfg,
-                None,
-            )?)
+            Some(self.init_element_type_sizes_array(&array_typ, array, Some(acir_value), dfg, 0)?)
         } else {
             None
         };
@@ -852,7 +846,7 @@ impl Context<'_> {
         array_id: ValueId,
         supplied_acir_value: Option<AcirValue>,
         dfg: &DataFlowGraph,
-        additional_capacity: Option<usize>,
+        additional_capacity: usize,
     ) -> Result<BlockId, RuntimeError> {
         let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
@@ -860,9 +854,9 @@ impl Context<'_> {
         // for different slices that do not have consistent sizes.
         // If we are initializing an element type sizes array for a growth operation (e.g., slice insert),
         // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
-        // By definition the `additional_capacity` indicates that we desire a type sizes array
+        // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
         // that is bigger than what is needed for the supplied type/value.
-        if self.initialized_arrays.contains(&element_type_sizes) && additional_capacity.is_none() {
+        if self.initialized_arrays.contains(&element_type_sizes) && additional_capacity == 0 {
             return Ok(element_type_sizes);
         }
 
@@ -896,7 +890,7 @@ impl Context<'_> {
                 additional_capacity,
                 element_type_sizes,
             ),
-            AcirValue::DynamicArray(inner) if additional_capacity.is_none() => {
+            AcirValue::DynamicArray(inner) if additional_capacity == 0 => {
                 let inner_elem_type_sizes = inner.element_type_sizes;
                 let Some(inner_elem_type_sizes) = &inner_elem_type_sizes else {
                     return Err(InternalError::General {
@@ -916,7 +910,7 @@ impl Context<'_> {
                 self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
                 Ok(*inner_elem_type_sizes)
             }
-            AcirValue::DynamicArray(inner) if additional_capacity.is_some() => {
+            AcirValue::DynamicArray(inner) if additional_capacity != 0 => {
                 // Recalculate with additional capacity for growth operations
                 self.init_type_sizes_helper(
                     array_typ,
@@ -939,7 +933,7 @@ impl Context<'_> {
         &mut self,
         array_typ: &Type,
         flattened_length: usize,
-        additional_capacity: Option<usize>,
+        additional_capacity: usize,
         element_type_sizes_block: BlockId,
     ) -> Result<BlockId, RuntimeError> {
         let flat_elem_type_sizes =
@@ -1081,7 +1075,7 @@ impl Context<'_> {
             self.acir_context.mul_var(var_index, step_size)
         } else {
             let element_type_sizes =
-                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, None)?;
+                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, 0)?;
 
             let predicate_index =
                 self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
@@ -1223,7 +1217,7 @@ impl Context<'_> {
 pub(super) fn calculate_element_type_sizes_array(
     array_typ: &Type,
     flattened_length: usize,
-    additional_capacity: Option<usize>,
+    additional_capacity: usize,
 ) -> Vec<usize> {
     let element_types = match array_typ {
         Type::Array(types, _) | Type::Slice(types) => types,
@@ -1240,10 +1234,9 @@ pub(super) fn calculate_element_type_sizes_array(
     // The implementation for slice insert requires one additional slot as insertions
     // are allowed at the slice's length.
     let boundary = 1;
-    let additional = additional_capacity.unwrap_or(0);
     // Capacity is the number of entries in element_type_sizes array
     // One entry per field per logical element (+ boundary + additional)
-    let capacity = (non_flattened_elements + boundary + additional) * element_types.len();
+    let capacity = (non_flattened_elements + boundary + additional_capacity) * element_types.len();
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;
