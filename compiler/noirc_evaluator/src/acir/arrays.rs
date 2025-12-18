@@ -857,11 +857,11 @@ impl Context<'_> {
         let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
-        // for different slices that do not have consistent sizes. 
+        // for different slices that do not have consistent sizes.
         // If we are initializing an element type sizes array for a growth operation (e.g., slice insert),
         // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
-        // By definition the `additional_capacity` indicates that we desire a type sizes array 
-        // that is bigger than what is needed for the supplied type/value. 
+        // By definition the `additional_capacity` indicates that we desire a type sizes array
+        // that is bigger than what is needed for the supplied type/value.
         if self.initialized_arrays.contains(&element_type_sizes) && additional_capacity.is_none() {
             return Ok(element_type_sizes);
         }
