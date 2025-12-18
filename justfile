@@ -169,11 +169,7 @@ build-package PACKAGE: install-js-tools
 
 # Runs test for all examples
 run-examples:
-  set -e; \
   for file in `ls {{justfile_dir()}}/examples`; do \
-    if [ $file="browser" ]; then \
-      continue; \
-    fi; \
     just --justfile {{justfile()}} run-example $file; \
   done
 
