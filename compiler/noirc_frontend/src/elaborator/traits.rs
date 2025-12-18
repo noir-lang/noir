@@ -683,7 +683,7 @@ impl Elaborator<'_> {
                     // Trait functions always have the same visibility as the trait they are in
                     def.visibility = unresolved_trait.trait_def.visibility;
 
-                    this.resolve_trait_function(trait_id, func_id, def);
+                    this.resolve_trait_function(trait_id, func_id, def, body.is_some());
 
                     if !item.doc_comments.is_empty() {
                         let id = ReferenceId::Function(func_id);
@@ -737,12 +737,12 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         func_id: FuncId,
         def: FunctionDefinition,
+        has_body: bool,
     ) {
         let old_generic_count = self.generics.len();
 
         self.scopes.start_function();
 
-        let has_body = !def.body.is_empty();
         let kind =
             if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let mut function = NoirFunction { kind, def };

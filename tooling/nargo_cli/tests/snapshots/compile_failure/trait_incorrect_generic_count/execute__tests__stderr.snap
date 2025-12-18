@@ -9,12 +9,29 @@ warning: Unused expression result of type u32
   │     ------------
   │
 
+warning: unused variable x
+  ┌─ src/main.nr:7:20
+  │
+7 │     fn trait_fn<T>(x: T) -> T {}
+  │                    - unused variable
+  │
+
 error: Type annotation needed
   ┌─ src/main.nr:3:5
   │
 3 │     x.trait_fn();
   │     ---------- Could not determine the type of the generic argument `B` declared on the function `trait_fn`
   │
+
+error: expected type T, found type ()
+  ┌─ src/main.nr:7:8
+  │
+7 │     fn trait_fn<T>(x: T) -> T {}
+  │        --------             - expected T because of return type
+  │        │                     
+  │        () returned here
+  │
+  = implicitly returns `()` as its body has no tail or `return` expression
 
 error: trait_fn expects 1 generic but 2 were given
    ┌─ src/main.nr:11:8
@@ -23,4 +40,4 @@ error: trait_fn expects 1 generic but 2 were given
    │        --------
    │
 
-Aborting due to 2 previous errors
+Aborting due to 3 previous errors
