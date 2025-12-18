@@ -374,14 +374,14 @@ fn regression_10554() {
 
 #[test]
 fn deeply_nested_expression_overflow() {
-    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 100
-    // If we build it too deep (like 200), then even the parser gets stack overflow,
-    // but `nargo` uses a larger stack size, so it can go higher than the test.
-    // Instead we use it to build a mix of recursive calls and nested expressions,
-    // so that we can provide an overall limit on evaluation depth.
+    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 50
+    // This tests the interpreter's evaluation depth limit.
+    // If we use an expression too deep (like 100), then we will reach the parser recursion limit.
+    // We use fewer nesting levels (50) combined with recursive function calls
+    // to trigger the interpreter's EvaluationDepthOverflow error.
     fn make_nested_expr(stem: &str) -> String {
         let mut expr = String::from(stem);
-        for i in 2..=100 {
+        for i in 2..=50 {
             expr = format!("({expr} + {i})");
         }
         expr
@@ -402,8 +402,6 @@ fn deeply_nested_expression_overflow() {
       "
     );
 
-    println!("{src}");
-
     let errors = get_program_errors(&src);
 
     for error in errors {
@@ -416,4 +414,39 @@ fn deeply_nested_expression_overflow() {
     }
 
     panic!("should have got a EvaluationDepthOverflow error");
+}
+
+#[test]
+fn deeply_nested_expression_parser_overflow() {
+    use crate::parser::ParserErrorReason;
+
+    // Build expression: (((1 + 2) + 3) + 4) ... + 200
+    // This should hit the parser's maximum recursion depth limit
+    let mut expr = String::from("1");
+    for i in 2..=200 {
+        expr = format!("({} + {})", expr, i);
+    }
+
+    let src = format!(
+        "
+      fn main() {{
+          comptime {{
+              let _ = {};
+          }}
+      }}
+      ",
+        expr
+    );
+
+    let errors = get_program_errors(&src);
+
+    // We should get exactly one MaximumRecursionDepthExceeded error
+    assert_eq!(errors.len(), 1, "Expected exactly one error");
+
+    let has_depth_error = matches!(
+        &errors[0],
+        CompilationError::ParseError(parser_error)
+            if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
+    );
+    assert!(has_depth_error, "Expected a MaximumRecursionDepthExceeded error");
 }
