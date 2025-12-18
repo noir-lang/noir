@@ -481,8 +481,8 @@
         <span class="kw">let </span>rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-    <span class="kw">let </span>lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&lt;&lt;"</span>, location };
-    <span class="kw">let </span>rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&gt;&gt;"</span>, location };
+    <span class="kw">let </span>shl_overflow = || InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&lt;&lt;"</span>, location };
+    <span class="kw">let </span>shr_overflow = || InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&gt;&gt;"</span>, location };
     <span class="kw">let </span>math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     <span class="kw">if </span><span class="macro">matches!</span>(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) &amp;&amp; rhs_value.is_zero() {
@@ -671,7 +671,7 @@
                     <span class="attr">#[allow(clippy::cast_lossless)]
                     </span>lhs.checked_shr(rhs <span class="kw">as </span>u32)
                 },
-                u1: <span class="kw">if </span>rhs { <span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow)} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs) },
+                u1: <span class="kw">if </span>rhs { <span class="kw">return </span><span class="prelude-val">Err</span>(shr_overflow())} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs) },
             }
         },
         <span class="attr">#[allow(trivial_numeric_casts)]
@@ -681,7 +681,7 @@
                     <span class="attr">#[allow(clippy::cast_lossless)]
                     </span>lhs.checked_shl(rhs <span class="kw">as </span>u32)
                 },
-                u1: <span class="kw">if </span>rhs { <span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow)} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs) },
+                u1: <span class="kw">if </span>rhs { <span class="kw">return </span><span class="prelude-val">Err</span>(shl_overflow())} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(lhs) },
             }
         },
         BinaryOpKind::Modulo =&gt; <span class="macro">match_integer!</span> {

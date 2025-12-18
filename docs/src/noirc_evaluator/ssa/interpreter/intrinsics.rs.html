@@ -1303,7 +1303,7 @@
                     <span class="kw">let </span>state_len = state.len();
                     <span class="kw">let </span><span class="kw-2">mut </span>state: [u32; <span class="number">8</span>] = state.try_into().map_err(|<span class="kw">_</span>| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
-                            expected_size: <span class="number">16</span>,
+                            expected_size: <span class="number">8</span>,
                             size: state_len,
                         })
                     })<span class="question-mark">?</span>;

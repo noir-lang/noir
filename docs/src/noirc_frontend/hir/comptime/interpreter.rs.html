@@ -1861,14 +1861,58 @@
 <a href="#1860" id="1860">1860</a>
 <a href="#1861" id="1861">1861</a>
 <a href="#1862" id="1862">1862</a>
-<a href="#1863" id="1863">1863</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1863" id="1863">1863</a>
+<a href="#1864" id="1864">1864</a>
+<a href="#1865" id="1865">1865</a>
+<a href="#1866" id="1866">1866</a>
+<a href="#1867" id="1867">1867</a>
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a>
+<a href="#1873" id="1873">1873</a>
+<a href="#1874" id="1874">1874</a>
+<a href="#1875" id="1875">1875</a>
+<a href="#1876" id="1876">1876</a>
+<a href="#1877" id="1877">1877</a>
+<a href="#1878" id="1878">1878</a>
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
 //! 2. A macro call `foo!()`
 //!   - The interpreter calls the function `foo` and inlines the resulting `Quoted` code at the callsite.
 //! 3. An attribute call `#[my_attr] struct Foo {}`
-//!   - The interpreter calls the function `my_attr` and, if `foo`returns a `Quoted` value,
+//!   - The interpreter calls the function `my_attr` and, if `my_attr` returns a `Quoted` value,
 //!     inlines the resulting `Quoted` code.
 //! 4. A global `global FOO = expr;`
 //!   - The interpreter evaluates `expr` to simplify the global to a constant.
@@ -1947,6 +1991,22 @@
 <span class="kw">mod </span>infix;
 <span class="kw">mod </span>unquote;
 
+<span class="doccomment">/// Maximum depth of evaluation, limiting recursion during comptime as well as
+/// expression depth. The goal is to be able to provide Noir stack traces if
+/// we run out, rather than a Rust backtrace.
+///
+/// Ideally we would like the recursion limit to be 1000, to match what we do in ACIR,
+/// however due to the overhead of the interpreter itself, which recursively evaluates
+/// expressions, this needs to be lower.
+///
+/// Furthermore, since every expression is evaluated via recursion in the interpreter,
+/// a deeply nested expression can also hit the Rust stack limit. We would like to
+/// provide a Noir stack trace for these as well.
+///
+/// If, in the future, we refactor the interpreter to be iterative, rather than use recursion,
+/// we could have a separate limit just for comptime call stack depth.
+</span><span class="kw">const </span>MAX_EVALUATION_DEPTH: usize = <span class="number">300</span>;
+
 <span class="attr">#[allow(unused)]
 </span><span class="kw">pub struct </span>Interpreter&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; {
     <span class="doccomment">/// To expand macros the Interpreter needs access to the Elaborator
@@ -1965,6 +2025,9 @@
     /// multiple times. Without the outer Vec, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     </span>bound_generics: Vec&lt;HashMap&lt;TypeVariable, (Type, Kind)&gt;&gt;,
+
+    <span class="doccomment">/// Current evaluation depth.
+    </span>evaluation_depth: usize,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; Interpreter&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; {
@@ -1972,7 +2035,13 @@
         elaborator: <span class="kw-2">&amp;</span><span class="lifetime">'local </span><span class="kw-2">mut </span>Elaborator&lt;<span class="lifetime">'interner</span>&gt;,
         current_function: <span class="prelude-ty">Option</span>&lt;FuncId&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ elaborator, current_function, bound_generics: Vec::new(), in_loop: <span class="bool-val">false </span>}
+        <span class="self">Self </span>{
+            elaborator,
+            current_function,
+            bound_generics: Vec::new(),
+            in_loop: <span class="bool-val">false</span>,
+            evaluation_depth: <span class="number">0</span>,
+        }
     }
 
     <span class="doccomment">/// Call the given function with the given arguments and return the result.
@@ -2004,11 +2073,11 @@
             perform_impl_bindings(<span class="self">self</span>.elaborator.interner, trait_method, function, location)<span class="question-mark">?</span>;
 
         <span class="self">self</span>.remember_bindings(<span class="kw-2">&amp;</span>instantiation_bindings, <span class="kw-2">&amp;</span>impl_bindings);
-        <span class="self">self</span>.elaborator.interpreter_call_stack.push_back(location);
+        <span class="self">self</span>.elaborator.push_interpreter_call_stack(location)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result = <span class="self">self</span>.call_function_inner(function, arguments, location);
 
-        <span class="self">self</span>.elaborator.interpreter_call_stack.pop_back();
+        <span class="self">self</span>.elaborator.pop_interpreter_call_stack();
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         <span class="self">self</span>.rebind_generics_from_previous_function();
@@ -2158,7 +2227,7 @@
             </span>} <span class="kw">else if </span>oracle.starts_with(<span class="string">"__debug"</span>) {
                 <span class="prelude-val">Ok</span>(Value::Unit)
             } <span class="kw">else </span>{
-                <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Comptime evaluation for oracle functions like {oracle}"</span>);
+                <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Comptime evaluation for oracle functions like '{oracle}'"</span>);
                 <span class="prelude-val">Err</span>(InterpreterError::Unimplemented { item, location })
             }
         } <span class="kw">else </span>{
@@ -2181,11 +2250,11 @@
         </span><span class="kw">let </span>old_module = <span class="self">self</span>.elaborator.replace_module(module_scope);
         <span class="kw">let </span>old_function = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.current_function, function_scope);
 
-        <span class="self">self</span>.elaborator.interpreter_call_stack.push_back(call_location);
+        <span class="self">self</span>.elaborator.push_interpreter_call_stack(call_location)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result = <span class="self">self</span>.call_closure_inner(lambda, environment, arguments, call_location);
 
-        <span class="self">self</span>.elaborator.interpreter_call_stack.pop_back();
+        <span class="self">self</span>.elaborator.pop_interpreter_call_stack();
 
         <span class="self">self</span>.current_function = old_function;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(old_module) = old_module {
@@ -2455,7 +2524,15 @@
     /// This function should be used when that is not desired - e.g. when
     /// compiling a `&amp;mut var` expression to grab the original reference.
     </span><span class="kw">fn </span>evaluate_no_dereference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">match </span><span class="self">self</span>.elaborator.interner.expression(<span class="kw-2">&amp;</span>id) {
+        <span class="kw">if </span><span class="self">self</span>.evaluation_depth &gt;= MAX_EVALUATION_DEPTH {
+            <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::EvaluationDepthOverflow {
+                location,
+                call_stack: <span class="self">self</span>.elaborator.interpreter_call_stack().clone(),
+            });
+        }
+        <span class="self">self</span>.evaluation_depth += <span class="number">1</span>;
+        <span class="kw">let </span>result = <span class="kw">match </span><span class="self">self</span>.elaborator.interner.expression(<span class="kw-2">&amp;</span>id) {
             HirExpression::Ident(ident, <span class="kw">_</span>) =&gt; <span class="self">self</span>.evaluate_ident(ident, id),
             HirExpression::Literal(literal) =&gt; <span class="self">self</span>.evaluate_literal(literal, id),
             HirExpression::Block(block) =&gt; <span class="self">self</span>.evaluate_block(block),
@@ -2486,7 +2563,9 @@
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
                 <span class="prelude-val">Err</span>(InterpreterError::ErrorNodeEncountered { location })
             }
-        }
+        };
+        <span class="self">self</span>.evaluation_depth -= <span class="number">1</span>;
+        result
     }
 
     <span class="doccomment">/// Evaluates a variable
@@ -3114,7 +3193,7 @@
                 <span class="kw">let </span>message = constrain.<span class="number">2</span>.and_then(|expr| <span class="self">self</span>.evaluate(expr).ok());
                 <span class="kw">let </span>message =
                     message.map(|value| value.display(<span class="self">self</span>.elaborator.interner).to_string());
-                <span class="kw">let </span>call_stack = <span class="self">self</span>.elaborator.interpreter_call_stack.clone();
+                <span class="kw">let </span>call_stack = <span class="self">self</span>.elaborator.interpreter_call_stack().clone();
                 <span class="prelude-val">Err</span>(InterpreterError::FailingConstraint { location, message, call_stack })
             }
             value =&gt; {
@@ -3383,14 +3462,20 @@
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="prelude-val">Ok</span>(Value::Unit);
 
         <span class="kw">loop </span>{
-            <span class="kw">let </span>condition = <span class="kw">match </span><span class="self">self</span>.evaluate(condition)<span class="question-mark">? </span>{
-                Value::Bool(value) =&gt; value,
-                value =&gt; {
+            <span class="kw">let </span>condition = <span class="kw">match </span><span class="self">self</span>.evaluate(condition) {
+                <span class="prelude-val">Ok</span>(Value::Bool(value)) =&gt; value,
+                <span class="prelude-val">Ok</span>(value) =&gt; {
                     <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>condition);
                     <span class="kw">let </span>typ = value.get_type().into_owned();
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonBoolUsedInWhile { typ, location });
+                    result = <span class="prelude-val">Err</span>(InterpreterError::NonBoolUsedInWhile { typ, location });
+                    <span class="kw">break</span>;
+                }
+                <span class="prelude-val">Err</span>(err) =&gt; {
+                    result = <span class="prelude-val">Err</span>(err);
+                    <span class="kw">break</span>;
                 }
             };
+
             <span class="kw">if </span>!condition {
                 <span class="kw">break</span>;
             }
@@ -3416,7 +3501,10 @@
         result
     }
 
-    <span class="kw">fn </span>evaluate_loop_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body: ExprId, result: <span class="kw-2">&amp;mut </span>IResult&lt;Value&gt;) -&gt; bool {
+    <span class="doccomment">/// Evaluate one iteration of a loop.
+    ///
+    /// Returns a flag to indicate whether the loop should be exited.
+    </span><span class="kw">fn </span>evaluate_loop_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body: ExprId, result: <span class="kw-2">&amp;mut </span>IResult&lt;Value&gt;) -&gt; bool {
         <span class="kw">match </span><span class="self">self</span>.evaluate(body) {
             <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
             <span class="prelude-val">Err</span>(InterpreterError::Break) =&gt; <span class="bool-val">true</span>,

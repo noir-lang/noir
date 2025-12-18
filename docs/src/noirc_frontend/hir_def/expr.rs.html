@@ -543,7 +543,11 @@
 <a href="#542" id="542">542</a>
 <a href="#543" id="543">543</a>
 <a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -779,7 +783,11 @@
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 </span><span class="attr">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>HirConstrainExpression(<span class="kw">pub </span>ExprId, <span class="kw">pub </span>FileId, <span class="kw">pub </span><span class="prelude-ty">Option</span>&lt;ExprId&gt;);
+</span><span class="kw">pub struct </span>HirConstrainExpression(
+    <span class="comment">/*condition*/ </span><span class="kw">pub </span>ExprId,
+    <span class="kw">pub </span>FileId,
+    <span class="comment">/*message*/ </span><span class="kw">pub </span><span class="prelude-ty">Option</span>&lt;ExprId&gt;,
+);
 
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub enum </span>HirMethodReference {

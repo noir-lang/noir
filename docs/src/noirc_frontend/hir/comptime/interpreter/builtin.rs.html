@@ -3257,7 +3257,10 @@
 <a href="#3256" id="3256">3256</a>
 <a href="#3257" id="3257">3257</a>
 <a href="#3258" id="3258">3258</a>
-<a href="#3259" id="3259">3259</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3259" id="3259">3259</a>
+<a href="#3260" id="3260">3260</a>
+<a href="#3261" id="3261">3261</a>
+<a href="#3262" id="3262">3262</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3327,8 +3330,8 @@
         return_type: Type,
         location: Location,
     ) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>call_stack = <span class="kw-2">&amp;</span><span class="self">self</span>.elaborator.interpreter_call_stack().clone();
         <span class="kw">let </span>interner = <span class="kw-2">&amp;mut </span><span class="self">self</span>.elaborator.interner;
-        <span class="kw">let </span>call_stack = <span class="kw-2">&amp;</span><span class="self">self</span>.elaborator.interpreter_call_stack;
         <span class="kw">match </span>name {
             <span class="string">"apply_range_constraint" </span>=&gt; apply_range_constraint(arguments, location, call_stack),
             <span class="string">"array_as_str_unchecked" </span>=&gt; array_as_str_unchecked(arguments, location),
@@ -4346,6 +4349,7 @@
 }
 
 <span class="kw">fn </span>compute_to_radix_le(field: FieldElement, radix: u32) -&gt; Vec&lt;u8&gt; {
+    <span class="macro">assert_ne!</span>(radix, <span class="number">0</span>, <span class="string">"ICE: Radix must be greater than 0"</span>);
     <span class="kw">let </span>bit_size = u32::BITS - (radix - <span class="number">1</span>).leading_zeros();
     <span class="kw">let </span>radix_big = BigUint::from(radix);
     <span class="macro">assert_eq!</span>(BigUint::from(<span class="number">2u128</span>).pow(bit_size), radix_big, <span class="string">"ICE: Radix must be a power of 2"</span>);
@@ -4833,7 +4837,9 @@
             (Signedness::Signed, IntegerBitSize::Sixteen) =&gt; Value::I16(<span class="number">0</span>),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) =&gt; Value::I32(<span class="number">0</span>),
             (Signedness::Signed, IntegerBitSize::SixtyFour) =&gt; Value::I64(<span class="number">0</span>),
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) =&gt; <span class="macro">todo!</span>(),
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"invalid type: i128"</span>)
+            }
         },
         Type::Bool =&gt; Value::Bool(<span class="bool-val">false</span>),
         Type::String(length_type) =&gt; {

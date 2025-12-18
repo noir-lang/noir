@@ -840,7 +840,10 @@
 <a href="#839" id="839">839</a>
 <a href="#840" id="840">840</a>
 <a href="#841" id="841">841</a>
-<a href="#842" id="842">842</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -899,8 +902,8 @@
     CtString(Rc&lt;String&gt;),
     Function(FuncId, Type, Rc&lt;TypeBindings&gt;),
 
-    <span class="comment">// Closures also store their original scope (function &amp; module)
-    // in case they use functions such as `Quoted::as_type` which require them.
+    <span class="doccomment">/// Closures also store their original scope (function &amp; module)
+    /// in case they use functions such as `Quoted::as_type` which require them.
     </span>Closure(Box&lt;Closure&gt;),
 
     <span class="doccomment">/// Tuple elements are automatically shared to support projection into a tuple:
@@ -1163,7 +1166,10 @@
                         <span class="prelude-val">Ok</span>(expr)
                     }
                     <span class="prelude-val">Err</span>(errors) =&gt; {
-                        <span class="kw">let </span>error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        <span class="kw">let </span>error = errors
+                            .into_iter()
+                            .find(|error| !error.is_warning())
+                            .expect(<span class="string">"there is at least one error"</span>);
                         <span class="kw">let </span>error = Box::new(error);
                         <span class="kw">let </span>rule = <span class="string">"an expression"</span>;
                         <span class="kw">let </span>tokens = tokens_to_string(<span class="kw-2">&amp;</span>tokens, elaborator.interner);
@@ -1573,7 +1579,7 @@
     }
 
     <span class="doccomment">/// Converts any integral `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s.
+    /// Returns `None` for non-integral `Value`s and negative numbers.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_signed_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SignedField&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::Field(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
