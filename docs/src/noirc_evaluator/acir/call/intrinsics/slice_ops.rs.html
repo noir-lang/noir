@@ -811,7 +811,11 @@
 <a href="#810" id="810">810</a>
 <a href="#811" id="811">811</a>
 <a href="#812" id="812">812</a>
-<a href="#813" id="813">813</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
@@ -920,8 +924,10 @@
                     <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                         <span class="kw-2">&amp;</span>slice_typ,
                         slice_contents,
-                        <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_array),
+                        <span class="prelude-val">Some</span>(new_slice_array.clone()),
                         dfg,
+                        <span class="comment">// We do not need extra capacity here as `new_slice_array` has already pushed back new elements
+                        </span><span class="number">0</span>,
                     )<span class="question-mark">?</span>)
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
@@ -1419,9 +1425,10 @@
             <span class="kw">if </span><span class="kw">super</span>::arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
                 <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                     <span class="kw-2">&amp;</span>slice_typ,
-                    slice_contents,
-                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>slice),
+                    result_ids[<span class="number">1</span>],
+                    <span class="prelude-val">Some</span>(slice),
                     dfg,
+                    <span class="number">1</span>,
                 )<span class="question-mark">?</span>)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -1602,8 +1609,9 @@
                 <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                     <span class="kw-2">&amp;</span>slice_typ,
                     slice_contents,
-                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>slice),
+                    <span class="prelude-val">Some</span>(slice),
                     dfg,
+                    <span class="number">0</span>,
                 )<span class="question-mark">?</span>)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None

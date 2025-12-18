@@ -1237,7 +1237,55 @@
 <a href="#1236" id="1236">1236</a>
 <a href="#1237" id="1237">1237</a>
 <a href="#1238" id="1238">1238</a>
-<a href="#1239" id="1239">1239</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1239" id="1239">1239</a>
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a>
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
+<a href="#1260" id="1260">1260</a>
+<a href="#1261" id="1261">1261</a>
+<a href="#1262" id="1262">1262</a>
+<a href="#1263" id="1263">1263</a>
+<a href="#1264" id="1264">1264</a>
+<a href="#1265" id="1265">1265</a>
+<a href="#1266" id="1266">1266</a>
+<a href="#1267" id="1267">1267</a>
+<a href="#1268" id="1268">1268</a>
+<a href="#1269" id="1269">1269</a>
+<a href="#1270" id="1270">1270</a>
+<a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -2055,7 +2103,7 @@
 
         <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ).is_none() {
             <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array, dfg);
-            <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(<span class="kw-2">&amp;</span>array_typ, array, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>acir_value), dfg)<span class="question-mark">?</span>)
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(<span class="kw-2">&amp;</span>array_typ, array, <span class="prelude-val">Some</span>(acir_value), dfg, <span class="number">0</span>)<span class="question-mark">?</span>)
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>};
@@ -2083,14 +2131,19 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_typ: <span class="kw-2">&amp;</span>Type,
         array_id: ValueId,
-        supplied_acir_value: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>AcirValue&gt;,
+        supplied_acir_value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        additional_capacity: usize,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
         <span class="kw">let </span>element_type_sizes = <span class="self">self</span>.type_sizes_block_id(array_id);
         <span class="comment">// Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
-        // for different slices that do not have consistent sizes
-        </span><span class="kw">if </span><span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>element_type_sizes) {
+        // for different slices that do not have consistent sizes.
+        // If we are initializing an element type sizes array for a growth operation (e.g., slice insert),
+        // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
+        // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
+        // that is bigger than what is needed for the supplied type/value.
+        </span><span class="kw">if </span><span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>element_type_sizes) &amp;&amp; additional_capacity == <span class="number">0 </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(element_type_sizes);
         }
 
@@ -2114,41 +2167,19 @@
 
         <span class="comment">// An instruction representing the slice means it has been processed previously during ACIR gen.
         // Use the previously defined result of an array operation to fetch the internal type information.
-        </span><span class="kw">let </span>array_acir_value = <span class="kw-2">&amp;</span><span class="self">self</span>.convert_value(array_id, dfg);
-        <span class="kw">let </span>array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
+        </span><span class="kw">let </span>array_acir_value =
+            supplied_acir_value.unwrap_or_else(|| <span class="self">self</span>.convert_value(array_id, dfg));
+        <span class="kw">let </span>flattened_len = flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value);
         <span class="kw">match </span>array_acir_value {
-            AcirValue::Array(values) =&gt; {
-                <span class="kw">let </span>flat_elem_type_sizes =
-                    calculate_element_type_sizes_array(array_typ, values.len());
-
-                <span class="comment">// If there's already a block with these same sizes, reuse it. It's fine do to so
-                // because the element type sizes array is never mutated.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(block_id) = <span class="self">self</span>.type_sizes_to_blocks.get(<span class="kw-2">&amp;</span>flat_elem_type_sizes) {
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="kw-2">*</span>block_id);
-                }
-
-                <span class="comment">// The final array should will the flattened index at each outer array index
-                </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
-                    <span class="kw">let </span>var = <span class="self">self</span>.acir_context.add_constant(type_size);
-                    AcirValue::Var(var, NumericType::NativeField)
-                });
-                <span class="kw">let </span>element_type_sizes_len = init_values.len();
-                <span class="self">self</span>.initialize_array(
-                    element_type_sizes,
-                    element_type_sizes_len,
-                    <span class="prelude-val">Some</span>(AcirValue::Array(init_values.into())),
-                )<span class="question-mark">?</span>;
-
-                <span class="self">self</span>.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes);
-
-                <span class="prelude-val">Ok</span>(element_type_sizes)
-            }
-
-            AcirValue::DynamicArray(AcirDynamicArray {
-                element_type_sizes: inner_elem_type_sizes,
-                ..
-            }) =&gt; {
-                <span class="kw">let </span><span class="prelude-val">Some</span>(inner_elem_type_sizes) = inner_elem_type_sizes <span class="kw">else </span>{
+            AcirValue::Array(<span class="kw">_</span>) =&gt; <span class="self">self</span>.init_type_sizes_helper(
+                array_typ,
+                flattened_len,
+                additional_capacity,
+                element_type_sizes,
+            ),
+            AcirValue::DynamicArray(inner) <span class="kw">if </span>additional_capacity == <span class="number">0 </span>=&gt; {
+                <span class="kw">let </span>inner_elem_type_sizes = inner.element_type_sizes;
+                <span class="kw">let </span><span class="prelude-val">Some</span>(inner_elem_type_sizes) = <span class="kw-2">&amp;</span>inner_elem_type_sizes <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
                         message: <span class="macro">format!</span>(<span class="string">"Array {array_id}'s inner element type sizes array should be initialized"</span>),
                         call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
@@ -2166,6 +2197,15 @@
                 </span><span class="self">self</span>.element_type_sizes_blocks.insert(array_id, <span class="kw-2">*</span>inner_elem_type_sizes);
                 <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>inner_elem_type_sizes)
             }
+            AcirValue::DynamicArray(inner) <span class="kw">if </span>additional_capacity != <span class="number">0 </span>=&gt; {
+                <span class="comment">// Recalculate with additional capacity for growth operations
+                </span><span class="self">self</span>.init_type_sizes_helper(
+                    array_typ,
+                    inner.len,
+                    additional_capacity,
+                    element_type_sizes,
+                )
+            }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
                 expected: <span class="string">"AcirValue::DynamicArray or AcirValue::Array"</span>.to_owned(),
                 found: <span class="macro">format!</span>(<span class="string">"{array_acir_value:?}"</span>),
@@ -2173,6 +2213,40 @@
             }
             .into()),
         }
+    }
+
+    <span class="doccomment">/// Helper to calculate and initialize element_type_sizes array from a flattened length
+    </span><span class="kw">fn </span>init_type_sizes_helper(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array_typ: <span class="kw-2">&amp;</span>Type,
+        flattened_length: usize,
+        additional_capacity: usize,
+        element_type_sizes_block: BlockId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
+        <span class="kw">let </span>flat_elem_type_sizes =
+            calculate_element_type_sizes_array(array_typ, flattened_length, additional_capacity);
+
+        <span class="comment">// If there's already a block with these same sizes, reuse it. It's fine to do so
+        // because the element type sizes array is never mutated.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(block_id) = <span class="self">self</span>.type_sizes_to_blocks.get(<span class="kw-2">&amp;</span>flat_elem_type_sizes) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="kw-2">*</span>block_id);
+        }
+
+        <span class="comment">// The final array contains the flattened index at each outer array index
+        </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
+            <span class="kw">let </span>var = <span class="self">self</span>.acir_context.add_constant(type_size);
+            AcirValue::Var(var, NumericType::NativeField)
+        });
+        <span class="kw">let </span>element_type_sizes_len = init_values.len();
+        <span class="self">self</span>.initialize_array(
+            element_type_sizes_block,
+            element_type_sizes_len,
+            <span class="prelude-val">Some</span>(AcirValue::Array(init_values.into())),
+        )<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes_block);
+
+        <span class="prelude-val">Ok</span>(element_type_sizes_block)
     }
 
     <span class="doccomment">/// Read an array and reconstruct its structure based on the SSA type.
@@ -2288,7 +2362,7 @@
             <span class="self">self</span>.acir_context.mul_var(var_index, step_size)
         } <span class="kw">else </span>{
             <span class="kw">let </span>element_type_sizes =
-                <span class="self">self</span>.init_element_type_sizes_array(array_typ, array_id, <span class="prelude-val">None</span>, dfg)<span class="question-mark">?</span>;
+                <span class="self">self</span>.init_element_type_sizes_array(array_typ, array_id, <span class="prelude-val">None</span>, dfg, <span class="number">0</span>)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>predicate_index =
                 <span class="self">self</span>.acir_context.mul_var(var_index, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>;
@@ -2414,7 +2488,24 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate_element_type_sizes_array(array_typ: <span class="kw-2">&amp;</span>Type, length: usize) -&gt; Vec&lt;usize&gt; {
+<span class="doccomment">/// Calculates the element type sizes lookup array for heterogeneous arrays/slices.
+///
+/// # Parameters
+///
+/// * `array_typ` - Type of the array/slice for which we are generating an element types sizes array
+/// * `flattened_length` - The total flattened size of the array data. For [AcirValue::Array],
+///   this is computed via [flattened_value_size]. For [AcirValue::DynamicArray], this is
+///   stored in the `len` field.
+/// * `additional_capacity` - Extra logical elements to allocate space for (e.g., for growth operations such as slice insert)
+///
+/// # Returns
+///
+/// A vector where each entry represents the flattened offset for a field in the composite type. dd
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate_element_type_sizes_array(
+    array_typ: <span class="kw-2">&amp;</span>Type,
+    flattened_length: usize,
+    additional_capacity: usize,
+) -&gt; Vec&lt;usize&gt; {
     <span class="kw">let </span>element_types = <span class="kw">match </span>array_typ {
         Type::Array(types, <span class="kw">_</span>) | Type::Slice(types) =&gt; types,
         <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: expected array or slice type"</span>),
@@ -2423,11 +2514,16 @@
         <span class="kw">return </span><span class="macro">vec!</span>[];
     }
 
-    <span class="kw">let </span>non_flattened_elements = length / element_types.len();
+    <span class="kw">let </span>element_flattened_size: usize =
+        element_types.iter().map(|typ| typ.flattened_size() <span class="kw">as </span>usize).sum();
+    <span class="kw">let </span>non_flattened_elements = flattened_length / element_flattened_size;
 
-    <span class="comment">// We need the element type sizes array to have one extra entry for the case
-    // of `slice_insert` inserting at the end of the array.
-    </span><span class="kw">let </span>capacity = (non_flattened_elements + <span class="number">1</span>) * element_types.len();
+    <span class="comment">// The implementation for slice insert requires one additional slot as insertions
+    // are allowed at the slice's length.
+    </span><span class="kw">let </span>boundary = <span class="number">1</span>;
+    <span class="comment">// Capacity is the number of entries in element_type_sizes array
+    // One entry per field per logical element (+ boundary + additional)
+    </span><span class="kw">let </span>capacity = (non_flattened_elements + boundary + additional_capacity) * element_types.len();
 
     <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::with_capacity(capacity);
     <span class="kw">let </span><span class="kw-2">mut </span>total_size = <span class="number">0</span>;
