@@ -344,6 +344,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         if closure.parameters.len() != arguments.len() {
+            self.exit_function(previous_state);
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: closure.parameters.len(),
                 actual: arguments.len(),
