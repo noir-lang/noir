@@ -327,7 +327,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.current_function = old_function;
         let Some(old_module) = old_module else {
             // The module should always be set by the time we're interpreting comptime code
-            panic!("Expected local_module to be set when calling a closure");
+            panic!("ICE: Expected local_module to be set when calling a closure");
         };
         self.elaborator.replace_module(old_module);
         result
