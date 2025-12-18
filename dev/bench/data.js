@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766093995486,
+  "lastUpdate": 1766096194478,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "132eaee4af4a0b589ce52be093c36702f35e07e0",
-          "message": "fix: disallow no-predicates on entry points (#10847)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-12-08T20:34:39Z",
-          "tree_id": "5af737aa741c18d704ad9b8f016e7208e0a80063",
-          "url": "https://github.com/noir-lang/noir/commit/132eaee4af4a0b589ce52be093c36702f35e07e0"
-        },
-        "date": 1765227396485,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253763,
-            "range": "± 726",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224675,
-            "range": "± 1263",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791304,
-            "range": "± 5356",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25334,6 +25292,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792924,
             "range": "± 6533",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "181f3c26b24aa65e2d2b121a16007a547ddde134",
+          "message": "fix(acir): Grow element type sizes array on slice ops (#10951)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-12-18T21:55:45Z",
+          "tree_id": "f607633df2cbc51fc006f96ed7eec5719e300b8c",
+          "url": "https://github.com/noir-lang/noir/commit/181f3c26b24aa65e2d2b121a16007a547ddde134"
+        },
+        "date": 1766096161751,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255404,
+            "range": "± 642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224399,
+            "range": "± 3285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790890,
+            "range": "± 1890",
             "unit": "ns/iter"
           }
         ]
