@@ -1,7 +1,7 @@
 #pragma once
 
 #include "serde.hpp"
-#include "msgpack.hpp"
+#include "barretenberg/serialize/msgpack_impl.hpp"
 #include "bincode.hpp"
 
 namespace Acir {
@@ -10,7 +10,7 @@ namespace Acir {
             msgpack::object const& o,
             std::string const& name
         ) {
-            if(o.type != msgpack::type::MAP) {
+            if (o.type != msgpack::type::MAP) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP for " + name);
             }
@@ -28,6 +28,7 @@ namespace Acir {
             }
             return kvmap;
         }
+
         template<typename T>
         static void conv_fld_from_kvmap(
             std::map<std::string, msgpack::object const*> const& kvmap,
@@ -46,6 +47,26 @@ namespace Acir {
                 }
             } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
+            }
+        }
+
+        template<typename T>
+        static void conv_fld_from_array(
+            msgpack::object_array const& array,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field,
+            uint32_t index
+        ) {
+            if (index >= array.size) {
+                throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
+            }
+            auto element = array.ptr[index];
+            try {
+                element.convert(field);
+            } catch (const msgpack::type_error&) {
+                std::cerr << element << std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         }
     };
@@ -899,10 +920,18 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "HeapArray";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+            std::string name = "HeapArray";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
+                Helpers::conv_fld_from_array(array, name, "size", size, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -921,10 +950,18 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "HeapVector";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+            std::string name = "HeapVector";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
+                Helpers::conv_fld_from_array(array, name, "size", size, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -949,12 +986,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "AES128Encrypt";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "AES128Encrypt";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "iv", iv, 1);
+                    Helpers::conv_fld_from_array(array, name, "key", key, 2);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -973,10 +1020,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Blake2s";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "Blake2s";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "message", message, 0);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -995,10 +1050,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Blake3";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "Blake3";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "message", message, 0);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1017,10 +1080,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Keccakf1600";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "Keccakf1600";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "input", input, 0);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1045,13 +1116,24 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "EcdsaSecp256k1";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                std::string name = "EcdsaSecp256k1";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "hashed_msg", hashed_msg, 0);
+                    Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 1);
+                    Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 2);
+                    Helpers::conv_fld_from_array(array, name, "signature", signature, 3);
+                    Helpers::conv_fld_from_array(array, name, "result", result, 4);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1076,13 +1158,24 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "EcdsaSecp256r1";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                std::string name = "EcdsaSecp256r1";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "hashed_msg", hashed_msg, 0);
+                    Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 1);
+                    Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 2);
+                    Helpers::conv_fld_from_array(array, name, "signature", signature, 3);
+                    Helpers::conv_fld_from_array(array, name, "result", result, 4);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1103,11 +1196,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "MultiScalarMul";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "MultiScalarMul";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "points", points, 0);
+                    Helpers::conv_fld_from_array(array, name, "scalars", scalars, 1);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1136,15 +1238,28 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "EmbeddedCurveAdd";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                std::string name = "EmbeddedCurveAdd";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "input1_x", input1_x, 0);
+                    Helpers::conv_fld_from_array(array, name, "input1_y", input1_y, 1);
+                    Helpers::conv_fld_from_array(array, name, "input1_infinite", input1_infinite, 2);
+                    Helpers::conv_fld_from_array(array, name, "input2_x", input2_x, 3);
+                    Helpers::conv_fld_from_array(array, name, "input2_y", input2_y, 4);
+                    Helpers::conv_fld_from_array(array, name, "input2_infinite", input2_infinite, 5);
+                    Helpers::conv_fld_from_array(array, name, "result", result, 6);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1163,10 +1278,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Poseidon2Permutation";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "Poseidon2Permutation";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "message", message, 0);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1187,11 +1310,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Sha256Compression";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "Sha256Compression";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "input", input, 0);
+                    Helpers::conv_fld_from_array(array, name, "hash_values", hash_values, 1);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1216,13 +1348,24 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "ToRadix";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output_pointer", output_pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "num_limbs", num_limbs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output_bits", output_bits, false);
+                std::string name = "ToRadix";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output_pointer", output_pointer, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_limbs", num_limbs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output_bits", output_bits, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "input", input, 0);
+                    Helpers::conv_fld_from_array(array, name, "radix", radix, 1);
+                    Helpers::conv_fld_from_array(array, name, "output_pointer", output_pointer, 2);
+                    Helpers::conv_fld_from_array(array, name, "num_limbs", num_limbs, 3);
+                    Helpers::conv_fld_from_array(array, name, "output_bits", output_bits, 4);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1481,10 +1624,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Array";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                std::string name = "Array";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "value_types", value_types, 0);
+                    Helpers::conv_fld_from_array(array, name, "size", size, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1501,9 +1652,16 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Vector";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                std::string name = "Vector";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "value_types", value_types, 0);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1781,12 +1939,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "BinaryFieldOp";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                std::string name = "BinaryFieldOp";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "op", op, 1);
+                    Helpers::conv_fld_from_array(array, name, "lhs", lhs, 2);
+                    Helpers::conv_fld_from_array(array, name, "rhs", rhs, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1811,13 +1979,24 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "BinaryIntOp";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                std::string name = "BinaryIntOp";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "op", op, 1);
+                    Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 2);
+                    Helpers::conv_fld_from_array(array, name, "lhs", lhs, 3);
+                    Helpers::conv_fld_from_array(array, name, "rhs", rhs, 4);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1838,11 +2017,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Not";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                std::string name = "Not";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "source", source, 1);
+                    Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1863,11 +2051,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Cast";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                std::string name = "Cast";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "source", source, 1);
+                    Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1886,10 +2083,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "JumpIf";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                std::string name = "JumpIf";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "condition", condition, 0);
+                    Helpers::conv_fld_from_array(array, name, "location", location, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1906,9 +2111,16 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Jump";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                std::string name = "Jump";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "location", location, 0);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1929,11 +2141,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "CalldataCopy";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "offset_address", offset_address, false);
+                std::string name = "CalldataCopy";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "offset_address", offset_address, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination_address", destination_address, 0);
+                    Helpers::conv_fld_from_array(array, name, "size_address", size_address, 1);
+                    Helpers::conv_fld_from_array(array, name, "offset_address", offset_address, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1950,9 +2171,16 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Call";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                std::string name = "Call";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "location", location, 0);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1973,11 +2201,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Const";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                std::string name = "Const";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 1);
+                    Helpers::conv_fld_from_array(array, name, "value", value, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -1998,11 +2235,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "IndirectConst";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                std::string name = "IndirectConst";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination_pointer", destination_pointer, 0);
+                    Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 1);
+                    Helpers::conv_fld_from_array(array, name, "value", value, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2036,13 +2282,24 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "ForeignCall";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "function", function, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_value_types", destination_value_types, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input_value_types", input_value_types, false);
+                std::string name = "ForeignCall";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "function", function, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_value_types", destination_value_types, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input_value_types", input_value_types, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "function", function, 0);
+                    Helpers::conv_fld_from_array(array, name, "destinations", destinations, 1);
+                    Helpers::conv_fld_from_array(array, name, "destination_value_types", destination_value_types, 2);
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 3);
+                    Helpers::conv_fld_from_array(array, name, "input_value_types", input_value_types, 4);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2061,10 +2318,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Mov";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                std::string name = "Mov";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "source", source, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2087,12 +2352,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "ConditionalMov";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source_b", source_b, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                std::string name = "ConditionalMov";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source_b", source_b, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "source_a", source_a, 1);
+                    Helpers::conv_fld_from_array(array, name, "source_b", source_b, 2);
+                    Helpers::conv_fld_from_array(array, name, "condition", condition, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2111,10 +2386,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Load";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer, false);
+                std::string name = "Load";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
+                    Helpers::conv_fld_from_array(array, name, "source_pointer", source_pointer, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2133,10 +2416,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Store";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                std::string name = "Store";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "destination_pointer", destination_pointer, 0);
+                    Helpers::conv_fld_from_array(array, name, "source", source, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2172,9 +2463,16 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Trap";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data, false);
+                std::string name = "Trap";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "revert_data", revert_data, 0);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2191,9 +2489,16 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Stop";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data, false);
+                std::string name = "Stop";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "return_data", return_data, 0);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2689,12 +2994,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "AES128Encrypt";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "AES128Encrypt";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "iv", iv, 1);
+                    Helpers::conv_fld_from_array(array, name, "key", key, 2);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2717,12 +3032,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "AND";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "AND";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "lhs", lhs, 0);
+                    Helpers::conv_fld_from_array(array, name, "rhs", rhs, 1);
+                    Helpers::conv_fld_from_array(array, name, "num_bits", num_bits, 2);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2745,12 +3070,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "XOR";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "XOR";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "lhs", lhs, 0);
+                    Helpers::conv_fld_from_array(array, name, "rhs", rhs, 1);
+                    Helpers::conv_fld_from_array(array, name, "num_bits", num_bits, 2);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2769,10 +3104,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "RANGE";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                std::string name = "RANGE";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "input", input, 0);
+                    Helpers::conv_fld_from_array(array, name, "num_bits", num_bits, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2791,10 +3134,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Blake2s";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "Blake2s";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2813,10 +3164,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Blake3";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "Blake3";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2843,14 +3202,26 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "EcdsaSecp256k1";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "EcdsaSecp256k1";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 0);
+                    Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 1);
+                    Helpers::conv_fld_from_array(array, name, "signature", signature, 2);
+                    Helpers::conv_fld_from_array(array, name, "hashed_message", hashed_message, 3);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 4);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 5);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2877,14 +3248,26 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "EcdsaSecp256r1";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                std::string name = "EcdsaSecp256r1";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 0);
+                    Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 1);
+                    Helpers::conv_fld_from_array(array, name, "signature", signature, 2);
+                    Helpers::conv_fld_from_array(array, name, "hashed_message", hashed_message, 3);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 4);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 5);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2907,12 +3290,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "MultiScalarMul";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "MultiScalarMul";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "points", points, 0);
+                    Helpers::conv_fld_from_array(array, name, "scalars", scalars, 1);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 2);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2935,12 +3328,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "EmbeddedCurveAdd";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "EmbeddedCurveAdd";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "input1", input1, 0);
+                    Helpers::conv_fld_from_array(array, name, "input2", input2, 1);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 2);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2959,10 +3362,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Keccakf1600";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "Keccakf1600";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -2989,14 +3400,26 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "RecursiveAggregation";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_inputs", public_inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                std::string name = "RecursiveAggregation";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_inputs", public_inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "verification_key", verification_key, 0);
+                    Helpers::conv_fld_from_array(array, name, "proof", proof, 1);
+                    Helpers::conv_fld_from_array(array, name, "public_inputs", public_inputs, 2);
+                    Helpers::conv_fld_from_array(array, name, "key_hash", key_hash, 3);
+                    Helpers::conv_fld_from_array(array, name, "proof_type", proof_type, 4);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 5);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -3015,10 +3438,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Poseidon2Permutation";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "Poseidon2Permutation";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -3039,11 +3470,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Sha256Compression";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                std::string name = "Sha256Compression";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
+                    Helpers::conv_fld_from_array(array, name, "hash_values", hash_values, 1);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -3467,11 +3907,20 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "Expression";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "q_c", q_c, false);
+            std::string name = "Expression";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "q_c", q_c, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "mul_terms", mul_terms, 0);
+                Helpers::conv_fld_from_array(array, name, "linear_combinations", linear_combinations, 1);
+                Helpers::conv_fld_from_array(array, name, "q_c", q_c, 2);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -3770,11 +4219,20 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "MemOp";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+            std::string name = "MemOp";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "operation", operation, 0);
+                Helpers::conv_fld_from_array(array, name, "index", index, 1);
+                Helpers::conv_fld_from_array(array, name, "value", value, 2);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -3833,10 +4291,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "MemoryOp";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                std::string name = "MemoryOp";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "block_id", block_id, 0);
+                    Helpers::conv_fld_from_array(array, name, "op", op, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -3857,11 +4323,20 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "MemoryInit";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "init", init, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "block_type", block_type, false);
+                std::string name = "MemoryInit";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "init", init, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "block_type", block_type, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "block_id", block_id, 0);
+                    Helpers::conv_fld_from_array(array, name, "init", init, 1);
+                    Helpers::conv_fld_from_array(array, name, "block_type", block_type, 2);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -3884,12 +4359,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "BrilligCall";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                std::string name = "BrilligCall";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "id", id, 0);
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 1);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -3912,12 +4397,22 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Call";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                std::string name = "Call";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "id", id, 0);
+                    Helpers::conv_fld_from_array(array, name, "inputs", inputs, 1);
+                    Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
+                    Helpers::conv_fld_from_array(array, name, "predicate", predicate, 3);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -4200,10 +4695,18 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "AssertionPayload";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload, false);
+            std::string name = "AssertionPayload";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "error_selector", error_selector, 0);
+                Helpers::conv_fld_from_array(array, name, "payload", payload, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -4243,10 +4746,18 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Brillig";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index, false);
+                std::string name = "Brillig";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "acir_index", acir_index, 0);
+                    Helpers::conv_fld_from_array(array, name, "brillig_index", brillig_index, 1);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -4376,15 +4887,28 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "Circuit";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "assert_messages", assert_messages, false);
+            std::string name = "Circuit";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "assert_messages", assert_messages, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "function_name", function_name, 0);
+                Helpers::conv_fld_from_array(array, name, "current_witness_index", current_witness_index, 1);
+                Helpers::conv_fld_from_array(array, name, "opcodes", opcodes, 2);
+                Helpers::conv_fld_from_array(array, name, "private_parameters", private_parameters, 3);
+                Helpers::conv_fld_from_array(array, name, "public_parameters", public_parameters, 4);
+                Helpers::conv_fld_from_array(array, name, "return_values", return_values, 5);
+                Helpers::conv_fld_from_array(array, name, "assert_messages", assert_messages, 6);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -4403,10 +4927,18 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "BrilligBytecode";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode, false);
+            std::string name = "BrilligBytecode";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "function_name", function_name, 0);
+                Helpers::conv_fld_from_array(array, name, "bytecode", bytecode, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -4425,15 +4957,24 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "Program";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions, false);
+            std::string name = "Program";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "functions", functions, 0);
+                Helpers::conv_fld_from_array(array, name, "unconstrained_functions", unconstrained_functions, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
     struct ProgramWithoutBrillig {
         std::vector<Acir::Circuit> functions;
+        std::monostate unconstrained_functions;
 
         friend bool operator==(const ProgramWithoutBrillig&, const ProgramWithoutBrillig&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -4445,9 +4986,16 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "ProgramWithoutBrillig";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+            std::string name = "ProgramWithoutBrillig";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "functions", functions, 0);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -4475,9 +5023,16 @@ namespace Acir {
             }
 
             void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Bounded";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "width", width, false);
+                std::string name = "Bounded";
+                if (o.type == msgpack::type::MAP) {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "width", width, false);
+                } else if (o.type == msgpack::type::ARRAY) {
+                    auto array = o.via.array; 
+                    Helpers::conv_fld_from_array(array, name, "width", width, 0);
+                } else {
+                    throw_or_abort("expected MAP or ARRAY for " + name);
+                }
             }
         };
 
@@ -9684,6 +10239,7 @@ namespace Acir {
 
     inline bool operator==(const ProgramWithoutBrillig &lhs, const ProgramWithoutBrillig &rhs) {
         if (!(lhs.functions == rhs.functions)) { return false; }
+        if (!(lhs.unconstrained_functions == rhs.unconstrained_functions)) { return false; }
         return true;
     }
 
@@ -9709,6 +10265,7 @@ template <typename Serializer>
 void serde::Serializable<Acir::ProgramWithoutBrillig>::serialize(const Acir::ProgramWithoutBrillig &obj, Serializer &serializer) {
     serializer.increase_container_depth();
     serde::Serializable<decltype(obj.functions)>::serialize(obj.functions, serializer);
+    serde::Serializable<decltype(obj.unconstrained_functions)>::serialize(obj.unconstrained_functions, serializer);
     serializer.decrease_container_depth();
 }
 
@@ -9718,6 +10275,7 @@ Acir::ProgramWithoutBrillig serde::Deserializable<Acir::ProgramWithoutBrillig>::
     deserializer.increase_container_depth();
     Acir::ProgramWithoutBrillig obj;
     obj.functions = serde::Deserializable<decltype(obj.functions)>::deserialize(deserializer);
+    obj.unconstrained_functions = serde::Deserializable<decltype(obj.unconstrained_functions)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }
