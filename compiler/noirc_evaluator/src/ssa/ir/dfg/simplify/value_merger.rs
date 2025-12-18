@@ -220,7 +220,7 @@ impl<'a> ValueMerger<'a> {
 
                 let typevars = Some(vec![element_type.clone()]);
 
-                let mut get_element = |array, typevars, len, index| {
+                let mut get_element = |array, typevars, len| {
                     assert!(index_u32 < len, "get_element invoked with an out of bounds index");
                     let get = Instruction::ArrayGet { array, index };
                     let results = self.dfg.insert_instruction_and_results(
@@ -233,18 +233,17 @@ impl<'a> ValueMerger<'a> {
                 };
 
                 // If it's out of bounds for the "then" slice, a value in the "else" *must* exist.
-                // We simply fetch from the zero index of our "then" slice to act as padding to match the value for the "else" slice.
+                // We can use that value directly as accessing it is always checked against the actual
+                // slice length.
                 if index_u32 >= flat_then_length {
-                    let else_element =
-                        get_element(else_value_id, typevars, flat_else_length, index);
+                    let else_element = get_element(else_value_id, typevars, flat_else_length);
                     merged.push_back(else_element);
                     continue;
                 }
 
                 // Same for if it's out of bounds for the "else" slice.
                 if index_u32 >= flat_else_length {
-                    let then_element =
-                        get_element(then_value_id, typevars, flat_then_length, index);
+                    let then_element = get_element(then_value_id, typevars, flat_then_length);
                     merged.push_back(then_element);
                     continue;
                 }
