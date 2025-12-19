@@ -664,6 +664,9 @@ fn comptime_trait_default_method_using_missing_associated_constant() {
     fn main() {
         comptime {
             let _ = <Foo as MyTrait>::foo();
+                     ^^^^^^^^^^^^^^ No matching impl found for `Foo: MyTrait<N = _>`
+                     ~~~~~~~~~~~~~~ No impl for `Foo: MyTrait<N = _>`
+                     ^^^^^^^^^^^^^^ No impl found due to prior type error
         }
     }
     ";
