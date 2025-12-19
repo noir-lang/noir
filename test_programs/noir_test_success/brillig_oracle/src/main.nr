@@ -1,5 +1,5 @@
-use std::vector;
 use std::test::OracleMock;
+use std::vector;
 
 #[test]
 fn test_main() {

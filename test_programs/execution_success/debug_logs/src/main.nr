@@ -129,7 +129,9 @@ fn regression_4967() {
     let sentinel: u32 = 8888;
 
     let vector_of_tuples: [(i32, u8)] = &[(11, 22), (33, 44)];
-    println(f"vector_of_tuples: {vector_of_tuples}, sentinel: {sentinel}");
+    println(
+        f"vector_of_tuples: {vector_of_tuples}, sentinel: {sentinel}",
+    );
     println(vector_of_tuples);
 
     let vector_of_tuples_coerced: [(i32, u8)] = [(11, 22), (33, 44)];
