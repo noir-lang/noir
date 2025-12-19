@@ -44,7 +44,10 @@ pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
 pub(crate) use unrolling::Loops;
 
 #[cfg(test)]
-use crate::ssa::{interpreter::{errors::InterpreterError, value::Value}, ssa_gen::Ssa};
+use crate::ssa::{
+    interpreter::{errors::InterpreterError, value::Value},
+    ssa_gen::Ssa,
+};
 
 /// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't

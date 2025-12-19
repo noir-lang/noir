@@ -2452,7 +2452,7 @@ mod test {
 
         let (ssa, _) =
             assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
-        
+
         let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
             ssa.fold_constants_using_constraints(MIN_ITER)
         });
