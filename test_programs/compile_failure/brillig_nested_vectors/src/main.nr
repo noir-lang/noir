@@ -10,13 +10,13 @@ struct NestedVectorStruct {
 }
 
 unconstrained fn create_foo(id: Field, value: Field) -> NestedVectorStruct {
-    let mut arr = [id];
+    let mut arr = [id].as_vector();
     arr = arr.push_back(value);
     NestedVectorStruct { id, arr }
 }
 
 unconstrained fn main(a: Field, b: Field) {
-    let mut vector = [create_foo(a, b), create_foo(b, a)];
+    let mut vector = [create_foo(a, b), create_foo(b, a)].as_vector();
     assert(vector.len() == 2);
 
     assert(vector[0].id == a);

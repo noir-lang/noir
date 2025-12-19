@@ -2,18 +2,18 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn as_slice_push<T, let N: u32>(xs: [T; N]) -> [T] {
-    let mut slice: [T] = &[];
+fn as_vector_push<T, let N: u32>(xs: [T; N]) -> [T] {
+    let mut vector: [T] = &[];
     {
         let ___i0: [T; N] = xs;
         for ___i1 in 0_u32..___i0.len() {
             let elem: T = ___i0[___i1];
             {
-                slice = slice.push_back(elem);
+                vector = vector.push_back(elem);
             }
         }
     };
-    slice
+    vector
 }
 
 fn main(x: u32, y: pub u32) {
@@ -26,32 +26,32 @@ fn main(x: u32, y: pub u32) {
     let dynamic_expected: [Field; 4] = [1000_Field, 2_Field, 1_Field, 0_Field];
     dynamic[x] = 1000_Field;
     assert(x != y);
-    assert(xs.as_slice() == as_slice_push(xs));
-    assert(ys.as_slice() == as_slice_push(ys));
-    assert(zs.as_slice() == as_slice_push(zs));
-    assert(ws.as_slice() == as_slice_push(ws));
-    assert(qs.as_slice() == as_slice_push(qs));
-    assert(dynamic.as_slice()[0_u32] == dynamic_expected[0_u32]);
-    assert(dynamic.as_slice()[1_u32] == dynamic_expected[1_u32]);
-    assert(dynamic.as_slice()[2_u32] == dynamic_expected[2_u32]);
-    assert(dynamic.as_slice()[3_u32] == dynamic_expected[3_u32]);
-    assert(dynamic.as_slice().len() == 4_u32);
-    regression_4609_append_slices(x, y);
-    regression_4609_append_dynamic_slices(x, y);
+    assert(xs.as_vector() == as_vector_push(xs));
+    assert(ys.as_vector() == as_vector_push(ys));
+    assert(zs.as_vector() == as_vector_push(zs));
+    assert(ws.as_vector() == as_vector_push(ws));
+    assert(qs.as_vector() == as_vector_push(qs));
+    assert(dynamic.as_vector()[0_u32] == dynamic_expected[0_u32]);
+    assert(dynamic.as_vector()[1_u32] == dynamic_expected[1_u32]);
+    assert(dynamic.as_vector()[2_u32] == dynamic_expected[2_u32]);
+    assert(dynamic.as_vector()[3_u32] == dynamic_expected[3_u32]);
+    assert(dynamic.as_vector().len() == 4_u32);
+    regression_4609_append_vectors(x, y);
+    regression_4609_append_dynamic_vectors(x, y);
 }
 
-fn regression_4609_append_slices(x: u32, y: u32) {
-    let sl: [u32] = [x, 1_u32, 2_u32, 3_u32].as_slice();
-    let sl2: [u32] = [y, 5_u32, 6_u32].as_slice();
+fn regression_4609_append_vectors(x: u32, y: u32) {
+    let sl: [u32] = [x, 1_u32, 2_u32, 3_u32].as_vector();
+    let sl2: [u32] = [y, 5_u32, 6_u32].as_vector();
     let sl3: [u32] = sl.append(sl2);
     assert(sl3[0_u32] == x);
     assert(sl3[4_u32] == y);
 }
 
-fn regression_4609_append_dynamic_slices(x: u32, y: u32) {
-    let mut sl: [u32] = [x, 1_u32, 2_u32, 3_u32].as_slice();
+fn regression_4609_append_dynamic_vectors(x: u32, y: u32) {
+    let mut sl: [u32] = [x, 1_u32, 2_u32, 3_u32].as_vector();
     sl[x] = x + 10_u32;
-    let mut sl2: [u32] = [y, 5_u32, 6_u32].as_slice();
+    let mut sl2: [u32] = [y, 5_u32, 6_u32].as_vector();
     sl2[y] = y + 5_u32;
     let sl3: [u32] = sl.append(sl2);
     assert(sl3[0_u32] == 10_u32);

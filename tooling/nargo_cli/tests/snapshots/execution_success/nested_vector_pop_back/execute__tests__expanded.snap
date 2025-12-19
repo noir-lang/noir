@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(dummy_val: u32, dummy_arr: [u32; 3], x: u32, y: u32) {
     let arr: [(u32, [u32; 3]); 0] = [];
-    let s: [(u32, [u32; 3])] = arr.as_slice();
+    let s: [(u32, [u32; 3])] = arr.as_vector();
     let s: [(u32, [u32; 3])] = s.push_back((dummy_val, dummy_arr));
     let s: [(u32, [u32; 3])] = s.push_back((dummy_val, dummy_arr));
     let s: [(u32, [u32; 3])] = s.push_back((x, dummy_arr));

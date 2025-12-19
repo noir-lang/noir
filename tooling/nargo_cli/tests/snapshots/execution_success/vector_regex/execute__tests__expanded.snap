@@ -41,8 +41,8 @@ impl<let N: u32> Regex for str<N> {
                 let c: u8 = ___i0[___i1];
                 {
                     if leftover.len() != 0_u32 {
-                        let (first_elem, popped_slice): (u8, [u8]) = leftover.pop_front();
-                        leftover = popped_slice;
+                        let (first_elem, popped_vector): (u8, [u8]) = leftover.pop_front();
+                        leftover = popped_vector;
                         matches_input = matches_input & (first_elem == c);
                     } else {
                         matches_input = false;
@@ -172,38 +172,38 @@ where
 fn main() {
     let graey_regex: (str<2>, (Or<str<1>, str<1>>, str<1>)) =
         ("gr", (Or::<str<1>, str<1>> { lhs: "a", rhs: "e" }, "y"));
-    let result: Match = graey_regex.find_match("gray".as_bytes().as_slice());
+    let result: Match = graey_regex.find_match("gray".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 4_u32, leftover: &[] });
-    let result: Match = graey_regex.find_match("grey".as_bytes().as_slice());
+    let result: Match = graey_regex.find_match("grey".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 4_u32, leftover: &[] });
     let colour_regex: (str<4>, (Question<str<1>>, str<1>)) =
         ("colo", (Question::<str<1>> { inner: "u" }, "r"));
-    let result: Match = colour_regex.find_match("color".as_bytes().as_slice());
+    let result: Match = colour_regex.find_match("color".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 5_u32, leftover: &[] });
-    let result: Match = colour_regex.find_match("colour".as_bytes().as_slice());
+    let result: Match = colour_regex.find_match("colour".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 6_u32, leftover: &[] });
     let three_empties_regex: Repeated<(), 3> = Repeated::<(), 3> { inner: () };
-    let result: Match = three_empties_regex.find_match("111".as_bytes().as_slice());
+    let result: Match = three_empties_regex.find_match("111".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 0_u32, leftover: &[] });
     let zero_ones_regex: Repeated<str<1>, 0> = Repeated::<str<1>, 0> { inner: "1" };
-    let result: Match = zero_ones_regex.find_match("111".as_bytes().as_slice());
+    let result: Match = zero_ones_regex.find_match("111".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 0_u32, leftover: &[] });
     let one_ones_regex: Repeated<str<1>, 1> = Repeated::<str<1>, 1> { inner: "1" };
-    let result: Match = one_ones_regex.find_match("111".as_bytes().as_slice());
+    let result: Match = one_ones_regex.find_match("111".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 1_u32, leftover: &[] });
     let two_ones_regex: Repeated<str<1>, 2> = Repeated::<str<1>, 2> { inner: "1" };
-    let result: Match = two_ones_regex.find_match("111".as_bytes().as_slice());
+    let result: Match = two_ones_regex.find_match("111".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 2_u32, leftover: &[] });
     let three_ones_regex: Repeated<str<1>, 3> = Repeated::<str<1>, 3> { inner: "1" };
-    let result: Match = three_ones_regex.find_match("1111".as_bytes().as_slice());
+    let result: Match = three_ones_regex.find_match("1111".as_bytes().as_vector());
     println(result);
     assert(result == Match { succeeded: true, match_ends: 3_u32, leftover: &[] });
 }

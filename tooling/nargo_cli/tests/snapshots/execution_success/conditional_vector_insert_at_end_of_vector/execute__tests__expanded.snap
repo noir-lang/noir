@@ -8,11 +8,11 @@ struct foo {
 }
 
 fn main(cond: bool) -> pub u32 {
-    let mut slice: [foo] = &[foo { a: 2_u32, b: [3_Field, 4_Field] }];
+    let mut vector: [foo] = &[foo { a: 2_u32, b: [3_Field, 4_Field] }];
     if cond {
-        slice = slice.push_back(foo { a: 5_u32, b: [6_Field, 7_Field] });
+        vector = vector.push_back(foo { a: 5_u32, b: [6_Field, 7_Field] });
     };
-    slice = slice.insert(slice.len(), foo { a: 8_u32, b: [9_Field, 10_Field] });
-    slice = slice.insert(slice.len(), foo { a: 8_u32, b: [9_Field, 10_Field] });
-    slice.len()
+    vector = vector.insert(vector.len(), foo { a: 8_u32, b: [9_Field, 10_Field] });
+    vector = vector.insert(vector.len(), foo { a: 8_u32, b: [9_Field, 10_Field] });
+    vector.len()
 }

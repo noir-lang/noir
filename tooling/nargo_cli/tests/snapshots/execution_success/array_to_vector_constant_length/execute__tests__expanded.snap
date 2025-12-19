@@ -10,6 +10,6 @@ fn main(val: Field) {
     // Safety: comment added by `nargo expand`
     unsafe {
         let array: [Field; 1] = return_array(val);
-        assert_constant(array.as_slice().len());
+        assert_constant(array.as_vector().len());
     }
 }
