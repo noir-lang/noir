@@ -1237,7 +1237,7 @@ pub(super) fn calculate_element_type_sizes_array(
     // Capacity is the number of entries in element_type_sizes array
     // One entry per field per logical element (+ boundary + additional)
     let capacity = (non_flattened_elements + boundary + additional_capacity) * element_types.len();
-    
+
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;
     for index in 0..capacity {
