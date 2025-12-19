@@ -19,7 +19,7 @@
 <div id="crate-version">1.0.0-beta.14</div>
 <h2><a href="#primitive">Primitive type Type</a></h2>
 <h3>Methods</h3>
-<ul class="sidebar-list">
+<ul class="sidebar-vector">
 <li><a href="#as_array">as_array</a></li>
 <li><a href="#as_constant">as_constant</a></li>
 <li><a href="#as_data_type">as_data_type</a></li>
@@ -29,6 +29,7 @@
 <li><a href="#as_str">as_str</a></li>
 <li><a href="#as_struct">as_struct</a></li>
 <li><a href="#as_tuple">as_tuple</a></li>
+<li><a href="#as_vector">as_vector</a></li>
 <li><a href="#get_trait_impl">get_trait_impl</a></li>
 <li><a href="#implements">implements</a></li>
 <li><a href="#is_bool">is_bool</a></li>
@@ -36,12 +37,12 @@
 <li><a href="#is_unit">is_unit</a></li>
 </ul>
 <h3>Trait implementations</h3>
-<ul class="sidebar-list">
+<ul class="sidebar-vector">
 <li><a href="#impl-Eq-for-Type">Eq</a></li>
 <li><a href="#impl-Hash-for-Type">Hash</a></li>
 </ul>
 <h2>In crate std</h2>
-<h3>Modules</h3><ul class="item-list">
+<h3>Modules</h3><ul class="item-vector">
 <li><a href="aes128/index.html">aes128</a></div></li>
 <li><a href="append/index.html">append</a></div></li>
 <li><a href="cmp/index.html">cmp</a></div></li>
@@ -64,7 +65,7 @@
 <li><a href="runtime/index.html">runtime</a></div></li>
 <li><a href="test/index.html">test</a></div></li>
 </ul>
-<h3>Primitive types</h3><ul class="item-list">
+<h3>Primitive types</h3><ul class="item-vector">
 <li><a href="primitive.array.html">array</a></div></li>
 <li><a href="primitive.bool.html">bool</a></div></li>
 <li><a href="primitive.CtString.html">CtString</a></div></li>
@@ -78,7 +79,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -93,8 +93,9 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
-<h3>Functions</h3><ul class="item-list">
+<h3>Functions</h3><ul class="item-vector">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
 <li><a href="fn.assert_constant.html">assert_constant</a></div></li>
 <li><a href="fn.print.html">print</a></div></li>
@@ -150,10 +151,19 @@ if the type is signed, as well as the number of bits of this integer type.</p>
 <div class="padded-description"><div class="comments">
 <p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
 </div>
-</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+</div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a slice type, return the element type of the slice.</p>
+<p>If this is a vector type, return the element type of the vector.</p>
+</div>
+</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_vector`
+</div>
+<div class="comments">
+<p>If this is a vector type, return the element type of the vector.</p>
 </div>
 </div><code id="as_str" class="code-header">pub comptime fn <a href="#as_str"><span class="fn">as_str</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 

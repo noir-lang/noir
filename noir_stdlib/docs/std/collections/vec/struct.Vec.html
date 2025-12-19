@@ -19,8 +19,8 @@
 <div id="crate-version">1.0.0-beta.14</div>
 <h2><a href="#struct">Struct Vec</a></h2>
 <h3>Methods</h3>
-<ul class="sidebar-list">
-<li><a href="#from_slice">from_slice</a></li>
+<ul class="sidebar-vector">
+<li><a href="#from_vector">from_vector</a></li>
 <li><a href="#get">get</a></li>
 <li><a href="#insert">insert</a></li>
 <li><a href="#len">len</a></li>
@@ -31,7 +31,7 @@
 <li><a href="#set">set</a></li>
 </ul>
 <h2>In module vec</h2>
-<h3>Structs</h3><ul class="item-list">
+<h3>Structs</h3><ul class="item-vector">
 <li><a href="struct.Vec.html">Vec</a></div></li>
 </ul>
 </nav>
@@ -46,31 +46,55 @@
 
 <div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new"><span class="fn">new</span></a>() -> Self</code>
 
-<code id="from_slice" class="code-header">pub fn <a href="#from_slice"><span class="fn">from_slice</span></a>(slice: [T]) -> Self</code>
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+</div><code id="from_vector" class="code-header">pub fn <a href="#from_vector"><span class="fn">from_vector</span></a>(vector: [T]) -> Self</code>
 
-<code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+</div><code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Get an element from the vector at the given index.
 Panics if the given index
 points beyond the end of the vector.</p>
 </div>
 </div><code id="set" class="code-header">pub fn <a href="#set"><span class="fn">set</span></a>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, value: T)</code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Write an element to the vector at the given index.
 Panics if the given index points beyond the end of the vector (<code>self.len()</code>).</p>
 </div>
 </div><code id="push" class="code-header">pub fn <a href="#push"><span class="fn">push</span></a>(&mut self, elem: T)</code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Push a new element to the end of the vector, returning a
 new vector with a length one greater than the
 original unmodified vector.</p>
 </div>
 </div><code id="pop" class="code-header">pub fn <a href="#pop"><span class="fn">pop</span></a>(&mut self) -> T</code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Pop an element from the end of the given vector, returning
 a new vector with a length of one less than the given vector,
 as well as the popped element.
@@ -78,19 +102,31 @@ Panics if the given vector's length is zero.</p>
 </div>
 </div><code id="insert" class="code-header">pub fn <a href="#insert"><span class="fn">insert</span></a>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, elem: T)</code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Insert an element at a specified index, shifting all elements
 after it to the right</p>
 </div>
 </div><code id="remove" class="code-header">pub fn <a href="#remove"><span class="fn">remove</span></a>(&mut self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Remove an element at a specified index, shifting all elements
 after it to the left, returning the removed element</p>
 </div>
 </div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
-<div class="padded-description"><div class="comments">
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: std::collections::vec::Vec is deprecated, use the built-in vector type instead
+</div>
+<div class="comments">
 <p>Returns the number of elements in the vector</p>
 </div>
 </div></div></main>

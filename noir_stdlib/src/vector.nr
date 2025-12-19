@@ -1,45 +1,45 @@
 use crate::append::Append;
 
 impl<T> [T] {
-    /// Returns the length of the slice.
+    /// Returns the length of the vector.
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
-    /// Push a new element to the end of the slice, returning a
-    /// new slice with a length one greater than the
-    /// original unmodified slice.
-    #[builtin(slice_push_back)]
+    /// Push a new element to the end of the vector, returning a
+    /// new vector with a length one greater than the
+    /// original unmodified vector.
+    #[builtin(vector_push_back)]
     pub fn push_back(self, elem: T) -> Self {}
 
-    /// Push a new element to the front of the slice, returning a
-    /// new slice with a length one greater than the
-    /// original unmodified slice.
-    #[builtin(slice_push_front)]
+    /// Push a new element to the front of the vector, returning a
+    /// new vector with a length one greater than the
+    /// original unmodified vector.
+    #[builtin(vector_push_front)]
     pub fn push_front(self, elem: T) -> Self {}
 
-    /// Remove the last element of the slice, returning the
-    /// popped slice and the element in a tuple
-    #[builtin(slice_pop_back)]
+    /// Remove the last element of the vector, returning the
+    /// popped vector and the element in a tuple
+    #[builtin(vector_pop_back)]
     pub fn pop_back(self) -> (Self, T) {}
 
-    /// Remove the first element of the slice, returning the
-    /// element and the popped slice in a tuple
-    #[builtin(slice_pop_front)]
+    /// Remove the first element of the vector, returning the
+    /// element and the popped vector in a tuple
+    #[builtin(vector_pop_front)]
     pub fn pop_front(self) -> (T, Self) {}
 
     /// Insert an element at a specified index, shifting all elements
     /// after it to the right
-    #[builtin(slice_insert)]
+    #[builtin(vector_insert)]
     pub fn insert(self, index: u32, elem: T) -> Self {}
 
     /// Remove an element at a specified index, shifting all elements
-    /// after it to the left, returning the altered slice and
+    /// after it to the left, returning the altered vector and
     /// the removed element
-    #[builtin(slice_remove)]
+    #[builtin(vector_remove)]
     pub fn remove(self, index: u32) -> (Self, T) {}
 
-    /// Append each element of the `other` slice to the end of `self`.
-    /// This returns a new slice and leaves both input slices unchanged.
+    /// Append each element of the `other` vector to the end of `self`.
+    /// This returns a new vector and leaves both input vectors unchanged.
     pub fn append(mut self, other: Self) -> Self {
         for elem in other {
             self = self.push_back(elem);
@@ -57,7 +57,7 @@ impl<T> [T] {
         array
     }
 
-    // Apply a function to each element of the slice, returning a new slice
+    // Apply a function to each element of the vector, returning a new vector
     // containing the mapped elements.
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U] {
         let mut ret = &[];
@@ -67,8 +67,8 @@ impl<T> [T] {
         ret
     }
 
-    // Apply a function to each element of the slice with its index, returning a
-    // new slice containing the mapped elements.
+    // Apply a function to each element of the vector with its index, returning a
+    // new vector containing the mapped elements.
     pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
         let mut ret = &[];
         let mut index = 0;
@@ -79,14 +79,14 @@ impl<T> [T] {
         ret
     }
 
-    // Apply a function to each element of the slice
+    // Apply a function to each element of the vector
     pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
         for elem in self {
             f(elem);
         }
     }
 
-    // Apply a function to each element of the slice with its index
+    // Apply a function to each element of the vector with its index
     pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
         let mut index = 0;
         for elem in self {
@@ -95,7 +95,7 @@ impl<T> [T] {
         }
     }
 
-    // Apply a function to each element of the slice and an accumulator value,
+    // Apply a function to each element of the vector and an accumulator value,
     // returning the final accumulated value. This function is also sometimes
     // called `foldl`, `fold_left`, `reduce`, or `inject`.
     pub fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
@@ -105,9 +105,9 @@ impl<T> [T] {
         accumulator
     }
 
-    // Apply a function to each element of the slice and an accumulator value,
+    // Apply a function to each element of the vector and an accumulator value,
     // returning the final accumulated value. Unlike fold, reduce uses the first
-    // element of the given slice as its starting accumulator value.
+    // element of the given vector as its starting accumulator value.
     pub fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1..self.len() {
@@ -116,7 +116,7 @@ impl<T> [T] {
         accumulator
     }
 
-    // Returns a new slice containing only elements for which the given predicate
+    // Returns a new vector containing only elements for which the given predicate
     // returns true.
     pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {
         let mut ret = &[];
@@ -128,7 +128,7 @@ impl<T> [T] {
         ret
     }
 
-    // Flatten each element in the slice into one value, separated by `separator`.
+    // Flatten each element in the vector into one value, separated by `separator`.
     pub fn join(self, separator: T) -> T
     where
         T: Append,
@@ -146,7 +146,7 @@ impl<T> [T] {
         ret
     }
 
-    // Returns true if all elements in the slice satisfy the predicate
+    // Returns true if all elements in the vector satisfy the predicate
     pub fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = true;
         for elem in self {
@@ -155,7 +155,7 @@ impl<T> [T] {
         ret
     }
 
-    // Returns true if any element in the slice satisfies the predicate
+    // Returns true if any element in the vector satisfies the predicate
     pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
         for elem in self {
@@ -178,16 +178,16 @@ mod test {
 
     #[test]
     fn for_each_empty() {
-        let empty_slice: [Field] = &[];
-        empty_slice.for_each(|_x| assert(false));
-        assert(empty_slice == &[]);
+        let empty_vector: [Field] = &[];
+        empty_vector.for_each(|_x| assert(false));
+        assert(empty_vector == &[]);
     }
 
     #[test]
     fn for_eachi_empty() {
-        let empty_slice: [Field] = &[];
-        empty_slice.for_eachi(|_i, _x| assert(false));
-        assert(empty_slice == &[]);
+        let empty_vector: [Field] = &[];
+        empty_vector.for_eachi(|_i, _x| assert(false));
+        assert(empty_vector == &[]);
     }
 
     #[test]
@@ -250,8 +250,8 @@ mod test {
 
     #[test]
     fn push_back_non_empty() {
-        let slice = &[1, 2, 3];
-        let result = slice.push_back(4);
+        let vector = &[1, 2, 3];
+        let result = vector.push_back(4);
         assert_eq(result.len(), 4);
         assert_eq(result, &[1, 2, 3, 4]);
     }
@@ -266,30 +266,30 @@ mod test {
 
     #[test]
     fn push_front_non_empty() {
-        let slice = &[1, 2, 3];
-        let result = slice.push_front(0);
+        let vector = &[1, 2, 3];
+        let result = vector.push_front(0);
         assert_eq(result.len(), 4);
         assert_eq(result, &[0, 1, 2, 3]);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn pop_back_empty() {
-        let slice: [Field] = &[];
-        let (_, _) = slice.pop_back();
+        let vector: [Field] = &[];
+        let (_, _) = vector.pop_back();
     }
 
     #[test]
     fn pop_back_one() {
-        let slice = &[42];
-        let (result, elem) = slice.pop_back();
+        let vector = &[42];
+        let (result, elem) = vector.pop_back();
         assert_eq(result.len(), 0);
         assert_eq(elem, 42);
     }
 
     #[test]
     fn pop_back_multiple() {
-        let slice = &[1, 2, 3];
-        let (result, elem) = slice.pop_back();
+        let vector = &[1, 2, 3];
+        let (result, elem) = vector.pop_back();
         assert_eq(result.len(), 2);
         assert_eq(result, &[1, 2]);
         assert_eq(elem, 3);
@@ -297,22 +297,22 @@ mod test {
 
     #[test(should_fail_with = "Index out of bounds")]
     fn pop_front_empty() {
-        let slice: [Field] = &[];
-        let (_, _) = slice.pop_front();
+        let vector: [Field] = &[];
+        let (_, _) = vector.pop_front();
     }
 
     #[test]
     fn pop_front_one() {
-        let slice = &[42];
-        let (elem, result) = slice.pop_front();
+        let vector = &[42];
+        let (elem, result) = vector.pop_front();
         assert_eq(result.len(), 0);
         assert_eq(elem, 42);
     }
 
     #[test]
     fn pop_front_multiple() {
-        let slice = &[1, 2, 3];
-        let (elem, result) = slice.pop_front();
+        let vector = &[1, 2, 3];
+        let (elem, result) = vector.pop_front();
         assert_eq(result.len(), 2);
         assert_eq(result, &[2, 3]);
         assert_eq(elem, 1);
@@ -320,44 +320,44 @@ mod test {
 
     #[test]
     fn insert_beginning() {
-        let slice = &[1, 2, 3];
-        let result = slice.insert(0, 0);
+        let vector = &[1, 2, 3];
+        let result = vector.insert(0, 0);
         assert_eq(result.len(), 4);
         assert_eq(result, &[0, 1, 2, 3]);
     }
 
     #[test]
     fn insert_middle() {
-        let slice = &[1, 2, 3];
-        let result = slice.insert(1, 99);
+        let vector = &[1, 2, 3];
+        let result = vector.insert(1, 99);
         assert_eq(result.len(), 4);
         assert_eq(result, &[1, 99, 2, 3]);
     }
 
     #[test]
     fn insert_end() {
-        let slice = &[1, 2, 3];
-        let result = slice.insert(3, 4);
+        let vector = &[1, 2, 3];
+        let result = vector.insert(3, 4);
         assert_eq(result.len(), 4);
         assert_eq(result, &[1, 2, 3, 4]);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn insert_end_out_of_bounds() {
-        let slice = &[1, 2];
-        let _ = slice.insert(3, 4);
+        let vector = &[1, 2];
+        let _ = vector.insert(3, 4);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn remove_empty() {
-        let slice: [Field] = &[];
-        let (_, _) = slice.remove(0);
+        let vector: [Field] = &[];
+        let (_, _) = vector.remove(0);
     }
 
     #[test]
     fn remove_beginning() {
-        let slice = &[1, 2, 3];
-        let (result, elem) = slice.remove(0);
+        let vector = &[1, 2, 3];
+        let (result, elem) = vector.remove(0);
         assert_eq(result.len(), 2);
         assert_eq(result, &[2, 3]);
         assert_eq(elem, 1);
@@ -365,8 +365,8 @@ mod test {
 
     #[test]
     fn remove_middle() {
-        let slice = &[1, 2, 3];
-        let (result, elem) = slice.remove(1);
+        let vector = &[1, 2, 3];
+        let (result, elem) = vector.remove(1);
         assert_eq(result.len(), 2);
         assert_eq(result, &[1, 3]);
         assert_eq(elem, 2);
@@ -374,8 +374,8 @@ mod test {
 
     #[test]
     fn remove_end() {
-        let slice = &[1, 2, 3];
-        let (result, elem) = slice.remove(2);
+        let vector = &[1, 2, 3];
+        let (result, elem) = vector.remove(2);
         assert_eq(result.len(), 2);
         assert_eq(result, &[1, 2]);
         assert_eq(elem, 3);
@@ -383,8 +383,8 @@ mod test {
 
     #[test(should_fail_with = "Index out of bounds")]
     fn remove_end_out_of_bounds() {
-        let slice = &[1, 2];
-        let (_, _) = slice.remove(2);
+        let vector = &[1, 2];
+        let (_, _) = vector.remove(2);
     }
 
     #[test]
@@ -396,15 +396,15 @@ mod test {
 
     #[test]
     fn fold_single() {
-        let slice = &[5];
-        let result = slice.fold(10, |acc, x| acc + x);
+        let vector = &[5];
+        let result = vector.fold(10, |acc, x| acc + x);
         assert_eq(result, 15);
     }
 
     #[test]
     fn fold_multiple() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.fold(0, |acc, x| acc + x);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.fold(0, |acc, x| acc + x);
         assert_eq(result, 10);
     }
 
@@ -416,15 +416,15 @@ mod test {
 
     #[test]
     fn reduce_single() {
-        let slice = &[42];
-        let result = slice.reduce(|a, b| a + b);
+        let vector = &[42];
+        let result = vector.reduce(|a, b| a + b);
         assert_eq(result, 42);
     }
 
     #[test]
     fn reduce_multiple() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.reduce(|a, b| a + b);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.reduce(|a, b| a + b);
         assert_eq(result, 10);
     }
 
@@ -437,22 +437,22 @@ mod test {
 
     #[test]
     fn filter_all_true() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.filter(|x| x > 0);
-        assert_eq(result, slice);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.filter(|x| x > 0);
+        assert_eq(result, vector);
     }
 
     #[test]
     fn filter_all_false() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.filter(|x| x > 10);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.filter(|x| x > 10);
         assert_eq(result.len(), 0);
     }
 
     #[test]
     fn filter_some() {
-        let slice = &[1, 2, 3, 4, 5];
-        let result = slice.filter(|x| x % 2 == 0);
+        let vector = &[1, 2, 3, 4, 5];
+        let result = vector.filter(|x| x % 2 == 0);
         assert_eq(result, &[2, 4]);
     }
 
@@ -465,15 +465,15 @@ mod test {
 
     #[test]
     fn all_true() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.all(|x| x > 0);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.all(|x| x > 0);
         assert_eq(result, true);
     }
 
     #[test]
     fn all_false() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.all(|x| x > 2);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.all(|x| x > 2);
         assert_eq(result, false);
     }
 
@@ -486,15 +486,15 @@ mod test {
 
     #[test]
     fn any_true() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.any(|x| x > 3);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.any(|x| x > 3);
         assert_eq(result, true);
     }
 
     #[test]
     fn any_false() {
-        let slice = &[1, 2, 3, 4];
-        let result = slice.any(|x| x > 10);
+        let vector = &[1, 2, 3, 4];
+        let result = vector.any(|x| x > 10);
         assert_eq(result, false);
     }
 
@@ -509,39 +509,39 @@ mod test {
 
     #[test]
     fn append_empty_to_non_empty() {
-        let slice = &[1, 2, 3];
+        let vector = &[1, 2, 3];
         let empty = &[];
-        let result = slice.append(empty);
-        assert_eq(result, slice);
+        let result = vector.append(empty);
+        assert_eq(result, vector);
     }
 
     #[test]
     fn append_non_empty_to_empty() {
         let empty = &[];
-        let slice = &[1, 2, 3];
-        let result = empty.append(slice);
-        assert_eq(result, slice);
+        let vector = &[1, 2, 3];
+        let result = empty.append(vector);
+        assert_eq(result, vector);
     }
 
     #[test]
     fn append_two_non_empty() {
-        let slice1 = &[1, 2];
-        let slice2 = &[3, 4, 5];
-        let result = slice1.append(slice2);
+        let vector1 = &[1, 2];
+        let vector2 = &[3, 4, 5];
+        let result = vector1.append(vector2);
         assert_eq(result, &[1, 2, 3, 4, 5]);
     }
 
     #[test]
     fn as_array_single() {
-        let slice = &[42];
-        let array: [Field; 1] = slice.as_array();
+        let vector = &[42];
+        let array: [Field; 1] = vector.as_array();
         assert_eq(array[0], 42);
     }
 
     #[test]
     fn as_array_multiple() {
-        let slice = &[1, 2, 3];
-        let array: [Field; 3] = slice.as_array();
+        let vector = &[1, 2, 3];
+        let array: [Field; 3] = vector.as_array();
         assert_eq(array[0], 1);
         assert_eq(array[1], 2);
         assert_eq(array[2], 3);
@@ -550,15 +550,15 @@ mod test {
     // complex scenarios
     #[test]
     fn chain_operations() {
-        let slice = &[1, 2, 3, 4, 5];
-        let result = slice.filter(|x| x % 2 == 0).map(|x| x * 2).fold(0, |acc, x| acc + x);
+        let vector = &[1, 2, 3, 4, 5];
+        let result = vector.filter(|x| x % 2 == 0).map(|x| x * 2).fold(0, |acc, x| acc + x);
         assert_eq(result, 12); // (2*2) + (4*2) = 4 + 8 = 12
     }
 
     #[test]
     fn nested_operations() {
-        let slice = &[1, 2, 3, 4];
-        let filtered = slice.filter(|x| x > 1);
+        let vector = &[1, 2, 3, 4];
+        let filtered = vector.filter(|x| x > 1);
         let mapped = filtered.map(|x| x * x);
         let sum = mapped.fold(0, |acc, x| acc + x);
         assert_eq(sum, 29); // 2^2 + 3^2 + 4^2 = 4 + 9 + 16 = 29
@@ -577,74 +577,74 @@ mod test {
         let pushed_front = single.push_front(0);
         assert_eq(pushed_front, &[0, 42]);
 
-        let (popped_back_slice, popped_back_elem) = single.pop_back();
-        assert_eq(popped_back_slice.len(), 0);
+        let (popped_back_vector, popped_back_elem) = single.pop_back();
+        assert_eq(popped_back_vector.len(), 0);
         assert_eq(popped_back_elem, 42);
 
-        let (popped_front_elem, popped_front_slice) = single.pop_front();
-        assert_eq(popped_front_slice.len(), 0);
+        let (popped_front_elem, popped_front_vector) = single.pop_front();
+        assert_eq(popped_front_vector.len(), 0);
         assert_eq(popped_front_elem, 42);
 
         let inserted = single.insert(0, 0);
         assert_eq(inserted, &[0, 42]);
 
-        let (removed_slice, removed_elem) = single.remove(0);
-        assert_eq(removed_slice.len(), 0);
+        let (removed_vector, removed_elem) = single.remove(0);
+        assert_eq(removed_vector.len(), 0);
         assert_eq(removed_elem, 42);
     }
 
     #[test]
     fn boundary_conditions() {
-        let slice = &[1, 2, 3];
+        let vector = &[1, 2, 3];
 
         // insert at boundaries
-        let at_start = slice.insert(0, 0);
+        let at_start = vector.insert(0, 0);
         assert_eq(at_start, &[0, 1, 2, 3]);
 
-        let at_end = slice.insert(3, 4);
+        let at_end = vector.insert(3, 4);
         assert_eq(at_end, &[1, 2, 3, 4]);
 
         // remove at boundaries
-        let (removed_start, elem_start) = slice.remove(0);
+        let (removed_start, elem_start) = vector.remove(0);
         assert_eq(removed_start, &[2, 3]);
         assert_eq(elem_start, 1);
 
-        let (removed_end, elem_end) = slice.remove(2);
+        let (removed_end, elem_end) = vector.remove(2);
         assert_eq(removed_end, &[1, 2]);
         assert_eq(elem_end, 3);
     }
 
     #[test]
     fn complex_predicates() {
-        let slice = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let vector = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-        let even_greater_than_5 = slice.filter(|x| (x % 2 == 0) & (x > 5));
+        let even_greater_than_5 = vector.filter(|x| (x % 2 == 0) & (x > 5));
         assert_eq(even_greater_than_5, &[6, 8, 10]);
 
-        let all_positive_and_less_than_20 = slice.all(|x| (x > 0) & (x < 20));
+        let all_positive_and_less_than_20 = vector.all(|x| (x > 0) & (x < 20));
         assert_eq(all_positive_and_less_than_20, true);
 
-        let any_divisible_by_7 = slice.any(|x| x % 7 == 0);
+        let any_divisible_by_7 = vector.any(|x| x % 7 == 0);
         assert_eq(any_divisible_by_7, true);
     }
 
     #[test]
     fn identity_operations() {
-        let slice = &[1, 2, 3, 4, 5];
+        let vector = &[1, 2, 3, 4, 5];
 
-        let mapped_identity = slice.map(|x| x);
-        assert_eq(mapped_identity, slice);
+        let mapped_identity = vector.map(|x| x);
+        assert_eq(mapped_identity, vector);
 
-        let filtered_all = slice.filter(|_| true);
-        assert_eq(filtered_all, slice);
+        let filtered_all = vector.filter(|_| true);
+        assert_eq(filtered_all, vector);
 
-        let filtered_none = slice.filter(|_| false);
+        let filtered_none = vector.filter(|_| false);
         assert_eq(filtered_none.len(), 0);
     }
 
     #[test(should_fail)]
     fn as_array_size_mismatch() {
-        let slice = &[1, 2, 3];
-        let _: [Field; 5] = slice.as_array(); // size doesn't match
+        let vector = &[1, 2, 3];
+        let _: [Field; 5] = vector.as_array(); // size doesn't match
     }
 }

@@ -105,30 +105,30 @@ h2 {
     border-bottom: 1px solid var(--header-border-color);
 }
 
-ul.item-list, ul.sidebar-list {
-    list-style-type: none;
+ul.item-vector, ul.sidebar-vector {
+    vector-style-type: none;
     width: 100%;
     margin: 0;
     padding: 0;
 }
 
-.item-list {
+.item-vector {
     display: table;
 }
 
-.item-list>li {
+.item-vector>li {
     display: table-row;
     width: 100%;
     line-height: 2em;
 }
 
-.item-list>li>.item-name {
+.item-vector>li>.item-name {
     width: 33%;
     display: table-cell;
     padding-right: 1.25em;
 }
 
-.item-list>li>.item-description {
+.item-vector>li>.item-description {
     display: table-cell;
     font-family: "Source Serif 4", NanumBarunGothic, serif;
 }

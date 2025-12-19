@@ -19,11 +19,11 @@
 <div id="crate-version">1.0.0-beta.14</div>
 <h2><a href="#struct">Struct BoundedVec</a></h2>
 <h3>Methods</h3>
-<ul class="sidebar-list">
+<ul class="sidebar-vector">
 <li><a href="#any">any</a></li>
 <li><a href="#extend_from_array">extend_from_array</a></li>
 <li><a href="#extend_from_bounded_vec">extend_from_bounded_vec</a></li>
-<li><a href="#extend_from_slice">extend_from_slice</a></li>
+<li><a href="#extend_from_vector">extend_from_vector</a></li>
 <li><a href="#for_each">for_each</a></li>
 <li><a href="#for_eachi">for_eachi</a></li>
 <li><a href="#from_array">from_array</a></li>
@@ -43,12 +43,12 @@
 <li><a href="#storage">storage</a></li>
 </ul>
 <h3>Trait implementations</h3>
-<ul class="sidebar-list">
+<ul class="sidebar-vector">
 <li><a href="#impl-Eq-for-BoundedVec<T, MaxLen>">Eq</a></li>
 <li><a href="#impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>">From&lt;[T; Len]&gt;</a></li>
 </ul>
 <h2>In module bounded_vec</h2>
-<h3>Structs</h3><ul class="item-list">
+<h3>Structs</h3><ul class="item-vector">
 <li><a href="struct.BoundedVec.html">BoundedVec</a></div></li>
 </ul>
 </nav>
@@ -59,14 +59,13 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A <code>BoundedVec&lt;T, MaxLen&gt;</code> is a growable storage similar to a <a href="../../../std/collections/vec/struct.Vec.html"><code>Vec</code></a><code>&lt;T&gt;</code> except that it
-is bounded with a maximum possible length. Unlike <code>Vec</code>, <code>BoundedVec</code> is not implemented
-via slices and thus is not subject to the same restrictions slices are (notably, nested
-slices - and thus nested vectors as well - are disallowed).</p>
+<p>A <code>BoundedVec&lt;T, MaxLen&gt;</code> is a growable storage similar to a built-in vector except that it
+is bounded with a maximum possible length. <code>BoundedVec</code> is also not
+subject to the same restrictions vectors are (notably, nested vectors are disallowed).</p>
 <p>Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
 pushing an additional element is also more efficient - the length only needs to be increased
 by one.</p>
-<p>For these reasons <code>BoundedVec&lt;T, N&gt;</code> should generally be preferred over <code>Vec&lt;T&gt;</code> when there
+<p>For these reasons <code>BoundedVec&lt;T, N&gt;</code> should generally be preferred over vectors when there
 is a reasonable maximum bound that can be placed on the vector.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> vector: BoundedVec&lt;Field, <span class="number">10</span>&gt; = BoundedVec::new();
@@ -250,15 +249,15 @@ vec.extend_from_array([<span class="number">2</span>, <span class="number">4</sp
 <span class="kw">assert</span>(vec.len == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">1</span>) == <span class="number">4</span>);</code></pre></div>
-</div><code id="extend_from_slice" class="code-header">pub fn <a href="#extend_from_slice"><span class="fn">extend_from_slice</span></a>(&mut self, slice: [T])</code>
+</div><code id="extend_from_vector" class="code-header">pub fn <a href="#extend_from_vector"><span class="fn">extend_from_vector</span></a>(&mut self, vector: [T])</code>
 
 <div class="padded-description"><div class="comments">
-<p>Pushes each element from the given slice to this vector.</p>
+<p>Pushes each element from the given vector to this vector.</p>
 <p>Panics if pushing each element would cause the length of this vector
 to exceed the maximum length.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> vec: BoundedVec&lt;Field, <span class="number">3</span>&gt; = BoundedVec::new();
-vec.extend_from_slice(&[<span class="number">2</span>, <span class="number">4</span>]);
+vec.extend_from_vector(&[<span class="number">2</span>, <span class="number">4</span>]);
 
 <span class="kw">assert</span>(vec.len == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);
