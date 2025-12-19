@@ -135,7 +135,26 @@
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -180,11 +199,17 @@
 <span class="kw">pub use </span>inlining::MAX_INSTRUCTIONS <span class="kw">as </span>INLINING_MAX_INSTRUCTIONS;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>unrolling::Loops;
 
+<span class="attr">#[cfg(test)]
+</span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+    interpreter::{errors::InterpreterError, value::Value},
+    ssa_gen::Ssa,
+};
+
 <span class="doccomment">/// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't
 /// shift depending on whether temporary intermediate values were created.
 </span><span class="attr">#[cfg(test)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_normalized_ssa_equals(<span class="kw-2">mut </span>ssa: <span class="kw">super</span>::Ssa, expected: <span class="kw-2">&amp;</span>str) {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_normalized_ssa_equals(<span class="kw-2">mut </span>ssa: Ssa, expected: <span class="kw-2">&amp;</span>str) {
     <span class="kw">use crate</span>::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
 
     <span class="comment">// Clean up the expected SSA a bit
@@ -264,12 +289,25 @@
 
 <span class="doccomment">/// Assert that running a certain pass on the SSA does nothing.
 </span><span class="attr">#[cfg(test)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_ssa_does_not_change(
-    src: <span class="kw-2">&amp;</span>str,
-    pass: <span class="kw">impl </span>FnOnce(<span class="kw">crate</span>::ssa::Ssa) -&gt; <span class="kw">crate</span>::ssa::Ssa,
-) {
-    <span class="kw">let </span>ssa = <span class="kw">crate</span>::ssa::Ssa::from_str(src).unwrap();
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_ssa_does_not_change(src: <span class="kw-2">&amp;</span>str, pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa) {
+    <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
     <span class="kw">let </span>ssa = pass(ssa);
     assert_normalized_ssa_equals(ssa, src);
+}
+
+<span class="doccomment">/// Assert that running a certain pass on the SSA does not change the execution result.
+</span><span class="attr">#[cfg(test)]
+</span><span class="kw">fn </span>assert_pass_does_not_affect_execution(
+    ssa: Ssa,
+    inputs: Vec&lt;Value&gt;,
+    ssa_pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa,
+) -&gt; (Ssa, <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, InterpreterError&gt;) {
+    <span class="kw">let </span>before = ssa.interpret(inputs.clone());
+
+    <span class="kw">let </span>new_ssa = ssa_pass(ssa);
+
+    <span class="kw">let </span>after = new_ssa.interpret(inputs);
+    <span class="macro">assert_eq!</span>(before, after, <span class="string">"SSA pass has resulted in a different execution result"</span>);
+    (new_ssa, after)
 }
 </code></pre></div></section></main></body></html>

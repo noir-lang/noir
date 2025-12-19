@@ -3613,26 +3613,7 @@
 <a href="#3612" id="3612">3612</a>
 <a href="#3613" id="3613">3613</a>
 <a href="#3614" id="3614">3614</a>
-<a href="#3615" id="3615">3615</a>
-<a href="#3616" id="3616">3616</a>
-<a href="#3617" id="3617">3617</a>
-<a href="#3618" id="3618">3618</a>
-<a href="#3619" id="3619">3619</a>
-<a href="#3620" id="3620">3620</a>
-<a href="#3621" id="3621">3621</a>
-<a href="#3622" id="3622">3622</a>
-<a href="#3623" id="3623">3623</a>
-<a href="#3624" id="3624">3624</a>
-<a href="#3625" id="3625">3625</a>
-<a href="#3626" id="3626">3626</a>
-<a href="#3627" id="3627">3627</a>
-<a href="#3628" id="3628">3628</a>
-<a href="#3629" id="3629">3629</a>
-<a href="#3630" id="3630">3630</a>
-<a href="#3631" id="3631">3631</a>
-<a href="#3632" id="3632">3632</a>
-<a href="#3633" id="3633">3633</a>
-<a href="#3634" id="3634">3634</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3615" id="3615">3615</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -6077,7 +6058,10 @@
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::{function::RuntimeType, types::NumericType},
-            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
+            opt::{
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, unrolling::Loops,
+            },
             ssa_gen::Ssa,
         },
     };
@@ -6886,24 +6870,15 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>expected = ssa
-            .interpret(<span class="macro">vec!</span>[
-                from_constant(<span class="number">2_u128</span>.into(), NumericType::unsigned(<span class="number">32</span>)),
-                from_constant(<span class="number">3_u128</span>.into(), NumericType::unsigned(<span class="number">32</span>)),
-            ])
-            .expect_err(<span class="string">"Should have error"</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(expected, InterpreterError::RangeCheckFailed { .. }));
 
-        <span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.loop_invariant_code_motion();
-        ssa.normalize_ids();
-
-        <span class="kw">let </span>got = ssa
-            .interpret(<span class="macro">vec!</span>[
-                from_constant(<span class="number">2_u128</span>.into(), NumericType::unsigned(<span class="number">32</span>)),
-                from_constant(<span class="number">3_u128</span>.into(), NumericType::unsigned(<span class="number">32</span>)),
-            ])
-            .expect_err(<span class="string">"Should have error"</span>);
-        <span class="macro">assert_eq!</span>(expected, got);
+        <span class="kw">let </span>inputs = <span class="macro">vec!</span>[
+            from_constant(<span class="number">2_u128</span>.into(), NumericType::unsigned(<span class="number">32</span>)),
+            from_constant(<span class="number">3_u128</span>.into(), NumericType::unsigned(<span class="number">32</span>)),
+        ];
+        <span class="kw">let </span>(ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.loop_invariant_code_motion()
+        });
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(InterpreterError::RangeCheckFailed { .. })));
 
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -6948,28 +6923,15 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>expected = ssa
-            .interpret(<span class="macro">vec!</span>[
-                from_constant(<span class="number">2_u128</span>.into(), NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
-                from_constant(<span class="number">3_u128</span>.into(), NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
-            ])
-            .expect_err(<span class="string">"Should have error"</span>);
-        <span class="kw">let </span>InterpreterError::ConstrainEqFailed { lhs_id, .. } = expected <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected ConstrainEqFailed"</span>);
-        };
-        <span class="comment">// Make sure that the constrain on v8 is the on that failed
-        </span><span class="macro">assert_eq!</span>(lhs_id.to_u32(), <span class="number">8</span>);
+        <span class="kw">let </span>inputs = <span class="macro">vec!</span>[
+            from_constant(<span class="number">2_u128</span>.into(), NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
+            from_constant(<span class="number">3_u128</span>.into(), NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
+        ];
+        <span class="kw">let </span>(ssa, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.loop_invariant_code_motion()
+        });
 
-        <span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.loop_invariant_code_motion();
-        ssa.normalize_ids();
-
-        <span class="kw">let </span>got = ssa
-            .interpret(<span class="macro">vec!</span>[
-                from_constant(<span class="number">2_u128</span>.into(), NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
-                from_constant(<span class="number">3_u128</span>.into(), NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
-            ])
-            .expect_err(<span class="string">"Should have error"</span>);
-        <span class="kw">let </span>InterpreterError::ConstrainEqFailed { lhs_id, .. } = got <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Err</span>(InterpreterError::ConstrainEqFailed { lhs_id, .. }) = execution_result <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected ConstrainEqFailed"</span>);
         };
         <span class="comment">// Make sure that the constrain on v8 is the on that failed

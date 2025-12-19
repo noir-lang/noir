@@ -2477,7 +2477,8 @@
 <a href="#2476" id="2476">2476</a>
 <a href="#2477" id="2477">2477</a>
 <a href="#2478" id="2478">2478</a>
-<a href="#2479" id="2479">2479</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -3158,8 +3159,8 @@
             interpreter::value::Value,
             ir::{types::NumericType, value::ValueMapping},
             opt::{
-                assert_normalized_ssa_equals, assert_ssa_does_not_change,
-                constant_folding::DEFAULT_MAX_ITER,
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, constant_folding::DEFAULT_MAX_ITER,
             },
         },
     };
@@ -4874,10 +4875,11 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>result_before = ssa.interpret(<span class="macro">vec!</span>[]);
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        <span class="kw">let </span>result_after = ssa.interpret(<span class="macro">vec!</span>[]);
-        <span class="macro">assert_eq!</span>(result_before, result_after);
+        <span class="kw">let </span>(<span class="kw">_</span>, execution_result) = assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        <span class="macro">assert!</span>(execution_result.is_ok());
     }
 
     <span class="comment">// Regression for #9451
@@ -4912,16 +4914,16 @@
         "#</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(<span class="macro">vec!</span>[Value::from_constant(<span class="number">1_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()])
-            .unwrap();
+        <span class="kw">let </span>inputs = <span class="macro">vec!</span>[Value::from_constant(<span class="number">1_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()];
 
-        <span class="kw">let </span>ssa = ssa.purity_analysis();
-        ssa.interpret(<span class="macro">vec!</span>[Value::from_constant(<span class="number">1_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()])
-            .unwrap();
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(<span class="macro">vec!</span>[Value::from_constant(<span class="number">1_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()])
-            .unwrap();
+        <span class="kw">let </span>(<span class="kw">_</span>, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        <span class="macro">assert!</span>(execution_result.is_ok());
     }
 
     <span class="attr">#[test]
@@ -4944,16 +4946,16 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(<span class="macro">vec!</span>[Value::from_constant(<span class="number">0_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()])
-            .unwrap();
+        <span class="kw">let </span>inputs = <span class="macro">vec!</span>[Value::from_constant(<span class="number">0_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()];
 
-        <span class="kw">let </span>ssa = ssa.purity_analysis();
-        ssa.interpret(<span class="macro">vec!</span>[Value::from_constant(<span class="number">0_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()])
-            .unwrap();
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(<span class="macro">vec!</span>[Value::from_constant(<span class="number">0_u32</span>.into(), NumericType::unsigned(<span class="number">32</span>)).unwrap()])
-            .unwrap();
+        <span class="kw">let </span>(<span class="kw">_</span>, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        <span class="macro">assert!</span>(execution_result.is_ok());
     }
 }
 </code></pre></div></section></main></body></html>
