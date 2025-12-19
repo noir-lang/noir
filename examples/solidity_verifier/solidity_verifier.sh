@@ -30,12 +30,29 @@ PUBLIC_INPUTS_HEX=$(python3 $BIN_TO_FLDS ./target/public_inputs | tr -d '"')
 anvil --code-size-limit=400000 &
 trap 'kill %-' EXIT
 
-DEPLOY_INFO=$(forge create HonkVerifier \
+# Wait for anvil to be ready
+sleep 2
+
+# Deploy library contracts first
+echo "Deploying ZKTranscriptLib..."
+ZKTRANSCRIPT_DEPLOY=$(forge create ZKTranscriptLib \
   --rpc-url "127.0.0.1:8545" \
   --private-key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" \
   --broadcast \
   --json)
+ZKTRANSCRIPT_ADDRESS=$(echo $ZKTRANSCRIPT_DEPLOY | jq -r '.deployedTo')
+echo "ZKTranscriptLib deployed at: $ZKTRANSCRIPT_ADDRESS"
+
+# Deploy HonkVerifier with library linking
+echo "Deploying HonkVerifier..."
+DEPLOY_INFO=$(forge create HonkVerifier \
+  --rpc-url "127.0.0.1:8545" \
+  --private-key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" \
+  --libraries "src/contract.sol:ZKTranscriptLib:$ZKTRANSCRIPT_ADDRESS" \
+  --broadcast \
+  --json)
 VERIFIER_ADDRESS=$(echo $DEPLOY_INFO | jq -r '.deployedTo')
+echo "HonkVerifier deployed at: $VERIFIER_ADDRESS"
 
 # Call the verifier contract with our proof.
 cast call "$VERIFIER_ADDRESS" "verify(bytes, bytes32[])(bool)" "$PROOF_HEX" "$PUBLIC_INPUTS_HEX"
