@@ -96,11 +96,11 @@ pub enum HeapValueType {
     /// A single field element is enough to represent the value with a given bit size.
     Simple(BitSize),
     /// The value read should be interpreted as a pointer to a [HeapArray], which
-    /// consists of a pointer to a vector of memory of size elements, and a
+    /// consists of a pointer to a slice of memory of size elements, and a
     /// reference count, to avoid cloning arrays that are not shared.
     Array { value_types: Vec<HeapValueType>, size: usize },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
-    /// consists of a pointer to a vector of memory, a number of elements in that
+    /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
     Vector { value_types: Vec<HeapValueType> },
 }
