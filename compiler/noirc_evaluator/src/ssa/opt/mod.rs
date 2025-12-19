@@ -43,11 +43,14 @@ pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
 pub(crate) use unrolling::Loops;
 
+#[cfg(test)]
+use crate::ssa::{interpreter::{errors::InterpreterError, value::Value}, ssa_gen::Ssa};
+
 /// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't
 /// shift depending on whether temporary intermediate values were created.
 #[cfg(test)]
-pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) {
+pub(crate) fn assert_normalized_ssa_equals(mut ssa: Ssa, expected: &str) {
     use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
 
     // Clean up the expected SSA a bit
@@ -127,11 +130,8 @@ macro_rules! assert_ssa_snapshot {
 
 /// Assert that running a certain pass on the SSA does nothing.
 #[cfg(test)]
-pub(crate) fn assert_ssa_does_not_change(
-    src: &str,
-    pass: impl FnOnce(crate::ssa::Ssa) -> crate::ssa::Ssa,
-) {
-    let ssa = crate::ssa::Ssa::from_str(src).unwrap();
+pub(crate) fn assert_ssa_does_not_change(src: &str, pass: impl FnOnce(Ssa) -> Ssa) {
+    let ssa = Ssa::from_str(src).unwrap();
     let ssa = pass(ssa);
     assert_normalized_ssa_equals(ssa, src);
 }
@@ -139,16 +139,10 @@ pub(crate) fn assert_ssa_does_not_change(
 /// Assert that running a certain pass on the SSA does not change the execution result.
 #[cfg(test)]
 fn assert_pass_does_not_affect_execution(
-    ssa: crate::ssa::Ssa,
-    inputs: Vec<crate::ssa::interpreter::value::Value>,
-    ssa_pass: impl FnOnce(crate::ssa::Ssa) -> crate::ssa::Ssa,
-) -> (
-    crate::ssa::Ssa,
-    Result<
-        Vec<crate::ssa::interpreter::value::Value>,
-        crate::ssa::interpreter::errors::InterpreterError,
-    >,
-) {
+    ssa: Ssa,
+    inputs: Vec<Value>,
+    ssa_pass: impl FnOnce(Ssa) -> Ssa,
+) -> (Ssa, Result<Vec<Value>, InterpreterError>) {
     let before = ssa.interpret(inputs.clone());
 
     let new_ssa = ssa_pass(ssa);
