@@ -239,8 +239,12 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        match self.vector_capacity_change(context.dfg, intrinsic, arguments, results)
-                        {
+                        match self.vector_capacity_change(
+                            context.dfg,
+                            intrinsic,
+                            arguments,
+                            results,
+                        ) {
                             SizeChange::None => (),
                             SizeChange::SetTo { old, new } => {
                                 self.set_capacity(context.dfg, old, new, |c| c);
@@ -431,7 +435,10 @@ fn remove_if_else_pre_check(func: &Function) {
             if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
                 assert!(
                     func.dfg.instruction_results(*instruction_id).iter().all(|value| {
-                        matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Vector(_))
+                        matches!(
+                            func.dfg.type_of_value(*value),
+                            Type::Array(_, _) | Type::Vector(_)
+                        )
                     }),
                     "IfElse instruction returns unexpected type"
                 );

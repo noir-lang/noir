@@ -91,7 +91,9 @@ impl Context<'_> {
                         }
                     }
                     AcirValue::DynamicArray(_) => {
-                        unimplemented!("pushing a dynamic array into a vector is not yet supported");
+                        unimplemented!(
+                            "pushing a dynamic array into a vector is not yet supported"
+                        );
                     }
                 }
             }
@@ -809,7 +811,8 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        let mut result = vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result];
+        let mut result =
+            vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result];
         result.append(&mut popped_elements);
 
         Ok(result)

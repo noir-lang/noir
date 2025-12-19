@@ -64,9 +64,13 @@ impl<'a> ValueMerger<'a> {
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Vector(_) => {
-                self.merge_vector_values(typ, then_condition, else_condition, then_value, else_value)
-            }
+            typ @ Type::Vector(_) => self.merge_vector_values(
+                typ,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
             Type::Reference(_) => {
                 // FIXME: none of then_value, else_value, then_condition, or else_condition have
                 // non-empty call stacks

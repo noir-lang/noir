@@ -381,7 +381,8 @@ impl<'f> Validator<'f> {
             Intrinsic::AsVector => {
                 // fn as_vector(self: [T; N]) -> [T] {}
                 let argument_type = self.assert_one_argument(arguments, "AsVector");
-                let (array_types, _array_length) = assert_array(&argument_type, "AsVector argument");
+                let (array_types, _array_length) =
+                    assert_array(&argument_type, "AsVector argument");
 
                 let results = self.function.dfg.instruction_results(instruction);
                 assert_eq!(results.len(), 2, "Expected two results for AsVector",);
@@ -456,7 +457,8 @@ impl<'f> Validator<'f> {
                 let (vector_length_type, vector_type) =
                     self.assert_two_arguments(arguments, "VectorPopFront");
                 assert_u32(&vector_length_type, "VectorPopFront self length");
-                let vector_element_types = assert_vector(&vector_type, "VectorPopFront self vector");
+                let vector_element_types =
+                    assert_vector(&vector_type, "VectorPopFront self vector");
 
                 let results = self.function.dfg.instruction_results(instruction);
                 assert!(results.len() >= 2, "Expected at least two results for VectorPopFront");

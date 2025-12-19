@@ -818,7 +818,8 @@ impl<'a> FunctionContext<'a> {
                     self.assign_lvalue_index(new_value, vector_values[1], index, location);
 
                 // The size of the vector does not change in a vector index assignment so we can reuse the same length value
-                let new_vector = Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
+                let new_vector =
+                    Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
                 self.assign_new_value(*vector_lvalue, new_vector);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
@@ -1023,8 +1024,24 @@ impl SharedContext {
 #[derive(Debug)]
 pub(super) enum LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
-    VectorIndex { old_vector: Values, index: ValueId, vector_lvalue: Box<LValue>, location: Location },
-    MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
-    Dereference { reference: Values },
+    Index {
+        old_array: ValueId,
+        index: ValueId,
+        array_lvalue: Box<LValue>,
+        location: Location,
+    },
+    VectorIndex {
+        old_vector: Values,
+        index: ValueId,
+        vector_lvalue: Box<LValue>,
+        location: Location,
+    },
+    MemberAccess {
+        old_object: Values,
+        index: usize,
+        object_lvalue: Box<LValue>,
+    },
+    Dereference {
+        reference: Values,
+    },
 }

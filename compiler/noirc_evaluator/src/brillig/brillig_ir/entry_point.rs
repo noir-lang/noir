@@ -291,7 +291,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
                             source_offset += Self::flattened_size(subitem);
                         }
-                        BrilligParameter::Vector(..) => unreachable!("ICE: Cannot deflatten vectors"),
+                        BrilligParameter::Vector(..) => {
+                            unreachable!("ICE: Cannot deflatten vectors")
+                        }
                     }
                 }
             }

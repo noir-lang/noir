@@ -97,7 +97,9 @@ impl Type {
             Type::Array(element_types, _) => {
                 element_types.iter().any(|t| t.type_contains_reference())
             }
-            Type::Vector(element_types) => element_types.iter().any(|t| t.type_contains_reference()),
+            Type::Vector(element_types) => {
+                element_types.iter().any(|t| t.type_contains_reference())
+            }
             Type::Numeric(_) => false,
         }
     }

@@ -369,7 +369,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.vector_insert_operation(target_vector, source_vector, *converted_index, &items);
+                self.vector_insert_operation(
+                    target_vector,
+                    source_vector,
+                    *converted_index,
+                    &items,
+                );
             }
             Value::Intrinsic(Intrinsic::VectorRemove) => {
                 let target_len = get_target_len(self, 0);

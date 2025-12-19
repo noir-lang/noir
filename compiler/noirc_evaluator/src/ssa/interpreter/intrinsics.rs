@@ -586,7 +586,8 @@ impl<W: Write> Interpreter<'_, W> {
         // We want the last valid element, ignoring any extras following it.
         // We don't ever access the extras, so we might as well remove any.
         vector_elements.truncate(element_types.len() * length as usize);
-        let mut popped_elements = vecmap(0..element_types.len(), |_| vector_elements.pop().unwrap());
+        let mut popped_elements =
+            vecmap(0..element_types.len(), |_| vector_elements.pop().unwrap());
         popped_elements.reverse();
 
         let new_length = Value::u32(length - 1);
