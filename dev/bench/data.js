@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766159588781,
+  "lastUpdate": 1766160668077,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "be330363357be738f32678233af53e4558125710",
-          "message": "chore: replace calls to `transform_program` with `optimize_program` (#10846)\n\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-12-09T17:01:15Z",
-          "tree_id": "e0800dcf5d20435ad23e208e088e992e40d9e2ef",
-          "url": "https://github.com/noir-lang/noir/commit/be330363357be738f32678233af53e4558125710"
-        },
-        "date": 1765301308408,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253526,
-            "range": "± 658",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226597,
-            "range": "± 7416",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791101,
-            "range": "± 1950",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25334,6 +25292,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800353,
             "range": "± 2554",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "763204e54136ff3e4eb93ee62366696b3731802f",
+          "message": "chore: assert that there is always an old_module (#10953)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-12-19T15:48:43Z",
+          "tree_id": "3fd36edc0a923cde0a0a2f1993b824a18d373fca",
+          "url": "https://github.com/noir-lang/noir/commit/763204e54136ff3e4eb93ee62366696b3731802f"
+        },
+        "date": 1766160636628,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256703,
+            "range": "± 7241",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226109,
+            "range": "± 1564",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791417,
+            "range": "± 15275",
             "unit": "ns/iter"
           }
         ]
