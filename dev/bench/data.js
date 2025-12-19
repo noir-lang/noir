@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766166224851,
+  "lastUpdate": 1766167827057,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1eeaba1755f46ff607839ba2ab4526140bbf96bf",
-          "message": "chore(deps): bump foundry-rs/foundry-toolchain from 1.5.0 to 1.6.0 (#10875)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2025-12-10T11:17:38Z",
-          "tree_id": "823c70bcc3ccf67ee87b96eb8d9a81974b870214",
-          "url": "https://github.com/noir-lang/noir/commit/1eeaba1755f46ff607839ba2ab4526140bbf96bf"
-        },
-        "date": 1765366823414,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253588,
-            "range": "± 1280",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224608,
-            "range": "± 6096",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790756,
-            "range": "± 10163",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25334,6 +25292,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792231,
             "range": "± 41104",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dc2160106f49f8a4e0be75d581b9fcd03e1c58da",
+          "message": "fix(examples): Update the `solidity_verifier` example (#10965)",
+          "timestamp": "2025-12-19T17:48:00Z",
+          "tree_id": "d260a01f0047c40b3d7fcbfea72e13115bba9a37",
+          "url": "https://github.com/noir-lang/noir/commit/dc2160106f49f8a4e0be75d581b9fcd03e1c58da"
+        },
+        "date": 1766167791834,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256657,
+            "range": "± 549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227023,
+            "range": "± 4150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2262004,
+            "range": "± 28068",
             "unit": "ns/iter"
           }
         ]
