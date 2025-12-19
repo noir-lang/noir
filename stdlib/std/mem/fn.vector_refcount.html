@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
 <script defer src="../../nargo_doc.js"></script>
-<title>Function slice_refcount documentation</title>
+<title>Function vector_refcount documentation</title>
 </head>
 <body>
 <div id="sidebar-toggle">
 <button id="sidebar-toggle-button"></button>
-<div id="sidebar-toggle-title">slice_refcount</div>
+<div id="sidebar-toggle-title">vector_refcount</div>
 </div>
 <span id="main-contents">
 <nav class="sidebar">
@@ -21,18 +21,18 @@
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.array_refcount.html">array_refcount</a></div></li>
 <li><a href="fn.checked_transmute.html">checked_transmute</a></div></li>
-<li><a href="fn.slice_refcount.html">slice_refcount</a></div></li>
+<li><a href="fn.vector_refcount.html">vector_refcount</a></div></li>
 <li><a href="fn.zeroed.html">zeroed</a></div></li>
 </ul>
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">mem</a></div>
-<h1>Function <span class="fn">slice_refcount</span></h1>
-<pre><code>pub fn slice_refcount&lt;T&gt;(slice: [T]) -> <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></pre>
+<h1>Function <span class="fn">vector_refcount</span></h1>
+<pre><code>pub fn vector_refcount&lt;T&gt;(vector: [T]) -> <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></pre>
 
 <div class="comments">
-<p>Returns the internal reference count of a slice value in unconstrained code.</p>
-<p>Slices only have reference count in unconstrained code - using this anywhere
+<p>Returns the internal reference count of a vector value in unconstrained code.</p>
+<p>Lists only have reference count in unconstrained code - using this anywhere
 else will return zero.</p>
 </div>
 </main>
