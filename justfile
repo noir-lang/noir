@@ -169,11 +169,10 @@ build-package PACKAGE: install-js-tools
 
 # Runs test for all examples
 # TODO(#10904): Fix the `browser` example.
-# TODO(#10959): Fix the `recursion` example.
 # TODO(#10960): Fix the `solidity_verifier` example.
 run-examples:
   set -e; \
-  for file in `ls {{justfile_dir()}}/examples | grep -v browser | grep -v recursion | grep -v solidity_verifier`; do \
+  for file in `ls {{justfile_dir()}}/examples | grep -v browser | grep -v solidity_verifier`; do \
       just --justfile {{justfile()}} run-example $file;  \
   done
 
