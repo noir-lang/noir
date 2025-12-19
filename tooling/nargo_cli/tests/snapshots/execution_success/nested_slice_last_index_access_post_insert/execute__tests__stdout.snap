@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[conditional_slice_insert_at_end_of_slice] Circuit output: 4
+[nested_slice_last_index_access_post_insert] Circuit output: 4
