@@ -581,7 +581,8 @@
 <a href="#580" id="580">580</a>
 <a href="#581" id="581">581</a>
 <a href="#582" id="582">582</a>
-<a href="#583" id="583">583</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -600,7 +601,7 @@
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
-        lints,
+        UnstableFeature, lints,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -927,6 +928,7 @@
             <span class="kw">let </span>type_location = typ.location;
             <span class="kw">let </span>typ = <span class="kw">match </span>typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) =&gt; {
+                    <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                     <span class="self">self</span>.desugar_impl_trait_arg(path, args, generics, trait_constraints)
                 }
                 <span class="comment">// Function parameters have Kind::Normal

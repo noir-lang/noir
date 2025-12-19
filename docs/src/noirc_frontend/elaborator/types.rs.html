@@ -2715,7 +2715,10 @@
 <a href="#2714" id="2714">2714</a>
 <a href="#2715" id="2715">2715</a>
 <a href="#2716" id="2716">2716</a>
-<a href="#2717" id="2717">2717</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2717" id="2717">2717</a>
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2917,6 +2920,7 @@
                 <span class="self">self</span>.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) =&gt; {
+                <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                 <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
                 <span class="self">self</span>.resolve_trait_as_type(path, args, mode)
             }
@@ -3192,6 +3196,7 @@
         <span class="comment">// Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
         </span><span class="kw">let </span>location = path.location;
+        <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, location);
         <span class="kw">let </span>trait_as_type_info = <span class="self">self</span>.lookup_trait_or_error(path).map(|t| t.id);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = trait_as_type_info {
@@ -5144,6 +5149,7 @@
 
         <span class="kw">let </span>func_location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>body_id); <span class="comment">// XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         </span><span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
+            <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             <span class="kw">if </span><span class="self">self
                 </span>.interner
                 .lookup_trait_implementation(

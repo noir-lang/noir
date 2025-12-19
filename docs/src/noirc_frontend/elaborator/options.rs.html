@@ -66,7 +66,10 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compiler frontend options and unstable feature flags.
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compiler frontend options and unstable feature flags.
 
 </span><span class="kw">use </span>std::str::FromStr;
 
@@ -74,6 +77,7 @@
 </span><span class="kw">pub enum </span>UnstableFeature {
     Enums,
     Ownership,
+    TraitAsType,
 }
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>UnstableFeature {
@@ -81,6 +85,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::Enums =&gt; <span class="macro">write!</span>(f, <span class="string">"enums"</span>),
             <span class="self">Self</span>::Ownership =&gt; <span class="macro">write!</span>(f, <span class="string">"ownership"</span>),
+            <span class="self">Self</span>::TraitAsType =&gt; <span class="macro">write!</span>(f, <span class="string">"trait_as_type"</span>),
         }
     }
 }
@@ -92,6 +97,7 @@
         <span class="kw">match </span>s {
             <span class="string">"enums" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Enums),
             <span class="string">"ownership" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Ownership),
+            <span class="string">"trait_as_type" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::TraitAsType),
             other =&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Unknown unstable feature '{other}'"</span>)),
         }
     }
