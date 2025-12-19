@@ -219,6 +219,14 @@ impl CompilationError {
     pub(crate) fn is_expecting_other_error_error(&self) -> bool {
         matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
     }
+
+    pub(crate) fn should_be_filtered(&self) -> bool {
+        let CompilationError::InterpreterError(error) = self else {
+            return false;
+        };
+
+        error.should_be_filtered()
+    }
 }
 
 impl std::fmt::Display for CompilationError {

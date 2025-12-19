@@ -67,8 +67,8 @@ impl Interpreter<'_, '_> {
         return_type: Type,
         location: Location,
     ) -> IResult<Value> {
+        let call_stack = &self.elaborator.interpreter_call_stack().clone();
         let interner = &mut self.elaborator.interner;
-        let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
@@ -1082,6 +1082,7 @@ fn to_le_radix(
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
+    assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -1569,7 +1570,9 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
             (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => todo!(),
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                unreachable!("invalid type: i128")
+            }
         },
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
