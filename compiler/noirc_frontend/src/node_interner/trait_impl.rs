@@ -91,7 +91,7 @@ impl NodeInterner {
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
         if object_type == Type::Error {
-            // TOOD(audit): return an "expecting other error" here
+            // TODO(audit): return an "expecting other error" here
             return Ok(());
         }
 
