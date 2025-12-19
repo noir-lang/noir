@@ -13,5 +13,6 @@ fn main(cond: bool) -> pub u32 {
         slice = slice.push_back(foo { a: 5_u32, b: [6_Field, 7_Field] });
     };
     slice = slice.insert(slice.len(), foo { a: 8_u32, b: [9_Field, 10_Field] });
+    slice = slice.insert(slice.len(), foo { a: 8_u32, b: [9_Field, 10_Field] });
     slice.len()
 }

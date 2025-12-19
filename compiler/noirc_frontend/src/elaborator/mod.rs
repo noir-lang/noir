@@ -272,6 +272,10 @@ pub struct Elaborator<'context> {
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+
+    /// Set to true when the interpreter encounters an errored expression/statement,
+    /// causing all subsequent comptime evaluation to be skipped.
+    pub(crate) comptime_evaluation_halted: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -339,6 +343,7 @@ impl<'context> Elaborator<'context> {
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
+            comptime_evaluation_halted: false,
         }
     }
 
@@ -471,14 +476,28 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        self.errors.push(error);
+        // Filter out internal control flow errors that should not be displayed
+        if !error.should_be_filtered() {
+            self.errors.push(error);
+        }
     }
 
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        self.errors.extend(errors.into_iter().map(|e| e.into()));
+        for error in errors {
+            self.push_err(error);
+        }
+    }
+
+    /// Run a given function while also tracking whether any new errors were generated as a result.
+    pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
+        // Count actual errors (ignore warnings)
+        let initial_error_count = self.errors.len();
+        let result = f(self);
+        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        (result, has_new_errors)
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
