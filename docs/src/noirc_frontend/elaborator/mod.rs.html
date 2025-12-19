@@ -890,7 +890,26 @@
 <a href="#889" id="889">889</a>
 <a href="#890" id="890">890</a>
 <a href="#891" id="891">891</a>
-<a href="#892" id="892">892</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1164,6 +1183,10 @@
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) elaborate_reasons: im::Vector&lt;ElaborateReason&gt;,
+
+    <span class="doccomment">/// Set to true when the interpreter encounters an errored expression/statement,
+    /// causing all subsequent comptime evaluation to be skipped.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) comptime_evaluation_halted: bool,
 }
 
 <span class="attr">#[derive(Copy, Clone)]
@@ -1231,6 +1254,7 @@
             silence_field_visibility_errors: <span class="number">0</span>,
             options,
             elaborate_reasons,
+            comptime_evaluation_halted: <span class="bool-val">false</span>,
         }
     }
 
@@ -1363,14 +1387,28 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_err(<span class="kw-2">&amp;mut </span><span class="self">self</span>, error: <span class="kw">impl </span>Into&lt;CompilationError&gt;) {
         <span class="kw">let </span>error: CompilationError = error.into();
-        <span class="self">self</span>.errors.push(error);
+        <span class="comment">// Filter out internal control flow errors that should not be displayed
+        </span><span class="kw">if </span>!error.should_be_filtered() {
+            <span class="self">self</span>.errors.push(error);
+        }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_errors&lt;E: Into&lt;CompilationError&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         errors: <span class="kw">impl </span>IntoIterator&lt;Item = E&gt;,
     ) {
-        <span class="self">self</span>.errors.extend(errors.into_iter().map(|e| e.into()));
+        <span class="kw">for </span>error <span class="kw">in </span>errors {
+            <span class="self">self</span>.push_err(error);
+        }
+    }
+
+    <span class="doccomment">/// Run a given function while also tracking whether any new errors were generated as a result.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>with_error_guard&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; T) -&gt; (T, bool) {
+        <span class="comment">// Count actual errors (ignore warnings)
+        </span><span class="kw">let </span>initial_error_count = <span class="self">self</span>.errors.len();
+        <span class="kw">let </span>result = f(<span class="self">self</span>);
+        <span class="kw">let </span>has_new_errors = <span class="self">self</span>.errors[initial_error_count..].iter().any(|e| e.is_error());
+        (result, has_new_errors)
     }
 
     <span class="kw">fn </span>run_lint(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lint: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Elaborator) -&gt; <span class="prelude-ty">Option</span>&lt;CompilationError&gt;) {

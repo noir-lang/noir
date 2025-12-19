@@ -1516,7 +1516,18 @@
 <a href="#1515" id="1515">1515</a>
 <a href="#1516" id="1516">1516</a>
 <a href="#1517" id="1517">1517</a>
-<a href="#1518" id="1518">1518</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1525,6 +1536,7 @@
 <span class="kw">use </span>petgraph::prelude::DiGraph;
 <span class="kw">use </span>petgraph::prelude::NodeIndex <span class="kw">as </span>PetGraphIndex;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+<span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use </span><span class="kw">crate</span>::QuotedType;
 <span class="kw">use </span><span class="kw">crate</span>::ast::DocComment;
@@ -1812,6 +1824,14 @@
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
     </span><span class="kw">pub </span>primitive_docs: HashMap&lt;String, Vec&lt;DocComment&gt;&gt;,
+
+    <span class="doccomment">/// Tracks expressions that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored expressions.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) exprs_with_errors: HashSet&lt;ExprId&gt;,
+
+    <span class="doccomment">/// Tracks statements that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored statements.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) stmts_with_errors: HashSet&lt;StmtId&gt;,
 }
 
 <span class="doccomment">/// A trait implementation is either a normal implementation that is present in the source
@@ -2006,6 +2026,8 @@
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
             primitive_docs: HashMap::default(),
+            exprs_with_errors: HashSet::default(),
+            stmts_with_errors: HashSet::default(),
         }
     }
 }

@@ -1670,7 +1670,61 @@
 <a href="#1669" id="1669">1669</a>
 <a href="#1670" id="1670">1670</a>
 <a href="#1671" id="1671">1671</a>
-<a href="#1672" id="1672">1672</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -1727,6 +1781,21 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_expression_with_target_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        expr: Expression,
+        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+    ) -&gt; (ExprId, Type) {
+        <span class="kw">let </span>((id, typ), has_errors) =
+            <span class="self">self</span>.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+
+        <span class="kw">if </span>has_errors {
+            <span class="self">self</span>.interner.exprs_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    <span class="kw">fn </span>elaborate_expression_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr: Expression,
         target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
@@ -2282,6 +2351,32 @@
         location: Location,
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>is_macro_call = call.is_macro_call;
+
+        <span class="kw">let </span>(hir_call, <span class="kw-2">mut </span>typ) = <span class="self">self</span>.elaborate_call_inner(call, location, is_macro_call);
+
+        <span class="comment">// Only check has_errors when we need to call the interpreter
+        </span><span class="kw">if </span>is_macro_call &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+            <span class="kw">return </span><span class="self">self
+                </span>.call_macro(hir_call.func, hir_call.arguments, location, typ)
+                .unwrap_or((HirExpression::Error, Type::Error));
+        }
+
+        <span class="comment">// Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        </span><span class="kw">if </span>is_macro_call &amp;&amp; <span class="self">self</span>.in_comptime_context() {
+            typ = <span class="self">self</span>.interner.next_type_variable();
+        }
+
+        (HirExpression::Call(hir_call), typ)
+    }
+
+    <span class="doccomment">/// Helper function containing the elaboration logic for a call expression.
+    /// Returns the HIR call and its type.
+    </span><span class="kw">fn </span>elaborate_call_inner(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        call: CallExpression,
+        location: Location,
+        is_macro_call: bool,
+    ) -&gt; (HirCallExpression, Type) {
         <span class="kw">let </span>(func, func_type) = <span class="self">self</span>.elaborate_expression(<span class="kw-2">*</span>call.func);
         <span class="kw">let </span>func_type = func_type.follow_bindings();
 
@@ -2322,25 +2417,12 @@
         });
 
         <span class="kw">let </span>hir_call = HirCallExpression { func, arguments, location, is_macro_call };
-        <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>hir_call, func_type, args, location);
+        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>hir_call, func_type, args, location);
 
         <span class="comment">// Restore the old one after type checking.
         </span><span class="self">self</span>.in_unconstrained_args = was_in_unconstrained_args;
 
-        <span class="comment">// Macro calls that aren't in comptime context should be evaluated and their
-        // result should be inlined rather than keeping the call.
-        </span><span class="kw">if </span>is_macro_call {
-            <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
-                typ = <span class="self">self</span>.interner.next_type_variable();
-            } <span class="kw">else </span>{
-                <span class="kw">let </span>comptime_args = hir_call.arguments;
-                <span class="kw">return </span><span class="self">self
-                    </span>.call_macro(func, comptime_args, location, typ)
-                    .unwrap_or((HirExpression::Error, Type::Error));
-            }
-        }
-
-        (HirExpression::Call(hir_call), typ)
+        (hir_call, typ)
     }
 
     <span class="doccomment">/// Elaborate the target of the method call and try to look up the method in its type.
@@ -2349,6 +2431,33 @@
         method_call: MethodCallExpression,
         location: Location,
     ) -&gt; (HirExpression, Type) {
+        <span class="kw">let </span>is_macro_call = method_call.is_macro_call;
+
+        <span class="kw">let </span>(function_call, <span class="kw-2">mut </span>typ) = <span class="self">self</span>.elaborate_method_call_inner(method_call, location);
+
+        <span class="comment">// Only check has_errors when we need to call the interpreter
+        </span><span class="kw">if </span>is_macro_call &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+            <span class="kw">let </span>args = function_call.arguments;
+            <span class="kw">return </span><span class="self">self
+                </span>.call_macro(function_call.func, args, location, typ)
+                .unwrap_or((HirExpression::Error, Type::Error));
+        }
+
+        <span class="comment">// Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        </span><span class="kw">if </span>is_macro_call &amp;&amp; <span class="self">self</span>.in_comptime_context() {
+            typ = <span class="self">self</span>.interner.next_type_variable();
+        }
+
+        (HirExpression::Call(function_call), typ)
+    }
+
+    <span class="doccomment">/// Helper function containing the elaboration logic for a method call.
+    /// Returns the desugared function call and its type.
+    </span><span class="kw">fn </span>elaborate_method_call_inner(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        method_call: MethodCallExpression,
+        location: Location,
+    ) -&gt; (HirCallExpression, Type) {
         <span class="kw">let </span>object_location = method_call.object.location;
         <span class="kw">let </span>(<span class="kw-2">mut </span>object, <span class="kw-2">mut </span>object_type) = <span class="self">self</span>.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
@@ -2365,7 +2474,16 @@
             check_self_param,
         );
         <span class="kw">let </span><span class="prelude-val">Some</span>(method_ref) = method_ref <span class="kw">else </span>{
-            <span class="kw">return </span>(HirExpression::Error, Type::Error);
+            <span class="comment">// Return a dummy call expression with Error type
+            </span><span class="kw">let </span>error_func =
+                <span class="self">self</span>.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            <span class="kw">let </span>error_call = HirCallExpression {
+                func: error_func,
+                arguments: Vec::new(),
+                location,
+                is_macro_call: method_call.is_macro_call,
+            };
+            <span class="kw">return </span>(error_call, Type::Error);
         };
 
         <span class="comment">// Automatically add `&amp;mut` if the method expects a mutable reference and
@@ -2451,20 +2569,9 @@
 
         <span class="comment">// Type check the new call now that it has been changed from a method call
         // to a function call. This way we avoid duplicating code.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>function_call, func_type, function_args, location);
-        <span class="comment">// Macro calls that aren't in comptime context should be evaluated and their
-        // result should be inlined rather than keeping the call.
-        </span><span class="kw">if </span>is_macro_call {
-            <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
-                typ = <span class="self">self</span>.interner.next_type_variable();
-            } <span class="kw">else </span>{
-                <span class="kw">let </span>args = function_call.arguments;
-                <span class="kw">return </span><span class="self">self
-                    </span>.call_macro(function_call.func, args, location, typ)
-                    .unwrap_or((HirExpression::Error, Type::Error));
-            }
-        }
-        (HirExpression::Call(function_call), typ)
+        </span><span class="kw">let </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>function_call, func_type, function_args, location);
+
+        (function_call, typ)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_constrain(
@@ -3157,6 +3264,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
         <span class="kw">let </span>value = interpreter.evaluate_block(block);
+
         <span class="kw">let </span>(id, typ) = <span class="self">self</span>.inline_comptime_value(value, location);
 
         <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(id);

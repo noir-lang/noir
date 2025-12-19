@@ -813,7 +813,9 @@
 <a href="#812" id="812">812</a>
 <a href="#813" id="813">813</a>
 <a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
 //!
 //! This module handles the execution of compile-time code and attributes in Noir.
 //!
@@ -966,6 +968,7 @@
         };
 
         <span class="self">self</span>.errors.extend(errors);
+        <span class="self">self</span>.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
         result
     }
 
@@ -1209,9 +1212,10 @@
 
         arguments.insert(<span class="number">0</span>, (item, location));
 
-        <span class="kw">let </span>value = interpreter
-            .call_function(function, arguments, TypeBindings::default(), location)
-            .map_err(CompilationError::from)<span class="question-mark">?</span>;
+        <span class="kw">let </span>result =
+            interpreter.call_function(function, arguments, TypeBindings::default(), location);
+
+        <span class="kw">let </span>value = result.map_err(CompilationError::from)<span class="question-mark">?</span>;
 
         <span class="self">self</span>.debug_comptime(location, |interner| value.display(interner).to_string());
 

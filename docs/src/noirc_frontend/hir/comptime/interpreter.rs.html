@@ -1908,7 +1908,30 @@
 <a href="#1907" id="1907">1907</a>
 <a href="#1908" id="1908">1908</a>
 <a href="#1909" id="1909">1909</a>
-<a href="#1910" id="1910">1910</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2166,7 +2189,8 @@
                         elaborator.elaborate_function(function);
                     });
 
-                    <span class="self">self</span>.get_function_body(function, location)
+                    <span class="comment">// Recursive call - this will now hit the Some(body) branch
+                    </span><span class="self">self</span>.get_function_body(function, location)
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>function = <span class="self">self</span>.elaborator.interner.function_name(<span class="kw-2">&amp;</span>function).to_owned();
                     <span class="prelude-val">Err</span>(InterpreterError::ComptimeDependencyCycle { function, location })
@@ -2520,6 +2544,17 @@
     <span class="doccomment">/// Evaluate an expression and return the result.
     /// This will automatically dereference a mutable variable if used.
     </span><span class="kw">pub fn </span>evaluate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) -&gt; IResult&lt;Value&gt; {
+        <span class="comment">// If comptime evaluation has been halted, don't execute anything
+        </span><span class="kw">if </span><span class="self">self</span>.elaborator.comptime_evaluation_halted {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        <span class="comment">// Skip expressions that had errors during elaboration and halt all future execution
+        </span><span class="kw">if </span><span class="self">self</span>.elaborator.interner.exprs_with_errors.contains(<span class="kw-2">&amp;</span>id) {
+            <span class="self">self</span>.elaborator.comptime_evaluation_halted = <span class="bool-val">true</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         <span class="kw">match </span><span class="self">self</span>.evaluate_no_dereference(id)<span class="question-mark">? </span>{
             Value::Pointer(elem, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(elem.unwrap_or_clone().move_struct()),
             other =&gt; <span class="prelude-val">Ok</span>(other.move_struct()),
@@ -2754,7 +2789,7 @@
         evaluate_integer(typ, value, location)
     }
 
-    <span class="kw">pub fn </span>evaluate_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>block: HirBlockExpression) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>block: HirBlockExpression) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>last_statement = block.statements.pop();
         <span class="self">self</span>.push_scope();
 
@@ -3163,6 +3198,17 @@
     }
 
     <span class="kw">pub fn </span>evaluate_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: StmtId) -&gt; IResult&lt;Value&gt; {
+        <span class="comment">// If comptime evaluation has been halted, don't execute anything
+        </span><span class="kw">if </span><span class="self">self</span>.elaborator.comptime_evaluation_halted {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        <span class="comment">// Skip statements that had errors during elaboration and halt all future execution
+        </span><span class="kw">if </span><span class="self">self</span>.elaborator.interner.stmts_with_errors.contains(<span class="kw-2">&amp;</span>statement) {
+            <span class="self">self</span>.elaborator.comptime_evaluation_halted = <span class="bool-val">true</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         <span class="kw">match </span><span class="self">self</span>.elaborator.interner.statement(<span class="kw-2">&amp;</span>statement) {
             HirStatement::Let(let_) =&gt; <span class="self">self</span>.evaluate_let(let_),
             HirStatement::Assign(assign) =&gt; <span class="self">self</span>.evaluate_assign(assign),
@@ -3184,7 +3230,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>evaluate_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, let_: HirLetStatement) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, let_: HirLetStatement) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>rhs = <span class="self">self</span>.evaluate(let_.expression)<span class="question-mark">?</span>;
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>let_.expression);
         <span class="self">self</span>.define_pattern(<span class="kw-2">&amp;</span>let_.pattern, <span class="kw-2">&amp;</span>let_.r#type, rhs, location)<span class="question-mark">?</span>;
