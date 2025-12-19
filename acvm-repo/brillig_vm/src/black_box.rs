@@ -20,7 +20,7 @@ fn read_heap_vector<'a, F: AcirField>(
 ) -> &'a [MemoryValue<F>] {
     let items_start = memory.read_ref(vector.pointer);
     let size = memory.read(vector.size);
-    memory.read_vector(items_start, size.to_usize())
+    memory.read_slice(items_start, size.to_usize())
 }
 
 /// Write values to a [vector][HeapVector] in memory.
@@ -31,7 +31,7 @@ fn write_heap_vector<F: AcirField>(
 ) {
     let items_start = memory.read_ref(vector.pointer);
     memory.write(vector.size, values.len().into());
-    memory.write_vector(items_start, values);
+    memory.write_slice(items_start, values);
 }
 
 /// Reads a fixed-size [array][HeapArray] from memory.
@@ -42,7 +42,7 @@ fn read_heap_array<'a, F: AcirField>(
     array: &HeapArray,
 ) -> &'a [MemoryValue<F>] {
     let items_start = memory.read_ref(array.pointer);
-    memory.read_vector(items_start, array.size)
+    memory.read_slice(items_start, array.size)
 }
 
 /// Write values to a [array][HeapArray] in memory.
@@ -52,7 +52,7 @@ fn write_heap_array<F: AcirField>(
     values: &[MemoryValue<F>],
 ) {
     let items_start = memory.read_ref(array.pointer);
-    memory.write_vector(items_start, values);
+    memory.write_slice(items_start, values);
 }
 
 /// Extracts the last byte of every value
@@ -326,7 +326,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
 
             let output = to_be_radix(input, radix, num_limbs, output_bits)?;
 
-            memory.write_vector(memory.read_ref(*output_pointer), &output);
+            memory.write_slice(memory.read_ref(*output_pointer), &output);
 
             Ok(())
         }

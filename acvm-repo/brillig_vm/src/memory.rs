@@ -427,7 +427,7 @@ impl<F: AcirField> Memory<F> {
     /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
-    pub fn read_vector(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
+    pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
         // Allows to read a vector of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
         // but that's not possible if we want to return a vector instead of owned data.
@@ -454,7 +454,7 @@ impl<F: AcirField> Memory<F> {
     }
 
     /// Sets the values after `address` to `values`
-    pub fn write_vector(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
+    pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
         let resolved_addr = self.resolve(address);
         let end_addr = resolved_addr + values.len();
         self.resize_to_fit(end_addr);
@@ -521,16 +521,16 @@ mod tests {
     }
 
     #[test]
-    fn write_and_read_vector() {
+    fn write_and_read_slice() {
         let mut memory = Memory::<FieldElement>::default();
         // [1, 2, 3, 4, 5]
         let values: Vec<_> = (1..=5).map(MemoryValue::U32).collect();
 
         // Write at an address > 0 to show resizing
-        memory.write_vector(MemoryAddress::direct(2), &values);
+        memory.write_slice(MemoryAddress::direct(2), &values);
         assert_eq!(
             memory
-                .read_vector(MemoryAddress::direct(2), 3)
+                .read_slice(MemoryAddress::direct(2), 3)
                 .iter()
                 .map(|v| v.to_u128().unwrap())
                 .collect::<Vec<_>>(),
@@ -538,7 +538,7 @@ mod tests {
         );
         assert_eq!(
             memory
-                .read_vector(MemoryAddress::direct(5), 2)
+                .read_slice(MemoryAddress::direct(5), 2)
                 .iter()
                 .map(|v| v.to_u128().unwrap())
                 .collect::<Vec<_>>(),
@@ -547,7 +547,7 @@ mod tests {
         let zero_field = FieldElement::zero();
         assert_eq!(
             memory
-                .read_vector(MemoryAddress::direct(0), 2)
+                .read_slice(MemoryAddress::direct(0), 2)
                 .iter()
                 .map(|v| v.to_field())
                 .collect::<Vec<_>>(),
@@ -555,7 +555,7 @@ mod tests {
         );
         assert_eq!(
             memory
-                .read_vector(MemoryAddress::direct(2), 5)
+                .read_slice(MemoryAddress::direct(2), 5)
                 .iter()
                 .map(|v| v.to_u128().unwrap())
                 .collect::<Vec<_>>(),
@@ -564,14 +564,14 @@ mod tests {
     }
 
     #[test]
-    fn read_ref_returns_expected_address_and_reads_vector() {
+    fn read_ref_returns_expected_address_and_reads_slice() {
         let mut memory = Memory::<FieldElement>::default();
 
         // Imagine we have a heap array starting at address 10
         let heap_start = MemoryAddress::direct(10);
         // [1, 2, 3]
         let values: Vec<_> = (1..=3).map(MemoryValue::U32).collect();
-        memory.write_vector(heap_start, &values);
+        memory.write_slice(heap_start, &values);
 
         let array_pointer = MemoryAddress::direct(1);
         // Store a pointer to that array at address 1 (after the stack pointer)
@@ -582,14 +582,14 @@ mod tests {
         assert_eq!(array_start, MemoryAddress::direct(10));
 
         // Use that reference to read the 3 element array
-        let got_vector = memory.read_vector(array_start, 3);
-        assert_eq!(got_vector, values);
+        let got_slice = memory.read_slice(array_start, 3);
+        assert_eq!(got_slice, values);
     }
 
     #[test]
-    fn zero_length_vector() {
+    fn zero_length_slice() {
         let memory = Memory::<FieldElement>::default();
-        assert_eq!(memory.read_vector(MemoryAddress::direct(20), 0), &[]);
+        assert_eq!(memory.read_slice(MemoryAddress::direct(20), 0), &[]);
     }
 
     #[test]
@@ -601,9 +601,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "range end index 30 out of range for vector of length 0")]
+    #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
     fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
-        let _ = memory.read_vector(MemoryAddress::direct(20), 10);
+        let _ = memory.read_slice(MemoryAddress::direct(20), 10);
     }
 }
