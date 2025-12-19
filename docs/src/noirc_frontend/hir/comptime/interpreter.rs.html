@@ -1906,7 +1906,9 @@
 <a href="#1905" id="1905">1905</a>
 <a href="#1906" id="1906">1906</a>
 <a href="#1907" id="1907">1907</a>
-<a href="#1908" id="1908">1908</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2258,9 +2260,11 @@
         <span class="self">self</span>.elaborator.pop_interpreter_call_stack();
 
         <span class="self">self</span>.current_function = old_function;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(old_module) = old_module {
-            <span class="self">self</span>.elaborator.replace_module(old_module);
-        }
+        <span class="kw">let </span><span class="prelude-val">Some</span>(old_module) = old_module <span class="kw">else </span>{
+            <span class="comment">// The module should always be set by the time we're interpreting comptime code
+            </span><span class="macro">panic!</span>(<span class="string">"ICE: Expected local_module to be set when calling a closure"</span>);
+        };
+        <span class="self">self</span>.elaborator.replace_module(old_module);
         result
     }
 
