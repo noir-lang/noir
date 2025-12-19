@@ -182,8 +182,6 @@ impl Elaborator<'_> {
                     Ident::new(name, trait_impl.r#trait.location)
                 }
                 _ => {
-                    // We don't error in this case because an error will be produced later on when
-                    // solving the trait impl trait type
                     self.push_err(TypeCheckError::ExpectingOtherError {
                         message: "collect_trait_impl: missing trait type".to_string(),
                         location,
