@@ -2377,9 +2377,11 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let _ = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
             ssa.fold_constants_using_constraints(MIN_ITER)
         });
+
+        assert!(execution_result.is_ok());
     }
 
     // Regression for #9451
@@ -2419,9 +2421,11 @@ mod test {
         let (ssa, _) =
             assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let _ = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
             ssa.fold_constants_using_constraints(MIN_ITER)
         });
+
+        assert!(execution_result.is_ok());
     }
 
     #[test]
@@ -2448,9 +2452,11 @@ mod test {
 
         let (ssa, _) =
             assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
-
-        let _ = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+        
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
             ssa.fold_constants_using_constraints(MIN_ITER)
         });
+
+        assert!(execution_result.is_ok());
     }
 }
