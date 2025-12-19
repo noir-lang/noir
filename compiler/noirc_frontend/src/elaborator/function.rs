@@ -17,7 +17,7 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
-        lints,
+        UnstableFeature, lints,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -344,6 +344,7 @@ impl Elaborator<'_> {
             let type_location = typ.location;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {
+                    self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                     self.desugar_impl_trait_arg(path, args, generics, trait_constraints)
                 }
                 // Function parameters have Kind::Normal
