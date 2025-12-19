@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux
+set -eu
 
 BACKEND=${BACKEND:-bb}
 
@@ -26,7 +26,7 @@ echo "public_inputs = $(cat ./target/sum/public_inputs_fields.json)" >> $RECURSE
 echo "key_hash = $(cat ./target/sum/vk_hash_fields.json)" >> $RECURSE_LEAF_PROVER_TOML
 
 # Execute and prove `recurse_leaf`
-nargo execute recurse_leaf_witness --package recurse_leaf --pedantic-solving --force
+nargo execute recurse_leaf_witness --package recurse_leaf --pedantic-solving
 
 mkdir -p ./target/leaf
 $BACKEND write_vk -b ./target/recurse_leaf.json -o ./target/leaf
