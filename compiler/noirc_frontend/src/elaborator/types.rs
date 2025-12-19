@@ -200,6 +200,7 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
+                self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                 let path = self.validate_path(path);
                 self.resolve_trait_as_type(path, args, mode)
             }
@@ -475,6 +476,7 @@ impl Elaborator<'_> {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
         let location = path.location;
+        self.use_unstable_feature(UnstableFeature::TraitAsType, location);
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
@@ -2427,6 +2429,7 @@ impl Elaborator<'_> {
 
         let func_location = self.interner.expr_location(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
+            self.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             if self
                 .interner
                 .lookup_trait_implementation(
