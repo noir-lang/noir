@@ -2,7 +2,7 @@
 set -eu
 
 BACKEND=${BACKEND:-bb}
-BIN_TO_FLDS=../binary_to_fields.py
+BIN_TO_FLDS=../../scripts/binary_to_fields.py
 
 # Execute and prove inner circuit (sum)
 mkdir -p ./target/sum
