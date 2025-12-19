@@ -206,8 +206,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
                         extract_failure_payload_from_memory(
                             self.vm.get_memory(),
-                            revert_data_offset,
-                            revert_data_size,
+                            revert_data_offset
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
+                            revert_data_size
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
                         )
                     }
                 };
@@ -254,7 +258,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
-                self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
+                self.write_brillig_outputs(
+                    witness,
+                    return_data_offset.try_into().expect("Failed conversion from u32 to usize"),
+                    return_data_size.try_into().expect("Failed conversion from u32 to usize"),
+                    outputs,
+                )?;
                 Ok(())
             }
             _ => panic!("Brillig VM has not completed execution"),

@@ -141,11 +141,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) if *type_size == size => {
                 let start = self.memory.read_ref(pointer);
-                self.read_slice_of_values_from_memory(start, size, value_types)
-                    .into_iter()
-                    .map(|mem_value| mem_value.to_field())
-                    .collect::<Vec<_>>()
-                    .into()
+                self.read_slice_of_values_from_memory(
+                    start,
+                    size.try_into().expect("Failed conversion from u32 to usize"),
+                    value_types,
+                )
+                .into_iter()
+                .map(|mem_value| mem_value.to_field())
+                .collect::<Vec<_>>()
+                .into()
             }
             (
                 ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
@@ -201,7 +205,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                *size,
+                                (*size).try_into().expect("Failed conversion from u32 to usize"),
                                 value_types,
                             )
                         }
@@ -339,7 +343,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an array type"
                                 .to_string());
                         };
-                        if values.len() != *size {
+                        if values.len()
+                            != usize::try_from(*size).expect("Failed conversion from u32 to usize")
+                        {
                             // foreign call returning flattened values into a nested type, so the sizes do not match
                             let destination = self.memory.read_ref(*pointer);
 

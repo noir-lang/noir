@@ -189,7 +189,7 @@ fn stop() {
     let vector_size: u32 = 100;
     let calldata: Vec<FieldElement> = (0..vector_size).map(FieldElement::from).collect();
 
-    let calldata_pointer = MemoryAddress::Direct(calldata.len());
+    let calldata_pointer = MemoryAddress::direct(calldata.len());
 
     // Simply immediately return the call data
     let opcodes = vec![
@@ -225,7 +225,13 @@ fn stop() {
 
     let memory = vm.take_memory();
     let returned: Vec<_> = (return_data_offset..return_data_size)
-        .map(|i| memory.read(MemoryAddress::direct(i)).to_field())
+        .map(|i| {
+            memory
+                .read(MemoryAddress::direct(
+                    i.try_into().expect("Failed conversion from u32 to usize"),
+                ))
+                .to_field()
+        })
         .collect();
     assert_eq!(returned, calldata);
 }

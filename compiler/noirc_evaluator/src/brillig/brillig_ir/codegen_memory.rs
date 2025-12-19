@@ -259,7 +259,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             array.pointer,
             heap_array.pointer,
             BrilligBinaryOp::Add,
-            offsets::ARRAY_ITEMS,
+            usize::try_from(offsets::ARRAY_ITEMS).expect("Failed conversion from u32 to usize"),
         );
         heap_array
     }
@@ -330,7 +330,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             result.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            usize::try_from(offsets::VECTOR_SIZE).expect("Failed conversion from u32 to usize"),
         );
         self.load_instruction(result.address, result.address);
         result
@@ -347,7 +347,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             *write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            usize::try_from(offsets::VECTOR_SIZE).expect("Failed conversion from u32 to usize"),
         );
         self.store_instruction(*write_pointer, new_size.address);
     }
@@ -362,7 +362,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             result.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY,
+            usize::try_from(offsets::VECTOR_CAPACITY).expect("Failed conversion from u32 to usize"),
         );
         self.load_instruction(result.address, result.address);
         result
@@ -374,7 +374,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
         result: MemoryAddress,
     ) {
-        self.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, offsets::VECTOR_ITEMS);
+        self.codegen_usize_op(
+            vector.pointer,
+            result,
+            BrilligBinaryOp::Add,
+            usize::try_from(offsets::VECTOR_ITEMS).expect("Failed conversion from u32 to usize"),
+        );
     }
 
     /// Returns a pointer to the items of a given vector.
@@ -408,7 +413,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             *read_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            usize::try_from(offsets::VECTOR_SIZE).expect("Failed conversion from u32 to usize"),
         );
         if let Some((length, item_size)) = semantic_length_and_item_size {
             self.codegen_vector_flattened_size(size.address, length, item_size);
@@ -418,14 +423,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_usize_op_in_place(
             *read_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+            usize::try_from(offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE)
+                .expect("Failed conversion from u32 to usize"),
         );
         self.load_instruction(capacity.address, *read_pointer);
         self.codegen_usize_op(
             *read_pointer,
             items_pointer.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY,
+            usize::try_from(offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY)
+                .expect("Failed conversion from u32 to usize"),
         );
 
         VectorMetaData { rc, size, capacity, items_pointer }
@@ -450,7 +457,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         array: BrilligArray,
     ) -> Allocated<MemoryAddress, Registers> {
         let result = self.allocate_register();
-        self.codegen_usize_op(array.pointer, *result, BrilligBinaryOp::Add, offsets::ARRAY_ITEMS);
+        self.codegen_usize_op(
+            array.pointer,
+            *result,
+            BrilligBinaryOp::Add,
+            usize::try_from(offsets::ARRAY_ITEMS).expect("Failed conversion from u32 to usize"),
+        );
         result
     }
 
@@ -471,7 +483,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         // Allocate memory for the ref counter and `size` items.
-        self.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);
+        self.codegen_allocate_immediate_mem(
+            array.pointer,
+            array.size
+                + usize::try_from(offsets::ARRAY_META_COUNT)
+                    .expect("Failed conversion from u32 to usize"),
+        );
         self.codegen_initialize_rc(array.pointer, 1);
     }
 
@@ -534,7 +551,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             capacity.address,
             *allocation_size,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
+            offsets::VECTOR_META_COUNT.try_into().expect("Failed conversion from u32 to usize"),
         );
         self.codegen_allocate_mem(vector.pointer, *allocation_size);
 
@@ -562,7 +579,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             *write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize"),
         );
         self.store_instruction(*write_pointer, size.address);
 
@@ -570,7 +587,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_usize_op_in_place(
             *write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+            (offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE)
+                .try_into()
+                .expect("Failed conversion from u32 to usize"),
         );
         self.store_instruction(*write_pointer, capacity.address);
     }
@@ -601,7 +620,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             size_var.address,
             *total_size,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
+            usize::try_from(offsets::VECTOR_META_COUNT)
+                .expect("Failed conversion from u32 to usize"),
         );
 
         // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
