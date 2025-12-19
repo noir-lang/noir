@@ -3,7 +3,7 @@ use crate::{
     ssa::ir::map::Id,
 };
 
-// Tests AsSlice intrinsic code-gen for Brillig.
+// Tests AsVector intrinsic code-gen for Brillig.
 #[test]
 fn brillig_as_slice() {
     let src = "
@@ -179,15 +179,15 @@ fn brillig_array_ref_count() {
     ");
 }
 
-// Tests SliceRefCount intrinsic code-gen for Brillig.
+// Tests VectorRefCount intrinsic code-gen for Brillig.
 #[test]
-fn brillig_slice_ref_count() {
+fn brillig_vector_ref_count() {
     let src = "
     brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v1, v2 = call as_slice(v0) -> (u32, [u32])
-        v3 = call slice_refcount(v1, v2) -> u32
+        v3 = call vector_refcount(v1, v2) -> u32
         return v3
     }
     ";

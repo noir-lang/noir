@@ -1,4 +1,4 @@
-//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
+//! Codegen for converting SSA vector intrinsic functions to Brillig bytecode.
 use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
@@ -27,7 +27,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     /// Prepare a vector for pushing a number of new (flattened) items to the back,
     /// then write those variables to the returned write pointer.
-    pub(crate) fn slice_push_back_operation(
+    pub(crate) fn vector_push_back_operation(
         &mut self,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -49,7 +49,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     /// Prepare a vector for pushing a number of new (flattened) items to the front,
     /// then write those variables to the returned write pointer.
-    pub(crate) fn slice_push_front_operation(
+    pub(crate) fn vector_push_front_operation(
         &mut self,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -85,7 +85,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     /// Read the popped number of variables from the front of the source vector,
     /// then create the target vector from the source by skipping the number of popped items.
-    pub(crate) fn slice_pop_front_operation(
+    pub(crate) fn vector_pop_front_operation(
         &mut self,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -105,7 +105,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     /// Create new vector with a number of (flattened) items popped from the back,
     /// then read the popped items into the variables representing the removed items.
-    pub(crate) fn slice_pop_back_operation(
+    pub(crate) fn vector_pop_back_operation(
         &mut self,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -126,7 +126,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     /// Prepare a vector for inserting a number of (flattened) items at a specific index
     /// by making a hole for them, then write the variables to the returned write pointer.
-    pub(crate) fn slice_insert_operation(
+    pub(crate) fn vector_insert_operation(
         &mut self,
         target_vector: BrilligVector,
         source_vector: BrilligVector,
@@ -149,7 +149,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Read a number of (flattened) items at a specific index of a vector into the variables
     /// representing the removed items, then create a new vector with the same number of
     /// items removed and subsequent items shifted to the left.
-    pub(crate) fn slice_remove_operation(
+    pub(crate) fn vector_remove_operation(
         &mut self,
         target_vector: BrilligVector,
         source_vector: BrilligVector,
@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn test_slice_push_operation() {
+    fn test_vector_push_operation() {
         fn test_case_push(
             push_back: bool,
             source_len: usize,
@@ -243,8 +243,8 @@ mod tests {
             let arguments = vec![
                 // The input size semantic length.
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-                // The input slice of the array items, with a known size/capacity.
-                BrilligParameter::Slice(
+                // The input vector of the array items, with a known size/capacity.
+                BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     source.len(),
                 ),
@@ -261,7 +261,7 @@ mod tests {
             // Returned data expected to be leading with length and capacity, followed by the items.
             let result_length_with_metadata = result_length + 2;
 
-            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            // Entry points don't support returning vectors, so we implicitly cast the vector to an array
             // With the metadata at the start.
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
@@ -288,14 +288,14 @@ mod tests {
             );
 
             if push_back {
-                block.slice_push_back_operation(
+                block.vector_push_back_operation(
                     *target_vector,
                     *source_len_var,
                     *source_vector,
                     &[item_to_insert.to_var()],
                 );
             } else {
-                block.slice_push_front_operation(
+                block.vector_push_front_operation(
                     *target_vector,
                     *source_len_var,
                     *source_vector,
@@ -421,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn test_slice_pop_operation() {
+    fn test_vector_pop_operation() {
         fn test_case_pop(
             pop_back: bool,
             source_len: usize,
@@ -431,7 +431,7 @@ mod tests {
         ) {
             let arguments = vec![
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-                BrilligParameter::Slice(
+                BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     source.len(),
                 ),
@@ -444,7 +444,7 @@ mod tests {
             );
             let result_length_with_metadata = result_length + 2; // Leading length and capacity
 
-            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            // Entry points don't support returning vectors, so we implicitly cast the vector to an array
             // With the metadata at the start.
             let returns = vec![
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -474,14 +474,14 @@ mod tests {
             );
 
             if pop_back {
-                block.slice_pop_back_operation(
+                block.vector_pop_back_operation(
                     *target_vector,
                     *source_len_var,
                     *source_vector,
                     &[removed_item.to_var()],
                 );
             } else {
-                block.slice_pop_front_operation(
+                block.vector_pop_front_operation(
                     *target_vector,
                     *source_len_var,
                     *source_vector,
@@ -578,7 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn test_slice_insert_operation() {
+    fn test_vector_insert_operation() {
         fn test_case_insert(
             array: Vec<FieldElement>,
             item: FieldElement,
@@ -586,7 +586,7 @@ mod tests {
             expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
-                BrilligParameter::Slice(
+                BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
@@ -597,7 +597,7 @@ mod tests {
             assert_eq!(result_length, expected_return.len());
             let result_length_with_metadata = result_length + 2; // Leading length and capacity
 
-            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            // Entry points don't support returning vectors, so we implicitly cast the vector to an array
             // With the metadata at the start.
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
@@ -623,7 +623,7 @@ mod tests {
                 &hoisted_globals,
             );
 
-            block.slice_insert_operation(
+            block.vector_insert_operation(
                 *target_vector,
                 *source_vector,
                 *index_to_insert,
@@ -719,7 +719,7 @@ mod tests {
     }
 
     #[test]
-    fn test_slice_remove_operation() {
+    fn test_vector_remove_operation() {
         fn test_case_remove(
             array: Vec<FieldElement>,
             index: FieldElement,
@@ -727,7 +727,7 @@ mod tests {
             expected_removed_item: FieldElement,
         ) {
             let arguments = vec![
-                BrilligParameter::Slice(
+                BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
@@ -764,7 +764,7 @@ mod tests {
                 &hoisted_globals,
             );
 
-            block.slice_remove_operation(
+            block.vector_remove_operation(
                 *target_vector,
                 *source_vector,
                 *index_to_insert,

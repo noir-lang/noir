@@ -585,7 +585,7 @@ fn regression_10861_0() {
             let x: Field = 4294967296;
             let array = [1, 2, 3];
             assert_eq(array[x], 1);
-                            ^ Indexing arrays and slices must be done with `u32`, not `Field`
+                            ^ Indexing arrays and vectors must be done with `u32`, not `Field`
         }
     }
     ";
@@ -601,7 +601,7 @@ fn regression_10861_1() {
             let x: Field = 18446744073709551616;
             let array = [1, 2, 3];
             assert_eq(array[x], 1);
-                            ^ Indexing arrays and slices must be done with `u32`, not `Field`
+                            ^ Indexing arrays and vectors must be done with `u32`, not `Field`
         }
     }
     ";
@@ -616,7 +616,7 @@ fn regression_10863() {
             let x: i8 = -1;
             let array = [1, 2, 3];
             assert_eq(array[x], 1);
-                            ^ Indexing arrays and slices must be done with `u32`, not `i8`
+                            ^ Indexing arrays and vectors must be done with `u32`, not `i8`
         }
     }
     ";

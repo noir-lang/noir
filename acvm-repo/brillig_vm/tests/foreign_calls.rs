@@ -156,7 +156,7 @@ fn foreign_call_opcode_memory_result() {
     );
 
     // Check result in memory
-    let result_values = memory.read_slice(MemoryAddress::direct(2), 4);
+    let result_values = memory.read_vector(MemoryAddress::direct(2), 4);
     let result_fields: Vec<_> = result_values.iter().map(|v| v.to_field()).collect();
     assert_eq!(result_fields, expected_result);
 
@@ -272,7 +272,7 @@ fn foreign_call_opcode_vector_input_and_output() {
 
     // Check result in memory: it should have been written to the free memory.
     let result_values: Vec<_> = memory
-        .read_slice(
+        .read_vector(
             MemoryAddress::direct(free_memory_start + offsets::VECTOR_ITEMS),
             output_string.len(),
         )
@@ -380,7 +380,7 @@ fn foreign_call_opcode_memory_alloc_result() {
 
     // Check initial memory still in place
     let initial_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(2), 4)
+        .read_vector(MemoryAddress::direct(2), 4)
         .iter()
         .map(|mem_val| mem_val.clone().to_field())
         .collect();
@@ -388,7 +388,7 @@ fn foreign_call_opcode_memory_alloc_result() {
 
     // Check result in memory
     let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(6), 4)
+        .read_vector(MemoryAddress::direct(6), 4)
         .iter()
         .map(|mem_val| mem_val.clone().to_field())
         .collect();
@@ -493,7 +493,7 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 
     // Check result in memory
     let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(0), 4)
+        .read_vector(MemoryAddress::direct(0), 4)
         .iter()
         .map(|mem_val| mem_val.clone().to_field())
         .collect();
@@ -504,7 +504,7 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 }
 
 #[test]
-fn foreign_call_opcode_nested_arrays_and_slices_input() {
+fn foreign_call_opcode_nested_arrays_and_vectors_input() {
     // This is the data we want to pass:
     // [(Field, [Field], [Field; 1]); 2]
     // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]

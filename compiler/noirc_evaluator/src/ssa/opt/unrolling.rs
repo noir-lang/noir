@@ -716,7 +716,7 @@ impl Loop {
     ///   store v12 at v2               // store updated `sum`
     ///   v13 = load v4 -> u32          // load length of `arr`
     ///   v14 = load v6 -> [u32]        // load storage of `arr`
-    ///   v16, v17 = call slice_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
+    ///   v16, v17 = call vector_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
     ///   v19 = add v1, u32 1           // increase `arr`
     ///   jmp b1(v19)                   // back-edge of the loop
     /// b2():                           // after the loop

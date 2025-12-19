@@ -232,7 +232,7 @@ fn abi_incompatible_assert_message() {
     let src = r#"
         fn main() {
             let xs = &[0_u32];
-            assert(xs[0] > 0, f"bad slice: {xs}");
+            assert(xs[0] > 0, f"bad vector: {xs}");
                               ^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
 
             assert(false, ());

@@ -376,7 +376,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     .iter()
                     .map(|value| MemoryValue::new_field(*value))
                     .collect();
-                self.memory.write_slice(*destination_address, &values);
+                self.memory.write_vector(*destination_address, &values);
                 self.increment_program_counter()
             }
             Opcode::Return => {
