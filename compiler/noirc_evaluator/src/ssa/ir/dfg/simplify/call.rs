@@ -557,7 +557,7 @@ fn simplify_vector_push_back(
 }
 
 fn simplify_vector_pop_back(
-    mut slice: im::Vector<ValueId>,
+    mut vector: im::Vector<ValueId>,
     vector_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -591,11 +591,11 @@ fn simplify_vector_pop_back(
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
-        slice.pop_back();
+        vector.pop_back();
     }
 
-    let new_slice = make_array(dfg, slice, slice_type, block, call_stack);
-    results.push_front(new_slice);
+    let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+    results.push_front(new_vector);
 
     results.push_front(new_vector_length);
     SimplifyResult::SimplifiedToMultiple(results.into())

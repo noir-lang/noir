@@ -610,7 +610,7 @@ impl Context<'_> {
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
                     result_ids[1],
-                    Some(&vector),
+                    Some(vector),
                     dfg,
                     1,
                 )?)
