@@ -57,8 +57,8 @@ pub enum Value {
     CtString(Rc<String>),
     Function(FuncId, Type, Rc<TypeBindings>),
 
-    // Closures also store their original scope (function & module)
-    // in case they use functions such as `Quoted::as_type` which require them.
+    /// Closures also store their original scope (function & module)
+    /// in case they use functions such as `Quoted::as_type` which require them.
     Closure(Box<Closure>),
 
     /// Tuple elements are automatically shared to support projection into a tuple:
@@ -321,7 +321,10 @@ impl Value {
                         Ok(expr)
                     }
                     Err(errors) => {
-                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = errors
+                            .into_iter()
+                            .find(|error| !error.is_warning())
+                            .expect("there is at least one error");
                         let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
@@ -731,7 +734,7 @@ impl Value {
     }
 
     /// Converts any integral `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s.
+    /// Returns `None` for non-integral `Value`s and negative numbers.
     pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
         match self {
             Self::Field(value) => Some(*value),
