@@ -282,6 +282,14 @@ pub enum InterpreterError {
         expected: Type,
         location: Location,
     },
+    StackOverflow {
+        location: Location,
+        call_stack: im::Vector<Location>,
+    },
+    EvaluationDepthOverflow {
+        location: Location,
+        call_stack: im::Vector<Location>,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -375,6 +383,8 @@ impl InterpreterError {
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location }
             | InterpreterError::GlobalCouldNotBeResolved { location }
+            | InterpreterError::StackOverflow { location, .. }
+            | InterpreterError::EvaluationDepthOverflow { location, .. }
             | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -799,6 +809,23 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::StackOverflow { location, call_stack } => {
+                let diagnostic = CustomDiagnostic::simple_error(
+                    "Comptime Stack Overflow".to_string(),
+                    "Exceeded the recursion limit".to_string(),
+                    *location,
+                );
+                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+            }
+            InterpreterError::EvaluationDepthOverflow { location, call_stack } => {
+                let diagnostic = CustomDiagnostic::simple_error(
+                    "Comptime Evaluation Depth Overflow".to_string(),
+                    "Exceeded the limit on the combined depth of expressions and recursion"
+                        .to_string(),
+                    *location,
+                );
+                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
         }
     }

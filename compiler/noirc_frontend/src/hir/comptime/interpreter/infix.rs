@@ -20,8 +20,8 @@ pub(super) fn evaluate_infix(
         let rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-    let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "<<", location };
-    let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
+    let shl_overflow = || InterpreterError::BinaryOperationOverflow { operator: "<<", location };
+    let shr_overflow = || InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     if matches!(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) && rhs_value.is_zero() {
@@ -210,7 +210,7 @@ pub(super) fn evaluate_infix(
                     #[allow(clippy::cast_lossless)]
                     lhs.checked_shr(rhs as u32)
                 },
-                u1: if rhs { return Err(rhs_overflow)} else { Some(lhs) },
+                u1: if rhs { return Err(shr_overflow())} else { Some(lhs) },
             }
         },
         #[allow(trivial_numeric_casts)]
@@ -220,7 +220,7 @@ pub(super) fn evaluate_infix(
                     #[allow(clippy::cast_lossless)]
                     lhs.checked_shl(rhs as u32)
                 },
-                u1: if rhs { return Err(lhs_overflow)} else { Some(lhs) },
+                u1: if rhs { return Err(shl_overflow())} else { Some(lhs) },
             }
         },
         BinaryOpKind::Modulo => match_integer! {
