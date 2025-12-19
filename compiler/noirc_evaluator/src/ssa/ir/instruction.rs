@@ -191,14 +191,13 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             // These imply a check that the slice is non-empty and should fail otherwise.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove | Intrinsic::SliceInsert => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
-            | Intrinsic::SliceInsert
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -225,9 +224,11 @@ impl Intrinsic {
             Intrinsic::BlackBox(func) if func.has_side_effects() => Purity::PureWithPredicate,
 
             // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                Purity::PureWithPredicate
-            }
+            // Slice insert also reads from its input slice, thus needing to assert that it is non-empty.
+            Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceRemove
+            | Intrinsic::SliceInsert => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -868,11 +869,24 @@ impl Binary {
             BinaryOp::Add { unchecked: false }
             | BinaryOp::Sub { unchecked: false }
             | BinaryOp::Mul { unchecked: false } => {
-                // Some binary math can overflow or underflow, but this is only the case
-                // for unsigned types (here we assume the type of binary.lhs is the same)
-                dfg.type_of_value(self.rhs).is_unsigned()
+                match dfg.type_of_value(self.rhs).unwrap_numeric() {
+                    NumericType::NativeField => false,
+                    // Some binary math can overflow or underflow for non-field types.
+                    NumericType::Unsigned { .. } => true,
+                    // However, we assume that signed types should have already been expanded using unsigned operations.
+                    NumericType::Signed { .. } => {
+                        unreachable!("signed instructions should have been already expanded")
+                    }
+                }
             }
-            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => true,
+            BinaryOp::Shl | BinaryOp::Shr => {
+                // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                dfg.get_numeric_constant(self.rhs).is_none_or(|c| {
+                    let typ = dfg.type_of_value(self.lhs);
+                    c >= typ.bit_size().into()
+                })
+            }
+            BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }

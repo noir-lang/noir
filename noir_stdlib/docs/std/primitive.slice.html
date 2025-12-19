@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type slice documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">slice</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -114,80 +120,81 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;T&gt; [T]</code></h3>
 
-<div class="padded-methods"><code id="len" class="code-header">pub fn <span class="fn">len</span>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+<div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the length of the slice.</p>
 </div>
-</div><code id="push_back" class="code-header">pub fn <span class="fn">push_back</span>(self, elem: T) -> Self</code>
+</div><code id="push_back" class="code-header">pub fn <a href="#push_back"><span class="fn">push_back</span></a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Push a new element to the end of the slice, returning a
 new slice with a length one greater than the
 original unmodified slice.</p>
 </div>
-</div><code id="push_front" class="code-header">pub fn <span class="fn">push_front</span>(self, elem: T) -> Self</code>
+</div><code id="push_front" class="code-header">pub fn <a href="#push_front"><span class="fn">push_front</span></a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Push a new element to the front of the slice, returning a
 new slice with a length one greater than the
 original unmodified slice.</p>
 </div>
-</div><code id="pop_back" class="code-header">pub fn <span class="fn">pop_back</span>(self) -> (Self, T)</code>
+</div><code id="pop_back" class="code-header">pub fn <a href="#pop_back"><span class="fn">pop_back</span></a>(self) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove the last element of the slice, returning the
 popped slice and the element in a tuple</p>
 </div>
-</div><code id="pop_front" class="code-header">pub fn <span class="fn">pop_front</span>(self) -> (T, Self)</code>
+</div><code id="pop_front" class="code-header">pub fn <a href="#pop_front"><span class="fn">pop_front</span></a>(self) -> (T, Self)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove the first element of the slice, returning the
 element and the popped slice in a tuple</p>
 </div>
-</div><code id="insert" class="code-header">pub fn <span class="fn">insert</span>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>, elem: T) -> Self</code>
+</div><code id="insert" class="code-header">pub fn <a href="#insert"><span class="fn">insert</span></a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Insert an element at a specified index, shifting all elements
 after it to the right</p>
 </div>
-</div><code id="remove" class="code-header">pub fn <span class="fn">remove</span>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>) -> (Self, T)</code>
+</div><code id="remove" class="code-header">pub fn <a href="#remove"><span class="fn">remove</span></a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove an element at a specified index, shifting all elements
 after it to the left, returning the altered slice and
 the removed element</p>
 </div>
-</div><code id="append" class="code-header">pub fn <span class="fn">append</span>(self, other: Self) -> Self</code>
+</div><code id="append" class="code-header">pub fn <a href="#append"><span class="fn">append</span></a>(self, other: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Append each element of the <code>other</code> slice to the end of <code>self</code>.
 This returns a new slice and leaves both input slices unchanged.</p>
 </div>
-</div><code id="as_array" class="code-header">pub fn <span class="fn">as_array</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
+</div><code id="as_array" class="code-header">pub fn <a href="#as_array"><span class="fn">as_array</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
 
-<code id="map" class="code-header">pub fn <span class="fn">map</span>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
+<code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
 
-<code id="mapi" class="code-header">pub fn <span class="fn">mapi</span>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
+<code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
 
-<code id="for_each" class="code-header">pub fn <span class="fn">for_each</span>&lt;Env&gt;(self, f: fn[Env](T))</code>
+<code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
 
-<code id="for_eachi" class="code-header">pub fn <span class="fn">for_eachi</span>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+<code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
-<code id="fold" class="code-header">pub fn <span class="fn">fold</span>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
+<code id="fold" class="code-header">pub fn <a href="#fold"><span class="fn">fold</span></a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
 
-<code id="reduce" class="code-header">pub fn <span class="fn">reduce</span>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
+<code id="reduce" class="code-header">pub fn <a href="#reduce"><span class="fn">reduce</span></a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
 
-<code id="filter" class="code-header">pub fn <span class="fn">filter</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
+<code id="filter" class="code-header">pub fn <a href="#filter"><span class="fn">filter</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
 
-<code id="join" class="code-header">pub fn <span class="fn">join</span>(self, separator: T) -> T
+<code id="join" class="code-header">pub fn <a href="#join"><span class="fn">join</span></a>(self, separator: T) -> T
 <div class="where-clause">where
     T: <a href="../std/append/trait.Append.html" class="trait">Append</a></div></code>
 
-<code id="all" class="code-header">pub fn <span class="fn">all</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="all" class="code-header">pub fn <a href="#all"><span class="fn">all</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="any" class="code-header">pub fn <span class="fn">any</span>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 </div></main>
+</span>
 </body>
 </html>

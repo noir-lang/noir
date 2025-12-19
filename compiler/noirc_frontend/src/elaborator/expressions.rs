@@ -59,6 +59,21 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+
+        if has_errors {
+            self.interner.exprs_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    fn elaborate_expression_inner(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
         let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
         let (hir_expr, typ) = match expr.kind {
@@ -610,12 +625,47 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let is_macro_call = call.is_macro_call;
+
+        let (hir_call, mut typ) = self.elaborate_call_inner(call, location, is_macro_call);
+
+        // Only check has_errors when we need to call the interpreter
+        if is_macro_call && !self.in_comptime_context() {
+            return self
+                .call_macro(hir_call.func, hir_call.arguments, location, typ)
+                .unwrap_or((HirExpression::Error, Type::Error));
+        }
+
+        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        if is_macro_call && self.in_comptime_context() {
+            typ = self.interner.next_type_variable();
+        }
+
+        (HirExpression::Call(hir_call), typ)
+    }
+
+    /// Helper function containing the elaboration logic for a call expression.
+    /// Returns the HIR call and its type.
+    fn elaborate_call_inner(
+        &mut self,
+        call: CallExpression,
+        location: Location,
+        is_macro_call: bool,
+    ) -> (HirCallExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
         let func_type = func_type.follow_bindings();
+
         // Even if the function type is a Type::Error, we still want to elaborate the call's function arguments.
         // Thus, we simply return None here for the argument types rather than returning early.
-        let func_arg_types =
-            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
+        let (func_arg_types, unconstrained) =
+            if let Type::Function(args, _, _, unconstrained) = &func_type {
+                (Some(args), *unconstrained)
+            } else {
+                (None, false)
+            };
+
+        // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
+        let was_in_unconstrained_args =
+            std::mem::replace(&mut self.in_unconstrained_args, unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -641,21 +691,12 @@ impl Elaborator<'_> {
         });
 
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
-        let mut typ = self.type_check_call(&hir_call, func_type, args, location);
-        // Macro calls that aren't in comptime context should be evaluated and their
-        // result should be inlined rather than keeping the call.
-        if is_macro_call {
-            if self.in_comptime_context() {
-                typ = self.interner.next_type_variable();
-            } else {
-                let comptime_args = hir_call.arguments;
-                return self
-                    .call_macro(func, comptime_args, location, typ)
-                    .unwrap_or((HirExpression::Error, Type::Error));
-            }
-        }
+        let typ = self.type_check_call(&hir_call, func_type, args, location);
 
-        (HirExpression::Call(hir_call), typ)
+        // Restore the old one after type checking.
+        self.in_unconstrained_args = was_in_unconstrained_args;
+
+        (hir_call, typ)
     }
 
     /// Elaborate the target of the method call and try to look up the method in its type.
@@ -664,6 +705,33 @@ impl Elaborator<'_> {
         method_call: MethodCallExpression,
         location: Location,
     ) -> (HirExpression, Type) {
+        let is_macro_call = method_call.is_macro_call;
+
+        let (function_call, mut typ) = self.elaborate_method_call_inner(method_call, location);
+
+        // Only check has_errors when we need to call the interpreter
+        if is_macro_call && !self.in_comptime_context() {
+            let args = function_call.arguments;
+            return self
+                .call_macro(function_call.func, args, location, typ)
+                .unwrap_or((HirExpression::Error, Type::Error));
+        }
+
+        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        if is_macro_call && self.in_comptime_context() {
+            typ = self.interner.next_type_variable();
+        }
+
+        (HirExpression::Call(function_call), typ)
+    }
+
+    /// Helper function containing the elaboration logic for a method call.
+    /// Returns the desugared function call and its type.
+    fn elaborate_method_call_inner(
+        &mut self,
+        method_call: MethodCallExpression,
+        location: Location,
+    ) -> (HirCallExpression, Type) {
         let object_location = method_call.object.location;
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
@@ -680,7 +748,16 @@ impl Elaborator<'_> {
             check_self_param,
         );
         let Some(method_ref) = method_ref else {
-            return (HirExpression::Error, Type::Error);
+            // Return a dummy call expression with Error type
+            let error_func =
+                self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            let error_call = HirCallExpression {
+                func: error_func,
+                arguments: Vec::new(),
+                location,
+                is_macro_call: method_call.is_macro_call,
+            };
+            return (error_call, Type::Error);
         };
 
         // Automatically add `&mut` if the method expects a mutable reference and
@@ -766,20 +843,9 @@ impl Elaborator<'_> {
 
         // Type check the new call now that it has been changed from a method call
         // to a function call. This way we avoid duplicating code.
-        let mut typ = self.type_check_call(&function_call, func_type, function_args, location);
-        // Macro calls that aren't in comptime context should be evaluated and their
-        // result should be inlined rather than keeping the call.
-        if is_macro_call {
-            if self.in_comptime_context() {
-                typ = self.interner.next_type_variable();
-            } else {
-                let args = function_call.arguments;
-                return self
-                    .call_macro(function_call.func, args, location, typ)
-                    .unwrap_or((HirExpression::Error, Type::Error));
-            }
-        }
-        (HirExpression::Call(function_call), typ)
+        let typ = self.type_check_call(&function_call, func_type, function_args, location);
+
+        (function_call, typ)
     }
 
     pub(super) fn elaborate_constrain(
@@ -1355,25 +1421,33 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
-        if let Some(Type::Function(args, _, _, _)) = target_type {
-            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args))
+        if let Some(Type::Function(args, _, _, unconstrained)) = target_type {
+            self.elaborate_lambda_with_parameter_type_hints(
+                lambda,
+                Some(&args),
+                unconstrained || self.in_unconstrained_args,
+            )
         } else {
-            self.elaborate_lambda_with_parameter_type_hints(lambda, None)
+            self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
         }
     }
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
-    /// call that has this lambda as the argument.
-    /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
+    /// call that has this lambda as the argument. The parameter type hints will be the types of
+    /// the function type corresponding to the lambda argument.
+    ///
+    /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
+    /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
     fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
         parameters_type_hints: Option<&Vec<Type>>,
+        unconstrained: bool,
     ) -> (HirExpression, Type) {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
 
-        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
+        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
         let mut parameter_names_in_list = HashMap::default();
@@ -1431,8 +1505,14 @@ impl Elaborator<'_> {
             if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
         let captures = lambda_context.captures;
-        let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
+        let expr = HirExpression::Lambda(HirLambda {
+            parameters,
+            return_type,
+            body,
+            captures,
+            unconstrained,
+        });
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 
     fn elaborate_quote(&mut self, mut tokens: Tokens, location: Location) -> (HirExpression, Type) {
@@ -1458,6 +1538,7 @@ impl Elaborator<'_> {
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
+
         let (id, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(id);

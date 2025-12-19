@@ -7,6 +7,7 @@ use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::QuotedType;
 use crate::ast::DocComment;
@@ -294,6 +295,14 @@ pub struct NodeInterner {
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
     pub primitive_docs: HashMap<String, Vec<DocComment>>,
+
+    /// Tracks expressions that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored expressions.
+    pub(crate) exprs_with_errors: HashSet<ExprId>,
+
+    /// Tracks statements that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored statements.
+    pub(crate) stmts_with_errors: HashSet<StmtId>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -488,6 +497,8 @@ impl Default for NodeInterner {
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
             primitive_docs: HashMap::default(),
+            exprs_with_errors: HashSet::default(),
+            stmts_with_errors: HashSet::default(),
         }
     }
 }
@@ -1026,7 +1037,7 @@ impl NodeInterner {
             .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
-    /// Looks up a methods that apply to the given type but are defined in traits.
+    /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,

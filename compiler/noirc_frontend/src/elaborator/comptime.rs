@@ -151,6 +151,7 @@ impl<'context> Elaborator<'context> {
         };
 
         self.errors.extend(errors);
+        self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
         result
     }
 
@@ -394,9 +395,10 @@ impl<'context> Elaborator<'context> {
 
         arguments.insert(0, (item, location));
 
-        let value = interpreter
-            .call_function(function, arguments, TypeBindings::default(), location)
-            .map_err(CompilationError::from)?;
+        let result =
+            interpreter.call_function(function, arguments, TypeBindings::default(), location);
+
+        let value = result.map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 

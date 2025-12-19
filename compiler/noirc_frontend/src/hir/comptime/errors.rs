@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     Type,
-    ast::TraitBound,
+    ast::{Ident, TraitBound},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
@@ -65,6 +65,11 @@ pub enum InterpreterError {
     },
     NonIntegerUsedInLoop {
         typ: Type,
+        location: Location,
+    },
+    RangeBoundsTypeMismatch {
+        start_type: Type,
+        end_type: Type,
         location: Location,
     },
     NonPointerDereferenced {
@@ -267,11 +272,30 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
+    DuplicateStructFieldInSetFields {
+        name: Ident,
+        index: usize,
+        previous_index: usize,
+    },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
+    StackOverflow {
+        location: Location,
+        call_stack: im::Vector<Location>,
+    },
+    EvaluationDepthOverflow {
+        location: Location,
+        call_stack: im::Vector<Location>,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
     Break,
     Continue,
+    SkippedDueToEarlierErrors,
 }
 
 #[allow(unused)]
@@ -284,6 +308,18 @@ impl From<InterpreterError> for CompilationError {
 }
 
 impl InterpreterError {
+    /// Returns true if this error should be filtered out and not displayed to the user.
+    /// This is used for internal control flow errors and errors that indicate the interpreter
+    /// was skipped due to earlier errors that were already reported.
+    pub(crate) fn should_be_filtered(&self) -> bool {
+        matches!(
+            self,
+            InterpreterError::Break
+                | InterpreterError::Continue
+                | InterpreterError::SkippedDueToEarlierErrors { .. }
+        )
+    }
+
     pub fn location(&self) -> Location {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
@@ -298,6 +334,7 @@ impl InterpreterError {
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
             | InterpreterError::NonIntegerUsedInLoop { location, .. }
+            | InterpreterError::RangeBoundsTypeMismatch { location, .. }
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
             | InterpreterError::NonArrayIndexed { location, .. }
@@ -345,11 +382,17 @@ impl InterpreterError {
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location }
-            | InterpreterError::GlobalCouldNotBeResolved { location } => *location,
+            | InterpreterError::GlobalCouldNotBeResolved { location }
+            | InterpreterError::StackOverflow { location, .. }
+            | InterpreterError::EvaluationDepthOverflow { location, .. }
+            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
-            InterpreterError::Break | InterpreterError::Continue => {
-                panic!("Tried to get the location of Break/Continue error!")
+            InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
+            InterpreterError::Break
+            | InterpreterError::Continue
+            | InterpreterError::SkippedDueToEarlierErrors => {
+                panic!("Tried to get the location of Break/Continue/SkippedDueToTypeErrors error!")
             }
         }
     }
@@ -443,6 +486,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     String::new()
                 };
                 CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::RangeBoundsTypeMismatch { start_type, end_type, location } => {
+                let msg = format!(
+                    "Range bounds have mismatched types: start is `{start_type}` but end is `{end_type}`"
+                );
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonPointerDereferenced { typ, location } => {
                 let msg = format!("Only references may be dereferenced, but found `{typ}`");
@@ -735,13 +784,48 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
                             .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
+            }
+            InterpreterError::SkippedDueToEarlierErrors => {
+                unreachable!(
+                    "SkippedDueToTypeErrors should be handled internally like Break/Continue"
+                )
+            }
+            InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
+                let msg = "Duplicate field name in call to `set_fields`".to_string();
+                let secondary = format!(
+                    "`{name}` first used as field {} then again as field {}",
+                    previous_index + 1,
+                    index + 1
+                );
+                CustomDiagnostic::simple_error(msg, secondary, name.location())
+            }
+            InterpreterError::CheckedTransmuteFailed { actual, expected, location } => {
+                let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");
+                let secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::StackOverflow { location, call_stack } => {
+                let diagnostic = CustomDiagnostic::simple_error(
+                    "Comptime Stack Overflow".to_string(),
+                    "Exceeded the recursion limit".to_string(),
+                    *location,
+                );
+                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+            }
+            InterpreterError::EvaluationDepthOverflow { location, call_stack } => {
+                let diagnostic = CustomDiagnostic::simple_error(
+                    "Comptime Evaluation Depth Overflow".to_string(),
+                    "Exceeded the limit on the combined depth of expressions and recursion"
+                        .to_string(),
+                    *location,
+                );
+                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
         }
     }

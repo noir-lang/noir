@@ -39,15 +39,11 @@ impl Context<'_> {
         let slice = self.convert_value(slice_contents, dfg);
         let slice_typ = dfg.type_of_value(slice_contents);
 
-        let (new_slice_length, new_slice_val) = if let Some(len_const) =
-            dfg.get_numeric_constant(arguments[0])
-        {
+        let new_slice_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
-            let old_slice_len = new_slice.len();
             // length of Acir Values slice
             let len = len_const.to_u128() as usize * elements_to_push.len();
-
             for (i, elem) in elements_to_push.iter().enumerate() {
                 let element = self.convert_value(*elem, dfg);
                 let write_index = len + i;
@@ -60,12 +56,7 @@ impl Context<'_> {
                     new_slice.push_back(element);
                 }
             }
-            let new_slice_length = if new_slice.len() > old_slice_len {
-                self.acir_context.add_var(slice_length, one)?
-            } else {
-                slice_length
-            };
-            (new_slice_length, AcirValue::Array(new_slice))
+            AcirValue::Array(new_slice)
         } else {
             // Length is not known, we are going to:
             // 1. Push dummy data to the slice, so that it's capacity covers for the push_back
@@ -116,8 +107,10 @@ impl Context<'_> {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(&new_slice_array),
+                        Some(new_slice_array.clone()),
                         dfg,
+                        // We do not need extra capacity here as `new_slice_array` has already pushed back new elements
+                        0,
                     )?)
                 } else {
                     None
@@ -154,10 +147,10 @@ impl Context<'_> {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
                 flatten_idx = self.acir_context.add_var(flatten_idx, one)?;
             }
-            let new_slice_length = self.acir_context.add_var(slice_length, one)?;
-            (new_slice_length, AcirValue::DynamicArray(flattened_dynamic_array))
+            AcirValue::DynamicArray(flattened_dynamic_array)
         };
 
+        let new_slice_length = self.acir_context.add_var(slice_length, one)?;
         Ok(vec![AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
@@ -188,7 +181,8 @@ impl Context<'_> {
         let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
         let slice = self.convert_value(slice_contents, dfg);
-        let mut new_slice = self.read_array(slice)?;
+        let slice_type = dfg.type_of_value(slice_contents);
+        let mut new_slice = self.read_array_with_type(slice, &slice_type)?;
 
         // We must directly push front elements for non-nested slices
         for elem in elements_to_push.iter().rev() {
@@ -229,6 +223,13 @@ impl Context<'_> {
     ///
     /// The `result_ids` provided by the SSA to fetch the appropriate type information to be popped.
     /// The `result_ids` encode the type/shape of the removed element.
+    ///
+    /// # Empty Slice Handling
+    ///
+    /// If the slice has zero length, this function skips the memory read and returns zero values.
+    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
+    /// with "cannot pop from a slice with length 0". This prevents reading from empty memory blocks
+    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_slice_pop_back(
         &mut self,
         arguments: &[ValueId],
@@ -243,14 +244,10 @@ impl Context<'_> {
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
         let slice = self.convert_value(slice_contents, dfg);
 
-        // Slices with constant zero length should be eliminated as unreachable instructions,
-        // but in case they aren't, fail with a constant rather than try to subtract from the index.
-        let is_constant_zero_length =
-            dfg.get_numeric_constant(slice_length_var).is_some_and(|c| c.is_zero());
-
-        if is_constant_zero_length {
-            self.acir_context
-                .assert_always_fail("cannot pop from a slice with length 0".to_string())?;
+        if self.has_zero_length(slice_contents, dfg) {
+            // Make sure this code is disabled, or fail with "Index out of bounds".
+            let msg = "cannot pop from a slice with length 0".to_string();
+            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -287,8 +284,10 @@ impl Context<'_> {
         let mut var_index = new_slice_length;
 
         let slice_type = dfg.type_of_value(slice_contents);
-        let item_size = slice_type.element_size();
-        let item_size = self.acir_context.add_constant(item_size);
+        let item_size = slice_type.element_types();
+        // Must read from the flattened last index of the slice in case the slice contains nested arrays.
+        let flat_item_size: u32 = item_size.iter().map(|typ| typ.flattened_size()).sum();
+        let item_size = self.acir_context.add_constant(flat_item_size);
         var_index = self.acir_context.mul_var(var_index, item_size)?;
 
         let mut popped_elements = Vec::new();
@@ -341,7 +340,14 @@ impl Context<'_> {
     /// Unlike in [Self::convert_slice_pop_back], the returned slice contents differ from the input:
     /// the underlying array is logically truncated at the *front* rather than
     /// the back. The `result_ids` ensure that this logical shift is applied
-    /// consistently with the element’s type.
+    /// consistently with the element's type.
+    ///
+    /// # Empty Slice Handling
+    ///
+    /// If the slice has zero length, this function skips the memory read and returns zero values.
+    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
+    /// with "cannot pop from a slice with length 0". This prevents reading from empty memory blocks
+    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_slice_pop_front(
         &mut self,
         arguments: &[ValueId],
@@ -354,18 +360,41 @@ impl Context<'_> {
         let slice_typ = dfg.type_of_value(slice_contents);
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
 
+        // Check if we're trying to pop from an empty slice
+        if self.has_zero_length(slice_contents, dfg) {
+            // Make sure this code is disabled, or fail with "Index out of bounds".
+            let msg = "cannot pop from a slice with length 0".to_string();
+            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+
+            // Fill the result with default values.
+            let mut results = Vec::with_capacity(result_ids.len());
+
+            let element_size = slice_typ.element_size();
+            // For pop_front, results order is: [popped_elements..., new_len, new_slice]
+            for result_id in &result_ids[..element_size] {
+                let result_type = dfg.type_of_value(*result_id);
+                let result_zero = self.array_zero_value(&result_type)?;
+                results.push(result_zero);
+            }
+
+            let slice_value = self.convert_value(arguments[0], dfg);
+            results.push(slice_value);
+
+            let slice = self.convert_value(slice_contents, dfg);
+            results.push(slice);
+
+            return Ok(results);
+        }
+
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
         let slice = self.convert_value(slice_contents, dfg);
-        let is_dynamic = matches!(slice, AcirValue::DynamicArray(_));
 
-        let mut new_slice = self.read_array(slice)?;
-
+        let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
         let element_size = slice_typ.element_size();
 
         let mut popped_elements: Vec<AcirValue> = Vec::new();
-        let mut popped_elements_size = 0;
         let mut var_index = self.acir_context.add_constant(FieldElement::zero());
         // Fetch the values we are popping off of the slice.
         // In the case of non-nested slice the logic is simple as we do not
@@ -373,19 +402,12 @@ impl Context<'_> {
         for res in &result_ids[..element_size] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
-            let elem_size = super::arrays::flattened_value_size(&element);
-            popped_elements_size += elem_size;
             popped_elements.push(element);
         }
 
-        // It is expected that the `popped_elements_size` is the flattened size of the elements,
-        // as the input slice should be a dynamic array which is represented by flat memory.
-        // However in some cases the input slice is an Array with a nested structure,
-        // in which case we only need to pop the items that represent a single entry.
-        let popped_elements_size = if is_dynamic { popped_elements_size } else { element_size };
+        let popped_elements_size = popped_elements.len();
 
         new_slice = new_slice.slice(popped_elements_size..);
-
         popped_elements.push(AcirValue::Var(new_slice_length, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_slice));
 
@@ -423,6 +445,13 @@ impl Context<'_> {
     ///    - If within the insertion window, write values from `flattened_elements`.
     ///    - If above the window, shift elements upward by the size of the inserted data.
     /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.
+    ///
+    /// # Empty Slice Handling
+    ///
+    /// If the slice has zero length, this function skips the memory read and returns zero values.
+    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
+    /// with "Index out of bounds, slice has size 0". This prevents reading from empty memory blocks
+    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_slice_insert(
         &mut self,
         arguments: &[ValueId],
@@ -434,6 +463,25 @@ impl Context<'_> {
 
         let slice_typ = dfg.type_of_value(slice_contents);
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
+
+        // Check if we're trying to insert into an empty slice
+        if self.has_zero_length(slice_contents, dfg) {
+            // Make sure this code is disabled, or fail with "Index out of bounds".
+            let msg = "Index out of bounds, slice has size 0".to_string();
+            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+
+            // Fill the result with default values.
+            let mut results = Vec::with_capacity(result_ids.len());
+
+            // For insert, results are: [new_len, new_slice]
+            let slice_length_value = self.convert_value(arguments[0], dfg);
+            results.push(slice_length_value);
+
+            let slice = self.convert_value(slice_contents, dfg);
+            results.push(slice);
+
+            return Ok(results);
+        }
 
         let slice = self.convert_value(slice_contents, dfg);
         let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
@@ -560,9 +608,10 @@ impl Context<'_> {
             if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
-                    slice_contents,
-                    Some(&slice),
+                    result_ids[1],
+                    Some(slice),
                     dfg,
+                    1,
                 )?)
             } else {
                 None
@@ -618,6 +667,13 @@ impl Context<'_> {
     ///   - If `index + popped_elements_size` would exceed the slice length we do nothing. This ensures safe access at the tail of the array
     ///     and is safe to do as we are decreasing the slice length which gates slice accesses.
     /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.
+    ///
+    /// # Empty Slice Handling
+    ///
+    /// If the slice has zero length, this function skips the memory read and returns zero values.
+    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
+    /// with "Index out of bounds, slice has size 0". This prevents reading from empty memory blocks
+    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_slice_remove(
         &mut self,
         arguments: &[ValueId],
@@ -630,6 +686,32 @@ impl Context<'_> {
 
         let slice_typ = dfg.type_of_value(slice_contents);
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
+
+        // Check if we're trying to remove from an empty slice
+        if self.has_zero_length(slice_contents, dfg) {
+            // Make sure this code is disabled, or fail with "Index out of bounds".
+            let msg = "Index out of bounds, slice has size 0".to_string();
+            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+
+            // Fill the result with default values.
+            let mut results = Vec::with_capacity(result_ids.len());
+
+            // For remove, results are: [new_len, new_slice, ...removed_elements]
+            let slice_length_value = self.convert_value(arguments[0], dfg);
+            results.push(slice_length_value);
+
+            let slice = self.convert_value(slice_contents, dfg);
+            results.push(slice);
+
+            // Add zero values for removed elements
+            for result_id in &result_ids[2..] {
+                let result_type = dfg.type_of_value(*result_id);
+                let result_zero = self.array_zero_value(&result_type)?;
+                results.push(result_zero);
+            }
+
+            return Ok(results);
+        }
 
         let slice = self.convert_value(slice_contents, dfg);
         let remove_index = self.convert_value(arguments[2], dfg).into_var()?;
@@ -710,8 +792,9 @@ impl Context<'_> {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
                     slice_contents,
-                    Some(&slice),
+                    Some(slice),
                     dfg,
+                    0,
                 )?)
             } else {
                 None

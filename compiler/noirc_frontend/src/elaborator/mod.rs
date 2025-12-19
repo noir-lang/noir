@@ -62,7 +62,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
@@ -124,6 +124,19 @@ use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 
+/// Maximum number of recursive calls allowed at comptime.
+///
+/// Ideally we would like this to be 1000 to match what happens in ACIR,
+/// however due to the overhead of the `Interpreter` itself Rust itself
+/// would exhaust the stack earlier (or later, because `nargo` increases
+/// the stack size for parsing for example).
+///
+/// Potentially we could increase this if the `Interpreter` used an iterative
+/// strategy instead of recursion.
+///
+/// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
+const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolverMeta {
@@ -139,6 +152,8 @@ pub struct LambdaContext {
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
     pub scope_index: usize,
+    /// If we know this lambda to be unconstrained.
+    pub unconstrained: bool,
 }
 
 /// Determines whether we are in an unsafe block and, if so, whether
@@ -232,6 +247,9 @@ pub struct Elaborator<'context> {
     /// block, global, or attribute.
     in_comptime_context: bool,
 
+    /// True if we are elaborating arguments of a function call to an unconstrained function.
+    in_unconstrained_args: bool,
+
     crate_id: CrateId,
 
     /// These are the globals that have yet to be elaborated.
@@ -239,7 +257,7 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    pub(crate) interpreter_call_stack: im::Vector<Location>,
+    interpreter_call_stack: im::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -254,6 +272,10 @@ pub struct Elaborator<'context> {
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+
+    /// Set to true when the interpreter encounters an errored expression/statement,
+    /// causing all subsequent comptime evaluation to be skipped.
+    pub(crate) comptime_evaluation_halted: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -317,9 +339,11 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
+            comptime_evaluation_halted: false,
         }
     }
 
@@ -452,14 +476,28 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        self.errors.push(error);
+        // Filter out internal control flow errors that should not be displayed
+        if !error.should_be_filtered() {
+            self.errors.push(error);
+        }
     }
 
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        self.errors.extend(errors.into_iter().map(|e| e.into()));
+        for error in errors {
+            self.push_err(error);
+        }
+    }
+
+    /// Run a given function while also tracking whether any new errors were generated as a result.
+    pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
+        // Count actual errors (ignore warnings)
+        let initial_error_count = self.errors.len();
+        let result = f(self);
+        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        (result, has_new_errors)
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
@@ -669,16 +707,24 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
-    /// True if we're currently within a constrained function.
+    /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        !self.in_comptime_context()
-            && self.current_item.is_none_or(|id| match id {
-                DependencyId::Function(id) => {
-                    !self.interner.function_modifiers(&id).is_unconstrained
-                }
-                _ => true,
-            })
+        if self.in_comptime_context() {
+            return false;
+        }
+
+        let in_unconstrained_function = self.current_item.is_some_and(|id| {
+            if let DependencyId::Function(id) = id {
+                self.interner.function_modifiers(&id).is_unconstrained
+            } else {
+                false
+            }
+        });
+
+        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+
+        !in_unconstrained_function && !in_unconstrained_lambda
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not
@@ -714,6 +760,37 @@ impl<'context> Elaborator<'context> {
         let ret = f(self);
         let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
         (errored, ret)
+    }
+
+    /// Push a new location to the interpreter call stack.
+    ///
+    /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
+    pub(crate) fn push_interpreter_call_stack(
+        &mut self,
+        location: Location,
+    ) -> Result<(), InterpreterError> {
+        if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+            return Err(InterpreterError::StackOverflow {
+                location,
+                call_stack: self.interpreter_call_stack.clone(),
+            });
+        }
+        self.interpreter_call_stack.push_back(location);
+        Ok(())
+    }
+
+    /// Pops the last item from the interpreter call stack.
+    ///
+    /// Panics if the call stack is empty.
+    pub(crate) fn pop_interpreter_call_stack(&mut self) {
+        self.interpreter_call_stack
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
+    }
+
+    /// The current interpreter call stack.
+    pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
+        &self.interpreter_call_stack
     }
 }
 

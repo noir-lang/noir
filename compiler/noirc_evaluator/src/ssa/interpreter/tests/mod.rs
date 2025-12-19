@@ -6,8 +6,14 @@ use acvm::{AcirField, FieldElement};
 use insta::assert_snapshot;
 
 use crate::ssa::{
-    interpreter::value::{ArrayValue, NumericValue},
-    ir::types::{NumericType, Type},
+    interpreter::{
+        Interpreter, InterpreterOptions,
+        value::{ArrayValue, NumericValue},
+    },
+    ir::{
+        function::FunctionId,
+        types::{NumericType, Type},
+    },
 };
 
 use super::{InterpreterError, Ssa, Value};
@@ -1761,10 +1767,36 @@ fn infinite_loop_with_step_limit() {
     }
     "#;
     let ssa = Ssa::from_str(src).unwrap();
-    let options = super::InterpreterOptions { step_limit: Some(100), ..Default::default() };
-    let mut output = std::io::empty();
-    let result = ssa.interpret_with_options(Vec::new(), options, &mut output);
+    let options = InterpreterOptions { step_limit: Some(100), ..Default::default() };
+    let result = ssa.interpret_with_options(Vec::new(), options, std::io::empty());
     let Err(InterpreterError::OutOfBudget { .. }) = result else {
         panic!("unexpected result: {result:?}")
     };
+}
+
+#[test]
+fn call_stack_is_cleared_between_entry_calls() {
+    let src = r#"
+    acir(inline) fn main f0 {
+    b0(v0: u32):
+      constrain v0 == u32 0
+      return
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+
+    // We are going to reuse the interpreter between calls, like we do in constant folding.
+    let mut interpreter = Interpreter::new(&ssa, InterpreterOptions::default(), std::io::empty());
+    interpreter.interpret_globals().unwrap();
+    assert_eq!(interpreter.call_stack.len(), 1, "starts with the global context");
+
+    let main_id = FunctionId::new(0);
+    interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
+    assert_eq!(interpreter.call_stack.len(), 1, "reset after successful call");
+
+    interpreter.interpret_function(main_id, vec![Value::u32(1)]).expect_err("1 should fail");
+    assert_eq!(interpreter.call_stack.len(), 2, "contains the last entry after failure");
+
+    interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
+    assert_eq!(interpreter.call_stack.len(), 1, "should clear the previous leftover");
 }
