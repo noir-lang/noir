@@ -1905,7 +1905,8 @@
 <a href="#1904" id="1904">1904</a>
 <a href="#1905" id="1905">1905</a>
 <a href="#1906" id="1906">1906</a>
-<a href="#1907" id="1907">1907</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2276,6 +2277,7 @@
         <span class="kw">let </span>previous_state = <span class="self">self</span>.enter_function();
 
         <span class="kw">if </span>closure.parameters.len() != arguments.len() {
+            <span class="self">self</span>.exit_function(previous_state);
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ArgumentCountMismatch {
                 expected: closure.parameters.len(),
                 actual: arguments.len(),
