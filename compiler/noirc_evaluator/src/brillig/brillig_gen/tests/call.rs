@@ -5,12 +5,12 @@ use crate::{
 
 // Tests AsVector intrinsic code-gen for Brillig.
 #[test]
-fn brillig_as_slice() {
+fn brillig_as_vector() {
     let src = "
     brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
-        v1, v2 = call as_slice(v0) -> (u32, [u32])
+        v1, v2 = call as_vector(v0) -> (u32, [u32])
         return v1
     }
     ";
@@ -186,7 +186,7 @@ fn brillig_vector_ref_count() {
     brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
-        v1, v2 = call as_slice(v0) -> (u32, [u32])
+        v1, v2 = call as_vector(v0) -> (u32, [u32])
         v3 = call vector_refcount(v1, v2) -> u32
         return v3
     }

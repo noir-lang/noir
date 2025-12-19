@@ -9,8 +9,8 @@ pub fn main(i: u32, v: (u32, [u32; 5])) -> pub u32 {
         (3_u32, [11_u32, 12_u32, 13_u32, 14_u32, 15_u32]),
         (4_u32, [16_u32, 17_u32, 18_u32, 19_u32, 20_u32]),
     ];
-    let mut slice: [(u32, [u32; 5])] = arr.as_slice();
-    slice = slice.insert(i, v);
-    slice = slice.insert(i, v);
-    slice[5_u32].0
+    let mut vector: [(u32, [u32; 5])] = arr.as_vector();
+    vector = vector.insert(i, v);
+    vector = vector.insert(i, v);
+    vector[5_u32].0
 }

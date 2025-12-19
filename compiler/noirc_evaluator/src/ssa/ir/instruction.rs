@@ -142,7 +142,7 @@ impl std::fmt::Display for Intrinsic {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
-            Intrinsic::AsVector => write!(f, "as_slice"),
+            Intrinsic::AsVector => write!(f, "as_vector"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
             Intrinsic::VectorPushBack => write!(f, "vector_push_back"),
@@ -246,7 +246,7 @@ impl Intrinsic {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
             "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
-            "as_slice" => Some(Intrinsic::AsVector),
+            "as_vector" => Some(Intrinsic::AsVector),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),

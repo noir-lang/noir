@@ -2,11 +2,11 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Nested slices, i.e. slices within an array or slice, are not supported
-  ┌─ src/main.nr:4:16
+error: Nested vectors, i.e. vectors within an array or vector, are not supported
+  ┌─ src/main.nr:4:17
   │
-4 │     let slice: [[Field]] = [];
-  │                --------- Try to use a constant sized array or BoundedVec instead
+4 │     let vector: [[Field]] = [];
+  │                 --------- Try to use a constant sized array or BoundedVec instead
   │
 
 Aborting due to 1 previous error

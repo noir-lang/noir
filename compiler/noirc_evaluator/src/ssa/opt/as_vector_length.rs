@@ -28,7 +28,7 @@ impl Ssa {
 impl Function {
     pub(crate) fn as_vector_optimization(&mut self) {
         // If `as_vector` isn't called in this function there's nothing to do
-        let Some(as_slice) = self.dfg.get_intrinsic(Intrinsic::AsVector).copied() else {
+        let Some(as_vector) = self.dfg.get_intrinsic(Intrinsic::AsVector).copied() else {
             return;
         };
 
@@ -41,7 +41,7 @@ impl Function {
                 _ => return,
             };
 
-            if *target_func != as_slice {
+            if *target_func != as_vector {
                 return;
             }
 
@@ -72,7 +72,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             return v2
         }
         ";
@@ -82,7 +82,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             return u32 3
         }
         ");
@@ -93,8 +93,8 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: [Field; 5]):
-            v3, v4 = call as_slice(v0) -> (u32, [Field])
-            v5, v6 = call as_slice(v1) -> (u32, [Field])
+            v3, v4 = call as_vector(v0) -> (u32, [Field])
+            v5, v6 = call as_vector(v1) -> (u32, [Field])
             return v3, v5
         }
         ";
@@ -103,8 +103,8 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: [Field; 5]):
-            v3, v4 = call as_slice(v0) -> (u32, [Field])
-            v5, v6 = call as_slice(v1) -> (u32, [Field])
+            v3, v4 = call as_vector(v0) -> (u32, [Field])
+            v5, v6 = call as_vector(v1) -> (u32, [Field])
             return u32 3, u32 5
         }
         ");

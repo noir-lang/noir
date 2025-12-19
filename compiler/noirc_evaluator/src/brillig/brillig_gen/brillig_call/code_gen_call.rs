@@ -186,7 +186,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts an array to a vector by copying the array contents into a vector.
     ///
     /// This intrinsic converts a fixed-size array into a dynamically-sized vector (vector).
-    fn convert_ssa_as_slice(
+    fn convert_ssa_as_vector(
         &mut self,
         arguments: &[ValueId],
         instruction_id: InstructionId,
@@ -262,7 +262,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // can't automatically insert any missing cases
                 match intrinsic {
                     Intrinsic::AsVector => {
-                        self.convert_ssa_as_slice(arguments, instruction_id, dfg);
+                        self.convert_ssa_as_vector(arguments, instruction_id, dfg);
                     }
                     Intrinsic::VectorPushBack
                     | Intrinsic::VectorPopBack

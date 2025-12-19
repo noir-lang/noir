@@ -16,8 +16,8 @@ struct Foo<T> {
 fn main(x: Field, y: pub Field) {
     assert(x != y);
 
-    let foo = Foo { a: 7, b: [8, 9, 22].as_slice(), bar: Bar { inner: [106, 107, 108] } };
-    let mut slice = [foo, foo];
-    slice = slice.push_back(foo);
-    assert(slice.len() == 3);
+    let foo = Foo { a: 7, b: [8, 9, 22].as_vector(), bar: Bar { inner: [106, 107, 108] } };
+    let mut vector = [foo, foo];
+    vector = vector.push_back(foo);
+    assert(vector.len() == 3);
 }

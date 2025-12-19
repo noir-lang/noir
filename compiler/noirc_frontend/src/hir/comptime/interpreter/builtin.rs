@@ -76,7 +76,7 @@ impl Interpreter<'_, '_> {
             "array_len" => array_len(arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Unit),
-            "as_slice" => as_slice(arguments, location),
+            "as_vector" => as_vector(arguments, location),
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
@@ -117,7 +117,7 @@ impl Interpreter<'_, '_> {
             "expr_as_repeated_element_vector" => {
                 expr_as_repeated_element_vector(interner, arguments, return_type, location)
             }
-            "expr_as_slice" => expr_as_slice(interner, arguments, return_type, location),
+            "expr_as_vector" => expr_as_vector(interner, arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(interner, arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(interner, arguments, return_type, location),
             "expr_as_unsafe" => expr_as_unsafe(interner, arguments, return_type, location),
@@ -213,7 +213,7 @@ impl Interpreter<'_, '_> {
             "type_as_mutable_reference" => {
                 type_as_mutable_reference(arguments, return_type, location)
             }
-            "type_as_slice" => type_as_slice(arguments, return_type, location),
+            "type_as_vector" => type_as_vector(arguments, return_type, location),
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
@@ -255,8 +255,8 @@ impl Interpreter<'_, '_> {
             "unresolved_type_as_mutable_reference" => {
                 unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
             }
-            "unresolved_type_as_slice" => {
-                unresolved_type_as_slice(interner, arguments, return_type, location)
+            "unresolved_type_as_vector" => {
+                unresolved_type_as_vector(interner, arguments, return_type, location)
             }
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
@@ -331,7 +331,7 @@ fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location)
     Ok(Value::String(Rc::new(string)))
 }
 
-fn as_slice(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (array, array_location) = check_one_argument(arguments, location)?;
 
     match array {
@@ -1167,8 +1167,8 @@ fn type_as_mutable_reference(
     })
 }
 
-// fn as_slice(self) -> Option<Type>
-fn type_as_slice(
+// fn as_vector(self) -> Option<Type>
+fn type_as_vector(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -1451,8 +1451,8 @@ fn unresolved_type_as_mutable_reference(
     })
 }
 
-// fn as_slice(self) -> Option<UnresolvedType>
-fn unresolved_type_as_slice(
+// fn as_vector(self) -> Option<UnresolvedType>
+fn unresolved_type_as_vector(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
@@ -2264,8 +2264,8 @@ fn expr_as_repeated_element_vector(
     })
 }
 
-// fn as_slice(self) -> Option<[Expr]>
-fn expr_as_slice(
+// fn as_vector(self) -> Option<[Expr]>
+fn expr_as_vector(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,

@@ -733,14 +733,14 @@ mod tests {
     }
 
     #[test]
-    fn merge_vector_with_as_slice_and_vector_push_front() {
+    fn merge_vector_with_as_vector_and_vector_push_front() {
         // Same as the previous test, but using `as_vector` to prove that vector length tracking
         // is working correctly.
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v102 = make_array [] : [Field; 0]
-            v103, v3 = call as_slice(v102) -> (u32, [Field])
+            v103, v3 = call as_vector(v102) -> (u32, [Field])
             v4 = allocate -> &mut u32
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
@@ -765,7 +765,7 @@ mod tests {
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field; 0]
-            v5, v6 = call as_slice(v3) -> (u32, [Field])
+            v5, v6 = call as_vector(v3) -> (u32, [Field])
             v7 = allocate -> &mut u32
             v8 = allocate -> &mut [Field]
             enable_side_effects v0

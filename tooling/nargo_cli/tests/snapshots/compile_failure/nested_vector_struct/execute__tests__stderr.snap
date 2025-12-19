@@ -23,7 +23,7 @@ warning: struct `Foo` is never constructed
    │        --- struct is never constructed
    │
 
-error: Nested slices, i.e. slices within an array or slice, are not supported
+error: Nested vectors, i.e. vectors within an array or vector, are not supported
   ┌─ src/main.nr:1:1
   │  
 1 │ ╭ struct FooParent {

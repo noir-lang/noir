@@ -35,7 +35,7 @@ impl<W: Write> Interpreter<'_, W> {
             }
             Intrinsic::AsVector => {
                 check_argument_count(args, 1, intrinsic)?;
-                let array = self.lookup_array_or_vector(args[0], "call to as_slice")?;
+                let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
                 let length = array.elements.borrow().len();
                 let length = Value::u32(length as u32);
 

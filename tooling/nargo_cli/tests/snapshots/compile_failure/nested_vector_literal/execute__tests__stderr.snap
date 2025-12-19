@@ -10,10 +10,10 @@ warning: struct `FooParent` is never constructed
   │
 
 error: No method named 'push_back' found for type '[Foo<[Field]>; 2]'
-   ┌─ src/main.nr:21:13
+   ┌─ src/main.nr:21:14
    │
-21 │     slice = slice.push_back(foo);
-   │             --------------------
+21 │     vector = vector.push_back(foo);
+   │              ---------------------
    │
 
 Aborting due to 1 previous error

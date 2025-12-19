@@ -379,7 +379,7 @@ impl<'f> Validator<'f> {
                 );
             }
             Intrinsic::AsVector => {
-                // fn as_slice(self: [T; N]) -> [T] {}
+                // fn as_vector(self: [T; N]) -> [T] {}
                 let argument_type = self.assert_one_argument(arguments, "AsVector");
                 let (array_types, _array_length) = assert_array(&argument_type, "AsVector argument");
 
@@ -1825,7 +1825,7 @@ mod tests {
 
         acir(inline) fn foo f1 {
             b0(v0: [Field]):
-              v2, v3 = call as_slice(v0) -> (u32, [Field])
+              v2, v3 = call as_vector(v0) -> (u32, [Field])
               return v2
         }
         ";
@@ -1838,7 +1838,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             return v2
         }
         ";
@@ -1849,11 +1849,11 @@ mod tests {
     #[should_panic(
         expected = "assertion `left == right` failed: Expected AsVector to have 1 arguments, got 0\n  left: 0\n right: 1"
     )]
-    fn as_slice_wrong_number_of_arguments() {
+    fn as_vector_wrong_number_of_arguments() {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v1, v2 = call as_slice() -> (u32, [Field])
+            v1, v2 = call as_vector() -> (u32, [Field])
             return v1
         }
         ";

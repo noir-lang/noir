@@ -5,8 +5,8 @@ expression: stderr
 error: Argument is not constant
    ┌─ src/main.nr:11:5
    │
-11 │     assert_constant(foo_dynamic_slice);
-   │     ----------------------------------
+11 │     assert_constant(foo_dynamic_vector);
+   │     -----------------------------------
    │
    = Call stack:
      1. src/main.nr:11:5

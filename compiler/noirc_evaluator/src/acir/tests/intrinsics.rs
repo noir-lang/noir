@@ -707,7 +707,7 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [u32; 1], v1: u32, v2: u32):
-        v4, v5 = call as_slice(v0) -> (u32, [u32])
+        v4, v5 = call as_vector(v0) -> (u32, [u32])
         v7 = eq v1, u32 3
         v8 = not v7
         enable_side_effects v8
@@ -846,12 +846,12 @@ fn vector_remove_affected_by_predicate() {
 }
 
 #[test]
-fn as_slice_for_composite_vector() {
+fn as_vector_for_composite_vector() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0():
         v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [(Field, Field); 2]
-        v4, v5 = call as_slice(v3) -> (u32, [(Field, Field)])
+        v4, v5 = call as_vector(v3) -> (u32, [(Field, Field)])
         return v4
     }
     ";
@@ -872,7 +872,7 @@ fn as_slice_for_composite_vector() {
 }
 
 #[test]
-fn as_slice_for_vector_with_nested_array() {
+fn as_vector_for_vector_with_nested_array() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32):
@@ -884,7 +884,7 @@ fn as_slice_for_vector_with_nested_array() {
         v26 = array_get v25, index v0 -> [u32; 5]
         v28 = array_set v26, index u32 1, value u32 100
         v29 = array_set v25, index v0, value v28
-        v31, v32 = call as_slice(v29) -> (u32, [[u32; 5]])
+        v31, v32 = call as_vector(v29) -> (u32, [[u32; 5]])
         v34 = array_get v32, index u32 0 -> [u32; 5]
         v35 = array_get v32, index u32 1 -> [u32; 5]
         v36 = array_get v32, index u32 2 -> [u32; 5]
