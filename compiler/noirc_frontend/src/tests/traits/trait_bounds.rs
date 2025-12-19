@@ -1,7 +1,7 @@
 //! Tests for trait bound checking and where clause validation.
 //! Validates that trait bounds are satisfied and constraints on associated types are correctly checked.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, get_program_using_features};
 
 #[test]
 fn trait_impl_for_a_type_that_implements_another_trait() {
@@ -135,13 +135,22 @@ fn check_trait_as_type_as_fn_parameter() {
 
     // `impl T` syntax is expected to be desugared to a `where` clause
     fn test_eq(x: impl Eq2) -> bool {
+                       ^^^ `impl Trait` as a type is experimental
+                       ~~~ Pass -Ztrait_as_type to nargo to enable this feature at your own risk.
         x.eq2(x)
     }
 
     fn main(a: Foo) -> pub bool {
         test_eq(a)
     }";
-    assert_no_errors(src);
+    check_errors(src);
+
+    let src_without_errors: Vec<_> =
+        src.lines().filter(|line| !line.contains(['^', '~'])).collect();
+    let src_without_errors = src_without_errors.join("\n");
+    let features = vec![UnstableFeature::TraitAsType];
+    let (_, _, errors) = get_program_using_features(&src_without_errors, &features);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -169,13 +178,24 @@ fn check_trait_as_type_as_two_fn_parameters() {
 
     // `impl T` syntax is expected to be desugared to a `where` clause
     fn test_eq(x: impl Eq2, y: impl Test) -> bool {
+                       ^^^ `impl Trait` as a type is experimental
+                       ~~~ Pass -Ztrait_as_type to nargo to enable this feature at your own risk.
+                                    ^^^^ `impl Trait` as a type is experimental
+                                    ~~~~ Pass -Ztrait_as_type to nargo to enable this feature at your own risk.
         x.eq2(x) == y.test()
     }
 
     fn main(a: Foo, b: u64) -> pub bool {
         test_eq(a, b)
     }";
-    assert_no_errors(src);
+    check_errors(src);
+
+    let src_without_errors: Vec<_> =
+        src.lines().filter(|line| !line.contains(['^', '~'])).collect();
+    let src_without_errors = src_without_errors.join("\n");
+    let features = vec![UnstableFeature::TraitAsType];
+    let (_, _, errors) = get_program_using_features(&src_without_errors, &features);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
