@@ -350,9 +350,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.elaborator.pop_interpreter_call_stack();
 
         self.current_function = old_function;
-        if let Some(old_module) = old_module {
-            self.elaborator.replace_module(old_module);
-        }
+        let Some(old_module) = old_module else {
+            // The module should always be set by the time we're interpreting comptime code
+            panic!("ICE: Expected local_module to be set when calling a closure");
+        };
+        self.elaborator.replace_module(old_module);
         result
     }
 
