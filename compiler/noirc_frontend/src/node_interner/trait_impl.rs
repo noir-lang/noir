@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
     graph::CrateId,
-    hir::type_check::generics::TraitGenerics,
+    hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
     node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
@@ -84,15 +84,18 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), Location> {
+        location: Location,
+    ) -> Result<Result<(), Location>, TypeCheckError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
         if object_type == Type::Error {
-            // TODO(audit): return an "expecting other error" here
-            return Ok(());
+            return Err(TypeCheckError::ExpectingOtherError {
+                message: "collect_trait_impl: missing trait type".to_string(),
+                location,
+            });
         }
 
         // Replace each generic with a fresh type variable
@@ -137,7 +140,7 @@ impl NodeInterner {
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
-            return Err(existing_impl.ident.location());
+            return Ok(Err(existing_impl.ident.location()));
         }
 
         for method in &trait_impl.borrow().methods {
@@ -151,7 +154,7 @@ impl NodeInterner {
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
-        Ok(())
+        Ok(Ok(()))
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the

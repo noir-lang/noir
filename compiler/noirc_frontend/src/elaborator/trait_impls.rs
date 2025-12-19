@@ -204,18 +204,23 @@ impl Elaborator<'_> {
 
             let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-            if let Err(prev_location) = self.interner.add_trait_implementation(
+            match self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
                 trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
                 generics,
                 resolved_trait_impl,
+                location,
             ) {
-                self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                    typ: self_type.clone(),
-                    location: self_type_location,
-                    prev_location,
-                });
+                Ok(Ok(())) => (),
+                Err(error) => self.push_err(error),
+                Ok(Err(prev_location)) => {
+                    self.push_err(DefCollectorErrorKind::OverlappingImpl {
+                        typ: self_type.clone(),
+                        location: self_type_location,
+                        prev_location,
+                    });
+                }
             }
 
             self.generics = previous_generics;
