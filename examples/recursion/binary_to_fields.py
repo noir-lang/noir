@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Convert binary barretenberg output files to field JSON format.
+Convert binary barretenberg output files to field JSON format and print them to stdout.
 Each field element is 32 bytes in big-endian format.
 """
 import sys
 import json
 
-def binary_to_fields_json(binary_file_path, json_file_path):
+def binary_to_fields_json(binary_file_path, json_file_path=None):
     """Read binary file and convert to JSON array of field strings."""
     with open(binary_file_path, 'rb') as f:
         data = f.read()
@@ -28,12 +28,15 @@ def binary_to_fields_json(binary_file_path, json_file_path):
         # Convert to hex string with 0x prefix
         fields.append(f"0x{field_int:064x}")
 
-    with open(json_file_path, 'w') as f:
-        json.dump(fields, f)
+    if json_file_path:
+        with open(json_file_path, 'w') as f:
+            json.dump(fields, f)
+    else:
+        json.dump(fields, sys.stdout)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <input_binary_file> <output_json_file>")
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
+        print(f"Usage: {sys.argv[0]} <input_binary_file> [<output_json_file>]")
         sys.exit(1)
 
-    binary_to_fields_json(sys.argv[1], sys.argv[2])
+    binary_to_fields_json(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)

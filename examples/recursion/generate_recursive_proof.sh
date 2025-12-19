@@ -10,20 +10,14 @@ nargo execute sum_witness --package sum --pedantic-solving
 $BACKEND write_vk -b ./target/sum.json -o ./target/sum
 $BACKEND prove -b ./target/sum.json -w ./target/sum_witness.gz -o ./target/sum -k ./target/sum/vk
 
-# Convert binary outputs to JSON format for Noir
-python3 binary_to_fields.py ./target/sum/vk ./target/sum/vk_fields.json
-python3 binary_to_fields.py ./target/sum/vk_hash ./target/sum/vk_hash_fields.json
-python3 binary_to_fields.py ./target/sum/proof ./target/sum/proof_fields.json
-python3 binary_to_fields.py ./target/sum/public_inputs ./target/sum/public_inputs_fields.json
-
 # Prepare Prover.toml for recurse_leaf
 RECURSE_LEAF_PROVER_TOML=./recurse_leaf/Prover.toml
 echo -n "" > $RECURSE_LEAF_PROVER_TOML
 echo "num = 2" > $RECURSE_LEAF_PROVER_TOML
-echo "verification_key = $(cat ./target/sum/vk_fields.json)"  >> $RECURSE_LEAF_PROVER_TOML
-echo "proof = $(cat ./target/sum/proof_fields.json)" >> $RECURSE_LEAF_PROVER_TOML
-echo "public_inputs = $(cat ./target/sum/public_inputs_fields.json)" >> $RECURSE_LEAF_PROVER_TOML
-echo "key_hash = $(cat ./target/sum/vk_hash_fields.json)" >> $RECURSE_LEAF_PROVER_TOML
+echo "verification_key = $(python3 binary_to_fields.py ./target/sum/vk)"  >> $RECURSE_LEAF_PROVER_TOML
+echo "proof = $(python3 binary_to_fields.py ./target/sum/proof)" >> $RECURSE_LEAF_PROVER_TOML
+echo "public_inputs = $(python3 binary_to_fields.py ./target/sum/public_inputs)" >> $RECURSE_LEAF_PROVER_TOML
+echo "key_hash = $(python3 binary_to_fields.py ./target/sum/vk_hash | jq -c ".[0]")" >> $RECURSE_LEAF_PROVER_TOML
 
 # Execute and prove `recurse_leaf`
 nargo execute recurse_leaf_witness --package recurse_leaf --pedantic-solving
@@ -35,19 +29,13 @@ $BACKEND prove -b ./target/recurse_leaf.json -w ./target/recurse_leaf_witness.gz
 # Sanity check
 $BACKEND verify -k ./target/leaf/vk -p ./target/leaf/proof  -i ./target/leaf/public_inputs
 
-# Convert binary outputs to JSON format for Noir
-python3 binary_to_fields.py ./target/leaf/vk ./target/leaf/vk_fields.json
-python3 binary_to_fields.py ./target/leaf/vk_hash ./target/leaf/vk_hash_fields.json
-python3 binary_to_fields.py ./target/leaf/proof ./target/leaf/proof_fields.json
-python3 binary_to_fields.py ./target/leaf/public_inputs ./target/leaf/public_inputs_fields.json
-
 # Generate Prover.toml for `recurse_node`
 RECURSE_NODE_PROVER_TOML=./recurse_node/Prover.toml
 echo -n "" > $RECURSE_NODE_PROVER_TOML
-echo "key_hash = $(cat ./target/leaf/vk_hash_fields.json)" >> $RECURSE_NODE_PROVER_TOML
-echo "verification_key = $(cat ./target/leaf/vk_fields.json)"  >> $RECURSE_NODE_PROVER_TOML
-echo "proof = $(cat ./target/leaf/proof_fields.json)" >> $RECURSE_NODE_PROVER_TOML
-echo "public_inputs = $(cat ./target/leaf/public_inputs_fields.json)" >> $RECURSE_NODE_PROVER_TOML
+echo "key_hash = $(python3 binary_to_fields.py ./target/leaf/vk_hash | jq -c ".[0]")" >> $RECURSE_NODE_PROVER_TOML
+echo "verification_key = $(python3 binary_to_fields.py ./target/leaf/vk)"  >> $RECURSE_NODE_PROVER_TOML
+echo "proof = $(python3 binary_to_fields.py ./target/leaf/proof)" >> $RECURSE_NODE_PROVER_TOML
+echo "public_inputs = $(python3 binary_to_fields.py ./target/leaf/public_inputs)" >> $RECURSE_NODE_PROVER_TOML
 
 
 # Execute and prove `recurse_node`

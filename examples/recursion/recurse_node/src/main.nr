@@ -6,7 +6,7 @@ use bb_proof_verification::{verify_ultrahonkzk_proof, UltraHonkZKProof, UltraHon
 fn main(
     verification_key: UltraHonkVerificationKey,
     public_inputs: pub [Field; NUM_NON_ACCUMULATOR_PUBLIC_INPUTS],
-    key_hash: [Field; 1],
+    key_hash: Field,
     proof: UltraHonkZKProof
 ) -> pub u64 {
     // verify sum was computed correctly
@@ -14,7 +14,7 @@ fn main(
         verification_key,
         proof,
         public_inputs,
-        key_hash[0],
+        key_hash,
     );
 
     public_inputs[3] as u64
