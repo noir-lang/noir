@@ -168,7 +168,6 @@ build-package PACKAGE: install-js-tools
 # Examples
 
 # Runs test for all examples
-# TODO(#10960): Fix the `solidity_verifier` example.
 run-examples:
   set -e; \
   for file in `ls {{justfile_dir()}}/examples | grep -v solidity_verifier`; do \
