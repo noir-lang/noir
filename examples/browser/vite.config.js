@@ -11,6 +11,8 @@ export default defineConfig({
         global: true,
         process: true,
       },
+      // Whether to polyfill `node:` protocol imports.
+      protocolImports: true,
     }),
   ],
   optimizeDeps: {
