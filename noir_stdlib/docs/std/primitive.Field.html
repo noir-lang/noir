@@ -95,7 +95,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -110,6 +109,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-vector">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -148,9 +148,9 @@ Smaller integer types (e.g. <code>u64</code>) incur extra range constraints.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes <code>self</code> into its little endian bit decomposition as a <code>[u1; N]</code> array.
-This slice will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
+This array will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
 <h4>Failures</h4>
-<p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting slice will not
+<p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting array will not
 be able to represent the original <code>Field</code>.</p>
 <h4>Safety</h4>
 <p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p>
@@ -161,7 +161,7 @@ be able to represent the original <code>Field</code>.</p>
 <p>Decomposes <code>self</code> into its big endian bit decomposition as a <code>[u1; N]</code> array.
 This array will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
 <h4>Failures</h4>
-<p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting slice will not
+<p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting array will not
 be able to represent the original <code>Field</code>.</p>
 <h4>Safety</h4>
 <p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p>

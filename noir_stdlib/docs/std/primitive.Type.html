@@ -29,6 +29,7 @@
 <li><a href="#as_str">as_str</a></li>
 <li><a href="#as_struct">as_struct</a></li>
 <li><a href="#as_tuple">as_tuple</a></li>
+<li><a href="#as_vector">as_vector</a></li>
 <li><a href="#get_trait_impl">get_trait_impl</a></li>
 <li><a href="#implements">implements</a></li>
 <li><a href="#is_bool">is_bool</a></li>
@@ -78,7 +79,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -93,6 +93,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-vector">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -150,10 +151,19 @@ if the type is signed, as well as the number of bits of this integer type.</p>
 <div class="padded-description"><div class="comments">
 <p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
 </div>
-</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+</div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a slice type, return the element type of the slice.</p>
+<p>If this is a vector type, return the element type of the vector.</p>
+</div>
+</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_vector`
+</div>
+<div class="comments">
+<p>If this is a vector type, return the element type of the vector.</p>
 </div>
 </div><code id="as_str" class="code-header">pub comptime fn <a href="#as_str"><span class="fn">as_str</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 

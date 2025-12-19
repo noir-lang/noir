@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
 <script defer src="../nargo_doc.js"></script>
-<title>Primitive type slice documentation</title>
+<title>Primitive type vector documentation</title>
 </head>
 <body>
 <div id="sidebar-toggle">
 <button id="sidebar-toggle-button"></button>
-<div id="sidebar-toggle-title">slice</div>
+<div id="sidebar-toggle-title">vector</div>
 </div>
 <span id="main-contents">
 <nav class="sidebar">
@@ -17,7 +17,7 @@
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
 <div id="crate-version">1.0.0-beta.14</div>
-<h2><a href="#primitive">Primitive type slice</a></h2>
+<h2><a href="#primitive">Primitive type vector</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-vector">
 <li><a href="#all">all</a></li>
@@ -78,7 +78,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -93,6 +92,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-vector">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -108,13 +108,13 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">slice</span></h1>
+<h1>Primitive type <span id="primitive" class="primitive">vector</span></h1>
 <div class="comments">
 <p>A dynamically-sized view into a contiguous sequence, <code>[T]</code>.</p>
-<p>There are two syntactic forms for creating a slice:</p>
+<p>There are two syntactic forms for creating a vector:</p>
 <ul>
 <li>A vector with each element, i.e., <code>&amp;[x, y, z]</code>.</li>
-<li>A repeat expression <code>&amp;[expr; N]</code> where <code>N</code> is how many times to repeat <code>expr</code> in the slice.</li>
+<li>A repeat expression <code>&amp;[expr; N]</code> where <code>N</code> is how many times to repeat <code>expr</code> in the vector.</li>
 </ul>
 </div>
 <h2>Implementations</h2>
@@ -123,33 +123,33 @@
 <div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns the length of the slice.</p>
+<p>Returns the length of the vector.</p>
 </div>
 </div><code id="push_back" class="code-header">pub fn <a href="#push_back"><span class="fn">push_back</span></a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>Push a new element to the end of the slice, returning a
-new slice with a length one greater than the
-original unmodified slice.</p>
+<p>Push a new element to the end of the vector, returning a
+new vector with a length one greater than the
+original unmodified vector.</p>
 </div>
 </div><code id="push_front" class="code-header">pub fn <a href="#push_front"><span class="fn">push_front</span></a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>Push a new element to the front of the slice, returning a
-new slice with a length one greater than the
-original unmodified slice.</p>
+<p>Push a new element to the front of the vector, returning a
+new vector with a length one greater than the
+original unmodified vector.</p>
 </div>
 </div><code id="pop_back" class="code-header">pub fn <a href="#pop_back"><span class="fn">pop_back</span></a>(self) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
-<p>Remove the last element of the slice, returning the
-popped slice and the element in a tuple</p>
+<p>Remove the last element of the vector, returning the
+popped vector and the element in a tuple</p>
 </div>
 </div><code id="pop_front" class="code-header">pub fn <a href="#pop_front"><span class="fn">pop_front</span></a>(self) -> (T, Self)</code>
 
 <div class="padded-description"><div class="comments">
-<p>Remove the first element of the slice, returning the
-element and the popped slice in a tuple</p>
+<p>Remove the first element of the vector, returning the
+element and the popped vector in a tuple</p>
 </div>
 </div><code id="insert" class="code-header">pub fn <a href="#insert"><span class="fn">insert</span></a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>, elem: T) -> Self</code>
 
@@ -161,14 +161,14 @@ after it to the right</p>
 
 <div class="padded-description"><div class="comments">
 <p>Remove an element at a specified index, shifting all elements
-after it to the left, returning the altered slice and
+after it to the left, returning the altered vector and
 the removed element</p>
 </div>
 </div><code id="append" class="code-header">pub fn <a href="#append"><span class="fn">append</span></a>(self, other: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>Append each element of the <code>other</code> slice to the end of <code>self</code>.
-This returns a new slice and leaves both input slices unchanged.</p>
+<p>Append each element of the <code>other</code> vector to the end of <code>self</code>.
+This returns a new vector and leaves both input vectors unchanged.</p>
 </div>
 </div><code id="as_array" class="code-header">pub fn <a href="#as_array"><span class="fn">as_array</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
 
