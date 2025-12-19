@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[conditional_vector_insert_at_end_of_vector] Circuit output: 3
+[conditional_vector_insert_at_end_of_vector] Circuit output: 4

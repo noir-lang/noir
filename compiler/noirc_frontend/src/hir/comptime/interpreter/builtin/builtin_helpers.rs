@@ -129,11 +129,11 @@ pub(crate) fn get_struct_field<T>(
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<T> {
-    let key = Rc::new(field_name.to_string());
+    let key = field_name.to_string();
     let Some(value) = struct_fields.get(&key) else {
         return Err(InterpreterError::ExpectedStructToHaveField {
             typ: struct_type.clone(),
-            field_name: Rc::into_inner(key).unwrap(),
+            field_name: key,
             location,
         });
     };
@@ -508,7 +508,10 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
-        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = errors
+            .into_iter()
+            .find(|error| !error.is_warning())
+            .expect("there is at least 1 error");
         let error = Box::new(error);
         let tokens = tokens_to_string(&tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }

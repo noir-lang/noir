@@ -395,7 +395,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let state_len = state.len();
                     let mut state: [u32; 8] = state.try_into().map_err(|_| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
-                            expected_size: 16,
+                            expected_size: 8,
                             size: state_len,
                         })
                     })?;

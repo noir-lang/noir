@@ -138,7 +138,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
                 format!(
-                    "Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                    "Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
             MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } => {

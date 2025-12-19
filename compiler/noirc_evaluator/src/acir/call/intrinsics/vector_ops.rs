@@ -108,8 +108,10 @@ impl Context<'_> {
                     Some(self.init_element_type_sizes_array(
                         &vector_typ,
                         vector_contents,
-                        Some(&new_vector_array),
+                        Some(new_vector_array.clone()),
                         dfg,
+                        // We do not need extra capacity here as `new_slice_array` has already pushed back new elements
+                        0,
                     )?)
                 } else {
                     None
@@ -607,9 +609,10 @@ impl Context<'_> {
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
-                    vector_contents,
+                    result_ids[1],
                     Some(&vector),
                     dfg,
+                    1,
                 )?)
             } else {
                 None
@@ -790,8 +793,9 @@ impl Context<'_> {
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
                     vector_contents,
-                    Some(&vector),
+                    Some(vector),
                     dfg,
+                    0,
                 )?)
             } else {
                 None
