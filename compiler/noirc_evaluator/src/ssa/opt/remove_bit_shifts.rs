@@ -60,12 +60,13 @@
 //! ## Signed shift-left
 //!
 //! This case is similar to unsigned shift-left.
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{
+        dfg::InstructionBuilder,
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
@@ -251,120 +252,43 @@ impl Context<'_, '_, '_> {
                 self.insert_binary(lhs, BinaryOp::Div, pow)
             }
             NumericType::Signed { bit_size } => {
+                let mut instruction_builder = InstructionBuilder::new(
+                    self.context.dfg,
+                    self.context.block_id,
+                    self.context.call_stack_id,
+                );
+
                 // Get the sign of the operand; positive signed operand will just do a division as well
                 let unsigned_typ = NumericType::unsigned(bit_size);
-                let lhs_as_unsigned = self.insert_cast(lhs, unsigned_typ);
+                let lhs_as_unsigned = instruction_builder.insert_cast(lhs, unsigned_typ);
 
                 // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
                 // To compute this we check if the value, as a Field, is greater or equal than the maximum
                 // value that is considered positive, that is, 2^(bit_size-1)-1: 2^(bit_size-1)-1 < lhs_as_field
                 let max_positive = (1_u128 << (bit_size - 1)) - 1;
-                let max_positive = self.numeric_constant(max_positive, unsigned_typ);
-                let lhs_sign = self.insert_binary(max_positive, BinaryOp::Lt, lhs_as_unsigned);
-                let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-                let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-                // For negative numbers, we prepare for the division using a wrapping addition of a + 1. Unchecked add as these are fields.
-                let add = BinaryOp::Add { unchecked: true };
-                let div_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
-                let div_complement = self.insert_truncate(div_complement, bit_size, bit_size + 1);
-                let div_complement =
-                    self.insert_cast(div_complement, NumericType::signed(bit_size));
-                // Performs the division on the adjusted complement (or the operand if positive)
-                let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
-                // For negative numbers, convert back to 2-complement by subtracting 1.
-                let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+                let max_positive = instruction_builder.numeric_constant(max_positive, unsigned_typ);
+                let lhs_sign =
+                    instruction_builder.insert_binary(max_positive, BinaryOp::Lt, lhs_as_unsigned);
 
-                // The requirements for this to underflow are all of these:
-                // - lhs < 0
-                // - div_complement(lhs) / (2^rhs) == 0
-                // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-                // to be larger than the lhs bitsize for this to overflow.
-                let sub = BinaryOp::Sub { unchecked: true };
-                let shifted = self.insert_binary(shifted_complement, sub, lhs_sign_as_int);
-                self.insert_truncate(shifted, bit_size, bit_size + 1)
+                let div_complement = instruction_builder.convert_to_div_complement(lhs, lhs_sign);
+                // Performs the division on the adjusted complement (or the operand if positive)
+                let shifted_complement =
+                    instruction_builder.insert_binary(div_complement, BinaryOp::Div, pow);
+                instruction_builder.convert_from_div_complement(shifted_complement, lhs_sign)
             }
 
             NumericType::NativeField => unreachable!("Bit shifts are disallowed on `Field` type"),
         }
     }
 
-    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
-    /// Pseudo-code of the computation:
-    /// ```text
-    /// let mut r = 1;
-    /// let exponent_bits = to_bits(exponent);
-    /// for i in 1 .. bit_size + 1 {
-    ///     let r_squared = r * r;
-    ///     let b = exponent_bits[bit_size - i];
-    ///     r = if b { 2 * r_squared } else { r_squared };
-    /// }
-    /// ```
+    /// See [InstructionBuilder::two_pow]
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
-        // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
-
-        if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
-            let exponent_const_as_u32 = exponent_const.try_to_u32();
-            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
-                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
-                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
-                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
-                FieldElement::zero()
-            } else {
-                FieldElement::from(2u32).pow(&exponent_const)
-            };
-            return self.field_constant(pow);
-        }
-
-        // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
-        // Representing the maximum value requires 5 bits, which is log2(32), so any `u32` exponent will require
-        // at most 5 bits. Similarly, `u64` values will require at most 6 bits, etc.
-        // Using `get_value_max_num_bits` here could work, though in practice:
-        // - constant exponents are handled in the `if` above
-        // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
-        //   which is even larger than the largest unsigned type u128, so nothing better can be done here
-        // - the exception would be casting a `u1` to a larger type, where we know the exponent can be
-        //   either zero or one, which we special-case here
-        let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
-            1
-        } else {
-            self.context.dfg.type_of_value(exponent).bit_size().ilog2()
-        };
-        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
-
-        // A call to ToBits can only be done with a field argument (exponent is always u8 here)
-        let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
-        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-        let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
-
-        let exponent_bits = exponent_bits[0];
-        let one = self.field_constant(FieldElement::one());
-        let two = self.field_constant(FieldElement::from(2u32));
-        let mut r = one;
-        // All operations are unchecked as we're acting on Field types (which are always unchecked)
-        for i in 1..max_exponent_bits + 1 {
-            let idx = self.numeric_constant(
-                FieldElement::from(i128::from(max_exponent_bits - i)),
-                NumericType::length_type(),
-            );
-            let b = self.insert_array_get(exponent_bits, idx, Type::bool());
-            let not_b = self.insert_not(b);
-            let b = self.insert_cast(b, NumericType::NativeField);
-            let not_b = self.insert_cast(not_b, NumericType::NativeField);
-
-            let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
-            let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
-            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, two);
-            let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
-            r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
-        }
-
-        assert!(
-            matches!(self.context.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField),
-            "ICE: pow is expected to always return a NativeField"
+        let mut instruction_builder = InstructionBuilder::new(
+            self.context.dfg,
+            self.context.block_id,
+            self.context.call_stack_id,
         );
-
-        r
+        instruction_builder.two_pow(exponent)
     }
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
@@ -385,10 +309,6 @@ impl Context<'_, '_, '_> {
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
-    fn field_constant(&mut self, constant: FieldElement) -> ValueId {
-        self.context.dfg.make_constant(constant, NumericType::NativeField)
-    }
-
     /// Insert a numeric constant into the current function
     fn numeric_constant(&mut self, value: impl Into<FieldElement>, typ: NumericType) -> ValueId {
         self.context.dfg.make_constant(value.into(), typ)
@@ -399,12 +319,6 @@ impl Context<'_, '_, '_> {
     fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.context.insert_instruction(instruction, None).first()
-    }
-
-    /// Insert a not instruction at the end of the current block.
-    /// Returns the result of the instruction.
-    fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.context.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a constrain instruction at the end of the current block.
@@ -430,25 +344,119 @@ impl Context<'_, '_, '_> {
     fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.context.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
+}
 
-    /// Insert a call instruction at the end of the current block and return
-    /// the results of the call.
-    fn insert_call(
-        &mut self,
-        func: ValueId,
-        arguments: Vec<ValueId>,
-        result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
-        self.context
-            .insert_instruction(Instruction::Call { func, arguments }, Some(result_types))
-            .results()
+impl InstructionBuilder<'_> {
+    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
+    /// Pseudo-code of the computation:
+    /// ```text
+    /// let mut r = 1;
+    /// let exponent_bits = to_bits(exponent);
+    /// for i in 1 .. bit_size + 1 {
+    ///     let r_squared = r * r;
+    ///     let b = exponent_bits[bit_size - i];
+    ///     r = if b { 2 * r_squared } else { r_squared };
+    /// }
+    /// ```
+    fn two_pow(&mut self, exponent: ValueId) -> ValueId {
+        // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
+        let max_bit_size = self.dfg.type_of_value(exponent).bit_size();
+
+        if let Some(exponent_const) = self.dfg.get_numeric_constant(exponent) {
+            let exponent_const_as_u32 = exponent_const.try_to_u32();
+            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
+                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
+                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
+                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
+                FieldElement::zero()
+            } else {
+                FieldElement::from(2u32).pow(&exponent_const)
+            };
+            return self.field_constant(pow);
+        }
+
+        // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
+        // Representing the maximum value requires 5 bits, which is log2(32), so any `u32` exponent will require
+        // at most 5 bits. Similarly, `u64` values will require at most 6 bits, etc.
+        // Using `get_value_max_num_bits` here could work, though in practice:
+        // - constant exponents are handled in the `if` above
+        // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
+        //   which is even larger than the largest unsigned type u128, so nothing better can be done here
+        // - the exception would be casting a `u1` to a larger type, where we know the exponent can be
+        //   either zero or one, which we special-case here
+        let max_exponent_bits = if self.dfg.get_value_max_num_bits(exponent) == 1 {
+            1
+        } else {
+            self.dfg.type_of_value(exponent).bit_size().ilog2()
+        };
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
+
+        // A call to ToBits can only be done with a field argument (exponent is always u8 here)
+        let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
+        let to_bits = self.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+        let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
+
+        let exponent_bits = exponent_bits[0];
+        let one = self.field_constant(FieldElement::one());
+        let two = self.field_constant(FieldElement::from(2u32));
+        let mut r = one;
+        // All operations are unchecked as we're acting on Field types (which are always unchecked)
+        for i in 1..max_exponent_bits + 1 {
+            let idx = self.numeric_constant(
+                FieldElement::from(i128::from(max_exponent_bits - i)),
+                NumericType::length_type(),
+            );
+            let b = self.insert_array_get(exponent_bits, idx, Type::bool());
+            let not_b = self.insert_not(b);
+            let b = self.insert_cast(b, NumericType::NativeField);
+            let not_b = self.insert_cast(not_b, NumericType::NativeField);
+
+            let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
+            let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, two);
+            let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
+            r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
+        }
+
+        assert!(
+            matches!(self.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField),
+            "ICE: pow is expected to always return a NativeField"
+        );
+
+        r
     }
 
-    /// Insert an instruction to extract an element from an array
-    fn insert_array_get(&mut self, array: ValueId, index: ValueId, element_type: Type) -> ValueId {
-        let element_type = Some(vec![element_type]);
-        let instruction = Instruction::ArrayGet { array, index };
-        self.context.insert_instruction(instruction, element_type).first()
+    fn convert_to_div_complement(&mut self, twos_complement: ValueId, sign: ValueId) -> ValueId {
+        let typ = self.dfg.type_of_value(twos_complement);
+        debug_assert!(typ.is_signed(), "Expected a signed type");
+
+        let sign_as_field = self.insert_cast(sign, NumericType::NativeField);
+        let twos_complement_as_field = self.insert_cast(twos_complement, NumericType::NativeField);
+
+        // For negative numbers, we prepare for the division using a wrapping addition of a + 1. Unchecked add as these are fields.
+        let bit_size = typ.bit_size();
+        let add = BinaryOp::Add { unchecked: true };
+        let div_complement = self.insert_binary(sign_as_field, add, twos_complement_as_field);
+        let div_complement = self.insert_truncate(div_complement, bit_size, bit_size + 1);
+        self.insert_cast(div_complement, typ.unwrap_numeric())
+    }
+
+    fn convert_from_div_complement(&mut self, div_complement: ValueId, sign: ValueId) -> ValueId {
+        let typ = self.dfg.type_of_value(div_complement);
+        debug_assert!(typ.is_signed(), "Expected a signed type");
+
+        // For negative numbers, convert back to 2-complement by subtracting 1.
+        let lhs_sign_as_int = self.insert_cast(sign, typ.unwrap_numeric());
+
+        // The requirements for this to underflow are all of these:
+        // - lhs < 0
+        // - div_complement(lhs) / (2^rhs) == 0
+        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+        // to be larger than the lhs bitsize for this to overflow.
+        let sub = BinaryOp::Sub { unchecked: true };
+        let shifted = self.insert_binary(div_complement, sub, lhs_sign_as_int);
+        let bit_size = typ.bit_size();
+        self.insert_truncate(shifted, bit_size, bit_size + 1)
     }
 }
 
@@ -482,7 +490,24 @@ fn remove_bit_shifts_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use noirc_errors::call_stack::CallStackId;
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            function_builder::FunctionBuilder,
+            interpreter::value::{Fitted, NumericValue, Value},
+            ir::{
+                basic_block::BasicBlockId,
+                function::Function,
+                instruction::BinaryOp,
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::remove_bit_shifts::InstructionBuilder,
+            ssa_gen::Ssa,
+        },
+    };
 
     mod unsigned {
         use super::*;
@@ -1121,5 +1146,47 @@ mod tests {
             return v8
         }
         ");
+    }
+
+    #[test]
+    /// Ensure that converting an i8 value to div complement and back again restores the input.
+    fn complements_conversion_roundtrip() {
+        use proptest::prelude::*;
+
+        let main_id: Id<Function> = Id::new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::signed(8));
+        let mut instruction_builder = InstructionBuilder::new(
+            &mut builder.current_function.dfg,
+            BasicBlockId::new(0),
+            CallStackId::new(0),
+        );
+
+        let zero = instruction_builder.numeric_constant(0u32, NumericType::signed(8));
+        let sign = instruction_builder.insert_binary(v0, BinaryOp::Lt, zero);
+        let complement = instruction_builder.convert_to_div_complement(v0, sign);
+        let reconstructed = instruction_builder.convert_from_div_complement(complement, sign);
+
+        builder.terminate_with_return(vec![reconstructed]);
+
+        let ssa = builder.finish();
+        let mut runner =
+            proptest::test_runner::TestRunner::new(proptest::test_runner::Config::default());
+
+        runner
+            .run(&any::<i8>(), |input| {
+                let mut result = ssa.interpret(vec![Value::i8(input)]).unwrap();
+                let Value::Numeric(NumericValue::I8(Fitted::Fit(result))) = result.remove(0) else {
+                    return Err(TestCaseError::Fail("Could not execute".into()));
+                };
+
+                if input == result {
+                    Ok(())
+                } else {
+                    Err(TestCaseError::Fail("Did not reconstruct input".into()))
+                }
+            })
+            .unwrap();
     }
 }

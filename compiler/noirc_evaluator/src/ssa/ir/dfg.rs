@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{
     function_builder::data_bus::DataBus,
-    ir::instruction::ArrayOffset,
+    ir::instruction::{ArrayOffset, Binary, BinaryOp},
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -970,6 +970,108 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
                 panic!("Cannot index into InsertInstructionResult::InstructionRemoved")
             }
         }
+    }
+}
+
+pub(crate) struct InstructionBuilder<'dfg> {
+    pub(crate) dfg: &'dfg mut DataFlowGraph,
+    block_id: BasicBlockId,
+    call_stack_id: CallStackId,
+}
+
+impl<'dfg> InstructionBuilder<'dfg> {
+    pub(crate) fn new(
+        dfg: &'dfg mut DataFlowGraph,
+        block_id: BasicBlockId,
+        call_stack_id: CallStackId,
+    ) -> Self {
+        Self { dfg, block_id, call_stack_id }
+    }
+
+    /// Inserts an instruction in the current block right away.
+    pub(crate) fn insert_instruction(
+        &mut self,
+        instruction: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block_id,
+            ctrl_typevars,
+            self.call_stack_id,
+        )
+    }
+
+    /// Insert a numeric constant into the current function
+    pub(crate) fn numeric_constant(
+        &mut self,
+        value: impl Into<FieldElement>,
+        typ: NumericType,
+    ) -> ValueId {
+        self.dfg.make_constant(value.into(), typ)
+    }
+
+    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
+        self.dfg.make_constant(constant, NumericType::NativeField)
+    }
+
+    /// Insert a binary instruction at the end of the current block.
+    /// Returns the result of the binary instruction.
+    pub(crate) fn insert_binary(
+        &mut self,
+        lhs: ValueId,
+        operator: BinaryOp,
+        rhs: ValueId,
+    ) -> ValueId {
+        let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
+        self.insert_instruction(instruction, None).first()
+    }
+
+    /// Insert a truncate instruction at the end of the current block.
+    /// Returns the result of the truncate instruction.
+    pub(crate) fn insert_truncate(
+        &mut self,
+        value: ValueId,
+        bit_size: u32,
+        max_bit_size: u32,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+            .first()
+    }
+
+    /// Insert a not instruction at the end of the current block.
+    /// Returns the result of the instruction.
+    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
+        self.insert_instruction(Instruction::Not(rhs), None).first()
+    }
+
+    /// Insert a cast instruction at the end of the current block.
+    /// Returns the result of the cast instruction.
+    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+    }
+
+    /// Insert a call instruction at the end of the current block and return
+    /// the results of the call.
+    pub(crate) fn insert_call(
+        &mut self,
+        func: ValueId,
+        arguments: Vec<ValueId>,
+        result_types: Vec<Type>,
+    ) -> Cow<[ValueId]> {
+        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert an instruction to extract an element from an array
+    pub(crate) fn insert_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        element_type: Type,
+    ) -> ValueId {
+        let element_type = Some(vec![element_type]);
+        let instruction = Instruction::ArrayGet { array, index };
+        self.insert_instruction(instruction, element_type).first()
     }
 }
 
