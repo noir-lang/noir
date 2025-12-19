@@ -145,11 +145,29 @@ impl Function {
             // Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
             let blocks_to_revisit = context.blocks_to_revisit;
 
+            // Preserve the values_to_replace mapping across iterations.
+            // This is necessary because instructions that were simplified or deduplicated in earlier
+            // iterations may still be referenced by instructions in blocks that are revisited.
+            // Without preserving this mapping, those references could point to orphaned instructions.
+            let values_to_replace = context.values_to_replace;
+
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
+            context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
+        }
+
+        // After all iterations, apply the final values_to_replace mapping to all instructions
+        // in all reachable blocks. This is necessary in case an instruction uses a value re-mapped
+        // in another block that is processed after the instruction's block.
+        // By applying the final mapping here, we ensure consistency.
+        if !context.values_to_replace.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &context.values_to_replace);
+            }
+            self.dfg.data_bus.replace_values(&context.values_to_replace);
         }
     }
 }
