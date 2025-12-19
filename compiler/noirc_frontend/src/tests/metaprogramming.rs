@@ -1,3 +1,5 @@
+mod skip_interpreter_on_fail;
+
 use crate::{
     elaborator::UnstableFeature,
     hir::{
