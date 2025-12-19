@@ -570,7 +570,7 @@
                 <span class="self">self</span>.visit_type(length);
                 <span class="self">self</span>.visit_type(element);
             }
-            Type::Slice(element) =&gt; {
+            Type::Vector(element) =&gt; {
                 <span class="self">self</span>.visit_type(element);
             }
             Type::FmtString(length, element) =&gt; {

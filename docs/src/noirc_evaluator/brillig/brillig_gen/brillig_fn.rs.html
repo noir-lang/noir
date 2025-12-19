@@ -224,7 +224,7 @@
     /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
     ///
     /// # Panics
-    /// Panics if called with a slice type, as a slice's memory layout cannot be inferred without runtime data.
+    /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ssa_type_to_parameter(typ: <span class="kw-2">&amp;</span>Type) -&gt; BrilligParameter {
         <span class="kw">match </span>typ {
             Type::Numeric(<span class="kw">_</span>) | Type::Reference(<span class="kw">_</span>) =&gt; {
@@ -234,8 +234,8 @@
                 vecmap(item_type.iter(), <span class="self">Self</span>::ssa_type_to_parameter),
                 <span class="kw-2">*</span>size <span class="kw">as </span>usize,
             ),
-            Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"ICE: Slice parameters cannot be derived from type information"</span>)
+            Type::Vector(<span class="kw">_</span>) =&gt; {
+                <span class="macro">panic!</span>(<span class="string">"ICE: Vector parameters cannot be derived from type information"</span>)
             }
             <span class="comment">// Treat functions as field values
             </span>Type::Function =&gt; {

@@ -1033,13 +1033,13 @@
         <span class="self">self</span>.write(ptr, MemoryValue::from(address.to_usize()));
     }
 
-    <span class="doccomment">/// Read a contiguous slice of memory starting at `address`, up to `len` slots.
+    <span class="doccomment">/// Read a contiguous vector of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
     </span><span class="kw">pub fn </span>read_slice(<span class="kw-2">&amp;</span><span class="self">self</span>, address: MemoryAddress, len: usize) -&gt; <span class="kw-2">&amp;</span>[MemoryValue&lt;F&gt;] {
-        <span class="comment">// Allows to read a slice of uninitialized memory if the length is zero.
+        <span class="comment">// Allows to read a vector of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
-        // but that's not possible if we want to return a slice instead of owned data.
+        // but that's not possible if we want to return a vector instead of owned data.
         </span><span class="kw">if </span>len == <span class="number">0 </span>{
             <span class="kw">return </span><span class="kw-2">&amp;</span>[];
         }
@@ -1211,7 +1211,7 @@
 
     <span class="attr">#[test]
     #[should_panic(expected = <span class="string">"range end index 30 out of range for slice of length 0"</span>)]
-    </span><span class="kw">fn </span>read_slice_from_non_existent_memory() {
+    </span><span class="kw">fn </span>read_vector_from_non_existent_memory() {
         <span class="kw">let </span>memory = Memory::&lt;FieldElement&gt;::default();
         <span class="kw">let _ </span>= memory.read_slice(MemoryAddress::direct(<span class="number">20</span>), <span class="number">10</span>);
     }

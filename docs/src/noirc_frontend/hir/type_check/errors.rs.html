@@ -1111,8 +1111,8 @@
         <span class="string">"Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
     </span>)]
     </span>UnconstrainedReferenceToConstrained { location: Location },
-    <span class="attr">#[error(<span class="string">"Slices cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
-    </span>UnconstrainedSliceReturnToConstrained { location: Location },
+    <span class="attr">#[error(<span class="string">"Vectors cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
+    </span>UnconstrainedVectorReturnToConstrained { location: Location },
     <span class="attr">#[error(<span class="string">"Functions cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
     </span>UnconstrainedFunctionReturnToConstrained { location: Location },
     <span class="attr">#[error(
@@ -1147,7 +1147,7 @@
     </span>UnspecifiedType { location: Location },
     <span class="attr">#[error(<span class="string">"Binding `{typ}` here to the `_` inside would create a cyclic type"</span>)]
     </span>CyclicType { typ: Type, location: Location },
-    <span class="attr">#[error(<span class="string">"Type annotations required before indexing this array or slice"</span>)]
+    <span class="attr">#[error(<span class="string">"Type annotations required before indexing this array or vector"</span>)]
     </span>TypeAnnotationsNeededForIndex { location: Location },
     <span class="attr">#[error(<span class="string">"Unnecessary `unsafe` block"</span>)]
     </span>UnnecessaryUnsafeBlock { location: Location },
@@ -1245,7 +1245,7 @@
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
@@ -1438,7 +1438,7 @@
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
@@ -1524,7 +1524,7 @@
 
                         <span class="kw">return </span>diagnostic
                     },
-                    Source::ArrayIndex =&gt; <span class="macro">format!</span>(<span class="string">"Indexing arrays and slices must be done with `{expected}`, not `{actual}`"</span>),
+                    Source::ArrayIndex =&gt; <span class="macro">format!</span>(<span class="string">"Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"</span>),
                 };
 
                 Diagnostic::simple_error(message, String::new(), <span class="kw-2">*</span>location)
@@ -1563,7 +1563,7 @@
                     diagnostic.add_secondary(<span class="string">"This type has an invalid entry point type inside it"</span>.to_string(), <span class="kw-2">*</span>location);
                 }
 
-                diagnostic.add_note(<span class="string">"Note: slices, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions."</span>.to_string());
+                diagnostic.add_note(<span class="string">"Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions."</span>.to_string());
                 add_invalid_type_to_diagnostic(invalid_type, <span class="kw-2">*</span>location, <span class="kw-2">&amp;mut </span>diagnostic);
                 diagnostic
             },
@@ -1629,8 +1629,8 @@
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } =&gt; {
                 Diagnostic::simple_error(
-                    <span class="string">"Type annotations required before indexing this array or slice"</span>.into(),
-                    <span class="string">"Type annotations needed before this point, can't decide if this is an array or slice"</span>.into(),
+                    <span class="string">"Type annotations required before indexing this array or vector"</span>.into(),
+                    <span class="string">"Type annotations needed before this point, can't decide if this is an array or vector"</span>.into(),
                     <span class="kw-2">*</span>location,
                 )
             },
@@ -1703,8 +1703,8 @@
             }
             TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } =&gt; {
                 <span class="kw">let </span>message = <span class="string">"Type annotation needed"</span>.into();
-                <span class="kw">let </span>array_or_slice = <span class="kw">if </span><span class="kw-2">*</span>is_array { <span class="string">"array" </span>} <span class="kw">else </span>{ <span class="string">"slice" </span>};
-                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"Could not determine the type of the {array_or_slice}"</span>);
+                <span class="kw">let </span>array_or_vector = <span class="kw">if </span><span class="kw-2">*</span>is_array { <span class="string">"array" </span>} <span class="kw">else </span>{ <span class="string">"vector" </span>};
+                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"Could not determine the type of the {array_or_vector}"</span>);
                 Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
             }
         }
@@ -1772,9 +1772,9 @@
                     location,
                 );
             }
-            Type::Slice(..) =&gt; {
+            Type::Vector(..) =&gt; {
                 diagnostic.add_secondary(
-                    <span class="macro">format!</span>(<span class="string">"Slice is not a valid entry point type. Found: {typ}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"Vector is not a valid entry point type. Found: {typ}"</span>),
                     location,
                 );
             }

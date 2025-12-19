@@ -953,7 +953,12 @@
 <a href="#952" id="952">952</a>
 <a href="#953" id="953">953</a>
 <a href="#954" id="954">954</a>
-<a href="#955" id="955">955</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -979,8 +984,8 @@
 /// that value is returned. Otherwise None is returned.
 ///
 /// The `block` parameter indicates the block any new instructions that are part of a call's
-/// simplification will be inserted into. For example, all slice intrinsics require updates
-/// to the slice length, which requires inserting a binary instruction. This update instruction
+/// simplification will be inserted into. For example, all vector intrinsics require updates
+/// to the vector length, which requires inserting a binary instruction. This update instruction
 /// must be inserted into the same block that the call itself is being simplified into.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>simplify_call(
     func: ValueId,
@@ -1052,186 +1057,191 @@
                     dfg.make_constant(FieldElement::from(length), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}) =&gt; {
-                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(arguments[<span class="number">1</span>]), Type::Slice(<span class="kw">_</span>)));
+                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(arguments[<span class="number">1</span>]), Type::Vector(<span class="kw">_</span>)));
                     arguments[<span class="number">0</span>]
                 }
-                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"First argument to ArrayLen must be an array or a slice length"</span>),
+                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"First argument to ArrayLen must be an array or a vector length"</span>),
             };
             SimplifyResult::SimplifiedTo(length)
         }
         <span class="comment">// Strings are already arrays of bytes in SSA
         </span>Intrinsic::ArrayAsStrUnchecked =&gt; SimplifyResult::SimplifiedTo(arguments[<span class="number">0</span>]),
-        Intrinsic::AsSlice =&gt; {
+        Intrinsic::AsVector =&gt; {
             <span class="kw">let </span>array = dfg.get_array_constant(arguments[<span class="number">0</span>]);
             <span class="kw">if let </span><span class="prelude-val">Some</span>((array, array_type)) = array {
-                <span class="comment">// Compute the resulting slice length
+                <span class="comment">// Compute the resulting vector length
                 </span><span class="kw">let </span>inner_element_types = array_type.element_types();
-                <span class="kw">let </span>slice_length_value = dfg.try_get_slice_capacity(arguments[<span class="number">0</span>]).unwrap();
-                <span class="kw">let </span>slice_length =
-                    dfg.make_constant(slice_length_value.into(), NumericType::length_type());
-                <span class="kw">let </span>new_slice =
-                    make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[slice_length, new_slice])
+                <span class="kw">let </span>vector_length_value = dfg.try_get_vector_capacity(arguments[<span class="number">0</span>]).unwrap();
+                <span class="kw">let </span>vector_length =
+                    dfg.make_constant(vector_length_value.into(), NumericType::length_type());
+                <span class="kw">let </span>new_vector =
+                    make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
+                SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[vector_length, new_vector])
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePushBack =&gt; {
-            <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>slice, element_type)) = slice {
-                <span class="comment">// TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
-                // This is reliant on dynamic indices of non-homogenous slices also being implemented.
+        Intrinsic::VectorPushBack =&gt; {
+            <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, element_type)) = vector {
+                <span class="comment">// TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
+                // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
                 </span><span class="kw">if </span>element_type.element_size() != <span class="number">1 </span>{
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(IntegerConstant::Unsigned { value: slice_len, .. }) =
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(IntegerConstant::Unsigned { value: vector_len, .. }) =
                         dfg.get_integer_constant(arguments[<span class="number">0</span>])
                     {
-                        <span class="comment">// This simplification, which push back directly on the slice, only works if the real slice_len is the
-                        // the length of the slice.
-                        </span><span class="kw">if </span>slice_len <span class="kw">as </span>usize == slice.len() {
-                            <span class="comment">// Old code before implementing multiple slice mergers
+                        <span class="comment">// This simplification, which push back directly on the vector, only works if the real vector_len is the
+                        // the length of the vector.
+                        </span><span class="kw">if </span>vector_len <span class="kw">as </span>usize == vector.len() {
+                            <span class="comment">// Old code before implementing multiple vector mergers
                             </span><span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..] {
-                                slice.push_back(<span class="kw-2">*</span>elem);
+                                vector.push_back(<span class="kw-2">*</span>elem);
                             }
 
-                            <span class="kw">let </span>new_slice_length =
-                                increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+                            <span class="kw">let </span>new_vector_length =
+                                increment_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
-                            <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
+                            <span class="kw">let </span>new_vector =
+                                make_array(dfg, vector, element_type, block, call_stack);
                             <span class="kw">return </span>SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[
-                                new_slice_length,
-                                new_slice,
+                                new_vector_length,
+                                new_vector,
                             ]);
                         }
                     }
                     <span class="kw">return </span>SimplifyResult::None;
                 }
 
-                simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
+                simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePushFront =&gt; {
-            <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>slice, element_type)) = slice {
+        Intrinsic::VectorPushFront =&gt; {
+            <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, element_type)) = vector {
                 <span class="kw">for </span>elem <span class="kw">in </span>arguments[<span class="number">2</span>..].iter().rev() {
-                    slice.push_front(<span class="kw-2">*</span>elem);
+                    vector.push_front(<span class="kw-2">*</span>elem);
                 }
 
-                <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+                <span class="kw">let </span>new_vector_length =
+                    increment_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
-                <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice])
+                <span class="kw">let </span>new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_vector_length, new_vector])
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePopBack =&gt; {
+        Intrinsic::VectorPopBack =&gt; {
             <span class="kw">let </span>length = dfg.get_numeric_constant(arguments[<span class="number">0</span>]);
             <span class="kw">if </span>length.is_none_or(|length| length.is_zero()) {
-                <span class="comment">// If the length is zero then we're trying to pop the last element from an empty slice.
+                <span class="comment">// If the length is zero then we're trying to pop the last element from an empty vector.
                 // Defer the error to acir_gen.
                 </span><span class="kw">return </span>SimplifyResult::None;
             }
 
-            <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>((slice, typ)) = slice {
-                simplify_slice_pop_back(slice, typ, arguments, dfg, block, call_stack)
+            <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((vector, typ)) = vector {
+                simplify_vector_pop_back(vector, typ, arguments, dfg, block, call_stack)
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePopFront =&gt; {
+        Intrinsic::VectorPopFront =&gt; {
             <span class="kw">let </span>length = dfg.get_numeric_constant(arguments[<span class="number">0</span>]);
             <span class="kw">if </span>length.is_none_or(|length| length.is_zero()) {
-                <span class="comment">// If the length is zero then we're trying to pop the first element from an empty slice.
+                <span class="comment">// If the length is zero then we're trying to pop the first element from an empty vector.
                 // Defer the error to acir_gen.
                 </span><span class="kw">return </span>SimplifyResult::None;
             }
 
-            <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>slice, typ)) = slice {
+            <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, typ)) = vector {
                 <span class="kw">let </span>element_count = typ.element_size();
 
-                <span class="comment">// We must pop multiple elements in the case of a slice of tuples
+                <span class="comment">// We must pop multiple elements in the case of a vector of tuples
                 </span><span class="kw">let </span><span class="kw-2">mut </span>results = vecmap(<span class="number">0</span>..element_count, |<span class="kw">_</span>| {
-                    slice.pop_front().expect(<span class="string">"There are no elements in this slice to be removed"</span>)
+                    vector.pop_front().expect(<span class="string">"There are no elements in this vector to be removed"</span>)
                 });
 
-                <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+                <span class="kw">let </span>new_vector_length =
+                    decrement_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
-                results.push(new_slice_length);
+                results.push(new_vector_length);
 
-                <span class="kw">let </span>new_slice = make_array(dfg, slice, typ, block, call_stack);
+                <span class="kw">let </span>new_vector = make_array(dfg, vector, typ, block, call_stack);
 
-                <span class="comment">// The slice is the last item returned for pop_front
-                </span>results.push(new_slice);
+                <span class="comment">// The vector is the last item returned for pop_front
+                </span>results.push(new_vector);
                 SimplifyResult::SimplifiedToMultiple(results)
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
         }
-        Intrinsic::SliceInsert =&gt; {
-            <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
+        Intrinsic::VectorInsert =&gt; {
+            <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
             <span class="kw">let </span>index = dfg.get_numeric_constant(arguments[<span class="number">2</span>]);
-            <span class="kw">if let </span>(<span class="prelude-val">Some</span>((<span class="kw-2">mut </span>slice, typ)), <span class="prelude-val">Some</span>(index)) = (slice, index) {
+            <span class="kw">if let </span>(<span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, typ)), <span class="prelude-val">Some</span>(index)) = (vector, index) {
                 <span class="kw">let </span>elements = <span class="kw-2">&amp;</span>arguments[<span class="number">3</span>..];
                 <span class="kw">let </span><span class="kw-2">mut </span>index = index.to_u128() <span class="kw">as </span>usize * elements.len();
 
-                <span class="comment">// Do not simplify the index is greater than the slice capacity
+                <span class="comment">// Do not simplify the index is greater than the vector capacity
                 // or else we will panic inside of the im::Vector insert method
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
-                </span><span class="kw">if </span>index &gt; slice.len() {
+                </span><span class="kw">if </span>index &gt; vector.len() {
                     <span class="kw">return </span>SimplifyResult::None;
                 }
 
                 <span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">3</span>..] {
-                    slice.insert(index, <span class="kw-2">*</span>elem);
+                    vector.insert(index, <span class="kw-2">*</span>elem);
                     index += <span class="number">1</span>;
                 }
 
-                <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+                <span class="kw">let </span>new_vector_length =
+                    increment_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
-                <span class="kw">let </span>new_slice = make_array(dfg, slice, typ, block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice])
+                <span class="kw">let </span>new_vector = make_array(dfg, vector, typ, block, call_stack);
+                SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_vector_length, new_vector])
             } <span class="kw">else </span>{
                 SimplifyResult::None
             }
         }
-        Intrinsic::SliceRemove =&gt; {
+        Intrinsic::VectorRemove =&gt; {
             <span class="kw">let </span>length = dfg.get_numeric_constant(arguments[<span class="number">0</span>]);
             <span class="kw">if </span>length.is_none_or(|length| length.is_zero()) {
-                <span class="comment">// If the length is zero then we're trying to remove an element from an empty slice.
+                <span class="comment">// If the length is zero then we're trying to remove an element from an empty vector.
                 // Defer the error to acir_gen.
                 </span><span class="kw">return </span>SimplifyResult::None;
             }
 
-            <span class="kw">let </span>slice = dfg.get_array_constant(arguments[<span class="number">1</span>]);
+            <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
             <span class="kw">let </span>index = dfg.get_numeric_constant(arguments[<span class="number">2</span>]);
-            <span class="kw">if let </span>(<span class="prelude-val">Some</span>((<span class="kw-2">mut </span>slice, typ)), <span class="prelude-val">Some</span>(index)) = (slice, index) {
+            <span class="kw">if let </span>(<span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, typ)), <span class="prelude-val">Some</span>(index)) = (vector, index) {
                 <span class="kw">let </span>element_count = typ.element_size();
                 <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(element_count + <span class="number">1</span>);
                 <span class="kw">let </span>index = index.to_u128() <span class="kw">as </span>usize * element_count;
 
-                <span class="comment">// Do not simplify if the index is not less than the slice capacity
+                <span class="comment">// Do not simplify if the index is not less than the vector capacity
                 // or else we will panic inside of the im::Vector remove method.
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to remove at too large of an index.
-                </span><span class="kw">if </span>index &gt;= slice.len() {
+                </span><span class="kw">if </span>index &gt;= vector.len() {
                     <span class="kw">return </span>SimplifyResult::None;
                 }
 
                 <span class="kw">for _ in </span><span class="number">0</span>..element_count {
-                    results.push(slice.remove(index));
+                    results.push(vector.remove(index));
                 }
 
-                <span class="kw">let </span>new_slice = make_array(dfg, slice, typ, block, call_stack);
-                results.insert(<span class="number">0</span>, new_slice);
+                <span class="kw">let </span>new_vector = make_array(dfg, vector, typ, block, call_stack);
+                results.insert(<span class="number">0</span>, new_vector);
 
-                <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+                <span class="kw">let </span>new_vector_length =
+                    decrement_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
-                results.insert(<span class="number">0</span>, new_slice_length);
+                results.insert(<span class="number">0</span>, new_vector_length);
 
                 SimplifyResult::SimplifiedToMultiple(results)
             } <span class="kw">else </span>{
@@ -1310,7 +1320,7 @@
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
+        Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount =&gt; {
             <span class="kw">if </span>dfg.runtime.is_acir() {
                 <span class="comment">// In ACIR, ref counts are not tracked so we always simplify them to zero.
                 </span><span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), NumericType::unsigned(<span class="number">32</span>));
@@ -1334,7 +1344,7 @@
     simplified_result
 }
 
-<span class="doccomment">/// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
+<span class="doccomment">/// Returns a vector (represented by a tuple (len, vector)) of constants corresponding to the limbs of the radix decomposition.
 </span><span class="kw">fn </span>simplify_constant_to_radix(
     endian: Endian,
     field: FieldElement,
@@ -1407,54 +1417,54 @@
     dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first()
 }
 
-<span class="doccomment">/// Slices have a tuple structure (slice length, slice contents) to enable logic
-/// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
-/// This method codegens an update to the slice length.
+<span class="doccomment">/// Vectors have a tuple structure (vector length, vector contents) to enable logic
+/// that uses dynamic vector lengths (such as with merging vectors in the flattening pass).
+/// This method codegens an update to the vector length.
 ///
-/// The binary operation performed on the slice length is always an addition or subtraction of `1`.
-/// This is because the slice length holds the user length (length as displayed by a `.len()` call),
+/// The binary operation performed on the vector length is always an addition or subtraction of `1`.
+/// This is because the vector length holds the user length (length as displayed by a `.len()` call),
 /// and not a flattened length used internally to represent arrays of tuples.
-</span><span class="kw">fn </span>update_slice_length(
-    slice_len: ValueId,
+</span><span class="kw">fn </span>update_vector_length(
+    vector_len: ValueId,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; ValueId {
     <span class="kw">let </span>one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
-    <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
+    <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs: vector_len, operator, rhs: one });
     dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first()
 }
 
-<span class="kw">fn </span>increment_slice_length(
-    slice_len: ValueId,
+<span class="kw">fn </span>increment_vector_length(
+    vector_len: ValueId,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; ValueId {
-    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, block, call_stack)
+    update_vector_length(vector_len, dfg, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, block, call_stack)
 }
 
-<span class="kw">fn </span>decrement_slice_length(
-    slice_len: ValueId,
+<span class="kw">fn </span>decrement_vector_length(
+    vector_len: ValueId,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; ValueId {
     <span class="comment">// Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
-    </span>update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}, block, call_stack)
+    </span>update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}, block, call_stack)
 }
 
-<span class="kw">fn </span>simplify_slice_push_back(
-    <span class="kw-2">mut </span>slice: im::Vector&lt;ValueId&gt;,
+<span class="kw">fn </span>simplify_vector_push_back(
+    <span class="kw-2">mut </span>vector: im::Vector&lt;ValueId&gt;,
     element_type: Type,
     arguments: <span class="kw-2">&amp;</span>[ValueId],
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; SimplifyResult {
-    <span class="comment">// The capacity must be an integer so that we can compare it against the slice length
-    </span><span class="kw">let </span>capacity = dfg.make_constant((slice.len() <span class="kw">as </span>u128).into(), NumericType::length_type());
+    <span class="comment">// The capacity must be an integer so that we can compare it against the vector length
+    </span><span class="kw">let </span>capacity = dfg.make_constant((vector.len() <span class="kw">as </span>u128).into(), NumericType::length_type());
     <span class="kw">let </span>len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[<span class="number">0</span>], operator: BinaryOp::Eq, rhs: capacity });
     <span class="kw">let </span>len_equals_capacity = dfg
@@ -1465,74 +1475,74 @@
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, <span class="prelude-val">None</span>, call_stack)
         .first();
 
-    <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+    <span class="kw">let </span>new_vector_length = increment_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
     <span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..] {
-        slice.push_back(<span class="kw-2">*</span>elem);
+        vector.push_back(<span class="kw-2">*</span>elem);
     }
-    <span class="kw">let </span>slice_size = slice.len() <span class="kw">as </span>u32;
+    <span class="kw">let </span>vector_size = vector.len() <span class="kw">as </span>u32;
     <span class="kw">let </span>element_size = element_type.element_size() <span class="kw">as </span>u32;
-    <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
+    <span class="kw">let </span>new_vector = make_array(dfg, vector, element_type, block, call_stack);
 
-    <span class="kw">let </span>set_last_slice_value_instr = Instruction::ArraySet {
-        array: new_slice,
+    <span class="kw">let </span>set_last_vector_value_instr = Instruction::ArraySet {
+        array: new_vector,
         index: arguments[<span class="number">0</span>],
         value: arguments[<span class="number">2</span>],
         mutable: <span class="bool-val">false</span>,
     };
 
-    <span class="kw">let </span>set_last_slice_value = dfg
-        .insert_instruction_and_results(set_last_slice_value_instr, block, <span class="prelude-val">None</span>, call_stack)
+    <span class="kw">let </span>set_last_vector_value = dfg
+        .insert_instruction_and_results(set_last_vector_value_instr, block, <span class="prelude-val">None</span>, call_stack)
         .first();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>slice_sizes = HashMap::default();
-    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
-    slice_sizes.insert(new_slice, slice_size / element_size);
+    <span class="kw">let </span><span class="kw-2">mut </span>vector_sizes = HashMap::default();
+    vector_sizes.insert(set_last_vector_value, vector_size / element_size);
+    vector_sizes.insert(new_vector, vector_size / element_size);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>value_merger = ValueMerger::new(dfg, block, <span class="kw-2">&amp;</span>slice_sizes, call_stack);
+    <span class="kw">let </span><span class="kw-2">mut </span>value_merger = ValueMerger::new(dfg, block, <span class="kw-2">&amp;</span>vector_sizes, call_stack);
 
-    <span class="kw">let </span><span class="prelude-val">Ok</span>(new_slice) = value_merger.merge_values(
+    <span class="kw">let </span><span class="prelude-val">Ok</span>(new_vector) = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
-        set_last_slice_value,
-        new_slice,
+        set_last_vector_value,
+        new_vector,
     ) <span class="kw">else </span>{
         <span class="comment">// If we were to percolate up the error here, it'd get to insert_instruction and eventually
-        // all of ssa. Instead we just choose not to simplify the slice call since this should
+        // all of ssa. Instead we just choose not to simplify the vector call since this should
         // be a rare case.
         </span><span class="kw">return </span>SimplifyResult::None;
     };
 
-    SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice])
+    SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_vector_length, new_vector])
 }
 
-<span class="kw">fn </span>simplify_slice_pop_back(
-    <span class="kw-2">mut </span>slice: im::Vector&lt;ValueId&gt;,
-    slice_type: Type,
+<span class="kw">fn </span>simplify_vector_pop_back(
+    <span class="kw-2">mut </span>vector: im::Vector&lt;ValueId&gt;,
+    vector_type: Type,
     arguments: <span class="kw-2">&amp;</span>[ValueId],
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; SimplifyResult {
-    <span class="kw">let </span>element_types = slice_type.element_types();
+    <span class="kw">let </span>element_types = vector_type.element_types();
     <span class="kw">let </span>element_count = element_types.len();
     <span class="kw">let </span><span class="kw-2">mut </span>results = VecDeque::with_capacity(element_count + <span class="number">1</span>);
 
-    <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+    <span class="kw">let </span>new_vector_length = decrement_vector_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
     <span class="kw">let </span>element_size =
         dfg.make_constant((element_count <span class="kw">as </span>u128).into(), NumericType::length_type());
     <span class="comment">// Compute the flattened length doing an unchecked mul
-    // (it shouldn't overflow because it would have overflowed before when the slice was created)
+    // (it shouldn't overflow because it would have overflowed before when the vector was created)
     </span><span class="kw">let </span>flattened_len_instr =
         Instruction::binary(BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, arguments[<span class="number">0</span>], element_size);
     <span class="kw">let </span><span class="kw-2">mut </span>flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, <span class="prelude-val">None</span>, call_stack).first();
 
-    <span class="comment">// We must pop multiple elements in the case of a slice of tuples
+    <span class="comment">// We must pop multiple elements in the case of a vector of tuples
     // Iterating through element types in reverse here since we're popping from the end
     </span><span class="kw">for </span>element_type <span class="kw">in </span>element_types.iter().rev() {
-        flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
+        flattened_len = decrement_vector_length(flattened_len, dfg, block, call_stack);
         <span class="kw">let </span>get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[<span class="number">1</span>], index: flattened_len };
 
@@ -1541,13 +1551,13 @@
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
-        slice.pop_back();
+        vector.pop_back();
     }
 
-    <span class="kw">let </span>new_slice = make_array(dfg, slice, slice_type, block, call_stack);
-    results.push_front(new_slice);
+    <span class="kw">let </span>new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+    results.push_front(new_vector);
 
-    results.push_front(new_slice_length);
+    results.push_front(new_vector_length);
     SimplifyResult::SimplifiedToMultiple(results.into())
 }
 
@@ -1797,11 +1807,11 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>simplifies_slice_refcount_in_acir_to_zero() {
+    </span><span class="kw">fn </span>simplifies_vector_refcount_in_acir_to_zero() {
         <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) fn main func {
           b0(v0: [Field]):
-            v1 = call slice_refcount(u32 3, v0) -&gt; u32
+            v1 = call vector_refcount(u32 3, v0) -&gt; u32
             return v1
         }
         "#</span>;
@@ -1816,11 +1826,11 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>does_not_simplify_slice_refcount_in_brillig() {
+    </span><span class="kw">fn </span>does_not_simplify_vector_refcount_in_brillig() {
         <span class="kw">let </span>src = <span class="string">r#"
         brillig(inline) fn main func {
           b0(v0: [Field]):
-            v1 = call slice_refcount(u32 3, v0) -&gt; u32
+            v1 = call vector_refcount(u32 3, v0) -&gt; u32
             return v1
         }
         "#</span>;
@@ -1829,7 +1839,7 @@
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
-            v3 = call slice_refcount(u32 3, v0) -&gt; u32
+            v3 = call vector_refcount(u32 3, v0) -&gt; u32
             return v3
         }
         "</span>);
@@ -1855,7 +1865,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>simplifies_array_len_for_slice() {
+    </span><span class="kw">fn </span>simplifies_array_len_for_vector() {
         <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) fn main func {
           b0(v0: u32, v1: [Field]):
@@ -1873,7 +1883,7 @@
         "</span>);
     }
 
-    <span class="attr">#[should_panic(expected = <span class="string">"First argument to ArrayLen must be an array or a slice length"</span>)]
+    <span class="attr">#[should_panic(expected = <span class="string">"First argument to ArrayLen must be an array or a vector length"</span>)]
     #[test]
     </span><span class="kw">fn </span>panics_on_array_len_with_wrong_type() {
         <span class="kw">let </span>src = <span class="string">r#"
@@ -1887,7 +1897,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>can_handle_zero_len_slice() {
+    </span><span class="kw">fn </span>can_handle_zero_len_vector() {
         <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) fn main f0 {
           b0():

@@ -260,10 +260,10 @@
         <span class="kw">for </span>index <span class="kw">in </span>indexes.iter() {
             (cursor, cursor_type) = <span class="kw">match </span>(cursor, cursor_type) {
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableValue::Vec { array_elements, is_vector },
                     PrintableType::Array { length, typ },
                 ) =&gt; {
-                    <span class="macro">assert!</span>(!<span class="kw-2">*</span>is_slice, <span class="string">"slice has array type"</span>);
+                    <span class="macro">assert!</span>(!<span class="kw-2">*</span>is_vector, <span class="string">"vector has array type"</span>);
                     <span class="kw">if </span><span class="kw-2">*</span>index &gt;= <span class="kw-2">*</span>length {
                         <span class="macro">panic!</span>(<span class="string">"unexpected field index past array length"</span>)
                     }
@@ -273,10 +273,10 @@
                     (array_elements.get_mut(<span class="kw-2">*</span>index <span class="kw">as </span>usize).unwrap(), <span class="kw-2">&amp;*</span>Box::leak(typ.clone()))
                 }
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
-                    PrintableType::Slice { typ },
+                    PrintableValue::Vec { array_elements, is_vector },
+                    PrintableType::Vector { typ },
                 ) =&gt; {
-                    <span class="macro">assert!</span>(<span class="kw-2">*</span>is_slice, <span class="string">"slice doesn't have slice type"</span>);
+                    <span class="macro">assert!</span>(<span class="kw-2">*</span>is_vector, <span class="string">"vector doesn't have vector type"</span>);
                     (array_elements.get_mut(<span class="kw-2">*</span>index <span class="kw">as </span>usize).unwrap(), <span class="kw-2">&amp;*</span>Box::leak(typ.clone()))
                 }
                 (
@@ -290,10 +290,10 @@
                     (field_map.get_mut(key).unwrap(), typ)
                 }
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableValue::Vec { array_elements, is_vector },
                     PrintableType::Tuple { types },
                 ) =&gt; {
-                    <span class="macro">assert!</span>(!<span class="kw-2">*</span>is_slice, <span class="string">"slice has tuple type"</span>);
+                    <span class="macro">assert!</span>(!<span class="kw-2">*</span>is_vector, <span class="string">"vector has tuple type"</span>);
                     <span class="kw">if </span><span class="kw-2">*</span>index &gt;= types.len() <span class="kw">as </span>u32 {
                         <span class="macro">panic!</span>(
                             <span class="string">"unexpected field index ({index}) past tuple length ({})"</span>,

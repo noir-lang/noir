@@ -735,7 +735,7 @@
             <span class="string">"Dead Instruction Elimination"</span>,
         ),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
-        SsaPass::new(Ssa::as_slice_optimization, <span class="string">"`as_slice` optimization"</span>)
+        SsaPass::new(Ssa::as_vector_optimization, <span class="string">"`as_vector` optimization"</span>)
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,

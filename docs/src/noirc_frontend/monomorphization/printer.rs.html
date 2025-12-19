@@ -962,7 +962,7 @@
                 <span class="self">self</span>.print_comma_separated(<span class="kw-2">&amp;</span>array.contents, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }
-            Literal::Slice(array) =&gt; {
+            Literal::Vector(array) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"&amp;["</span>)<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_comma_separated(<span class="kw-2">&amp;</span>array.contents, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
@@ -1275,7 +1275,7 @@
             <span class="kw">let </span>is_unsafe = unconstrained &amp;&amp; !<span class="self">self</span>.in_unconstrained;
             <span class="kw">let </span>special = <span class="kw">match </span>definition {
                 Definition::Oracle(s) <span class="kw">if </span>s == <span class="string">"print" </span>=&gt; <span class="prelude-val">Some</span>(SpecialCall::Print),
-                Definition::Builtin(s) <span class="kw">if </span>s.starts_with(<span class="string">"array"</span>) || s.starts_with(<span class="string">"slice"</span>) =&gt; {
+                Definition::Builtin(s) <span class="kw">if </span>s.starts_with(<span class="string">"array"</span>) || s.starts_with(<span class="string">"vector"</span>) =&gt; {
                     <span class="prelude-val">Some</span>(SpecialCall::Object(name.clone()))
                 }
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,

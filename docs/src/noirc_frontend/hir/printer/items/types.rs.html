@@ -288,7 +288,7 @@
                     <span class="self">self</span>.push(<span class="string">'&gt;'</span>);
                 }
             }
-            Type::Slice(typ) =&gt; {
+            Type::Vector(typ) =&gt; {
                 <span class="kw">if </span>as_expression {
                     <span class="self">self</span>.push(<span class="string">'&lt;'</span>);
                 }
@@ -479,7 +479,7 @@
         Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; type_needs_parentheses(to),
         Type::FieldElement
         | Type::Array(..)
-        | Type::Slice(..)
+        | Type::Vector(..)
         | Type::Integer(..)
         | Type::Bool
         | Type::String(..)

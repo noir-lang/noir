@@ -1000,10 +1000,10 @@
         <span class="self">self</span>.insert_instruction(Instruction::EnableSideEffectsIf { condition }, <span class="prelude-val">None</span>);
     }
 
-    <span class="doccomment">/// Insert a `make_array` instruction to create a new array or slice.
-    /// Returns the new array value. Expects `typ` to be an array or slice type.
+    <span class="doccomment">/// Insert a `make_array` instruction to create a new array or vector.
+    /// Returns the new array value. Expects `typ` to be an array or vector type.
     </span><span class="kw">pub fn </span>insert_make_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: im::Vector&lt;ValueId&gt;, typ: Type) -&gt; ValueId {
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ, Type::Array(..) | Type::Slice(<span class="kw">_</span>)));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ, Type::Array(..) | Type::Vector(<span class="kw">_</span>)));
         <span class="self">self</span>.insert_instruction(Instruction::MakeArray { elements, typ }, <span class="prelude-val">None</span>).first()
     }
 
@@ -1118,8 +1118,8 @@
         }
         <span class="kw">match </span><span class="self">self</span>.type_of_value(value) {
             Type::Numeric(<span class="kw">_</span>) | Type::Function | Type::Reference(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-            Type::Array(..) | Type::Slice(..) =&gt; {
-                <span class="comment">// If there are nested arrays or slices, we wait until ArrayGet
+            Type::Array(..) | Type::Vector(..) =&gt; {
+                <span class="comment">// If there are nested arrays or vectors, we wait until ArrayGet
                 // is issued to increment the count of that array.
                 </span><span class="kw">if </span>increment {
                     <span class="self">self</span>.insert_inc_rc(value);
@@ -1213,11 +1213,11 @@
         <span class="kw">let </span>call_results =
             builder.insert_call(to_bits_id, <span class="macro">vec!</span>[input, length], result_types).into_owned();
 
-        <span class="kw">let </span>slice = builder.current_function.dfg.get_array_constant(call_results[<span class="number">0</span>]).unwrap().<span class="number">0</span>;
-        <span class="macro">assert_eq!</span>(slice[<span class="number">0</span>], one);
-        <span class="macro">assert_eq!</span>(slice[<span class="number">1</span>], one);
-        <span class="macro">assert_eq!</span>(slice[<span class="number">2</span>], one);
-        <span class="macro">assert_eq!</span>(slice[<span class="number">3</span>], zero);
+        <span class="kw">let </span>vector = builder.current_function.dfg.get_array_constant(call_results[<span class="number">0</span>]).unwrap().<span class="number">0</span>;
+        <span class="macro">assert_eq!</span>(vector[<span class="number">0</span>], one);
+        <span class="macro">assert_eq!</span>(vector[<span class="number">1</span>], one);
+        <span class="macro">assert_eq!</span>(vector[<span class="number">2</span>], one);
+        <span class="macro">assert_eq!</span>(vector[<span class="number">3</span>], zero);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -267,8 +267,8 @@
         <span class="string">"if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     </span>)]
     </span>DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
-    <span class="attr">#[error(<span class="string">"Tried to pop from empty slice `{slice}` in `{instruction}`"</span>)]
-    </span>PoppedFromEmptySlice { slice: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
+    <span class="attr">#[error(<span class="string">"Tried to pop from empty vector `{vector}` in `{instruction}`"</span>)]
+    </span>PoppedFromEmptyVector { vector: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
     <span class="attr">#[error(<span class="string">"Unable to convert `{field_id} = {field}` to radix {radix}"</span>)]
     </span>ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     <span class="attr">#[error(<span class="string">"Failed to solve blackbox function {name}: {reason}"</span>)]
@@ -352,10 +352,10 @@
     </span>RangeCheckToZeroBits { value_id: ValueId },
     <span class="attr">#[error(<span class="string">"`field_less_than` can only be called in unconstrained contexts"</span>)]
     </span>FieldLessThanCalledInConstrainedContext,
-    <span class="attr">#[error(<span class="string">"Slice `{slice_id} = {slice}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}"</span>, element_types.join(<span class="string">", "</span>), element_types.len())]
-    </span>NotEnoughElementsToPopSliceOfStructs {
-        slice_id: ValueId,
-        slice: String,
+    <span class="attr">#[error(<span class="string">"Vector `{vector_id} = {vector}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}"</span>, element_types.join(<span class="string">", "</span>), element_types.len())]
+    </span>NotEnoughElementsToPopVectorOfStructs {
+        vector_id: ValueId,
+        vector: String,
         actual_length: usize,
         element_types: Vec&lt;String&gt;,
     },

@@ -3237,7 +3237,8 @@
 <a href="#3236" id="3236">3236</a>
 <a href="#3237" id="3237">3237</a>
 <a href="#3238" id="3238">3238</a>
-<a href="#3239" id="3239">3239</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3239" id="3239">3239</a>
+<a href="#3240" id="3240">3240</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3282,8 +3283,8 @@
     /// is either a type variable of some kind or a Type::Constant.
     </span>Array(Box&lt;Type&gt;, Box&lt;Type&gt;),
 
-    <span class="doccomment">/// Slice(E) is a slice of elements of type E.
-    </span>Slice(Box&lt;Type&gt;),
+    <span class="doccomment">/// Vector(E) is a vector of elements of type E.
+    </span>Vector(Box&lt;Type&gt;),
 
     <span class="doccomment">/// A primitive integer type with the given sign and bit count.
     /// E.g. `u32` would be `Integer(Unsigned, ThirtyTwo)`
@@ -4292,7 +4293,7 @@
             Type::Array(len, typ) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"[{typ}; {len}]"</span>)
             }
-            Type::Slice(typ) =&gt; {
+            Type::Vector(typ) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>)
             }
             Type::Integer(sign, num_bits) =&gt; <span class="kw">match </span>sign {
@@ -4540,7 +4541,7 @@
         <span class="kw">match </span><span class="self">self</span>.follow_bindings() {
             Type::FieldElement
             | Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::Integer(..)
             | Type::Bool
             | Type::String(<span class="kw">_</span>)
@@ -4616,7 +4617,7 @@
             | Type::InfixExpr(..)
             | Type::TraitAsType(..)
             | Type::Forall(..)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Quoted(<span class="kw">_</span>)
@@ -4689,7 +4690,7 @@
             </span>Type::FieldElement
             | Type::Integer(..)
             | Type::Array(..)
-            | Type::Slice(..)
+            | Type::Vector(..)
             | Type::Bool
             | Type::String(..)
             | Type::FmtString(..)
@@ -4834,28 +4835,29 @@
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Quoted(<span class="kw">_</span>)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::InfixExpr(..)
             | Type::Error =&gt; <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main"</span>),
         }
     }
 
-    <span class="doccomment">/// Check whether this type is an array or slice, and contains a nested slice in its element type.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_nested_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="doccomment">/// Check whether this type is an array or vector, and contains a nested vector in its element type.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_nested_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Slice(elem) =&gt; elem.as_ref().contains_slice(),
-            Type::Array(<span class="kw">_</span>, elem) =&gt; elem.as_ref().contains_slice(),
+            Type::Vector(elem) =&gt; elem.as_ref().contains_vector(),
+            Type::Array(<span class="kw">_</span>, elem) =&gt; elem.as_ref().contains_vector(),
 
-            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).is_nested_slice(),
-            Type::FmtString(_size, elem) =&gt; elem.as_ref().is_nested_slice(),
+            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).is_nested_vector(),
+            Type::FmtString(_size, elem) =&gt; elem.as_ref().is_nested_vector(),
             Type::DataType(typ, generics) =&gt; {
                 <span class="kw">let </span>typ = typ.borrow();
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(generics) {
-                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.is_nested_slice()) {
+                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.is_nested_vector()) {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = typ.get_variants(generics) {
-                    <span class="kw">if </span>variants.iter().flat_map(|(<span class="kw">_</span>, args)| args).any(|typ| typ.is_nested_slice()) {
+                    <span class="kw">if </span>variants.iter().flat_map(|(<span class="kw">_</span>, args)| args).any(|typ| typ.is_nested_vector())
+                    {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 }
@@ -4863,7 +4865,7 @@
             </span>}
             Type::Tuple(types) =&gt; {
                 <span class="kw">for </span>typ <span class="kw">in </span>types {
-                    <span class="kw">if </span>typ.is_nested_slice() {
+                    <span class="kw">if </span>typ.is_nested_vector() {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 }
@@ -4872,13 +4874,13 @@
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
                 <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
-                    TypeBinding::Bound(binding) =&gt; binding.is_nested_slice(),
+                    TypeBinding::Bound(binding) =&gt; binding.is_nested_vector(),
                     TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
                 }
             }
-            Type::CheckedCast { from, to } =&gt; from.is_nested_slice() || to.is_nested_slice(),
-            Type::Reference(element, <span class="kw">_</span>) =&gt; element.is_nested_slice(),
-            Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.is_nested_slice(),
+            Type::CheckedCast { from, to } =&gt; from.is_nested_vector() || to.is_nested_vector(),
+            Type::Reference(element, <span class="kw">_</span>) =&gt; element.is_nested_vector(),
+            Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.is_nested_vector(),
 
             Type::FieldElement
             | Type::Integer(..)
@@ -4894,20 +4896,20 @@
         }
     }
 
-    <span class="doccomment">/// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="doccomment">/// Check whether this type is itself a vector, or a struct/enum/tuple/array which contains a vector.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-            Type::Array(<span class="kw">_</span>, elem) =&gt; elem.as_ref().contains_slice(),
-            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).contains_slice(),
+            Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            Type::Array(<span class="kw">_</span>, elem) =&gt; elem.as_ref().contains_vector(),
+            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).contains_vector(),
             Type::DataType(typ, generics) =&gt; {
                 <span class="kw">let </span>typ = typ.borrow();
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(generics) {
-                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.contains_slice()) {
+                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.contains_vector()) {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = typ.get_variants(generics) {
-                    <span class="kw">if </span>variants.iter().flat_map(|(<span class="kw">_</span>, args)| args).any(|typ| typ.contains_slice()) {
+                    <span class="kw">if </span>variants.iter().flat_map(|(<span class="kw">_</span>, args)| args).any(|typ| typ.contains_vector()) {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 }
@@ -4915,23 +4917,23 @@
             </span>}
             Type::Tuple(types) =&gt; {
                 <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
-                    <span class="kw">if </span>typ.contains_slice() {
+                    <span class="kw">if </span>typ.contains_vector() {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 }
                 <span class="bool-val">false
             </span>}
-            Type::FmtString(_size, elem) =&gt; elem.contains_slice(),
+            Type::FmtString(_size, elem) =&gt; elem.contains_vector(),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
                 <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
-                    TypeBinding::Bound(binding) =&gt; binding.contains_slice(),
+                    TypeBinding::Bound(binding) =&gt; binding.contains_vector(),
                     TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
                 }
             }
-            Type::CheckedCast { from, to } =&gt; from.contains_slice() || to.contains_slice(),
-            Type::Reference(element, <span class="kw">_</span>) =&gt; element.contains_slice(),
-            Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.contains_slice(),
+            Type::CheckedCast { from, to } =&gt; from.contains_vector() || to.contains_vector(),
+            Type::Reference(element, <span class="kw">_</span>) =&gt; element.contains_vector(),
+            Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.contains_vector(),
 
             Type::FieldElement
             | Type::Integer(..)
@@ -4961,7 +4963,7 @@
             | Type::Forall(..)
             | Type::Error =&gt; <span class="bool-val">false</span>,
             Type::Array(length, typ) =&gt; length.contains_reference() || typ.contains_reference(),
-            Type::Slice(typ) =&gt; typ.contains_reference(),
+            Type::Vector(typ) =&gt; typ.contains_reference(),
             Type::FmtString(length, typ) =&gt; length.contains_reference() || typ.contains_reference(),
             Type::Tuple(types) =&gt; types.iter().any(|typ| typ.contains_reference()),
             Type::DataType(typ, generics) =&gt; {
@@ -5014,7 +5016,7 @@
 
             Type::Reference(typ, <span class="kw">_</span>) =&gt; typ.contains_function(),
             Type::Array(length, typ) =&gt; length.contains_function() || typ.contains_function(),
-            Type::Slice(typ) =&gt; typ.contains_function(),
+            Type::Vector(typ) =&gt; typ.contains_function(),
             Type::FmtString(length, typ) =&gt; length.contains_function() || typ.contains_function(),
             Type::Tuple(types) =&gt; types.iter().any(|typ| typ.contains_function()),
             Type::DataType(typ, generics) =&gt; {
@@ -5057,7 +5059,7 @@
             Type::Array(length, typ) =&gt; {
                 length.contains_type_variable() || typ.contains_type_variable()
             }
-            Type::Slice(typ) =&gt; typ.contains_type_variable(),
+            Type::Vector(typ) =&gt; typ.contains_type_variable(),
             Type::String(length) =&gt; length.contains_type_variable(),
             Type::FmtString(length, typ) =&gt; {
                 length.contains_type_variable() || typ.contains_type_variable()
@@ -5532,9 +5534,9 @@
                 <span class="kw">let </span>element = element.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::Array(Box::new(size), Box::new(element))
             }
-            Type::Slice(element) =&gt; {
+            Type::Vector(element) =&gt; {
                 <span class="kw">let </span>element = element.substitute_helper(type_bindings, substitute_bound_typevars);
-                Type::Slice(Box::new(element))
+                Type::Vector(Box::new(element))
             }
             Type::String(size) =&gt; {
                 <span class="kw">let </span>size = size.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -5626,7 +5628,7 @@
     </span><span class="kw">pub fn </span>occurs(<span class="kw-2">&amp;</span><span class="self">self</span>, target_id: TypeVariableId) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Array(len, elem) =&gt; len.occurs(target_id) || elem.occurs(target_id),
-            Type::Slice(elem) =&gt; elem.occurs(target_id),
+            Type::Vector(elem) =&gt; elem.occurs(target_id),
             Type::String(len) =&gt; len.occurs(target_id),
             Type::FmtString(len, fields) =&gt; {
                 <span class="kw">let </span>len_occurs = len.occurs(target_id);
@@ -5683,7 +5685,7 @@
             Array(size, elem) =&gt; {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
-            Slice(elem) =&gt; Slice(Box::new(elem.follow_bindings())),
+            Vector(elem) =&gt; Vector(Box::new(elem.follow_bindings())),
             String(size) =&gt; String(Box::new(size.follow_bindings())),
             FmtString(size, args) =&gt; {
                 <span class="kw">let </span>size = Box::new(size.follow_bindings());
@@ -5783,7 +5785,7 @@
                 elem.replace_named_generics_with_type_variables();
             }
 
-            Type::Slice(elem) =&gt; elem.replace_named_generics_with_type_variables(),
+            Type::Vector(elem) =&gt; elem.replace_named_generics_with_type_variables(),
             Type::String(len) =&gt; len.replace_named_generics_with_type_variables(),
             Type::FmtString(len, captures) =&gt; {
                 len.replace_named_generics_with_type_variables();
@@ -5852,9 +5854,9 @@
         }
     }
 
-    <span class="kw">pub fn </span>slice_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
+    <span class="kw">pub fn </span>vector_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Slice(element) =&gt; <span class="prelude-val">Some</span>(element),
+            Type::Vector(element) =&gt; <span class="prelude-val">Some</span>(element),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -5892,7 +5894,7 @@
             Type::Constant(<span class="kw">_</span>, kind) =&gt; kind.integral_maximum_size(),
 
             Type::Array(..)
-            | Type::Slice(..)
+            | Type::Vector(..)
             | Type::String(..)
             | Type::FmtString(..)
             | Type::Unit
@@ -5956,7 +5958,7 @@
             ),
             Type::FieldElement
             | Type::Array(..)
-            | Type::Slice(..)
+            | Type::Vector(..)
             | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
@@ -6109,9 +6111,9 @@
                 <span class="kw">let </span>typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
-            Type::Slice(typ) =&gt; {
+            Type::Vector(typ) =&gt; {
                 <span class="kw">let </span>typ = typ.as_ref();
-                PrintableType::Slice { typ: Box::new(typ.into()) }
+                PrintableType::Vector { typ: Box::new(typ.into()) }
             }
             Type::Integer(sign, bit_width) =&gt; <span class="kw">match </span>sign {
                 Signedness::Unsigned =&gt; {
@@ -6195,7 +6197,7 @@
             Type::Array(len, typ) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"[{typ:?}; {len:?}]"</span>)
             }
-            Type::Slice(typ) =&gt; {
+            Type::Vector(typ) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"[{typ:?}]"</span>)
             }
             Type::Integer(sign, num_bits) =&gt; <span class="kw">match </span>sign {
@@ -6331,7 +6333,7 @@
                 len.hash(state);
                 elem.hash(state);
             }
-            Type::Slice(elem) =&gt; elem.hash(state),
+            Type::Vector(elem) =&gt; elem.hash(state),
             Type::Integer(sign, bits) =&gt; {
                 sign.hash(state);
                 bits.hash(state);
@@ -6416,7 +6418,7 @@
             (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) =&gt; {
                 lhs_len == rhs_len &amp;&amp; lhs_elem == rhs_elem
             }
-            (Slice(lhs_elem), Slice(rhs_elem)) =&gt; lhs_elem == rhs_elem,
+            (Vector(lhs_elem), Vector(rhs_elem)) =&gt; lhs_elem == rhs_elem,
             (Integer(lhs_sign, lhs_bits), Integer(rhs_sign, rhs_bits)) =&gt; {
                 lhs_sign == rhs_sign &amp;&amp; lhs_bits == rhs_bits
             }

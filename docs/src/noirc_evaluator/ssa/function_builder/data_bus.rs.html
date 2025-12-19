@@ -479,7 +479,7 @@
                         }
                         <span class="kw">let </span>element = <span class="self">self</span>.insert_array_get(value, index_var, subitem_typ.clone());
                         index += <span class="kw">match </span>subitem_typ {
-                            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; subitem_typ.element_size(),
+                            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>) =&gt; subitem_typ.element_size(),
                             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
                             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Unsupported type for databus"</span>),
                         };
@@ -490,7 +490,7 @@
             Type::Reference(<span class="kw">_</span>) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Attempted to add invalid type (reference) to databus"</span>)
             }
-            Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Attempted to add invalid type (slice) to databus"</span>),
+            Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Attempted to add invalid type (vector) to databus"</span>),
             Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"Attempted to add invalid type (function) to databus"</span>),
         }
     }

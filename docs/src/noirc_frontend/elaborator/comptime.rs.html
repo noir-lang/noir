@@ -1234,13 +1234,13 @@
     /// Attribute functions have a special calling convention:
     /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
     /// - Remaining parameters are provided explicitly in the attribute syntax
-    /// - If the function has `#[varargs]`, extra arguments are collected into a slice
+    /// - If the function has `#[varargs]`, extra arguments are collected into a vector
     ///
     /// This function:
     /// 1. Validates the first parameter matches the item type
     /// 2. Elaborates and type-checks each argument expression
     /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
-    /// 4. Collects varargs into a slice if applicable
+    /// 4. Collects varargs into a vector if applicable
     </span><span class="kw">fn </span>handle_attribute_arguments(
         interpreter: <span class="kw-2">&amp;mut </span>Interpreter,
         item: <span class="kw-2">&amp;</span>Value,
@@ -1277,13 +1277,13 @@
         // in `arguments` at this point.
         </span>parameters.remove(<span class="number">0</span>);
 
-        <span class="comment">// If the function is varargs, push the type of the last slice element N times
+        <span class="comment">// If the function is varargs, push the type of the last vector element N times
         // to account for N extra arguments.
         </span><span class="kw">let </span>modifiers = interpreter.elaborator.interner.function_modifiers(<span class="kw-2">&amp;</span>function);
         <span class="kw">let </span>is_varargs = modifiers.attributes.has_varargs();
         <span class="kw">let </span>varargs_type = <span class="kw">if </span>is_varargs { parameters.pop() } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 
-        <span class="kw">let </span>varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
+        <span class="kw">let </span>varargs_elem_type = varargs_type.as_ref().and_then(|t| t.vector_element_type());
 
         <span class="kw">let </span><span class="kw-2">mut </span>new_arguments = Vec::with_capacity(arguments.len());
         <span class="kw">let </span><span class="kw-2">mut </span>varargs = im::Vector::new();
@@ -1340,7 +1340,7 @@
 
         <span class="kw">if </span>is_varargs {
             <span class="kw">let </span>typ = varargs_type.unwrap_or(Type::Error);
-            new_arguments.push((Value::Slice(varargs, typ), location));
+            new_arguments.push((Value::Vector(varargs, typ), location));
         }
 
         <span class="prelude-val">Ok</span>(new_arguments)

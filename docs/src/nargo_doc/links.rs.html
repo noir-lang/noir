@@ -773,7 +773,7 @@
                         <span class="kw">return </span><span class="prelude-val">Some</span>(LinkTarget::PrimitiveType(primitive_type));
                     };
 
-                    <span class="comment">// Array and Slice need special handling because they are composite types
+                    <span class="comment">// Array and Vector need special handling because they are composite types
                     // that aren't named like they are in the docs.
                     </span><span class="kw">match </span>primitive_type {
                         PrimitiveTypeKind::Array =&gt; {
@@ -788,9 +788,9 @@
                                 interner,
                             );
                         }
-                        PrimitiveTypeKind::Slice =&gt; {
+                        PrimitiveTypeKind::Vector =&gt; {
                             <span class="kw">let </span>typ =
-                                noirc_frontend::Type::Slice(Box::new(noirc_frontend::Type::Error));
+                                noirc_frontend::Type::Vector(Box::new(noirc_frontend::Type::Error));
                             <span class="kw">return </span>primitive_type_method_link_target(
                                 primitive_type,
                                 <span class="kw-2">&amp;</span>typ,

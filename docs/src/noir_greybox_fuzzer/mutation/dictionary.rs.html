@@ -426,7 +426,7 @@
     }
 
     <span class="doccomment">/// Update the dictionary with values from a vector of field elements
-    </span><span class="kw">pub fn </span>update_from_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: <span class="kw-2">&amp;</span>[FieldElement]) {
+    </span><span class="kw">pub fn </span>update_from_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: <span class="kw-2">&amp;</span>[FieldElement]) {
         <span class="kw">let </span><span class="kw-2">mut </span>testcase_full_dictionary: HashSet&lt;<span class="kw">_</span>&gt; =
             <span class="self">self</span>.field_dictionary.iter().copied().collect();
         testcase_full_dictionary.extend(elements.iter().copied());

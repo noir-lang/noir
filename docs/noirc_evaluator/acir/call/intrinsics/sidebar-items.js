@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["slice_ops"]};
+window.SIDEBAR_ITEMS = {"mod":["vector_ops"]};

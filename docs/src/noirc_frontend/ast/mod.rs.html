@@ -724,7 +724,7 @@
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub enum </span>UnresolvedTypeData {
     Array(UnresolvedTypeExpression, Box&lt;UnresolvedType&gt;), <span class="comment">// [Field; 4] = Array(4, Field)
-    </span>Slice(Box&lt;UnresolvedType&gt;),
+    </span>Vector(Box&lt;UnresolvedType&gt;),
     Expression(UnresolvedTypeExpression),
     Unit,
 
@@ -866,7 +866,7 @@
         <span class="kw">use </span>UnresolvedTypeData::<span class="kw-2">*</span>;
         <span class="kw">match </span><span class="self">self </span>{
             Array(len, typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}; {len}]"</span>),
-            Slice(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>),
+            Vector(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>),
             Named(s, args, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{s}{args}"</span>),
             TraitAsType(s, args) =&gt; <span class="macro">write!</span>(f, <span class="string">"impl {s}{args}"</span>),
             Tuple(elements) =&gt; {

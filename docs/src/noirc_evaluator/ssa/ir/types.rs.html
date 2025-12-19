@@ -555,8 +555,8 @@
     <span class="doccomment">/// An immutable array value with the given element type and length
     </span>Array(Arc&lt;CompositeType&gt;, u32),
 
-    <span class="doccomment">/// An immutable slice value with a given element type
-    </span>Slice(Arc&lt;CompositeType&gt;),
+    <span class="doccomment">/// An immutable vector value with a given element type
+    </span>Vector(Arc&lt;CompositeType&gt;),
 
     <span class="doccomment">/// A function that may be called directly
     </span>Function,
@@ -633,39 +633,39 @@
         }
     }
 
-    <span class="doccomment">/// Returns the size of the element type for this array/slice.
+    <span class="doccomment">/// Returns the size of the element type for this array/vector.
     /// The size of a type is defined as representing how many Fields are needed
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
     ///
     /// Equivalent to `self.element_types().len()`.
     ///
-    /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Array(elements, <span class="kw">_</span>) | Type::Slice(elements) =&gt; elements.len(),
-            other =&gt; <span class="macro">panic!</span>(<span class="string">"element_size: Expected array or slice, found {other}"</span>),
+            Type::Array(elements, <span class="kw">_</span>) | Type::Vector(elements) =&gt; elements.len(),
+            other =&gt; <span class="macro">panic!</span>(<span class="string">"element_size: Expected array or vector, found {other}"</span>),
         }
     }
 
-    <span class="doccomment">/// Return the types of items in this array/slice.
+    <span class="doccomment">/// Return the types of items in this array/vector.
     ///
-    /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;Vec&lt;Type&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Array(element_types, <span class="kw">_</span>) | Type::Slice(element_types) =&gt; element_types.clone(),
-            other =&gt; <span class="macro">panic!</span>(<span class="string">"element_types: Expected array or slice, found {other}"</span>),
+            Type::Array(element_types, <span class="kw">_</span>) | Type::Vector(element_types) =&gt; element_types.clone(),
+            other =&gt; <span class="macro">panic!</span>(<span class="string">"element_types: Expected array or vector, found {other}"</span>),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_slice_element(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_vector_element(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Array(elements, <span class="kw">_</span>) =&gt; {
-                elements.iter().any(|element| element.contains_slice_element())
+                elements.iter().any(|element| element.contains_vector_element())
             }
-            Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-            Type::Reference(element) =&gt; element.contains_slice_element(),
+            Type::Reference(element) =&gt; element.contains_vector_element(),
             Type::Function =&gt; <span class="bool-val">false</span>,
         }
     }
@@ -680,31 +680,31 @@
             Type::Array(elements, len) =&gt; {
                 elements.iter().fold(<span class="number">0</span>, |sum, elem| sum + (elem.flattened_size() * len))
             }
-            Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="macro">unimplemented!</span>(<span class="string">"ICE: cannot fetch flattened slice size"</span>);
+            Type::Vector(<span class="kw">_</span>) =&gt; {
+                <span class="macro">unimplemented!</span>(<span class="string">"ICE: cannot fetch flattened vector size"</span>);
             }
             <span class="kw">_ </span>=&gt; <span class="number">1</span>,
         }
     }
 
-    <span class="doccomment">/// True if this type is an array (or slice)
+    <span class="doccomment">/// True if this type is an array (or vector)
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>))
+        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_nested_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">if let </span>Type::Slice(element_types) | Type::Array(element_types, <span class="kw">_</span>) = <span class="self">self </span>{
-            element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_nested_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">if let </span>Type::Vector(element_types) | Type::Array(element_types, <span class="kw">_</span>) = <span class="self">self </span>{
+            element_types.as_ref().iter().any(|typ| typ.contains_vector_element())
         } <span class="kw">else </span>{
             <span class="bool-val">false
         </span>}
     }
 
-    <span class="doccomment">/// True if this type is an array (or slice) or internally contains an array (or slice)
+    <span class="doccomment">/// True if this type is an array (or vector) or internally contains an array (or vector)
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_an_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Numeric(<span class="kw">_</span>) | Type::Function =&gt; <span class="bool-val">false</span>,
-            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
             Type::Reference(element) =&gt; element.contains_an_array(),
         }
     }
@@ -713,7 +713,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Type::Numeric(<span class="kw">_</span>) | Type::Function =&gt; <span class="self">self</span>.clone(),
             Type::Reference(typ) =&gt; typ.first(),
-            Type::Slice(element_types) | Type::Array(element_types, <span class="kw">_</span>) =&gt; element_types[<span class="number">0</span>].first(),
+            Type::Vector(element_types) | Type::Array(element_types, <span class="kw">_</span>) =&gt; element_types[<span class="number">0</span>].first(),
         }
     }
 
@@ -722,7 +722,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Type::Reference(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
             Type::Numeric(<span class="kw">_</span>) | Type::Function =&gt; <span class="bool-val">false</span>,
-            Type::Array(elements, <span class="kw">_</span>) | Type::Slice(elements) =&gt; {
+            Type::Array(elements, <span class="kw">_</span>) | Type::Vector(elements) =&gt; {
                 elements.iter().any(|elem| elem.contains_reference())
             }
         }
@@ -734,7 +734,7 @@
             Type::Reference(element_type) =&gt; element_type.contains_function(),
             Type::Function =&gt; <span class="bool-val">true</span>,
             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-            Type::Array(elements, <span class="kw">_</span>) | Type::Slice(elements) =&gt; {
+            Type::Array(elements, <span class="kw">_</span>) | Type::Vector(elements) =&gt; {
                 elements.iter().any(|elem| elem.contains_function())
             }
         }
@@ -759,7 +759,7 @@
                     <span class="macro">write!</span>(f, <span class="string">"[({}); {length}]"</span>, elements.join(<span class="string">", "</span>))
                 }
             }
-            Type::Slice(element) =&gt; {
+            Type::Vector(element) =&gt; {
                 <span class="kw">let </span>elements = vecmap(element.iter(), |element| element.to_string());
                 <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
                     <span class="macro">write!</span>(f, <span class="string">"[{}]"</span>, elements.join(<span class="string">", "</span>))

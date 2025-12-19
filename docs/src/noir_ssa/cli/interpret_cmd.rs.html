@@ -353,7 +353,7 @@
         }
         Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"refs do not appear in SSA ABI"</span>),
         Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"functions do not appear in SSA ABI"</span>),
-        Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"slices do not appear in SSA ABI"</span>),
+        Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"vectors do not appear in SSA ABI"</span>),
     }
 }
 

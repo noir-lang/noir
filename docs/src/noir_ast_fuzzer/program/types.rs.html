@@ -399,7 +399,7 @@
 </span><span class="kw">pub fn </span>type_depth(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
     <span class="kw">match </span>typ {
         Type::Field | Type::Bool | Type::String(<span class="kw">_</span>) | Type::Unit | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
-        Type::Array(<span class="kw">_</span>, typ) | Type::Slice(typ) =&gt; <span class="number">1 </span>+ type_depth(typ),
+        Type::Array(<span class="kw">_</span>, typ) | Type::Vector(typ) =&gt; <span class="number">1 </span>+ type_depth(typ),
         Type::Tuple(types) =&gt; <span class="number">1 </span>+ types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, <span class="kw">_</span>) =&gt; <span class="number">1 </span>+ type_depth(typ.as_ref()),
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected type: {typ}"</span>),
@@ -499,7 +499,7 @@
                 <span class="comment">// Maybe we can also cast to u1 or u8 etc?
                 </span>acc.insert(Type::Field);
             }
-            Type::Slice(item_type) =&gt; {
+            Type::Vector(item_type) =&gt; {
                 <span class="comment">// pop_front -&gt; (T, [T])
                 </span>acc.insert(Type::Tuple(<span class="macro">vec!</span>[item_type.as_ref().clone(), typ.clone()]));
                 <span class="comment">// pop_back -&gt; ([T], T)
@@ -546,9 +546,9 @@
     <span class="macro">matches!</span>(typ, Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>))
 }
 
-<span class="doccomment">/// Check if the type is a slice or an array.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_array_or_slice(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-    <span class="macro">matches!</span>(typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>))
+<span class="doccomment">/// Check if the type is a vector or an array.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_array_or_vector(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+    <span class="macro">matches!</span>(typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>))
 }
 
 <span class="doccomment">/// Peel off all reference types, to get to a concrete underlying type.
@@ -572,15 +572,15 @@
         | Type::Unit
         | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
         | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-        Type::Array(<span class="kw">_</span>, typ) | Type::Slice(typ) =&gt; contains_reference(typ),
+        Type::Array(<span class="kw">_</span>, typ) | Type::Vector(typ) =&gt; contains_reference(typ),
         Type::Tuple(types) =&gt; types.iter().any(contains_reference),
     }
 }
 
 <span class="doccomment">/// Check if the type contains any references.
-</span><span class="kw">pub fn </span>contains_slice(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>contains_vector(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">match </span>typ {
-        Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+        Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
         Type::Field
         | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
         | Type::Bool
@@ -588,8 +588,8 @@
         | Type::Unit
         | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
         | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-        Type::Array(<span class="kw">_</span>, typ) | Type::Reference(typ, <span class="kw">_</span>) =&gt; contains_slice(typ),
-        Type::Tuple(types) =&gt; types.iter().any(contains_slice),
+        Type::Array(<span class="kw">_</span>, typ) | Type::Reference(typ, <span class="kw">_</span>) =&gt; contains_vector(typ),
+        Type::Tuple(types) =&gt; types.iter().any(contains_vector),
     }
 }
 
@@ -598,7 +598,7 @@
     <span class="kw">match </span>typ {
         Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         Type::Field | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) | Type::String(<span class="kw">_</span>) | Type::Bool | Type::Unit =&gt; <span class="bool-val">true</span>,
-        Type::Slice(typ) | Type::Array(<span class="kw">_</span>, typ) | Type::FmtString(<span class="kw">_</span>, typ) =&gt; is_printable(typ),
+        Type::Vector(typ) | Type::Array(<span class="kw">_</span>, typ) | Type::FmtString(<span class="kw">_</span>, typ) =&gt; is_printable(typ),
         Type::Tuple(types) =&gt; types.iter().all(is_printable),
         <span class="comment">// Function signatures are printable, although they might differ when we force things to be Brillig.
         </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
@@ -746,7 +746,7 @@
         Type::String(size) =&gt; HirType::String(size_const(<span class="kw-2">*</span>size)),
         Type::Array(size, typ) =&gt; HirType::Array(size_const(<span class="kw-2">*</span>size), Box::new(to_hir_type(typ))),
         Type::Reference(typ, mutable) =&gt; HirType::Reference(Box::new(to_hir_type(typ)), <span class="kw-2">*</span>mutable),
-        Type::Slice(typ) =&gt; HirType::Slice(Box::new(to_hir_type(typ))),
+        Type::Vector(typ) =&gt; HirType::Vector(Box::new(to_hir_type(typ))),
         Type::FmtString(size, typ) =&gt; {
             HirType::FmtString(size_const(<span class="kw-2">*</span>size), Box::new(to_hir_type(typ)))
         }

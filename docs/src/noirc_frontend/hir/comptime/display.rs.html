@@ -1296,7 +1296,7 @@
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::SliceStart
+            | Token::VectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd =&gt; {
@@ -1474,7 +1474,7 @@
                 <span class="kw">let </span>values = vecmap(values, |value| value.display(<span class="self">self</span>.interner).to_string());
                 <span class="macro">write!</span>(f, <span class="string">"[{}]"</span>, values.join(<span class="string">", "</span>))
             }
-            Value::Slice(values, <span class="kw">_</span>) =&gt; {
+            Value::Vector(values, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>values = vecmap(values, |value| value.display(<span class="self">self</span>.interner).to_string());
                 <span class="macro">write!</span>(f, <span class="string">"&amp;[{}]"</span>, values.join(<span class="string">", "</span>))
             }
@@ -1784,7 +1784,7 @@
         Literal::Array(array_literal) =&gt; {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
-        Literal::Slice(array_literal) =&gt; {
+        Literal::Vector(array_literal) =&gt; {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(<span class="kw">_</span>)
@@ -1929,8 +1929,8 @@
             expr,
             Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)),
         ),
-        UnresolvedTypeData::Slice(typ) =&gt; {
-            UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)))
+        UnresolvedTypeData::Vector(typ) =&gt; {
+            UnresolvedTypeData::Vector(Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)))
         }
         UnresolvedTypeData::Parenthesized(typ) =&gt; UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ),

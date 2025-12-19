@@ -338,12 +338,12 @@
     </span>StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     <span class="attr">#[error(<span class="string">"{message}"</span>)]
     </span>StaticAssertFailed { message: String, call_stack: CallStack },
-    <span class="attr">#[error(<span class="string">"Nested slices, i.e. slices within an array or slice, are not supported"</span>)]
-    </span>NestedSlice { call_stack: CallStack },
+    <span class="attr">#[error(<span class="string">"Nested vectors, i.e. vectors within an array or vector, are not supported"</span>)]
+    </span>NestedVector { call_stack: CallStack },
     <span class="attr">#[error(<span class="string">"Big Integer modulus do no match"</span>)]
     </span>BigIntModulus { call_stack: CallStack },
-    <span class="attr">#[error(<span class="string">"Slices cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
-    </span>UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
+    <span class="attr">#[error(<span class="string">"Vectors cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
+    </span>UnconstrainedVectorReturnToConstrained { call_stack: CallStack },
     <span class="attr">#[error(
         <span class="string">"Could not resolve some references to the array. All references must be resolved at compile time"
     </span>)]
@@ -480,9 +480,9 @@
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
-            | RuntimeError::NestedSlice { call_stack, .. }
+            | RuntimeError::NestedVector { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedVectorReturnToConstrained { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }
@@ -544,7 +544,7 @@
 
                 CustomDiagnostic::simple_error(
                     primary_message,
-                    <span class="string">"If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths."</span>.to_string(),
+                    <span class="string">"If attempting to fetch the length of a vector, try converting to an array. Vectors only use dynamic lengths."</span>.to_string(),
                     location,
                 )
             }

@@ -1028,7 +1028,7 @@
                 <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
                     &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
             }
-            Type::Slice(typ) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
+            Type::Vector(typ) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
             Type::FmtString(length, typ) =&gt; {
                 <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
                     &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
@@ -1121,7 +1121,7 @@
             items,
         );
         <span class="self">self</span>.add_primitive_type(Type::Array(Box::new(Type::Error), Box::new(Type::Error)), items);
-        <span class="self">self</span>.add_primitive_type(Type::Slice(Box::new(Type::Error)), items);
+        <span class="self">self</span>.add_primitive_type(Type::Vector(Box::new(Type::Error)), items);
         <span class="kw">for </span>quoted_type <span class="kw">in </span>QuotedType::iter() {
             <span class="self">self</span>.add_primitive_type(Type::Quoted(quoted_type), items);
         }
@@ -1170,7 +1170,7 @@
             gather_named_type_vars(length, type_vars);
             gather_named_type_vars(typ, type_vars);
         }
-        Type::Slice(typ) =&gt; {
+        Type::Vector(typ) =&gt; {
             gather_named_type_vars(typ, type_vars);
         }
         Type::FmtString(length, typ) =&gt; {
@@ -1237,7 +1237,7 @@
         Type::Array(length, typ) =&gt; {
             type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
-        Type::Slice(typ) =&gt; type_mentions_data_type(typ, data_type),
+        Type::Vector(typ) =&gt; type_mentions_data_type(typ, data_type),
         Type::FmtString(length, typ) =&gt; {
             type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
@@ -1291,7 +1291,7 @@
             type_mentions_primitive_type(length, target_type)
                 || type_mentions_primitive_type(typ, target_type)
         }
-        Type::Slice(typ) =&gt; type_mentions_primitive_type(typ, target_type),
+        Type::Vector(typ) =&gt; type_mentions_primitive_type(typ, target_type),
         Type::FmtString(length, typ) =&gt; {
             type_mentions_primitive_type(length, target_type)
                 || type_mentions_primitive_type(typ, target_type)

@@ -1689,7 +1689,7 @@
                 <span class="self">self</span>.show_hir_array_literal(hir_array_literal);
                 <span class="self">self</span>.push(<span class="string">']'</span>);
             }
-            HirLiteral::Slice(hir_array_literal) =&gt; {
+            HirLiteral::Vector(hir_array_literal) =&gt; {
                 <span class="self">self</span>.push_str(<span class="string">"&amp;["</span>);
                 <span class="self">self</span>.show_hir_array_literal(hir_array_literal);
                 <span class="self">self</span>.push(<span class="string">']'</span>);
@@ -1999,7 +1999,7 @@
         <span class="kw">match </span>expr {
             HirExpression::Ident(..) =&gt; <span class="bool-val">false</span>,
             HirExpression::Literal(hir_literal) =&gt; <span class="kw">match </span>hir_literal {
-                HirLiteral::Array(hir_array_literal) | HirLiteral::Slice(hir_array_literal) =&gt; {
+                HirLiteral::Array(hir_array_literal) | HirLiteral::Vector(hir_array_literal) =&gt; {
                     <span class="kw">match </span>hir_array_literal {
                         HirArrayLiteral::Standard(expr_ids) =&gt; {
                             expr_ids.iter().any(|expr_id| <span class="self">self</span>.expression_id_has_unsafe(<span class="kw-2">*</span>expr_id))

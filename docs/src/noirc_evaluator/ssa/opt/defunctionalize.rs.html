@@ -3035,11 +3035,11 @@
             }
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Slice(<span class="kw">_</span>) =&gt; {
+        Type::Vector(<span class="kw">_</span>) =&gt; {
             <span class="kw">let </span>array = im::Vector::new();
-            <span class="comment">// The contents of a slice do not matter for a dummy function, we simply
+            <span class="comment">// The contents of a vector do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
-            // Thus, we return an empty slice here.
+            // Thus, we return an empty vector here.
             </span>function_builder.insert_make_array(array, typ.clone())
         }
         Type::Reference(element_type) =&gt; function_builder.insert_allocate((<span class="kw-2">**</span>element_type).clone()),
@@ -3087,7 +3087,7 @@
 <span class="doccomment">/// Return what type a function value type should be replaced with:
 /// * Global functions are replaced with a `Field`.
 /// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
-/// * Array and slices that contain function types are handled recursively.
+/// * Array and vectors that contain function types are handled recursively.
 ///
 /// If the type doesn't need replacement, `None` is returned.
 </span><span class="kw">fn </span>replacement_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
@@ -3100,8 +3100,8 @@
         Type::Array(items, size) =&gt; {
             replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), <span class="kw-2">*</span>size))
         }
-        Type::Slice(items) =&gt; {
-            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        Type::Vector(items) =&gt; {
+            replacement_types(items.as_ref()).map(|types| Type::Vector(Arc::new(types)))
         }
     }
 }

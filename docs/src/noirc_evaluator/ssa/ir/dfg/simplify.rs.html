@@ -893,9 +893,9 @@
                 <span class="kw">return </span>try_optimize_array_get_from_previous_set(dfg, <span class="kw-2">*</span>array, index);
             }
 
-            <span class="kw">let </span>array_or_slice_type = dfg.type_of_value(<span class="kw-2">*</span>array);
-            <span class="kw">if </span><span class="macro">matches!</span>(array_or_slice_type, Type::Array(<span class="kw">_</span>, <span class="number">1</span>))
-                &amp;&amp; array_or_slice_type.element_size() == <span class="number">1
+            <span class="kw">let </span>array_or_vector_type = dfg.type_of_value(<span class="kw-2">*</span>array);
+            <span class="kw">if </span><span class="macro">matches!</span>(array_or_vector_type, Type::Array(<span class="kw">_</span>, <span class="number">1</span>))
+                &amp;&amp; array_or_vector_type.element_size() == <span class="number">1
             </span>{
                 <span class="comment">// If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.

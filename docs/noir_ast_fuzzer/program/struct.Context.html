@@ -44,7 +44,7 @@ other functions.</p>
     is_global: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
     is_main: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
     is_comptime_friendly: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
-    is_slice_allowed: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
+    is_vector_allowed: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
 ) -&gt; Result&lt;<a class="enum" href="../../noirc_frontend/monomorphization/ast/enum.Type.html" title="enum noirc_frontend::monomorphization::ast::Type">Type</a>&gt;</h4></section></summary><div class="docblock"><p>Generate a random <a href="../../noirc_frontend/monomorphization/ast/enum.Type.html" title="enum noirc_frontend::monomorphization::ast::Type">Type</a>.</p>
 <p>Keeps track of types already created, so that we can reuse types instead of always
 creating new ones, to increase the chance of being able to pass variables between

@@ -3,7 +3,7 @@
     location: <a class="struct" href="../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../hir/type_check/enum.TypeCheckError.html" title="enum noirc_frontend::hir::type_check::TypeCheckError">TypeCheckError</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Check that that a type returned from an unconstrained to a constrained runtime is safe:</p>
 <ul>
-<li>cannot return slices</li>
+<li>cannot return vectors</li>
 <li>cannot return functions</li>
 <li>cannot return types which in general cannot be passed between runtimes, e.g. references</li>
 </ul>

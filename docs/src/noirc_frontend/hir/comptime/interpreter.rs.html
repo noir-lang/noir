@@ -2724,7 +2724,7 @@
                 <span class="self">self</span>.evaluate_format_string(fragments, captures, id)
             }
             HirLiteral::Array(array) =&gt; <span class="self">self</span>.evaluate_array(array, id),
-            HirLiteral::Slice(array) =&gt; <span class="self">self</span>.evaluate_slice(array, id),
+            HirLiteral::Vector(array) =&gt; <span class="self">self</span>.evaluate_vector(array, id),
         }
     }
 
@@ -2842,9 +2842,9 @@
         }
     }
 
-    <span class="kw">fn </span>evaluate_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: HirArrayLiteral, id: ExprId) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>evaluate_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: HirArrayLiteral, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="self">self</span>.evaluate_array(array, id).map(|value| <span class="kw">match </span>value {
-            Value::Array(array, typ) =&gt; Value::Slice(array, typ),
+            Value::Array(array, typ) =&gt; Value::Vector(array, typ),
             other =&gt; <span class="macro">unreachable!</span>(<span class="string">"Non-array value returned from evaluate array: {other:?}"</span>),
         })
     }
@@ -3309,7 +3309,7 @@
 
                 <span class="kw">let </span>constructor = <span class="kw">match </span><span class="kw-2">&amp;</span>array_value {
                     Value::Array(..) =&gt; Value::Array,
-                    <span class="kw">_ </span>=&gt; Value::Slice,
+                    <span class="kw">_ </span>=&gt; Value::Vector,
                 };
 
                 <span class="kw">let </span>typ = array_value.get_type().into_owned();
@@ -3698,7 +3698,7 @@
 </span><span class="kw">fn </span>bounds_check(array: Value, index: Value, location: Location) -&gt; IResult&lt;(Vector&lt;Value&gt;, usize)&gt; {
     <span class="kw">let </span>collection = <span class="kw">match </span>array {
         Value::Array(array, <span class="kw">_</span>) =&gt; array,
-        Value::Slice(array, <span class="kw">_</span>) =&gt; array,
+        Value::Vector(array, <span class="kw">_</span>) =&gt; array,
         value =&gt; {
             <span class="kw">let </span>typ = value.get_type().into_owned();
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonArrayIndexed { typ, location });

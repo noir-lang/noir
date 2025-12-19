@@ -155,7 +155,10 @@
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
 <a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -171,7 +174,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::Context;
 
-<span class="kw">mod </span>slice_ops;
+<span class="kw">mod </span>vector_ops;
 
 <span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// Returns a vector of `AcirVar`s constrained to be result of the function call.
@@ -195,11 +198,11 @@
                 <span class="prelude-val">Ok</span>(arguments.iter().map(|v| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>v, dfg)).collect())
             }
             Intrinsic::BlackBox(black_box) =&gt; {
-                <span class="comment">// Slice arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
-                // No blackbox functions currently take slice arguments so we have an assertion here to catch if this changes in the future.
+                <span class="comment">// Vector arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
+                // No blackbox functions currently take vector arguments so we have an assertion here to catch if this changes in the future.
                 </span><span class="macro">assert!</span>(
-                    !arguments.iter().any(|arg| <span class="macro">matches!</span>(dfg.type_of_value(<span class="kw-2">*</span>arg), Type::Slice(<span class="kw">_</span>))),
-                    <span class="string">"ICE: Slice arguments passed to blackbox function"
+                    !arguments.iter().any(|arg| <span class="macro">matches!</span>(dfg.type_of_value(<span class="kw-2">*</span>arg), Type::Vector(<span class="kw">_</span>))),
+                    <span class="string">"ICE: Vector arguments passed to blackbox function"
                 </span>);
 
                 <span class="kw">let </span>inputs = vecmap(arguments, |arg| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>arg, dfg));
@@ -257,28 +260,31 @@
                     .bit_decompose(endian, field, array_length, numeric_type)
                     .map(|array| <span class="macro">vec!</span>[array])
             }
-            Intrinsic::AsSlice =&gt; {
+            Intrinsic::AsVector =&gt; {
                 <span class="kw">let </span>array_contents = arguments[<span class="number">0</span>];
                 <span class="kw">let </span>array_type = dfg.type_of_value(array_contents);
-                <span class="macro">assert!</span>(!array_type.is_nested_slice(), <span class="string">"ICE: Nested slice used in ACIR generation"</span>);
-                <span class="kw">let </span>Type::Array(<span class="kw">_</span>, slice_length) = array_type <span class="kw">else </span>{
-                    <span class="macro">unreachable!</span>(<span class="string">"Expected Array input for `as_slice` intrinsic"</span>);
+                <span class="macro">assert!</span>(
+                    !array_type.is_nested_vector(),
+                    <span class="string">"ICE: Nested vector used in ACIR generation"
+                </span>);
+                <span class="kw">let </span>Type::Array(<span class="kw">_</span>, vector_length) = array_type <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"Expected Array input for `as_vector` intrinsic"</span>);
                 };
-                <span class="kw">let </span>slice_length = <span class="self">self</span>.acir_context.add_constant(slice_length);
+                <span class="kw">let </span>vector_length = <span class="self">self</span>.acir_context.add_constant(vector_length);
                 <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array_contents, dfg);
                 <span class="kw">let </span>result = <span class="self">self</span>.read_array_with_type(acir_value, <span class="kw-2">&amp;</span>array_type)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
-                    AcirValue::Var(slice_length, NumericType::length_type()),
+                    AcirValue::Var(vector_length, NumericType::length_type()),
                     AcirValue::Array(result),
                 ])
             }
 
-            Intrinsic::SlicePushBack =&gt; <span class="self">self</span>.convert_slice_push_back(arguments, dfg, result_ids),
-            Intrinsic::SlicePushFront =&gt; <span class="self">self</span>.convert_slice_push_front(arguments, dfg),
-            Intrinsic::SlicePopBack =&gt; <span class="self">self</span>.convert_slice_pop_back(arguments, dfg, result_ids),
-            Intrinsic::SlicePopFront =&gt; <span class="self">self</span>.convert_slice_pop_front(arguments, dfg, result_ids),
-            Intrinsic::SliceInsert =&gt; <span class="self">self</span>.convert_slice_insert(arguments, dfg, result_ids),
-            Intrinsic::SliceRemove =&gt; <span class="self">self</span>.convert_slice_remove(arguments, dfg, result_ids),
+            Intrinsic::VectorPushBack =&gt; <span class="self">self</span>.convert_vector_push_back(arguments, dfg, result_ids),
+            Intrinsic::VectorPushFront =&gt; <span class="self">self</span>.convert_vector_push_front(arguments, dfg),
+            Intrinsic::VectorPopBack =&gt; <span class="self">self</span>.convert_vector_pop_back(arguments, dfg, result_ids),
+            Intrinsic::VectorPopFront =&gt; <span class="self">self</span>.convert_vector_pop_front(arguments, dfg, result_ids),
+            Intrinsic::VectorInsert =&gt; <span class="self">self</span>.convert_vector_insert(arguments, dfg, result_ids),
+            Intrinsic::VectorRemove =&gt; <span class="self">self</span>.convert_vector_remove(arguments, dfg, result_ids),
 
             Intrinsic::AsWitness =&gt; {
                 <span class="kw">let </span>arg = arguments[<span class="number">0</span>];
@@ -306,7 +312,7 @@
             | Intrinsic::StaticAssert
             | Intrinsic::AssertConstant
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount =&gt; {
+            | Intrinsic::VectorRefCount =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Expected {intrinsic} to have been removing during SSA optimizations"</span>)
             }
         }

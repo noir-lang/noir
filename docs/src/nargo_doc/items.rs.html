@@ -948,7 +948,7 @@
         length: Box&lt;Type&gt;,
         element: Box&lt;Type&gt;,
     },
-    Slice {
+    Vector {
         element: Box&lt;Type&gt;,
     },
     String {
@@ -1040,7 +1040,7 @@
     Str,
     Fmtstr,
     Array,
-    Slice,
+    Vector,
     Expr,
     Quoted,
     Type,
@@ -1073,7 +1073,7 @@
             PrimitiveTypeKind::Str =&gt; <span class="string">"str"</span>,
             PrimitiveTypeKind::Fmtstr =&gt; <span class="string">"fmtstr"</span>,
             PrimitiveTypeKind::Array =&gt; <span class="string">"array"</span>,
-            PrimitiveTypeKind::Slice =&gt; <span class="string">"slice"</span>,
+            PrimitiveTypeKind::Vector =&gt; <span class="string">"vector"</span>,
             PrimitiveTypeKind::Expr =&gt; <span class="string">"Expr"</span>,
             PrimitiveTypeKind::Quoted =&gt; <span class="string">"Quoted"</span>,
             PrimitiveTypeKind::Type =&gt; <span class="string">"Type"</span>,

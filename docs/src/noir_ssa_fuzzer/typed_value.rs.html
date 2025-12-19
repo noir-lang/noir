@@ -294,7 +294,9 @@
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
 <span class="kw">use </span>libfuzzer_sys::arbitrary::Arbitrary;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType <span class="kw">as </span>SsaNumericType, Type <span class="kw">as </span>SsaType};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::{map::Id, value::Value};
@@ -359,7 +361,7 @@
     Numeric(NumericType),
     Reference(Arc&lt;Type&gt;),
     Array(Arc&lt;Vec&lt;Type&gt;&gt;, u32),
-    Slice(Arc&lt;Vec&lt;Type&gt;&gt;),
+    Vector(Arc&lt;Vec&lt;Type&gt;&gt;),
 }
 
 <span class="doccomment">/// Used as default value for mutations
@@ -374,7 +376,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Type::Numeric(numeric_type) =&gt; numeric_type.bit_length(),
             Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Array type unexpected"</span>),
-            Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Slice type unexpected"</span>),
+            Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Vector type unexpected"</span>),
             Type::Reference(value_type) =&gt; value_type.bit_length(),
         }
     }
@@ -393,7 +395,9 @@
             Type::Array(element_types, <span class="kw">_</span>) =&gt; {
                 element_types.iter().any(|t| t.type_contains_reference())
             }
-            Type::Slice(element_types) =&gt; element_types.iter().any(|t| t.type_contains_reference()),
+            Type::Vector(element_types) =&gt; {
+                element_types.iter().any(|t| t.type_contains_reference())
+            }
             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         }
     }
@@ -402,8 +406,8 @@
         <span class="macro">matches!</span>(<span class="self">self</span>, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>))
     }
 
-    <span class="kw">pub fn </span>is_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Slice(<span class="kw">_</span>))
+    <span class="kw">pub fn </span>is_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Vector(<span class="kw">_</span>))
     }
 
     <span class="kw">pub fn </span>is_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -535,8 +539,8 @@
             SsaType::Reference(element_type) =&gt; {
                 Type::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()))
             }
-            SsaType::Slice(element_types) =&gt; {
-                Type::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            SsaType::Vector(element_types) =&gt; {
+                Type::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Not supported type: {:?}"</span>, type_),
         }
@@ -554,8 +558,8 @@
             Type::Reference(element_type) =&gt; {
                 SsaType::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()))
             }
-            Type::Slice(element_types) =&gt; {
-                SsaType::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            Type::Vector(element_types) =&gt; {
+                SsaType::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
         }
     }

@@ -2851,8 +2851,8 @@
     ) -&gt; Type {
         <span class="kw">let </span>location = typ.location;
         <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
-        <span class="kw">if </span>!<span class="self">self</span>.in_comptime_context &amp;&amp; resolved_type.is_nested_slice() {
-            <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
+        <span class="kw">if </span>!<span class="self">self</span>.in_comptime_context &amp;&amp; resolved_type.is_nested_vector() {
+            <span class="self">self</span>.push_err(ResolverError::NestedVectors { location });
         }
         resolved_type
     }
@@ -2901,14 +2901,14 @@
                     <span class="self">self</span>.convert_expression_type(size, <span class="kw-2">&amp;</span>Kind::u32(), location, wildcard_allowed);
                 Type::Array(Box::new(size), elem)
             }
-            Slice(elem) =&gt; {
+            Vector(elem) =&gt; {
                 <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(
                     <span class="kw-2">*</span>elem,
                     kind,
                     mode,
                     wildcard_allowed,
                 ));
-                Type::Slice(elem)
+                Type::Vector(elem)
             }
             Expression(expr) =&gt; {
                 <span class="self">self</span>.convert_expression_type(expr, kind, location, wildcard_allowed)
@@ -5234,12 +5234,12 @@
                     // instantiation bindings. We should avoid doing this if `select_impl` is
                     // not true since that means we're not solving for this expressions exact
                     // impl anyway. If we ignore this, we may rarely overwrite existing type
-                    // bindings causing incorrect types. The `slice_regex` test is one example
+                    // bindings causing incorrect types. The `vector_regex` test is one example
                     // of that happening without this being behind `select_impl`.
                     </span><span class="kw">let </span><span class="kw-2">mut </span>bindings =
                         <span class="self">self</span>.interner.get_instantiation_bindings(function_ident_id).clone();
 
-                    <span class="comment">// These can clash in the `slice_regex` test which causes us to insert
+                    <span class="comment">// These can clash in the `vector_regex` test which causes us to insert
                     // incorrect type bindings if they override the previous bindings.
                     </span><span class="kw">for </span>(id, binding) <span class="kw">in </span>instantiation_bindings {
                         <span class="kw">let </span>existing = bindings.insert(id, binding.clone());

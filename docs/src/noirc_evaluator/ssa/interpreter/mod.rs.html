@@ -2384,12 +2384,12 @@
         <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"numeric"</span>, Value::as_numeric)
     }
 
-    <span class="kw">fn </span>lookup_array_or_slice(
+    <span class="kw">fn </span>lookup_array_or_vector(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         value_id: ValueId,
         instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
     ) -&gt; IResult&lt;ArrayValue&gt; {
-        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or vector"</span>, Value::as_array_or_vector)
     }
 
     <span class="doccomment">/// Look up an array index.
@@ -2414,7 +2414,7 @@
     }
 
     <span class="kw">fn </span>lookup_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u8&gt;&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2432,7 +2432,7 @@
     }
 
     <span class="kw">fn </span>lookup_vec_u32(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u32&gt;&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2450,7 +2450,7 @@
     }
 
     <span class="kw">fn </span>lookup_vec_u64(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u64&gt;&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2472,7 +2472,7 @@
         value_id: ValueId,
         instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
     ) -&gt; IResult&lt;Vec&lt;FieldElement&gt;&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2943,7 +2943,7 @@
                 <span class="prelude-val">Err</span>(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
             }
 
-            Value::ArrayOrSlice(array_value) =&gt; {
+            Value::ArrayOrVector(array_value) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = array_value.elements.borrow().to_vec();
                 <span class="kw">for </span>element <span class="kw">in </span>elements.iter_mut() {
                     <span class="self">Self</span>::reset_array_state(element)<span class="question-mark">?</span>;
@@ -3010,7 +3010,7 @@
         };
 
         <span class="kw">let </span>offset = <span class="self">self</span>.dfg().array_offset(array, index);
-        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>length = array.elements.borrow().len() <span class="kw">as </span>u32;
 
         <span class="kw">let </span>index = <span class="kw">match </span><span class="self">self</span>.lookup_array_index(index, <span class="string">"array get index"</span>, length) {
@@ -3053,15 +3053,15 @@
 
             <span class="comment">// Either return a fresh nested array (in constrained context) or just clone the element.
             </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_context() {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(array) = element.as_array_or_slice() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(array) = element.as_array_or_vector() {
                     <span class="comment">// In the ACIR runtime we expect fresh arrays when accessing a nested array.
                     // If we do not clone the elements here a mutable array set afterwards could mutate
                     // not just this returned array but the array we are fetching from in this array get.
-                    </span>Value::ArrayOrSlice(ArrayValue {
+                    </span>Value::ArrayOrVector(ArrayValue {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_slice: array.is_slice,
+                        is_vector: array.is_vector,
                     })
                 } <span class="kw">else </span>{
                     element.clone()
@@ -3085,7 +3085,7 @@
         side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>offset = <span class="self">self</span>.dfg().array_offset(array, index);
-        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result_array = <span class="kw">if </span>side_effects_enabled {
             <span class="kw">let </span>length = array.elements.borrow().len() <span class="kw">as </span>u32;
@@ -3102,7 +3102,7 @@
 
             <span class="kw">if </span>should_mutate {
                 array.elements.borrow_mut()[index <span class="kw">as </span>usize] = value;
-                Value::ArrayOrSlice(array.clone())
+                Value::ArrayOrVector(array.clone())
             } <span class="kw">else </span>{
                 <span class="kw">if </span>!is_rc_one {
                     <span class="self">Self</span>::decrement_rc(<span class="kw-2">&amp;</span>array);
@@ -3112,12 +3112,12 @@
                 <span class="kw">let </span>elements = Shared::new(elements);
                 <span class="kw">let </span>rc = Shared::new(<span class="number">1</span>);
                 <span class="kw">let </span>element_types = array.element_types.clone();
-                <span class="kw">let </span>is_slice = array.is_slice;
-                Value::ArrayOrSlice(ArrayValue { elements, rc, element_types, is_slice })
+                <span class="kw">let </span>is_vector = array.is_vector;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
             }
         } <span class="kw">else </span>{
             <span class="comment">// Side effects are disabled, return the original array
-            </span>Value::ArrayOrSlice(array)
+            </span>Value::ArrayOrVector(array)
         };
         <span class="self">self</span>.define(result, result_array)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
@@ -3132,7 +3132,7 @@
 
     <span class="kw">fn </span>interpret_inc_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, <span class="string">"inc_rc"</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(value_id, <span class="string">"inc_rc"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>rc = array.rc.borrow_mut();
             <span class="kw">if </span><span class="kw-2">*</span>rc == <span class="number">0 </span>{
                 <span class="kw">let </span>value = array.to_string();
@@ -3145,7 +3145,7 @@
 
     <span class="kw">fn </span>interpret_dec_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, <span class="string">"dec_rc"</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(value_id, <span class="string">"dec_rc"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>rc = array.rc.borrow_mut();
             <span class="kw">if </span><span class="kw-2">*</span>rc == <span class="number">0 </span>{
                 <span class="kw">let </span>value = array.to_string();
@@ -3202,7 +3202,7 @@
         result_type: <span class="kw-2">&amp;</span>Type,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>elements = try_vecmap(elements, |element| <span class="self">self</span>.lookup(<span class="kw-2">*</span>element))<span class="question-mark">?</span>;
-        <span class="kw">let </span>is_slice = <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>result_type, Type::Slice(..));
+        <span class="kw">let </span>is_vector = <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>result_type, Type::Vector(..));
 
         <span class="comment">// The number of elements in the array must be a multiple of the number of element types
         </span><span class="kw">let </span>element_types = result_type.element_types();
@@ -3237,11 +3237,11 @@
             }
         }
 
-        <span class="kw">let </span>array = Value::ArrayOrSlice(ArrayValue {
+        <span class="kw">let </span>array = Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(<span class="number">1</span>),
             element_types,
-            is_slice,
+            is_vector,
         });
         <span class="self">self</span>.define(result, array)
     }

@@ -1515,8 +1515,8 @@
             unresolved_type_expression_with_file(length, file),
             Box::new(unresolved_type_with_file(<span class="kw-2">*</span>typ, file)),
         ),
-        UnresolvedTypeData::Slice(typ) =&gt; {
-            UnresolvedTypeData::Slice(Box::new(unresolved_type_with_file(<span class="kw-2">*</span>typ, file)))
+        UnresolvedTypeData::Vector(typ) =&gt; {
+            UnresolvedTypeData::Vector(Box::new(unresolved_type_with_file(<span class="kw-2">*</span>typ, file)))
         }
         UnresolvedTypeData::Expression(expr) =&gt; {
             UnresolvedTypeData::Expression(unresolved_type_expression_with_file(expr, file))
@@ -1888,8 +1888,8 @@
         Literal::Array(array_literal) =&gt; {
             Literal::Array(array_literal_with_file(array_literal, file))
         }
-        Literal::Slice(array_literal) =&gt; {
-            Literal::Slice(array_literal_with_file(array_literal, file))
+        Literal::Vector(array_literal) =&gt; {
+            Literal::Vector(array_literal_with_file(array_literal, file))
         }
         Literal::FmtStr(fragments, length) =&gt; Literal::FmtStr(
             vecmap(fragments, |fragment| fmt_str_fragment_with_file(fragment, file)),

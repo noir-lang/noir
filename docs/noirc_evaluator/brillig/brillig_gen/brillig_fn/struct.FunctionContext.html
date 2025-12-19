@@ -34,7 +34,7 @@ data structures for global codegen only.</p>
 <p>This conversion defines the calling convention for Brillig functions,
 ensuring that SSA values are correctly mapped to memory layouts understood by the VM.</p>
 <h5 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h5>
-<p>Panics if called with a slice type, as a slice’s memory layout cannot be inferred without runtime data.</p>
+<p>Panics if called with a vector type, as a vector’s memory layout cannot be inferred without runtime data.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.post_order" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_fn.rs.html#120-122">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.post_order" class="fn">post_order</a>(&amp;self) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/iter/traits/exact_size/trait.ExactSizeIterator.html" title="trait core::iter::traits::exact_size::ExactSizeIterator">ExactSizeIterator</a>&lt;Item = <a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;</h4></section></summary><div class="docblock"><p>Iterate blocks in Post Order.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.reverse_post_order" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_fn.rs.html#125-127">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.reverse_post_order" class="fn">reverse_post_order</a>(
     &amp;self,

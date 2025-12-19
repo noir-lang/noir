@@ -642,8 +642,8 @@
                 <span class="comment">// Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
                 </span><span class="bool-val">true
             </span>}
-            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
-                <span class="comment">// The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+            (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
+                <span class="comment">// The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
                 </span>msg.as_ref().is_some_and(|msg| msg == <span class="string">"Index out of bounds"</span>)
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
@@ -663,11 +663,11 @@
 <span class="kw">impl </span>Comparable <span class="kw">for </span>Value {
     <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
         <span class="kw">match </span>(a, b) {
-            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) =&gt; {
+            (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) =&gt; {
                 <span class="comment">// Ignore the RC
                 </span>a.element_types == b.element_types
                     &amp;&amp; Comparable::equivalent(<span class="kw-2">&amp;</span>a.elements, <span class="kw-2">&amp;</span>b.elements)
-                    &amp;&amp; a.is_slice == b.is_slice
+                    &amp;&amp; a.is_vector == b.is_vector
             }
             (Value::Reference(a), Value::Reference(b)) =&gt; {
                 <span class="comment">// Ignore the original ID
@@ -704,11 +704,11 @@
     <span class="kw">use </span>ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     <span class="kw">use </span>ssa::ir::types::Type;
     <span class="kw">let </span>array_value = |elements: Vec&lt;Value&gt;, types: Vec&lt;Type&gt;| {
-        Value::ArrayOrSlice(ArrayValue {
+        Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(<span class="number">1</span>),
             element_types: Arc::new(types),
-            is_slice: <span class="bool-val">false</span>,
+            is_vector: <span class="bool-val">false</span>,
         })
     };
     <span class="kw">match </span>input {

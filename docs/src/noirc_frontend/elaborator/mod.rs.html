@@ -1443,7 +1443,7 @@
     <span class="kw">fn </span>mark_type_as_used(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) {
         <span class="kw">match </span>typ {
             Type::Array(_n, typ) =&gt; <span class="self">self</span>.mark_type_as_used(typ),
-            Type::Slice(typ) =&gt; <span class="self">self</span>.mark_type_as_used(typ),
+            Type::Vector(typ) =&gt; <span class="self">self</span>.mark_type_as_used(typ),
             Type::Tuple(types) =&gt; {
                 <span class="kw">for </span>typ <span class="kw">in </span>types {
                     <span class="self">self</span>.mark_type_as_used(typ);

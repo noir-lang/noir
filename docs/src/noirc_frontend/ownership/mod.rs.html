@@ -450,7 +450,7 @@
 //! count. These operations are equivalent on arrays. Cloning may be applied to any value and only
 //! increments the reference counts of any arrays contained within (but not behind references or
 //! inside nested arrays). This document also focuses on arrays but all reference count operations
-//! on arrays are also performed on slices.
+//! on arrays are also performed on vectors.
 //!
 //! Arrays in brillig have copy on write semantics which relies on us incrementing their
 //! reference counts when they are shared in multiple places. Note that while Noir has references,
@@ -680,7 +680,7 @@
 
             Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, captures) =&gt; <span class="self">self</span>.handle_expression(captures),
 
-            Literal::Array(array) | Literal::Slice(array) =&gt; {
+            Literal::Array(array) | Literal::Vector(array) =&gt; {
                 <span class="kw">for </span>element <span class="kw">in </span>array.contents.iter_mut() {
                     <span class="self">self</span>.handle_expression(element);
                 }
@@ -866,7 +866,7 @@
         | Type::Function(..)
         | Type::Reference(..) =&gt; <span class="bool-val">false</span>,
 
-        Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::String(<span class="kw">_</span>) | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+        Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::String(<span class="kw">_</span>) | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 
         Type::Tuple(elements) =&gt; elements.iter().any(contains_array_or_str_type),
     }

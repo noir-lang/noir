@@ -1768,7 +1768,7 @@
             <span class="self">self</span>.next_char();
             <span class="prelude-val">Ok</span>(Token::LogicalAnd.into_span(start, start + <span class="number">1</span>))
         } <span class="kw">else if </span><span class="self">self</span>.peek_char_is(<span class="string">'['</span>) {
-            <span class="self">self</span>.single_char_token(Token::SliceStart)
+            <span class="self">self</span>.single_char_token(Token::VectorStart)
         } <span class="kw">else </span>{
             <span class="self">self</span>.single_char_token(Token::Ampersand)
         }

@@ -1043,7 +1043,14 @@
 <a href="#1042" id="1042">1042</a>
 <a href="#1043" id="1043">1043</a>
 <a href="#1044" id="1044">1044</a>
-<a href="#1045" id="1045">1045</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1054,13 +1061,13 @@
 //! Conditions:
 //!   - Precondition: Flatten CFG has been performed which should result in the function having only
 //!     one basic block.
-//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or vectors.
 //!     Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
 //!
 //! Relevance to other passes:
-//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an
+//!   - Flattening inserts `Instruction::IfElse` to merge array or vector values from an
 //!     if-expression's "then" and "else" branches. `Instruction::IfElse` with numeric values are
 //!     directly handled during flattening, [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify],
 //!     and will cause a panic in the `remove_if_else` pass.
@@ -1081,10 +1088,10 @@
 //! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
 //! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
 //! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
-//! `Instruction::IfElse` only for arrays and slices. The remove-if-else pass is used for array and slices
-//! in order to track their lengths, depending on existing slice intrinsics which modify slices,
+//! `Instruction::IfElse` only for arrays and vectors. The remove-if-else pass is used for array and vectors
+//! in order to track their lengths, depending on existing vector intrinsics which modify vectors,
 //! or the array set instructions.
-//! The `Instruction::IfElse` is removed using a `ValueMerger` which operates recursively for nested arrays/slices.
+//! The `Instruction::IfElse` is removed using a `ValueMerger` which operates recursively for nested arrays/vectors.
 //!
 //! For example, this code:
 //! ```noir
@@ -1138,9 +1145,9 @@
 //! The elements at index 0 are replaced by their known value, instead of doing an additional array get.
 //! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
 //!
-//! For slices the logic is similar except that slice lengths need to be tracked in order to know
-//! the length of the merged slice resulting in a `make_array` instruction. This length will be the
-//! maximum length of the two input slices. Note that the actual length of the merged slice should
+//! For vectors the logic is similar except that vector lengths need to be tracked in order to know
+//! the length of the merged vector resulting in a `make_array` instruction. This length will be the
+//! maximum length of the two input vectors. Note that the actual length of the merged vector should
 //! have been merged during flattening.
 
 </span><span class="kw">use </span>std::collections::hash_map::Entry;
@@ -1204,20 +1211,20 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">struct </span>Context {
-    <span class="doccomment">/// Keeps track of each size a slice is known to be.
+    <span class="doccomment">/// Keeps track of each size a vector is known to be.
     ///
-    /// This is passed to the `ValueMerger` because when merging two slices
-    /// we need to know their sizes to create the merged slice.
+    /// This is passed to the `ValueMerger` because when merging two vectors
+    /// we need to know their sizes to create the merged vector.
     ///
     /// Note: as this pass operates on a single block, which is an entry block,
-    /// and because slices are disallowed in entry blocks, all slice lengths
+    /// and because vectors are disallowed in entry blocks, all vector lengths
     /// should be known at this point.
-    </span>slice_sizes: HashMap&lt;ValueId, u32&gt;,
+    </span>vector_sizes: HashMap&lt;ValueId, u32&gt;,
 }
 
 <span class="kw">impl </span>Context {
     <span class="doccomment">/// Process each instruction in the entry block of the (fully flattened) function.
-    /// Merge any `IfElse` instruction using a `ValueMerger` and track slice sizes
+    /// Merge any `IfElse` instruction using a `ValueMerger` and track vector sizes
     /// through intrinsic calls and array set instructions.
     </span><span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function) -&gt; RtResult&lt;()&gt; {
         <span class="kw">let </span>block = function.entry_block();
@@ -1257,7 +1264,7 @@
 
                     <span class="kw">let </span>call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     <span class="kw">let </span><span class="kw-2">mut </span>value_merger =
-                        ValueMerger::new(context.dfg, block, <span class="kw-2">&amp;</span><span class="self">self</span>.slice_sizes, call_stack);
+                        ValueMerger::new(context.dfg, block, <span class="kw-2">&amp;</span><span class="self">self</span>.vector_sizes, call_stack);
 
                     <span class="kw">let </span>value = value_merger.merge_values(
                         then_condition,
@@ -1280,12 +1287,16 @@
                     </span>context.replace_value(result, value);
                 }
                 Instruction::Call { func, arguments } =&gt; {
-                    <span class="comment">// Track slice sizes through intrinsic calls
+                    <span class="comment">// Track vector sizes through intrinsic calls
                     </span><span class="kw">if let </span>Value::Intrinsic(intrinsic) = context.dfg[<span class="kw-2">*</span>func] {
                         <span class="kw">let </span>results = context.dfg.instruction_results(instruction_id);
 
-                        <span class="kw">match </span><span class="self">self</span>.slice_capacity_change(context.dfg, intrinsic, arguments, results)
-                        {
+                        <span class="kw">match </span><span class="self">self</span>.vector_capacity_change(
+                            context.dfg,
+                            intrinsic,
+                            arguments,
+                            results,
+                        ) {
                             SizeChange::None =&gt; (),
                             SizeChange::SetTo { old, new } =&gt; {
                                 <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c);
@@ -1294,14 +1305,14 @@
                                 <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c + <span class="number">1</span>);
                             }
                             SizeChange::Dec { old, new } =&gt; {
-                                <span class="comment">// We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
+                                <span class="comment">// We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                                 // would otherwise underflow.
                                 </span><span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c.saturating_sub(<span class="number">1</span>));
                             }
                         }
                     }
                 }
-                <span class="comment">// Track slice sizes through array set instructions
+                <span class="comment">// Track vector sizes through array set instructions
                 </span>Instruction::ArraySet { array, .. } =&gt; {
                     <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
                     <span class="self">self</span>.set_capacity(context.dfg, <span class="kw-2">*</span>array, result, |c| c);
@@ -1312,7 +1323,7 @@
         })
     }
 
-    <span class="doccomment">/// Set the capacity of the new slice based on the capacity of the old array/slice.
+    <span class="doccomment">/// Set the capacity of the new vector based on the capacity of the old array/vector.
     </span><span class="kw">fn </span>set_capacity(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -1320,36 +1331,36 @@
         new: ValueId,
         f: <span class="kw">impl </span>Fn(u32) -&gt; u32,
     ) {
-        <span class="comment">// No need to store the capacity of arrays, only slices.
-        </span><span class="kw">if </span>!<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)) {
+        <span class="comment">// No need to store the capacity of arrays, only vectors.
+        </span><span class="kw">if </span>!<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Vector(<span class="kw">_</span>)) {
             <span class="kw">return</span>;
         }
         <span class="kw">let </span>capacity = <span class="self">self</span>.get_or_find_capacity(dfg, old);
-        <span class="self">self</span>.slice_sizes.insert(new, f(capacity));
+        <span class="self">self</span>.vector_sizes.insert(new, f(capacity));
     }
 
-    <span class="doccomment">/// Make sure the slice capacity is recorded.
-    </span><span class="kw">fn </span>ensure_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, slice: ValueId) {
-        <span class="self">self</span>.set_capacity(dfg, slice, slice, |c| c);
+    <span class="doccomment">/// Make sure the vector capacity is recorded.
+    </span><span class="kw">fn </span>ensure_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, vector: ValueId) {
+        <span class="self">self</span>.set_capacity(dfg, vector, vector, |c| c);
     }
 
-    <span class="doccomment">/// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
+    <span class="doccomment">/// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
     </span><span class="kw">fn </span>get_or_find_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value: ValueId) -&gt; u32 {
-        <span class="kw">match </span><span class="self">self</span>.slice_sizes.entry(value) {
+        <span class="kw">match </span><span class="self">self</span>.vector_sizes.entry(value) {
             Entry::Occupied(entry) =&gt; <span class="kw-2">*</span>entry.get(),
             Entry::Vacant(entry) =&gt; {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(length) = dfg.try_get_slice_capacity(value) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(length) = dfg.try_get_vector_capacity(value) {
                     <span class="kw">return </span><span class="kw-2">*</span>entry.insert(length);
                 }
-                <span class="comment">// For non-constant slices we can't tell the size, which would mean we can't merge it.
+                <span class="comment">// For non-constant vectors we can't tell the size, which would mean we can't merge it.
                 </span><span class="kw">let </span>dbg_value = <span class="kw-2">&amp;</span>dfg[value];
-                <span class="macro">unreachable!</span>(<span class="string">"ICE: No size for slice {value} = {dbg_value:?}"</span>)
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: No size for vector {value} = {dbg_value:?}"</span>)
             }
         }
     }
 
-    <span class="doccomment">/// Find the change to a slice's capacity an instruction would have
-    </span><span class="kw">fn </span>slice_capacity_change(
+    <span class="doccomment">/// Find the change to a vector's capacity an instruction would have
+    </span><span class="kw">fn </span>vector_capacity_change(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         intrinsic: Intrinsic,
@@ -1357,48 +1368,48 @@
         results: <span class="kw-2">&amp;</span>[ValueId],
     ) -&gt; SizeChange {
         <span class="kw">match </span>intrinsic {
-            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert =&gt; {
-                <span class="comment">// All of these return `Self` (the slice), we are expecting: len, slice = ...
+            Intrinsic::VectorPushBack | Intrinsic::VectorPushFront | Intrinsic::VectorInsert =&gt; {
+                <span class="comment">// All of these return `Self` (the vector), we are expecting: len, vector = ...
                 </span><span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>);
                 <span class="kw">let </span>old = arguments[<span class="number">1</span>];
                 <span class="kw">let </span>new = results[<span class="number">1</span>];
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Vector(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Vector(<span class="kw">_</span>)));
                 SizeChange::Inc { old, new }
             }
 
-            Intrinsic::SlicePopBack | Intrinsic::SliceRemove =&gt; {
+            Intrinsic::VectorPopBack | Intrinsic::VectorRemove =&gt; {
                 <span class="comment">// fn pop_back(self) -&gt; (Self, T)
                 // fn remove(self, index: u32) -&gt; (Self, T)
                 //
-                // These functions return the slice as the result `(len, slice, ...item)`,
-                // so the slice is the second result.
+                // These functions return the vector as the result `(len, vector, ...item)`,
+                // so the vector is the second result.
                 </span><span class="kw">let </span>old = arguments[<span class="number">1</span>];
                 <span class="kw">let </span>new = results[<span class="number">1</span>];
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Vector(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Vector(<span class="kw">_</span>)));
                 SizeChange::Dec { old, new }
             }
 
-            Intrinsic::SlicePopFront =&gt; {
+            Intrinsic::VectorPopFront =&gt; {
                 <span class="comment">// fn pop_front(self) -&gt; (T, Self)
                 //
-                // These functions return the slice as the result `(...item, len, slice)`,
-                // so the slice is the last result.
+                // These functions return the vector as the result `(...item, len, vector)`,
+                // so the vector is the last result.
                 </span><span class="kw">let </span>old = arguments[<span class="number">1</span>];
                 <span class="kw">let </span>new = results[results.len() - <span class="number">1</span>];
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Vector(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Vector(<span class="kw">_</span>)));
                 SizeChange::Dec { old, new }
             }
 
-            Intrinsic::AsSlice =&gt; {
+            Intrinsic::AsVector =&gt; {
                 <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
                 <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>);
                 <span class="kw">let </span>old = arguments[<span class="number">0</span>];
                 <span class="kw">let </span>new = results[<span class="number">1</span>];
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Vector(<span class="kw">_</span>)));
                 SizeChange::SetTo { old, new }
             }
 
@@ -1411,12 +1422,12 @@
                 <span class="macro">assert_eq!</span>(arguments_types, results_types);
                 <span class="kw">let </span>old =
                     <span class="kw-2">*</span>arguments.last().expect(<span class="string">"expected at least one argument to Hint::BlackBox"</span>);
-                <span class="kw">if </span><span class="self">self</span>.slice_sizes.contains_key(<span class="kw-2">&amp;</span>old) {
+                <span class="kw">if </span><span class="self">self</span>.vector_sizes.contains_key(<span class="kw-2">&amp;</span>old) {
                     <span class="kw">if </span>arguments.len() != <span class="number">1 </span>{
                         <span class="macro">assert!</span>(arguments.len() == <span class="number">2</span>);
                         <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types[<span class="number">0</span>], Type::Numeric(<span class="kw">_</span>)));
                     }
-                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types.last().unwrap(), Type::Slice(<span class="kw">_</span>)));
+                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types.last().unwrap(), Type::Vector(<span class="kw">_</span>)));
                     <span class="kw">let </span>new = <span class="kw-2">*</span>results.last().unwrap();
                     SizeChange::SetTo { old, new }
                 } <span class="kw">else </span>{
@@ -1424,7 +1435,7 @@
                 }
             }
 
-            <span class="comment">// These cases don't affect slice capacities
+            <span class="comment">// These cases don't affect vector capacities
             </span>Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
@@ -1438,7 +1449,7 @@
             | Intrinsic::ToBits(<span class="kw">_</span>)
             | Intrinsic::ToRadix(<span class="kw">_</span>)
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount
+            | Intrinsic::VectorRefCount
             | Intrinsic::FieldLessThan =&gt; SizeChange::None,
         }
     }
@@ -1446,17 +1457,17 @@
 
 <span class="kw">enum </span>SizeChange {
     <span class="prelude-val">None</span>,
-    <span class="doccomment">/// Make the size of the new slice equal to the old array.
+    <span class="doccomment">/// Make the size of the new vector equal to the old array.
     </span>SetTo {
         old: ValueId,
         new: ValueId,
     },
-    <span class="doccomment">/// Make the size of the new slice equal to old+1.
+    <span class="doccomment">/// Make the size of the new vector equal to old+1.
     </span>Inc {
         old: ValueId,
         new: ValueId,
     },
-    <span class="doccomment">/// Make the size of the new slice equal to old-1.
+    <span class="doccomment">/// Make the size of the new vector equal to old-1.
     </span>Dec {
         old: ValueId,
         new: ValueId,
@@ -1468,7 +1479,7 @@
     <span class="comment">// This pass should only run post-flattening.
     </span><span class="kw">super</span>::flatten_cfg::flatten_cfg_post_check(func);
 
-    <span class="comment">// We expect to only encounter `IfElse` instructions on array and slice types.
+    <span class="comment">// We expect to only encounter `IfElse` instructions on array and vector types.
     </span><span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
         <span class="kw">let </span>instruction_ids = func.dfg[block_id].instructions();
 
@@ -1476,7 +1487,10 @@
             <span class="kw">if let </span>Instruction::IfElse { then_value, .. } = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id] {
                 <span class="macro">assert!</span>(
                     func.dfg.instruction_results(<span class="kw-2">*</span>instruction_id).iter().all(|value| {
-                        <span class="macro">matches!</span>(func.dfg.type_of_value(<span class="kw-2">*</span>value), Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>))
+                        <span class="macro">matches!</span>(
+                            func.dfg.type_of_value(<span class="kw-2">*</span>value),
+                            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>)
+                        )
                     }),
                     <span class="string">"IfElse instruction returns unexpected type"
                 </span>);
@@ -1662,7 +1676,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_slice_push_back() {
+    </span><span class="kw">fn </span>merge_vector_with_vector_push_back() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1671,12 +1685,12 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_push_back(v6, v3, v2) -&gt; (u32, [Field])
+            v7, v8 = call vector_push_back(v6, v3, v2) -&gt; (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_push_back(v10, v12, v2) -&gt; (u32, [Field])
+            v15, v16 = call vector_push_back(v10, v12, v2) -&gt; (u32, [Field])
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -1686,7 +1700,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        <span class="comment">// Merge slices v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
+        <span class="comment">// Merge vectors v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1695,7 +1709,7 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v8, v9 = call slice_push_back(v6, v3, v2) -&gt; (u32, [Field])
+            v8, v9 = call vector_push_back(v6, v3, v2) -&gt; (u32, [Field])
             v10 = not v0
             v11 = cast v0 as u32
             enable_side_effects u1 1
@@ -1728,7 +1742,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_slice_push_front() {
+    </span><span class="kw">fn </span>merge_vector_with_vector_push_front() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1737,12 +1751,12 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_push_front(v6, v3, v2) -&gt; (u32, [Field])
+            v7, v8 = call vector_push_front(v6, v3, v2) -&gt; (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_push_front(v10, v12, v2) -&gt; (u32, [Field])
+            v15, v16 = call vector_push_front(v10, v12, v2) -&gt; (u32, [Field])
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -1761,7 +1775,7 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v8, v9 = call slice_push_front(v6, v3, v2) -&gt; (u32, [Field])
+            v8, v9 = call vector_push_front(v6, v3, v2) -&gt; (u32, [Field])
             v10 = not v0
             v11 = cast v0 as u32
             enable_side_effects u1 1
@@ -1778,24 +1792,24 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_as_slice_and_slice_push_front() {
-        <span class="comment">// Same as the previous test, but using `as_slice` to prove that slice length tracking
+    </span><span class="kw">fn </span>merge_vector_with_as_vector_and_vector_push_front() {
+        <span class="comment">// Same as the previous test, but using `as_vector` to prove that vector length tracking
         // is working correctly.
         </span><span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v102 = make_array [] : [Field; 0]
-            v103, v3 = call as_slice(v102) -&gt; (u32, [Field])
+            v103, v3 = call as_vector(v102) -&gt; (u32, [Field])
             v4 = allocate -&gt; &amp;mut u32
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_push_front(v6, v3, v2) -&gt; (u32, [Field])
+            v7, v8 = call vector_push_front(v6, v3, v2) -&gt; (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_push_front(v10, v12, v2) -&gt; (u32, [Field])
+            v15, v16 = call vector_push_front(v10, v12, v2) -&gt; (u32, [Field])
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -1810,12 +1824,12 @@
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field; 0]
-            v5, v6 = call as_slice(v3) -&gt; (u32, [Field])
+            v5, v6 = call as_vector(v3) -&gt; (u32, [Field])
             v7 = allocate -&gt; &amp;mut u32
             v8 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v9 = cast v0 as u32
-            v11, v12 = call slice_push_front(v9, v6, v2) -&gt; (u32, [Field])
+            v11, v12 = call vector_push_front(v9, v6, v2) -&gt; (u32, [Field])
             v13 = not v0
             v14 = cast v0 as u32
             enable_side_effects u1 1
@@ -1832,7 +1846,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_slice_insert() {
+    </span><span class="kw">fn </span>merge_vector_with_vector_insert() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1841,12 +1855,12 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_insert(v6, v3, u32 0, v2) -&gt; (u32, [Field])
+            v7, v8 = call vector_insert(v6, v3, u32 0, v2) -&gt; (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_insert(v10, v12, u32 0, v2) -&gt; (u32, [Field])
+            v15, v16 = call vector_insert(v10, v12, u32 0, v2) -&gt; (u32, [Field])
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -1865,7 +1879,7 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v9, v10 = call slice_insert(v6, v3, u32 0, v2) -&gt; (u32, [Field])
+            v9, v10 = call vector_insert(v6, v3, u32 0, v2) -&gt; (u32, [Field])
             v11 = not v0
             v12 = cast v0 as u32
             enable_side_effects u1 1
@@ -1882,7 +1896,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_slice_pop_back() {
+    </span><span class="kw">fn </span>merge_vector_with_vector_pop_back() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1891,12 +1905,12 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8, v100 = call slice_pop_back(v6, v3) -&gt; (u32, [Field], Field)
+            v7, v8, v100 = call vector_pop_back(v6, v3) -&gt; (u32, [Field], Field)
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16, v101 = call slice_pop_back(v10, v12) -&gt; (u32, [Field], Field)
+            v15, v16, v101 = call vector_pop_back(v10, v12) -&gt; (u32, [Field], Field)
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -1906,8 +1920,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        <span class="comment">// Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
-        // with the other slice, where `v21` merges the two values.
+        <span class="comment">// Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
+        // with the other vector, where `v21` merges the two values.
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1916,7 +1930,7 @@
             v7 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v8 = cast v0 as u32
-            v10, v11, v12 = call slice_pop_back(v8, v5) -&gt; (u32, [Field], Field)
+            v10, v11, v12 = call vector_pop_back(v8, v5) -&gt; (u32, [Field], Field)
             v13 = not v0
             v14 = cast v0 as u32
             enable_side_effects u1 1
@@ -1929,7 +1943,7 @@
             v23 = make_array [v22, Field 3] : [Field]
             enable_side_effects v0
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_pop_back(v14, v23) -&gt; (u32, [Field], Field)
+            v24, v25, v26 = call vector_pop_back(v14, v23) -&gt; (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -&gt; Field
             constrain v27 == Field 1
             return
@@ -1938,7 +1952,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_slice_pop_front() {
+    </span><span class="kw">fn </span>merge_vector_with_vector_pop_front() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -1947,12 +1961,12 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v100, v7, v8 = call slice_pop_front(v6, v3) -&gt; (Field, u32, [Field])
+            v100, v7, v8 = call vector_pop_front(v6, v3) -&gt; (Field, u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v101, v15, v16 = call slice_pop_front(v10, v12) -&gt; (Field, u32, [Field])
+            v101, v15, v16 = call vector_pop_front(v10, v12) -&gt; (Field, u32, [Field])
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -1962,7 +1976,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        <span class="comment">// Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        <span class="comment">// Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // where for v21 it's the merged value.
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) impure fn main f0 {
@@ -1972,7 +1986,7 @@
             v7 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v8 = cast v0 as u32
-            v10, v11, v12 = call slice_pop_front(v8, v5) -&gt; (Field, u32, [Field])
+            v10, v11, v12 = call vector_pop_front(v8, v5) -&gt; (Field, u32, [Field])
             v13 = not v0
             v14 = cast v0 as u32
             enable_side_effects u1 1
@@ -1985,7 +1999,7 @@
             v23 = make_array [v22, Field 3] : [Field]
             enable_side_effects v0
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_pop_front(v14, v23) -&gt; (Field, u32, [Field])
+            v24, v25, v26 = call vector_pop_front(v14, v23) -&gt; (Field, u32, [Field])
             v27 = array_get v26, index u32 0 -&gt; Field
             constrain v27 == Field 1
             return
@@ -1994,7 +2008,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>merge_slice_with_slice_remove() {
+    </span><span class="kw">fn </span>merge_vector_with_vector_remove() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -2003,12 +2017,12 @@
             v5 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8, v100 = call slice_remove(v6, v3, u32 0) -&gt; (u32, [Field], Field)
+            v7, v8, v100 = call vector_remove(v6, v3, u32 0) -&gt; (u32, [Field], Field)
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16, v101 = call slice_remove(v10, v12, u32 0) -&gt; (u32, [Field], Field)
+            v15, v16, v101 = call vector_remove(v10, v12, u32 0) -&gt; (u32, [Field], Field)
             v17 = array_get v16, index u32 0 -&gt; Field
             constrain v17 == Field 1
             return
@@ -2018,7 +2032,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        <span class="comment">// Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        <span class="comment">// Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // where for v21 it's the merged value.
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) impure fn main f0 {
@@ -2028,7 +2042,7 @@
             v7 = allocate -&gt; &amp;mut [Field]
             enable_side_effects v0
             v8 = cast v0 as u32
-            v11, v12, v13 = call slice_remove(v8, v5, u32 0) -&gt; (u32, [Field], Field)
+            v11, v12, v13 = call vector_remove(v8, v5, u32 0) -&gt; (u32, [Field], Field)
             v14 = not v0
             v15 = cast v0 as u32
             enable_side_effects u1 1
@@ -2041,7 +2055,7 @@
             v23 = make_array [v22, Field 3] : [Field]
             enable_side_effects v0
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_remove(v15, v23, u32 0) -&gt; (u32, [Field], Field)
+            v24, v25, v26 = call vector_remove(v15, v23, u32 0) -&gt; (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -&gt; Field
             constrain v27 == Field 1
             return
@@ -2050,7 +2064,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>can_handle_slice_with_zero_size_elements() {
+    </span><span class="kw">fn </span>can_handle_vector_with_zero_size_elements() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) impure fn main f0 {
             b0(v0: u32):

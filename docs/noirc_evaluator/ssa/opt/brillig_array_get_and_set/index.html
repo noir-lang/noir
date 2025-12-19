@@ -17,8 +17,8 @@ array operations with constant indexes are always assumed to have already been
 shifted.</p>
 <p>Now the index to retrieve is 4 and there’s no need to offset it in Brillig,
 avoiding one addition.</p>
-<p>In the case of slices, they are represented as Brillig vectors as [RC, Size, Capacity, …items],
-thus the items pointer instead starts at three rather than one. So for a slice
+<p>In the case of vectors, they are represented as Brillig vectors as [RC, Size, Capacity, …items],
+thus the items pointer instead starts at three rather than one. So for a vector
 this pass will transform this:</p>
 <div class="example-wrap"><pre class="language-ssa"><code>b0(v0: [Field]):
   v1 = array_get v0, index u32 3 -&gt; Field</code></pre></div>
@@ -33,4 +33,4 @@ Brillig opcodes without having to re-allocate another register for them every ti
 For this to happen the constants need to be part of the DFG, where they can be hoisted and
 deduplicated across instructions. Doing this during Brillig codegen would be too late, as at
 that time we have a read-only DFG and we would be forced to generate more Brillig opcodes.</p>
-</div></details><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.compute_offset_index.html" title="fn noirc_evaluator::ssa::opt::brillig_array_get_and_set::compute_offset_index">compute_<wbr>offset_<wbr>index</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Given an array or slice value and a constant index, returns an offset (shifted) index.</div></li></ul></section></div></main></body></html>
+</div></details><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.compute_offset_index.html" title="fn noirc_evaluator::ssa::opt::brillig_array_get_and_set::compute_offset_index">compute_<wbr>offset_<wbr>index</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Given an array or vector value and a constant index, returns an offset (shifted) index.</div></li></ul></section></div></main></body></html>

@@ -757,7 +757,7 @@
         <span class="attr">#[serde(rename = <span class="string">"type"</span>)]
         </span>typ: Box&lt;PrintableType&gt;,
     },
-    Slice {
+    Vector {
         <span class="attr">#[serde(rename = <span class="string">"type"</span>)]
         </span>typ: Box&lt;PrintableType&gt;,
     },
@@ -805,7 +805,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             PrintableType::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
             PrintableType::Array { length, typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}; {length}]"</span>),
-            PrintableType::Slice { typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>),
+            PrintableType::Vector { typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>),
             PrintableType::Tuple { types } =&gt; {
                 <span class="kw">let </span>types = vecmap(types, ToString::to_string);
                 <span class="kw">if </span>types.len() == <span class="number">1 </span>{
@@ -850,7 +850,7 @@
     Field(F),
     String(String),
     FmtString(String, Vec&lt;PrintableValue&lt;F&gt;&gt;),
-    Vec { array_elements: Vec&lt;PrintableValue&lt;F&gt;&gt;, is_slice: bool },
+    Vec { array_elements: Vec&lt;PrintableValue&lt;F&gt;&gt;, is_vector: bool },
     Struct(BTreeMap&lt;String, PrintableValue&lt;F&gt;&gt;),
     Enum { tag: usize, elements: Vec&lt;PrintableValue&lt;F&gt;&gt; },
     Other,
@@ -944,11 +944,11 @@
                 output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
             }
         }
-        PrintableType::Array { typ, .. } | PrintableType::Slice { typ } =&gt; {
-            <span class="kw">let </span>PrintableValue::Vec { array_elements, is_slice } = value <span class="kw">else </span>{
+        PrintableType::Array { typ, .. } | PrintableType::Vector { typ } =&gt; {
+            <span class="kw">let </span>PrintableValue::Vec { array_elements, is_vector } = value <span class="kw">else </span>{
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             };
-            <span class="kw">if </span><span class="kw-2">*</span>is_slice {
+            <span class="kw">if </span><span class="kw-2">*</span>is_vector {
                 output.push(<span class="string">'&amp;'</span>);
             }
             output.push(<span class="string">'['</span>);
@@ -1134,11 +1134,11 @@
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec { array_elements, is_slice: <span class="bool-val">false </span>}
+            PrintableValue::Vec { array_elements, is_vector: <span class="bool-val">false </span>}
         }
-        PrintableType::Slice { typ } =&gt; {
+        PrintableType::Vector { typ } =&gt; {
             <span class="kw">let </span>length =
-                field_iterator.next().expect(<span class="string">"not enough data: expected slice length"</span>).to_u128()
+                field_iterator.next().expect(<span class="string">"not enough data: expected vector length"</span>).to_u128()
                     <span class="kw">as </span>usize;
 
             <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
@@ -1147,11 +1147,11 @@
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec { array_elements, is_slice: <span class="bool-val">true </span>}
+            PrintableValue::Vec { array_elements, is_vector: <span class="bool-val">true </span>}
         }
         PrintableType::Tuple { types } =&gt; PrintableValue::Vec {
             array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
-            is_slice: <span class="bool-val">false</span>,
+            is_vector: <span class="bool-val">false</span>,
         },
         PrintableType::String { length } =&gt; {
             <span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
@@ -1276,7 +1276,7 @@
 
 <span class="doccomment">/// Flatten input parameters into a field vector.
 ///
-/// Slices are expected to have exactly as many elements as indicated by their corresponding length,
+/// Vectors are expected to have exactly as many elements as indicated by their corresponding length,
 /// with any extra elements pruned by the caller already.
 </span><span class="kw">fn </span>flatten_inputs&lt;F: AcirField&gt;(input_values: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;]) -&gt; <span class="kw">impl </span>Iterator&lt;Item = F&gt; {
     input_values.iter().flat_map(|param| param.fields())
@@ -1371,7 +1371,7 @@
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::FmtString { .. } =&gt; <span class="number">1</span>,
-        PrintableType::Slice { .. } =&gt; <span class="number">2</span>, <span class="comment">// length + pointer
+        PrintableType::Vector { .. } =&gt; <span class="number">2</span>, <span class="comment">// length + pointer
         </span>PrintableType::Enum { .. } =&gt; {
             <span class="comment">// This is tricky because enums are encoded as [tag, field1, field2, ...],
             // however when we have a reference to an enum variant, then even the tag
@@ -1430,7 +1430,7 @@
     </span><span class="kw">fn </span>one_element_tuple_to_string() {
         <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
             array_elements: <span class="macro">vec!</span>[PrintableValue::Field(<span class="number">1_u128</span>.into())],
-            is_slice: <span class="bool-val">false</span>,
+            is_vector: <span class="bool-val">false</span>,
         };
         <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field] };
         <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
@@ -1444,7 +1444,7 @@
                 PrintableValue::Field(<span class="number">1_u128</span>.into()),
                 PrintableValue::Field(<span class="number">2_u128</span>.into()),
             ],
-            is_slice: <span class="bool-val">false</span>,
+            is_vector: <span class="bool-val">false</span>,
         };
         <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field, PrintableType::Field] };
         <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);

@@ -2685,7 +2685,7 @@
             }
             Type::FieldElement
             | Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Bool
             | Type::String(<span class="kw">_</span>)
@@ -3685,7 +3685,7 @@
     </span>}
 
     <span class="kw">fn </span>visit_lvalue_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: <span class="kw-2">&amp;</span>LValue, _index: <span class="kw-2">&amp;</span>Expression, span: Span) -&gt; bool {
-        <span class="comment">// If we have `foo[index].&gt;|&lt;` we solve the type of `foo`, then get the array/slice element type,
+        <span class="comment">// If we have `foo[index].&gt;|&lt;` we solve the type of `foo`, then get the array/vector element type,
         // then suggest methods of that type.
         </span><span class="kw">if </span><span class="self">self</span>.byte == <span class="prelude-val">Some</span>(<span class="string">b'.'</span>) &amp;&amp; span.end() <span class="kw">as </span>usize == <span class="self">self</span>.byte_index - <span class="number">1 </span>{
             <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.get_lvalue_type(array) {
@@ -4000,7 +4000,7 @@
 
 <span class="kw">fn </span>get_array_element_type(typ: Type) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
     <span class="kw">match </span>typ {
-        Type::Array(<span class="kw">_</span>, typ) | Type::Slice(typ) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>typ),
+        Type::Array(<span class="kw">_</span>, typ) | Type::Vector(typ) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>typ),
         Type::Alias(alias_type, generics) =&gt; {
             <span class="kw">let </span>typ = alias_type.borrow().get_type(<span class="kw-2">&amp;</span>generics);
             get_array_element_type(typ)

@@ -1044,7 +1044,7 @@
         is_global: bool,
         is_main: bool,
         is_comptime_friendly: bool,
-        is_slice_allowed: bool,
+        is_vector_allowed: bool,
     ) -&gt; arbitrary::Result&lt;Type&gt; {
         <span class="comment">// See if we can reuse an existing type without going over the maximum depth.
         </span><span class="kw">if </span>u.ratio(<span class="number">5</span>, <span class="number">10</span>)<span class="question-mark">? </span>{
@@ -1054,7 +1054,7 @@
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) &lt;= max_depth)
-                .filter(|typ| is_slice_allowed || !types::contains_slice(typ))
+                .filter(|typ| is_vector_allowed || !types::contains_vector(typ))
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
             <span class="kw">if </span>!existing_types.is_empty() {
@@ -1066,14 +1066,14 @@
         </span><span class="kw">let </span>max_index = <span class="kw">if </span>max_depth == <span class="number">0 </span>{ <span class="number">4 </span>} <span class="kw">else </span>{ <span class="number">8 </span>};
 
         <span class="comment">// Generate the inner type for composite types with reduced maximum depth.
-        </span><span class="kw">let </span>gen_inner_type = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, is_slice_allowed: bool| {
+        </span><span class="kw">let </span>gen_inner_type = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, is_vector_allowed: bool| {
             this.gen_type(
                 u,
                 max_depth - <span class="number">1</span>,
                 is_global,
                 is_main,
                 is_comptime_friendly,
-                is_slice_allowed,
+                is_vector_allowed,
             )
         };
 
@@ -1102,13 +1102,13 @@
                     <span class="comment">// 1-size tuples look strange, so let's make it minimum 2 fields.
                     </span><span class="kw">let </span>size = u.int_in_range(<span class="number">2</span>..=<span class="self">self</span>.config.max_tuple_size)<span class="question-mark">?</span>;
                     <span class="kw">let </span>types = (<span class="number">0</span>..size)
-                        .map(|<span class="kw">_</span>| gen_inner_type(<span class="self">self</span>, u, is_slice_allowed))
+                        .map(|<span class="kw">_</span>| gen_inner_type(<span class="self">self</span>, u, is_vector_allowed))
                         .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
                     Type::Tuple(types)
                 }
-                <span class="number">6 </span><span class="kw">if </span>is_slice_allowed &amp;&amp; !<span class="self">self</span>.config.avoid_slices =&gt; {
+                <span class="number">6 </span><span class="kw">if </span>is_vector_allowed &amp;&amp; !<span class="self">self</span>.config.avoid_vectors =&gt; {
                     <span class="kw">let </span>typ = gen_inner_type(<span class="self">self</span>, u, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-                    Type::Slice(Box::new(typ))
+                    Type::Vector(Box::new(typ))
                 }
                 <span class="number">6 </span>| <span class="number">7 </span>=&gt; {
                     <span class="kw">let </span>min_size = <span class="number">0</span>;

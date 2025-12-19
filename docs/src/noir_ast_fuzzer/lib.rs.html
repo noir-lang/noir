@@ -216,7 +216,7 @@
     /// to avoid trivial failures due to multiplying or adding constants.
     </span><span class="kw">pub </span>avoid_overflow: bool,
     <span class="doccomment">/// Try to avoid "Index out of bounds" by using modulo to limit indexing to the
-    /// range that an array or slice is expected to contain.
+    /// range that an array or vector is expected to contain.
     ///
     /// This is easy to trigger (a random `u32` will most certainly be out of the range
     /// of the arrays we generate), so by default it is "on". When it's "off", a random
@@ -238,8 +238,8 @@
     </span><span class="kw">pub </span>avoid_constrain: bool,
     <span class="doccomment">/// Avoid match statements and expressions.
     </span><span class="kw">pub </span>avoid_match: bool,
-    <span class="doccomment">/// Avoid using the slice type.
-    </span><span class="kw">pub </span>avoid_slices: bool,
+    <span class="doccomment">/// Avoid using the vector type.
+    </span><span class="kw">pub </span>avoid_vectors: bool,
     <span class="doccomment">/// Only use comptime friendly expressions.
     </span><span class="kw">pub </span>comptime_friendly: bool,
 }
@@ -307,7 +307,7 @@
             avoid_print: <span class="bool-val">false</span>,
             avoid_constrain: <span class="bool-val">false</span>,
             avoid_match: <span class="bool-val">false</span>,
-            avoid_slices: <span class="bool-val">false</span>,
+            avoid_vectors: <span class="bool-val">false</span>,
             comptime_friendly: <span class="bool-val">false</span>,
         }
     }

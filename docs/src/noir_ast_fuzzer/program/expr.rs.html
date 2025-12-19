@@ -599,13 +599,13 @@
             }
             Expression::Literal(Literal::Array(arr))
         }
-        Type::Slice(item_type) =&gt; {
+        Type::Vector(item_type) =&gt; {
             <span class="kw">let </span>len = u.int_in_range(<span class="number">0</span>..=config.max_array_size)<span class="question-mark">?</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             <span class="kw">for _ in </span><span class="number">0</span>..len {
                 arr.contents.push(gen_literal(u, item_type, config)<span class="question-mark">?</span>);
             }
-            Expression::Literal(Literal::Slice(arr))
+            Expression::Literal(Literal::Vector(arr))
         }
         Type::Tuple(items) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();

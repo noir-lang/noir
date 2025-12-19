@@ -1644,20 +1644,20 @@
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_slice_capacity(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_vector_capacity(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
         <span class="comment">// For arrays we know the size statically
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(length) = <span class="self">self</span>.try_get_array_length(value) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(length);
         }
 
-        <span class="comment">// Check if the value was made by a MakeArray instruction, which can create slices as well.
+        <span class="comment">// Check if the value was made by a MakeArray instruction, which can create vectors as well.
         </span><span class="kw">let </span>(array, typ) = <span class="self">self</span>.get_array_constant(value)<span class="question-mark">?</span>;
         <span class="kw">let </span>elements_size = typ.element_size();
 
         <span class="kw">let </span>length = <span class="kw">if </span>elements_size == <span class="number">0 </span>{
             array.len()
         } <span class="kw">else </span>{
-            <span class="comment">// Compute the slice length by dividing the flattened
+            <span class="comment">// Compute the vector length by dividing the flattened
             // array length by the size of each array element
             </span><span class="macro">assert_eq!</span>(
                 array.len() % elements_size,
@@ -1816,7 +1816,7 @@
         <span class="self">self</span>.function_purities.get(<span class="kw-2">&amp;</span>function).copied()
     }
 
-    <span class="doccomment">/// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    <span class="doccomment">/// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_offset(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId, index: ValueId) -&gt; ArrayOffset {
         <span class="kw">if </span>!<span class="self">self</span>.runtime.is_brillig()
             || !<span class="self">self</span>.brillig_arrays_offset
@@ -1826,7 +1826,7 @@
         }
         <span class="kw">match </span><span class="self">self</span>.type_of_value(array) {
             Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; ArrayOffset::Array,
-            Type::Slice(<span class="kw">_</span>) =&gt; ArrayOffset::Slice,
+            Type::Vector(<span class="kw">_</span>) =&gt; ArrayOffset::Vector,
             <span class="kw">_ </span>=&gt; ArrayOffset::None,
         }
     }

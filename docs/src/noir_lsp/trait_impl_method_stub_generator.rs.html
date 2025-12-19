@@ -629,7 +629,7 @@
                 <span class="self">self</span>.append_type(n);
                 <span class="self">self</span>.string.push(<span class="string">']'</span>);
             }
-            Type::Slice(typ) =&gt; {
+            Type::Vector(typ) =&gt; {
                 <span class="self">self</span>.string.push(<span class="string">'['</span>);
                 <span class="self">self</span>.append_type(typ);
                 <span class="self">self</span>.string.push(<span class="string">']'</span>);

@@ -1042,7 +1042,7 @@
                 elem_a.try_unify(elem_b, bindings)
             }
 
-            (Slice(elem_a), Slice(elem_b)) =&gt; elem_a.try_unify(elem_b, bindings),
+            (Vector(elem_a), Vector(elem_b)) =&gt; elem_a.try_unify(elem_b, bindings),
 
             (String(len_a), String(len_b)) =&gt; len_a.try_unify(len_b, bindings),
 
@@ -1395,7 +1395,7 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if </span><span class="self">self</span>.try_array_to_slice_coercion(expected, expression, interner) {
+        <span class="kw">if </span><span class="self">self</span>.try_array_to_vector_coercion(expected, expression, interner) {
             <span class="kw">return</span>;
         }
 
@@ -1447,9 +1447,9 @@
         }
     }
 
-    <span class="doccomment">/// Try to apply the array to slice coercion to this given type pair and expression.
+    <span class="doccomment">/// Try to apply the array to vector coercion to this given type pair and expression.
     /// If self can be converted to target this way, do so and return true to indicate success.
-    </span><span class="kw">fn </span>try_array_to_slice_coercion(
+    </span><span class="kw">fn </span>try_array_to_vector_coercion(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         target: <span class="kw-2">&amp;</span>Type,
         expression: ExprId,
@@ -1458,8 +1458,8 @@
         <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
         <span class="kw">let </span>target = target.follow_bindings();
 
-        <span class="kw">if let </span>(Type::Array(_size, element1), Type::Slice(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
-            <span class="comment">// We can only do the coercion if the `as_slice` method exists.
+        <span class="kw">if let </span>(Type::Array(_size, element1), Type::Vector(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
+            <span class="comment">// We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_slice) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_slice"</span>, <span class="bool-val">true</span>) {
                 <span class="comment">// Still have to ensure the element types match.

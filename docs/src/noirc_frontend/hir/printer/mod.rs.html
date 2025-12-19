@@ -2290,7 +2290,7 @@
                 }
                 <span class="self">self</span>.push(<span class="string">']'</span>);
             }
-            Value::Slice(values, <span class="kw">_</span>) =&gt; {
+            Value::Vector(values, <span class="kw">_</span>) =&gt; {
                 <span class="self">self</span>.push_str(<span class="string">"&amp;["</span>);
                 <span class="kw">for </span>(index, value) <span class="kw">in </span>values.iter().enumerate() {
                     <span class="kw">if </span>index != <span class="number">0 </span>{

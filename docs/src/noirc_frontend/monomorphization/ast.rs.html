@@ -759,8 +759,8 @@
 }
 
 <span class="kw">impl </span>Expression {
-    <span class="kw">pub fn </span>is_array_or_slice_literal(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, Expression::Literal(Literal::Array(<span class="kw">_</span>) | Literal::Slice(<span class="kw">_</span>)))
+    <span class="kw">pub fn </span>is_array_or_vector_literal(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, Expression::Literal(Literal::Array(<span class="kw">_</span>) | Literal::Vector(<span class="kw">_</span>)))
     }
 
     <span class="doccomment">/// The return type of an expression, if it has an obvious one.
@@ -773,7 +773,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Expression::Ident(ident) =&gt; borrowed(<span class="kw-2">&amp;</span>ident.typ),
             Expression::Literal(literal) =&gt; <span class="kw">match </span>literal {
-                Literal::Array(literal) | Literal::Slice(literal) =&gt; borrowed(<span class="kw-2">&amp;</span>literal.typ),
+                Literal::Array(literal) | Literal::Vector(literal) =&gt; borrowed(<span class="kw-2">&amp;</span>literal.typ),
                 Literal::Integer(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; borrowed(typ),
                 Literal::Bool(<span class="kw">_</span>) =&gt; borrowed(<span class="kw-2">&amp;</span>Type::Bool),
                 Literal::Unit =&gt; borrowed(<span class="kw-2">&amp;</span>Type::Unit),
@@ -971,7 +971,7 @@
 <span class="attr">#[derive(Debug, Clone, Hash)]
 </span><span class="kw">pub enum </span>Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
@@ -1229,7 +1229,7 @@
     </span>FmtString(<span class="comment">/*len:*/ </span>u32, Box&lt;Type&gt;),
     Unit,
     Tuple(Vec&lt;Type&gt;),
-    Slice(Box&lt;Type&gt;),
+    Vector(Box&lt;Type&gt;),
     Reference(Box&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
     <span class="doccomment">/// `(args, ret, env, unconstrained)`
     </span>Function(
@@ -1248,10 +1248,10 @@
         }
     }
 
-    <span class="doccomment">/// Returns the element type of this array or slice
+    <span class="doccomment">/// Returns the element type of this array or vector
     </span><span class="kw">pub fn </span>array_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Array(<span class="kw">_</span>, elem) | Type::Slice(elem) =&gt; <span class="prelude-val">Some</span>(elem),
+            Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) =&gt; <span class="prelude-val">Some</span>(elem),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -1396,7 +1396,7 @@
                 };
                 <span class="macro">write!</span>(f, <span class="string">"fn({}) -&gt; {}{}"</span>, args.join(<span class="string">", "</span>), ret, closure_env_text)
             }
-            Type::Slice(element) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{element}]"</span>),
+            Type::Vector(element) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{element}]"</span>),
             Type::Reference(element, mutable) <span class="kw">if </span><span class="kw-2">*</span>mutable =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element}"</span>),
             Type::Reference(element, _mutable) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>),
         }

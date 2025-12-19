@@ -655,7 +655,7 @@
             <span class="kw">let </span>typ = alias.borrow().get_type(generics);
             input_value_to_comptime_value(input, <span class="kw-2">&amp;</span>typ, location)
         }
-        Type::Slice(<span class="kw">_</span>)
+        Type::Vector(<span class="kw">_</span>)
         | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
         | Type::TypeVariable(..)
         | Type::TraitAsType(..)
@@ -753,7 +753,7 @@
         Value::Function(..)
         | Value::Closure(..)
         | Value::Pointer(..)
-        | Value::Slice(..)
+        | Value::Vector(..)
         | Value::Quoted(..)
         | Value::TypeDefinition(..)
         | Value::TraitConstraint(..)

@@ -2486,9 +2486,9 @@
         types::contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)
     }
 
-    <span class="doccomment">/// Check if the return type contains a slice.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>returns_slices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        types::contains_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)
+    <span class="doccomment">/// Check if the return type contains a vector.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>returns_vectors(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        types::contains_vector(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)
     }
 
     <span class="doccomment">/// Check if any of the parameters or return value contain a reference.
@@ -2564,8 +2564,8 @@
     }
 
     <span class="comment">// When calling Brillig from ACIR, we avoid calling functions that take or return
-    // references or slices, which cannot be passed between the two.
-    </span>!callee_decl.has_refs() &amp;&amp; !callee_decl.returns_slices()
+    // references or vectors, which cannot be passed between the two.
+    </span>!callee_decl.has_refs() &amp;&amp; !callee_decl.returns_vectors()
 }
 
 <span class="doccomment">/// Make a name for a local variable.
@@ -2819,7 +2819,7 @@
         <span class="comment">// If we are looking for the exact type, it's okay.
             </span>|| src_type == tgt_type
             <span class="comment">// But we can't index an array with references.
-            </span>|| !(types::is_array_or_slice(src_type) &amp;&amp; types::contains_reference(src_type) )
+            </span>|| !(types::is_array_or_vector(src_type) &amp;&amp; types::contains_reference(src_type) )
     }
 
     <span class="doccomment">/// Choose a producer for a type, preferring local variables over global ones.
@@ -2858,7 +2858,7 @@
                 .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, <span class="kw">_</span>, producer_type)| {
                     <span class="kw-2">*</span>mutable
                         &amp;&amp; (typ.as_ref() == producer_type
-                            || !types::is_array_or_slice(producer_type))
+                            || !types::is_array_or_vector(producer_type))
                         &amp;&amp; (!<span class="self">self</span>.in_no_dynamic || !<span class="self">self</span>.is_dynamic(id))
                         &amp;&amp; (!<span class="self">self</span>.in_dynamic
                             || <span class="self">self</span>.can_be_used_in_dynamic(producer_type, typ.as_ref()))
@@ -3078,13 +3078,13 @@
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="comment">// If we found our type, we can return it without further ado.
         </span><span class="kw">if </span>src_type == tgt_type {
-            <span class="comment">// If we want a slice, we can push onto it.
-            </span><span class="kw">if let </span>Type::Slice(item_type) = src_type {
+            <span class="comment">// If we want a vector, we can push onto it.
+            </span><span class="kw">if let </span>Type::Vector(item_type) = src_type {
                 <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
                     <span class="kw">let </span>(item, item_dyn) = <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::TOP)<span class="question-mark">?</span>;
                     <span class="comment">// We can use push_back, push_front, or insert.
                     </span><span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-                        <span class="kw">let </span>push_expr = <span class="self">self</span>.call_slice_push(
+                        <span class="kw">let </span>push_expr = <span class="self">self</span>.call_vector_push(
                             src_type.clone(),
                             item_type.as_ref().clone(),
                             src_expr,
@@ -3094,7 +3094,7 @@
                         <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((push_expr, src_dyn || item_dyn)));
                     } <span class="kw">else </span>{
                         <span class="comment">// Generate a random index and insert the item at it.
-                        </span><span class="kw">return </span><span class="self">self</span>.gen_slice_access(
+                        </span><span class="kw">return </span><span class="self">self</span>.gen_vector_access(
                             u,
                             (src_expr, src_dyn || item_dyn),
                             src_type,
@@ -3102,7 +3102,7 @@
                             tgt_type,
                             max_depth,
                             |this, ident, idx| {
-                                this.call_slice_insert(
+                                this.call_vector_insert(
                                     src_type.clone(),
                                     item_type.as_ref().clone(),
                                     Expression::Ident(ident),
@@ -3124,7 +3124,7 @@
         }
 
         <span class="comment">// Mutable references to array elements are currently unsupported.
-        </span><span class="kw">if </span>types::is_array_or_slice(src_type) {
+        </span><span class="kw">if </span>types::is_array_or_vector(src_type) {
             src_mutable = <span class="bool-val">false</span>;
         }
 
@@ -3204,13 +3204,13 @@
                     max_depth,
                 )
             }
-            <span class="comment">// Pop from the front of a slice.
-            </span>(Type::Slice(item_type), Type::Tuple(fields))
+            <span class="comment">// Pop from the front of a vector.
+            </span>(Type::Vector(item_type), Type::Tuple(fields))
                 <span class="kw">if </span>fields.len() == <span class="number">2
                     </span>&amp;&amp; <span class="kw-2">&amp;</span>fields[<span class="number">0</span>] == item_type.as_ref()
                     &amp;&amp; <span class="kw-2">&amp;</span>fields[<span class="number">1</span>] == src_type =&gt;
             {
-                <span class="kw">let </span>pop_front = <span class="self">self</span>.call_slice_pop(
+                <span class="kw">let </span>pop_front = <span class="self">self</span>.call_vector_pop(
                     src_type.clone(),
                     item_type.as_ref().clone(),
                     src_expr,
@@ -3218,14 +3218,14 @@
                 );
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((pop_front, src_dyn)))
             }
-            <span class="comment">// Pop from the back of a slice, or remove an item.
-            </span>(Type::Slice(item_type), Type::Tuple(fields))
+            <span class="comment">// Pop from the back of a vector, or remove an item.
+            </span>(Type::Vector(item_type), Type::Tuple(fields))
                 <span class="kw">if </span>fields.len() == <span class="number">2
                     </span>&amp;&amp; <span class="kw-2">&amp;</span>fields[<span class="number">0</span>] == src_type
                     &amp;&amp; <span class="kw-2">&amp;</span>fields[<span class="number">1</span>] == item_type.as_ref() =&gt;
             {
                 <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-                    <span class="kw">let </span>pop_back = <span class="self">self</span>.call_slice_pop(
+                    <span class="kw">let </span>pop_back = <span class="self">self</span>.call_vector_pop(
                         src_type.clone(),
                         item_type.as_ref().clone(),
                         src_expr,
@@ -3233,7 +3233,7 @@
                     );
                     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((pop_back, src_dyn)))
                 } <span class="kw">else </span>{
-                    <span class="self">self</span>.gen_slice_access(
+                    <span class="self">self</span>.gen_vector_access(
                         u,
                         (src_expr, src_dyn),
                         src_type,
@@ -3241,7 +3241,7 @@
                         tgt_type,
                         max_depth,
                         |this, ident, idx| {
-                            this.call_slice_remove(
+                            this.call_vector_remove(
                                 src_type.clone(),
                                 item_type.as_ref().clone(),
                                 Expression::Ident(ident),
@@ -3251,8 +3251,8 @@
                     )
                 }
             }
-            <span class="comment">// Index a slice (might fail at runtime if empty).
-            </span>(Type::Slice(item_type), <span class="kw">_</span>) =&gt; <span class="self">self</span>.gen_slice_access(
+            <span class="comment">// Index a vector (might fail at runtime if empty).
+            </span>(Type::Vector(item_type), <span class="kw">_</span>) =&gt; <span class="self">self</span>.gen_vector_access(
                 u,
                 (src_expr, src_dyn),
                 src_type,
@@ -3260,7 +3260,7 @@
                 tgt_type,
                 max_depth,
                 |<span class="kw">_</span>, ident, idx| {
-                    <span class="comment">// Index the slice, represented by a variable, using the generated index.
+                    <span class="comment">// Index the vector, represented by a variable, using the generated index.
                     </span>Expression::Index(Index {
                         collection: Box::new(Expression::Ident(ident)),
                         index: Box::new(idx),
@@ -3300,13 +3300,13 @@
         }
     }
 
-    <span class="doccomment">/// Generate code to index an arbitrary item in a slice.
+    <span class="doccomment">/// Generate code to index an arbitrary item in a vector.
     ///
-    /// Since we don't know the length of the slice at compile time,
+    /// Since we don't know the length of the vector at compile time,
     /// this can involve creating a temporary variable, getting the length at runtime,
     /// and using modulo to limit some random index to the runtime length.
     </span><span class="attr">#[allow(clippy::too_many_arguments)]
-    </span><span class="kw">fn </span>gen_slice_access&lt;F&gt;(
+    </span><span class="kw">fn </span>gen_vector_access&lt;F&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         (src_expr, src_dyn): TrackedExpression,
@@ -3319,11 +3319,11 @@
     <span class="kw">where
         </span>F: FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Ident, Expression) -&gt; Expression,
     {
-        <span class="kw">let </span>Type::Slice(item_type) = src_type <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>(<span class="string">"only expected to be called with Slice"</span>);
+        <span class="kw">let </span>Type::Vector(item_type) = src_type <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"only expected to be called with Vector"</span>);
         };
 
-        <span class="comment">// Unless the slice is coming from an identifier or literal, we should create a let binding for it
+        <span class="comment">// Unless the vector is coming from an identifier or literal, we should create a let binding for it
         // to avoid doubling up any side effects, or double using local variables when it was created.
         </span><span class="kw">let </span>(let_expr, ident_1) = <span class="kw">if let </span>Expression::Ident(ident) = src_expr {
             (<span class="prelude-val">None</span>, ident)
@@ -3347,7 +3347,7 @@
 
         <span class="comment">// The rules around dynamic indexing is the same as for arrays.
         </span><span class="kw">let </span>(idx_expr, idx_dyn) = <span class="kw">if </span>max_depth == <span class="number">0 </span>|| bool::arbitrary(u)<span class="question-mark">? </span>{
-            <span class="comment">// Avoid any stack overflow where we look for an index in the slice itself.
+            <span class="comment">// Avoid any stack overflow where we look for an index in the vector itself.
             </span>(<span class="self">self</span>.gen_literal(u, <span class="kw-2">&amp;</span>types::U32)<span class="question-mark">?</span>, <span class="bool-val">false</span>)
         } <span class="kw">else </span>{
             <span class="kw">let </span>no_dynamic =
@@ -3668,8 +3668,8 @@
         <span class="kw">let </span>comptime_friendly = <span class="self">self</span>.config().comptime_friendly;
         <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>, comptime_friendly, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">// If we picked the target type to be a slice, we can consider popping from it.
-        </span><span class="kw">if let </span>Type::Slice(<span class="kw-2">ref </span>item_type) = typ {
+        <span class="comment">// If we picked the target type to be a vector, we can consider popping from it.
+        </span><span class="kw">if let </span>Type::Vector(<span class="kw-2">ref </span>item_type) = typ {
             <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
                 <span class="kw">let </span>fields = <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
                     <span class="comment">// ([T], T) &lt;- pop_back or remove
@@ -4630,8 +4630,8 @@
     }
 
     <span class="doccomment">/// Construct a `Call` to the `array_len` builtin function, calling it with the
-    /// identifier of a slice or an array.
-    </span><span class="kw">fn </span>call_array_len(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array_or_slice: Expression, typ: Type) -&gt; Expression {
+    /// identifier of a vector or an array.
+    </span><span class="kw">fn </span>call_array_len(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array_or_vector: Expression, typ: Type) -&gt; Expression {
         <span class="kw">let </span>func_ident = Ident {
             location: <span class="prelude-val">None</span>,
             definition: Definition::Builtin(<span class="string">"array_len"</span>.to_string()),
@@ -4642,14 +4642,14 @@
         };
         Expression::Call(Call {
             func: Box::new(Expression::Ident(func_ident)),
-            arguments: <span class="macro">vec!</span>[array_or_slice],
+            arguments: <span class="macro">vec!</span>[array_or_vector],
             return_type: types::U32,
             location: Location::dummy(),
         })
     }
 
-    <span class="doccomment">/// Construct a `Call` to one of the `slice_*` builtin functions.
-    </span><span class="kw">fn </span>call_slice_builtin(
+    <span class="doccomment">/// Construct a `Call` to one of the `vector_*` builtin functions.
+    </span><span class="kw">fn </span>call_vector_builtin(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: <span class="kw-2">&amp;</span>str,
         return_type: Type,
@@ -4658,7 +4658,7 @@
     ) -&gt; Expression {
         <span class="kw">let </span>func_ident = Ident {
             location: <span class="prelude-val">None</span>,
-            definition: Definition::Builtin(<span class="macro">format!</span>(<span class="string">"slice_{name}"</span>)),
+            definition: Definition::Builtin(<span class="macro">format!</span>(<span class="string">"vector_{name}"</span>)),
             mutable: <span class="bool-val">false</span>,
             name: name.to_string(),
             typ: Type::Function(
@@ -4677,79 +4677,79 @@
         })
     }
 
-    <span class="doccomment">/// Construct a `Call` to the `slice_push_front` or `slice_push_back` builtin function.
-    </span><span class="kw">fn </span>call_slice_push(
+    <span class="doccomment">/// Construct a `Call` to the `vector_push_front` or `vector_push_back` builtin function.
+    </span><span class="kw">fn </span>call_vector_push(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        slice_type: Type,
+        vector_type: Type,
         item_type: Type,
-        slice: Expression,
+        vector: Expression,
         is_front: bool,
         item: Expression,
     ) -&gt; Expression {
-        <span class="self">self</span>.call_slice_builtin(
+        <span class="self">self</span>.call_vector_builtin(
             <span class="kw">if </span>is_front { <span class="string">"push_front" </span>} <span class="kw">else </span>{ <span class="string">"push_back" </span>},
-            slice_type.clone(),
-            <span class="macro">vec!</span>[slice_type, item_type],
-            <span class="macro">vec!</span>[slice, item],
+            vector_type.clone(),
+            <span class="macro">vec!</span>[vector_type, item_type],
+            <span class="macro">vec!</span>[vector, item],
         )
     }
 
-    <span class="doccomment">/// Construct a `Call` to the `slice_pop_front` or `slice_pop_back` builtin function.
-    </span><span class="kw">fn </span>call_slice_pop(
+    <span class="doccomment">/// Construct a `Call` to the `vector_pop_front` or `vector_pop_back` builtin function.
+    </span><span class="kw">fn </span>call_vector_pop(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        slice_type: Type,
+        vector_type: Type,
         item_type: Type,
-        slice: Expression,
+        vector: Expression,
         is_front: bool,
     ) -&gt; Expression {
         <span class="kw">let </span>return_fields = <span class="kw">if </span>is_front {
-            <span class="macro">vec!</span>[item_type, slice_type.clone()]
+            <span class="macro">vec!</span>[item_type, vector_type.clone()]
         } <span class="kw">else </span>{
-            <span class="macro">vec!</span>[slice_type.clone(), item_type]
+            <span class="macro">vec!</span>[vector_type.clone(), item_type]
         };
-        <span class="self">self</span>.call_slice_builtin(
+        <span class="self">self</span>.call_vector_builtin(
             <span class="kw">if </span>is_front { <span class="string">"pop_front" </span>} <span class="kw">else </span>{ <span class="string">"pop_back" </span>},
             Type::Tuple(return_fields),
-            <span class="macro">vec!</span>[slice_type],
-            <span class="macro">vec!</span>[slice],
+            <span class="macro">vec!</span>[vector_type],
+            <span class="macro">vec!</span>[vector],
         )
     }
 
-    <span class="doccomment">/// Construct a `Call` to the `slice_remove` builtin function.
-    </span><span class="kw">fn </span>call_slice_remove(
+    <span class="doccomment">/// Construct a `Call` to the `vector_remove` builtin function.
+    </span><span class="kw">fn </span>call_vector_remove(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        slice_type: Type,
+        vector_type: Type,
         item_type: Type,
-        slice: Expression,
+        vector: Expression,
         idx: Expression,
     ) -&gt; Expression {
-        <span class="self">self</span>.call_slice_builtin(
+        <span class="self">self</span>.call_vector_builtin(
             <span class="string">"remove"</span>,
-            Type::Tuple(<span class="macro">vec!</span>[slice_type.clone(), item_type]),
-            <span class="macro">vec!</span>[slice_type, types::U32],
-            <span class="macro">vec!</span>[slice, idx],
+            Type::Tuple(<span class="macro">vec!</span>[vector_type.clone(), item_type]),
+            <span class="macro">vec!</span>[vector_type, types::U32],
+            <span class="macro">vec!</span>[vector, idx],
         )
     }
 
-    <span class="doccomment">/// Construct a `Call` to the `slice_insert` builtin function.
-    </span><span class="kw">fn </span>call_slice_insert(
+    <span class="doccomment">/// Construct a `Call` to the `vector_insert` builtin function.
+    </span><span class="kw">fn </span>call_vector_insert(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        slice_type: Type,
+        vector_type: Type,
         item_type: Type,
-        slice: Expression,
+        vector: Expression,
         idx: Expression,
         item: Expression,
     ) -&gt; Expression {
-        <span class="self">self</span>.call_slice_builtin(
+        <span class="self">self</span>.call_vector_builtin(
             <span class="string">"insert"</span>,
-            Type::Tuple(<span class="macro">vec!</span>[slice_type.clone()]),
-            <span class="macro">vec!</span>[slice_type, types::U32, item_type],
-            <span class="macro">vec!</span>[slice, idx, item],
+            Type::Tuple(<span class="macro">vec!</span>[vector_type.clone()]),
+            <span class="macro">vec!</span>[vector_type, types::U32, item_type],
+            <span class="macro">vec!</span>[vector, idx, item],
         )
     }
 
     <span class="doccomment">/// Random decision whether to allow "Index out of bounds" errors to happen
-    /// on a specific array or slice access operation.
+    /// on a specific array or vector access operation.
     ///
     /// If [Config::avoid_index_out_of_bounds] is turned on, then this is always `true`.
     ///

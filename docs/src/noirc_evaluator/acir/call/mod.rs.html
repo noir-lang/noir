@@ -395,11 +395,11 @@
         ssa: <span class="kw-2">&amp;</span>Ssa,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="comment">// Check that we are not attempting to return a slice from
+        <span class="comment">// Check that we are not attempting to return a vector from
         // an unconstrained runtime to a constrained runtime
         </span><span class="kw">for </span>result_id <span class="kw">in </span>result_ids {
-            <span class="kw">if </span>dfg.type_of_value(<span class="kw-2">*</span>result_id).contains_slice_element() {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::UnconstrainedSliceReturnToConstrained {
+            <span class="kw">if </span>dfg.type_of_value(<span class="kw-2">*</span>result_id).contains_vector_element() {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::UnconstrainedVectorReturnToConstrained {
                     call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
                 });
             }
@@ -492,29 +492,29 @@
             .iter()
             .map(|<span class="kw-2">&amp;</span>value_id| {
                 <span class="kw">let </span>typ = dfg.type_of_value(value_id);
-                <span class="kw">if let </span>Type::Slice(item_types) = typ {
+                <span class="kw">if let </span>Type::Vector(item_types) = typ {
                     <span class="kw">let </span>len = <span class="kw">match </span><span class="self">self
                         </span>.ssa_values
                         .get(<span class="kw-2">&amp;</span>value_id)
-                        .expect(<span class="string">"ICE: Unknown slice input to brillig"</span>)
+                        .expect(<span class="string">"ICE: Unknown vector input to brillig"</span>)
                     {
                         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; {
-                            <span class="comment">// len holds the flattened length of all elements in the slice,
+                            <span class="comment">// len holds the flattened length of all elements in the vector,
                             // so to get the no-flattened length we need to divide by the flattened
-                            // length of a single slice entry
+                            // length of a single vector entry
                             </span><span class="kw">let </span>sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
                             <span class="kw">if </span>sum == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ <span class="kw-2">*</span>len / sum <span class="kw">as </span>usize }
                         }
                         AcirValue::Array(array) =&gt; {
-                            <span class="comment">// len holds the non-flattened length of all elements in the slice,
+                            <span class="comment">// len holds the non-flattened length of all elements in the vector,
                             // so here we need to divide by the non-flattened length of a single
-                            // slice entry
+                            // vector entry
                             </span><span class="kw">if </span>item_types.is_empty() { <span class="number">0 </span>} <span class="kw">else </span>{ array.len() / item_types.len() }
                         }
-                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Slice value is not an array"</span>),
+                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Vector value is not an array"</span>),
                     };
 
-                    BrilligParameter::Slice(
+                    BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
                         len,
                     )
@@ -554,7 +554,7 @@
     <span class="doccomment">/// Convert a `Vec&lt;[AcirVar]&gt;` into a `Vec&lt;[AcirValue]&gt;` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single [AcirValue::Array] of the same length.
-    /// If the type of a result id is a slice, the slice length must precede it and we can
+    /// If the type of a result id is a vector, the vector length must precede it and we can
     /// convert to an [AcirValue::Array] when the length is known (constant).
     </span><span class="kw">fn </span>convert_vars_to_values(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -566,8 +566,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>values: Vec&lt;AcirValue&gt; = Vec::new();
         <span class="kw">for </span>result <span class="kw">in </span>result_ids {
             <span class="kw">let </span>result_type = dfg.type_of_value(<span class="kw-2">*</span>result);
-            <span class="kw">if let </span>Type::Slice(elements_type) = result_type {
-                <span class="kw">let </span>error = <span class="string">"ICE - cannot get slice length when converting slice to AcirValue"</span>;
+            <span class="kw">if let </span>Type::Vector(elements_type) = result_type {
+                <span class="kw">let </span>error = <span class="string">"ICE - cannot get vector length when converting vector to AcirValue"</span>;
                 <span class="kw">let </span>len = values.last().expect(error).borrow_var().expect(error);
                 <span class="kw">let </span>len = <span class="self">self</span>.acir_context.constant(len).to_u128();
                 <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();

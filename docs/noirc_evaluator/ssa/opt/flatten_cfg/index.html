@@ -23,7 +23,7 @@ subsequent passes to optimize code. Mem2reg for example should be able to remove
 references in constrained (ACIR) code.</li>
 <li>Flattening inserts <code>Instruction::IfElse</code> to merge the values from an if-expression’s “then”
 and “else” branches. These are immediately simplified out for numeric values, but for
-arrays and slices we require the <code>remove_if_else</code> SSA pass to later be run to remove the
+arrays and vectors we require the <code>remove_if_else</code> SSA pass to later be run to remove the
 remaining <code>Instruction::IfElse</code> instructions.</li>
 </ul>
 <p>Implementation details &amp; examples:</p>
@@ -69,7 +69,7 @@ constrain v2</code></pre></div>
 will be merged. To merge the jmp arguments of the then and else branches, the formula
 <code>c * then_arg + !c * else_arg</code> is used for each argument. Note that this is represented by
 <code>Instruction::IfElse</code> which is often simplified to the above when inserted, but in the case
-of complex values (arrays and slices) this simplification is delayed until the
+of complex values (arrays and vectors) this simplification is delayed until the
 <code>remove_if_else</code> SSA pass.</li>
 </ol>
 <div class="example-wrap"><pre class="language-text"><code>b0(v0: u1, v1: Field, v2: Field):

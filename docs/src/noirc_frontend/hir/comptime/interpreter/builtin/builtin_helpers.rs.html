@@ -866,13 +866,13 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_slice(
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_vector(
     (value, location): (Value, Location),
 ) -&gt; IResult&lt;(im::Vector&lt;Value&gt;, Type)&gt; {
     <span class="kw">match </span>value {
-        Value::Slice(values, typ) =&gt; <span class="prelude-val">Ok</span>((values, typ)),
+        Value::Vector(values, typ) =&gt; <span class="prelude-val">Ok</span>((values, typ)),
         value =&gt; {
-            <span class="kw">let </span>expected = <span class="string">"slice"</span>;
+            <span class="kw">let </span>expected = <span class="string">"vector"</span>;
             type_mismatch(value, expected, location)
         }
     }
@@ -1271,11 +1271,11 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_expression_to_value(block_expr: BlockExpression) -&gt; Value {
-    <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
     <span class="kw">let </span>statements = block_expr.statements.into_iter();
     <span class="kw">let </span>statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
-    Value::Slice(statements, typ)
+    Value::Vector(statements, typ)
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>has_named_attribute(
@@ -1362,9 +1362,9 @@
     )
 }
 
-<span class="doccomment">/// Type to be used in `Value::Slice(&lt;values&gt;, &lt;slice-type&gt;)`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>byte_slice_type() -&gt; Type {
-    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
+<span class="doccomment">/// Type to be used in `Value::Vector(&lt;values&gt;, &lt;vector-type&gt;)`.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>byte_vector_type() -&gt; Type {
+    Type::Vector(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
 }
 
 <span class="doccomment">/// Create a `Value::Array` from bytes.
@@ -1372,9 +1372,9 @@
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
 }
 
-<span class="doccomment">/// Create a `Value::Slice` from bytes.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_byte_slice(values: <span class="kw-2">&amp;</span>[u8]) -&gt; Value {
-    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
+<span class="doccomment">/// Create a `Value::Vector` from bytes.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_byte_vector(values: <span class="kw-2">&amp;</span>[u8]) -&gt; Value {
+    Value::Vector(values.iter().copied().map(Value::U8).collect(), byte_vector_type())
 }
 
 <span class="doccomment">/// Create a `Value::Struct` from fields and the expected return type.

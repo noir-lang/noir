@@ -960,8 +960,8 @@
     </span>ParserError(Box&lt;ParserError&gt;),
     <span class="attr">#[error(<span class="string">"Closure environment must be a tuple or unit type"</span>)]
     </span>InvalidClosureEnvironment { typ: Type, location: Location },
-    <span class="attr">#[error(<span class="string">"Nested slices, i.e. slices within an array or slice, are not supported"</span>)]
-    </span>NestedSlices { location: Location },
+    <span class="attr">#[error(<span class="string">"Nested vectors, i.e. vectors within an array or vector, are not supported"</span>)]
+    </span>NestedVectors { location: Location },
     <span class="attr">#[error(<span class="string">"#[abi(tag)] attribute is only allowed in contracts"</span>)]
     </span>AbiAttributeOutsideContract { location: Location },
     <span class="attr">#[error(
@@ -970,8 +970,8 @@
     </span>LowLevelFunctionOutsideOfStdlib { location: Location },
     <span class="attr">#[error(<span class="string">"Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"</span>)]
     </span>OracleMarkedAsConstrained { ident: Ident, location: Location },
-    <span class="attr">#[error(<span class="string">"Oracle functions cannot return multiple slices"</span>)]
-    </span>OracleReturnsMultipleSlices { location: Location },
+    <span class="attr">#[error(<span class="string">"Oracle functions cannot return multiple vectors"</span>)]
+    </span>OracleReturnsMultipleVectors { location: Location },
     <span class="attr">#[error(<span class="string">"Dependency cycle found, '{item}' recursively depends on itself: {cycle} "</span>)]
     </span>DependencyCycle { location: Location, item: String, cycle: String },
     <span class="attr">#[error(<span class="string">"break/continue are only allowed in unconstrained functions"</span>)]
@@ -1075,7 +1075,7 @@
     <span class="attr">#[error(<span class="string">"expected numeric expressions, got {typ}"</span>)]
     </span>ExpectedNumericExpression { typ: String, location: Location },
     <span class="attr">#[error(
-        <span class="string">"Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+        <span class="string">"Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"
     </span>)]
     </span>NonU32Index { location: Location },
     <span class="attr">#[error(
@@ -1120,7 +1120,7 @@
             | ResolverError::GenericsOnSelfType { location }
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
-            | ResolverError::NestedSlices { location }
+            | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
@@ -1161,7 +1161,7 @@
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::OracleReturnsMultipleSlices { location, .. }
+            | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -1352,8 +1352,8 @@
                 <span class="macro">format!</span>(<span class="string">"{typ} is not a valid closure environment type"</span>),
                 <span class="string">"Closure environment must be a tuple or unit type"</span>.to_string(), <span class="kw-2">*</span>location
             ),
-            ResolverError::NestedSlices { location } =&gt; Diagnostic::simple_error(
-                <span class="string">"Nested slices, i.e. slices within an array or slice, are not supported"</span>.into(),
+            ResolverError::NestedVectors { location } =&gt; Diagnostic::simple_error(
+                <span class="string">"Nested vectors, i.e. vectors within an array or vector, are not supported"</span>.into(),
                 <span class="string">"Try to use a constant sized array or BoundedVec instead"</span>.into(),
                 <span class="kw-2">*</span>location,
             ),
@@ -1378,7 +1378,7 @@
                 diagnostic.add_secondary(<span class="string">"Oracle functions must have the `unconstrained` keyword applied"</span>.into(), ident.location());
                 diagnostic
             },
-            ResolverError::OracleReturnsMultipleSlices { location } =&gt; {
+            ResolverError::OracleReturnsMultipleVectors { location } =&gt; {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
@@ -1694,7 +1694,7 @@
             },
             ResolverError::NonU32Index { location } =&gt; {
                 Diagnostic::simple_warning(
-                    <span class="string">"Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"</span>.to_string(),
+                    <span class="string">"Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"</span>.to_string(),
                     String::new(),
                     <span class="kw-2">*</span>location,
                 )

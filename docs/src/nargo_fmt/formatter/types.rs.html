@@ -385,7 +385,7 @@
                 <span class="self">self</span>.format_type_expression(type_expr);
                 <span class="self">self</span>.write_right_bracket();
             }
-            UnresolvedTypeData::Slice(typ) =&gt; {
+            UnresolvedTypeData::Vector(typ) =&gt; {
                 <span class="self">self</span>.write_left_bracket();
                 <span class="self">self</span>.format_type(<span class="kw-2">*</span>typ);
                 <span class="self">self</span>.write_right_bracket();
@@ -418,17 +418,17 @@
                 <span class="self">self</span>.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) =&gt; {
-                <span class="comment">// `&amp;` can be represented with Ampersand or SliceStart in the lexer depending
+                <span class="comment">// `&amp;` can be represented with Ampersand or VectorStart in the lexer depending
                 // on whether it's right next to a `[` or not.
                 </span><span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.token {
                     Token::Ampersand =&gt; {
                         <span class="self">self</span>.write_token(Token::Ampersand);
                     }
-                    Token::SliceStart =&gt; {
-                        <span class="self">self</span>.write_token(Token::SliceStart);
+                    Token::VectorStart =&gt; {
+                        <span class="self">self</span>.write_token(Token::VectorStart);
                     }
                     <span class="kw">_ </span>=&gt; {
-                        <span class="macro">panic!</span>(<span class="string">"Expected Ampersand or SliceStart, found {:?}"</span>, <span class="self">self</span>.token);
+                        <span class="macro">panic!</span>(<span class="string">"Expected Ampersand or VectorStart, found {:?}"</span>, <span class="self">self</span>.token);
                     }
                 }
                 <span class="kw">if </span>mutable {
@@ -613,7 +613,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>format_slice_type() {
+    </span><span class="kw">fn </span>format_vector_type() {
         <span class="kw">let </span>src = <span class="string">" [ Field  ] "</span>;
         <span class="kw">let </span>expected = <span class="string">"[Field]"</span>;
         assert_format_type(src, expected);

@@ -149,7 +149,7 @@
     /// - Resolves the types of all struct fields
     /// - Validates visibility constraints (public structs cannot expose private types)
     /// - Registers LSP definition locations for IDE support
-    /// - Checks for disallowed nested slice types
+    /// - Checks for disallowed nested vector types
     ///
     /// Structs must already be interned from the earlier definition collection phase.
     /// This method fills in the field information for each struct.
@@ -193,7 +193,7 @@
             });
         }
 
-        <span class="self">self</span>.check_for_nested_slices(<span class="kw-2">&amp;</span>struct_ids);
+        <span class="self">self</span>.check_for_nested_vectors(<span class="kw-2">&amp;</span>struct_ids);
     }
 
     <span class="doccomment">/// Resolves the field types for a single struct definition.
@@ -231,12 +231,12 @@
         })
     }
 
-    <span class="doccomment">/// Checks all resolved structs for nested slice types, which are not allowed.
+    <span class="doccomment">/// Checks all resolved structs for nested vector types, which are not allowed.
     ///
     /// This check must happen after all struct fields are resolved to ensure we have
     /// complete type information. We only check structs without generics here, as
     /// generic structs are validated after monomorphization during SSA codegen.
-    </span><span class="kw">fn </span>check_for_nested_slices(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_ids: <span class="kw-2">&amp;</span>[TypeId]) {
+    </span><span class="kw">fn </span>check_for_nested_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_ids: <span class="kw-2">&amp;</span>[TypeId]) {
         <span class="kw">for </span>id <span class="kw">in </span>struct_ids {
             <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>id);
 
@@ -245,9 +245,9 @@
             </span><span class="kw">if </span>struct_type.borrow().generics.is_empty() {
                 <span class="kw">let </span>fields = struct_type.borrow().get_fields(<span class="kw-2">&amp;</span>[]).unwrap();
                 <span class="kw">for </span>(<span class="kw">_</span>, field_type, <span class="kw">_</span>) <span class="kw">in </span>fields.iter() {
-                    <span class="kw">if </span>field_type.is_nested_slice() {
+                    <span class="kw">if </span>field_type.is_nested_vector() {
                         <span class="kw">let </span>location = struct_type.borrow().location;
-                        <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
+                        <span class="self">self</span>.push_err(ResolverError::NestedVectors { location });
                     }
                 }
             }

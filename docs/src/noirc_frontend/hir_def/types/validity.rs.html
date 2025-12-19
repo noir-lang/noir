@@ -268,7 +268,7 @@
 <span class="kw">impl </span>Type {
     <span class="doccomment">/// Returns this type, or a nested one, that cannot be used as a parameter to `main`
     /// or a contract function.
-    /// This is only Some for unsized types like slices or slices that do not make sense
+    /// This is only Some for unsized types like vectors or vectors that do not make sense
     /// as a program input such as named generics or mutable references.
     ///
     /// This function should match the same check done in `create_value_from_type` in acir_gen.
@@ -296,7 +296,7 @@
             | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Quoted(<span class="kw">_</span>)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::TraitAsType(..) =&gt; <span class="prelude-val">Some</span>(InvalidType::Primitive(<span class="self">self</span>.clone())),
 
             Type::CheckedCast { to, .. } =&gt; to.program_input_validity(),
@@ -387,7 +387,7 @@
             <span class="comment">// To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
             </span>| Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
             <span class="comment">// TODO: probably can allow code as it is all compile time
@@ -451,7 +451,7 @@
             | Type::Bool
             | Type::Unit
             | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Slice(<span class="kw">_</span>)
+            | Type::Vector(<span class="kw">_</span>)
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::InfixExpr(..)

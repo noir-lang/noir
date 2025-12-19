@@ -483,7 +483,7 @@
                 </span>.brillig_context
                 .codegen_initialize_externally_returned_vector(vector, <span class="kw-2">&amp;</span>heap_vector);
 
-            <span class="comment">// Update the dynamic slice length maintained in SSA, a.k.a semantic length,
+            <span class="comment">// Update the dynamic vector length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
             </span><span class="kw">if let </span>ValueOrArray::MemoryAddress(length_addr) = <span class="kw-2">*</span>output_values[i - <span class="number">1</span>] {
                 <span class="comment">// Calculate the semantic length as flattened_size / element_size.
@@ -547,8 +547,8 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
         <span class="macro">assert!</span>(
-            !arguments.iter().any(|arg| dfg.type_of_value(<span class="kw-2">*</span>arg).contains_slice_element()),
-            <span class="string">"Blackbox functions should not be called with arguments of slice type"
+            !arguments.iter().any(|arg| dfg.type_of_value(<span class="kw-2">*</span>arg).contains_vector_element()),
+            <span class="string">"Blackbox functions should not be called with arguments of vector type"
         </span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = arguments.to_vec();
@@ -583,10 +583,10 @@
         );
     }
 
-    <span class="doccomment">/// Converts an array to a slice by copying the array contents into a vector.
+    <span class="doccomment">/// Converts an array to a vector by copying the array contents into a vector.
     ///
-    /// This intrinsic converts a fixed-size array into a dynamically-sized slice (vector).
-    </span><span class="kw">fn </span>convert_ssa_as_slice(
+    /// This intrinsic converts a fixed-size array into a dynamically-sized vector (vector).
+    </span><span class="kw">fn </span>convert_ssa_as_vector(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
         instruction_id: InstructionId,
@@ -661,16 +661,16 @@
                 <span class="comment">// This match could be combined with the above but without it rust analyzer
                 // can't automatically insert any missing cases
                 </span><span class="kw">match </span>intrinsic {
-                    Intrinsic::AsSlice =&gt; {
-                        <span class="self">self</span>.convert_ssa_as_slice(arguments, instruction_id, dfg);
+                    Intrinsic::AsVector =&gt; {
+                        <span class="self">self</span>.convert_ssa_as_vector(arguments, instruction_id, dfg);
                     }
-                    Intrinsic::SlicePushBack
-                    | Intrinsic::SlicePopBack
-                    | Intrinsic::SlicePushFront
-                    | Intrinsic::SlicePopFront
-                    | Intrinsic::SliceInsert
-                    | Intrinsic::SliceRemove =&gt; {
-                        <span class="self">self</span>.convert_ssa_slice_intrinsic_call(
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorInsert
+                    | Intrinsic::VectorRemove =&gt; {
+                        <span class="self">self</span>.convert_ssa_vector_intrinsic_call(
                             dfg,
                             <span class="kw-2">&amp;</span>dfg[func],
                             instruction_id,
@@ -755,7 +755,7 @@
                         <span class="kw">let </span>array = array.extract_register();
                         <span class="self">self</span>.brillig_context.load_instruction(destination, array);
                     }
-                    Intrinsic::SliceRefCount =&gt; {
+                    Intrinsic::VectorRefCount =&gt; {
                         <span class="kw">let </span>array = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">1</span>], dfg);
                         <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
 

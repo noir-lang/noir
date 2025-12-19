@@ -114,7 +114,7 @@ process the ‘else’ branch. At that point, the <code>ConditionalContext</code
     &amp;mut self,
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     no_predicates: &amp;HashMap&lt;<a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>&gt;, <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>&gt;,
-)</h4></section></summary><div class="docblock"><p>Inline all instructions from the given block into the target block, and track slice capacities.
+)</h4></section></summary><div class="docblock"><p>Inline all instructions from the given block into the target block, and track vector capacities.
 This is done by processing every instruction in the block and using the flattening context
 to push them in the target block.</p>
 <ul>

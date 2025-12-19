@@ -1735,7 +1735,7 @@
             (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
             }
-            (<span class="kw">_</span>, Type::Slice(..)) | (Type::Slice(..), <span class="kw">_</span>) =&gt; {
+            (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
             }
             <span class="comment">// If either side is a numeric type, then we expect their types to be

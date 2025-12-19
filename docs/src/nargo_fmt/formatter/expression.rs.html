@@ -2790,23 +2790,23 @@
             })),
             Literal::Array(array_literal) =&gt; group.group(<span class="self">self</span>.format_array_literal(
                 array_literal,
-                <span class="bool-val">false</span>, <span class="comment">// is slice
+                <span class="bool-val">false</span>, <span class="comment">// is vector
             </span>)),
-            Literal::Slice(array_literal) =&gt; {
+            Literal::Vector(array_literal) =&gt; {
                 group.group(<span class="self">self</span>.format_array_literal(
                     array_literal,
-                    <span class="bool-val">true</span>, <span class="comment">// is slice
+                    <span class="bool-val">true</span>, <span class="comment">// is vector
                 </span>));
             }
         }
     }
 
-    <span class="kw">fn </span>format_array_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal: ArrayLiteral, is_slice: bool) -&gt; ChunkGroup {
+    <span class="kw">fn </span>format_array_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal: ArrayLiteral, is_vector: bool) -&gt; ChunkGroup {
         <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
 
         group.text(<span class="self">self</span>.chunk(|formatter| {
-            <span class="kw">if </span>is_slice {
-                formatter.write_token(Token::SliceStart);
+            <span class="kw">if </span>is_vector {
+                formatter.write_token(Token::VectorStart);
             }
             formatter.write_left_bracket();
         }));
@@ -4086,7 +4086,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>format_standard_slice() {
+    </span><span class="kw">fn </span>format_standard_vector() {
         <span class="kw">let </span>src = <span class="string">"global x = &amp; [ 1 , 2 , 3 , ] ;"</span>;
         <span class="kw">let </span>expected = <span class="string">"global x = &amp;[1, 2, 3];\n"</span>;
         assert_format(src, expected);

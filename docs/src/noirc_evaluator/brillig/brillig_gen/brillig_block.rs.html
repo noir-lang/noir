@@ -1042,10 +1042,10 @@
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: Only Param type values should appear in block parameters"</span>);
             };
             <span class="kw">match </span>param_type {
-                Type::Numeric(<span class="kw">_</span>) | Type::Array(..) | Type::Slice(..) | Type::Reference(<span class="kw">_</span>) =&gt; {
+                Type::Numeric(<span class="kw">_</span>) | Type::Array(..) | Type::Vector(..) | Type::Reference(<span class="kw">_</span>) =&gt; {
                     <span class="comment">// Simple parameters and arrays are passed as already filled registers.
                     // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
-                    // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
+                    // For vectors, two registers are passed, the pointer to the data and a register holding the size of the vector.
                     </span><span class="self">self</span>.variables.define_variable(
                         <span class="self">self</span>.function_context,
                         <span class="self">self</span>.brillig_context,
@@ -1468,7 +1468,7 @@
         (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
         }
-        (<span class="kw">_</span>, Type::Slice(..)) | (Type::Slice(..), <span class="kw">_</span>) =&gt; {
+        (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
         }
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {

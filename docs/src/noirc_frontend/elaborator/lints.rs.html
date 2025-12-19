@@ -561,15 +561,15 @@
     </span>}
 }
 
-<span class="doccomment">/// Oracle functions cannot return more than 1 slice in their output.
+<span class="doccomment">/// Oracle functions cannot return more than 1 vector in their output.
 ///
-/// This is currently a limitation with the AVM: to return multiple slices
+/// This is currently a limitation with the AVM: to return multiple vectors
 /// of unknown length, it would need to support allocating memory for
 /// them in the call handler, and return their final address. Currently
 /// only the Brillig codegen knows about the Free Memory Pointer, and
 /// the VM writes to whatever address is in the destination, so we
 /// can only safely deal with one vector.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>oracle_returns_multiple_slices(
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>oracle_returns_multiple_vectors(
     func: <span class="kw-2">&amp;</span>FuncMeta,
     modifiers: <span class="kw-2">&amp;</span>FunctionModifiers,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
@@ -578,27 +578,27 @@
         <span class="kw">return </span><span class="prelude-val">None</span>;
     }
 
-    <span class="kw">fn </span>slice_count(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
+    <span class="kw">fn </span>vector_count(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
         <span class="kw">match </span>typ {
-            Type::Array(<span class="kw">_</span>, item) =&gt; slice_count(item),
-            Type::Slice(typ) =&gt; <span class="number">1 </span>+ slice_count(typ),
-            Type::FmtString(<span class="kw">_</span>, item) =&gt; slice_count(item),
-            Type::Tuple(items) =&gt; items.iter().map(slice_count).sum(),
+            Type::Array(<span class="kw">_</span>, item) =&gt; vector_count(item),
+            Type::Vector(typ) =&gt; <span class="number">1 </span>+ vector_count(typ),
+            Type::FmtString(<span class="kw">_</span>, item) =&gt; vector_count(item),
+            Type::Tuple(items) =&gt; items.iter().map(vector_count).sum(),
             Type::DataType(def, args) =&gt; {
                 <span class="kw">let </span>struct_type = def.borrow();
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(<span class="kw">_</span>, typ, <span class="kw">_</span>)| slice_count(typ)).sum()
+                    fields.iter().map(|(<span class="kw">_</span>, typ, <span class="kw">_</span>)| vector_count(typ)).sum()
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(<span class="kw">_</span>, types)| types).map(slice_count).sum()
+                    variants.iter().flat_map(|(<span class="kw">_</span>, types)| types).map(vector_count).sum()
                 } <span class="kw">else </span>{
                     <span class="number">0
                 </span>}
             }
-            Type::Alias(def, args) =&gt; slice_count(<span class="kw-2">&amp;</span>def.borrow().get_type(args)),
+            Type::Alias(def, args) =&gt; vector_count(<span class="kw-2">&amp;</span>def.borrow().get_type(args)),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
                 <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
-                    TypeBinding::Bound(binding) =&gt; slice_count(binding),
+                    TypeBinding::Bound(binding) =&gt; vector_count(binding),
                     TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
                 }
             }
@@ -619,9 +619,9 @@
         }
     }
 
-    <span class="kw">if </span>slice_count(func.return_type()) &gt; <span class="number">1 </span>{
+    <span class="kw">if </span>vector_count(func.return_type()) &gt; <span class="number">1 </span>{
         <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
-        <span class="prelude-val">Some</span>(ResolverError::OracleReturnsMultipleSlices { location: ident.location() })
+        <span class="prelude-val">Some</span>(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } <span class="kw">else </span>{
         <span class="prelude-val">None
     </span>}
@@ -657,15 +657,15 @@
 }
 
 <span class="doccomment">/// Check that that a type returned from an unconstrained to a constrained runtime is safe:
-/// * cannot return slices
+/// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>unconstrained_function_return(
     return_type: <span class="kw-2">&amp;</span>Type,
     location: Location,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;TypeCheckError&gt; {
-    <span class="kw">if </span>return_type.contains_slice() {
-        <span class="prelude-val">Some</span>(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
+    <span class="kw">if </span>return_type.contains_vector() {
+        <span class="prelude-val">Some</span>(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } <span class="kw">else if </span>return_type.contains_function() {
         <span class="prelude-val">Some</span>(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } <span class="kw">else if </span>!return_type.is_valid_for_unconstrained_boundary() {

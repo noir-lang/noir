@@ -1365,7 +1365,7 @@
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub enum </span>Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Bool(bool),
     Integer(SignedField, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;),
     Str(String),
@@ -1621,11 +1621,11 @@
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"[{repeated_element}; {length}]"</span>)
             }
-            Literal::Slice(ArrayLiteral::Standard(elements)) =&gt; {
+            Literal::Vector(ArrayLiteral::Standard(elements)) =&gt; {
                 <span class="kw">let </span>contents = vecmap(elements, ToString::to_string);
                 <span class="macro">write!</span>(f, <span class="string">"&amp;[{}]"</span>, contents.join(<span class="string">", "</span>))
             }
-            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) =&gt; {
+            Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"&amp;[{repeated_element}; {length}]"</span>)
             }
             Literal::Bool(boolean) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="kw">if </span><span class="kw-2">*</span>boolean { <span class="string">"true" </span>} <span class="kw">else </span>{ <span class="string">"false" </span>}),

@@ -395,7 +395,7 @@
 <span class="kw">fn </span>element_type_at_index(printable_type: <span class="kw-2">&amp;</span>PrintableType, i: usize) -&gt; <span class="kw-2">&amp;</span>PrintableType {
     <span class="kw">match </span>printable_type {
         PrintableType::Array { length: _length, typ } =&gt; typ.as_ref(),
-        PrintableType::Slice { typ } =&gt; typ.as_ref(),
+        PrintableType::Vector { typ } =&gt; typ.as_ref(),
         PrintableType::Tuple { types } =&gt; <span class="kw-2">&amp;</span>types[i],
         PrintableType::Struct { name: _name, fields } =&gt; <span class="kw-2">&amp;</span>fields[i].<span class="number">1</span>,
         PrintableType::String { length: _length } =&gt; <span class="kw-2">&amp;</span>PrintableType::UnsignedInteger { width: <span class="number">8 </span>},

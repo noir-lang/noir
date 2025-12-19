@@ -99,9 +99,9 @@
         </span>comptime_friendly: <span class="bool-val">true</span>,
         <span class="comment">// Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         </span>force_brillig: <span class="bool-val">true</span>,
-        <span class="comment">// Slices need some parts of the stdlib that we can't just append to the source
+        <span class="comment">// Vectors need some parts of the stdlib that we can't just append to the source
         // the way it is currently done to support prints, because they are low level extensions.
-        </span>avoid_slices: <span class="bool-val">true</span>,
+        </span>avoid_vectors: <span class="bool-val">true</span>,
         <span class="comment">// Use lower limits because of the interpreter, to avoid stack overflow
         </span>max_loop_size: <span class="number">5</span>,
         max_recursive_calls: <span class="number">5</span>,

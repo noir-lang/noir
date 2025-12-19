@@ -1028,7 +1028,24 @@
 <a href="#1027" id="1027">1027</a>
 <a href="#1028" id="1028">1028</a>
 <a href="#1029" id="1029">1029</a>
-<a href="#1030" id="1030">1030</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1252,11 +1269,11 @@
                 <span class="kw">let </span>fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 <span class="self">Self</span>::map_type_helper(<span class="kw-2">&amp;</span>fmt_str_tuple, f)
             }
-            ast::Type::Slice(elements) =&gt; {
+            ast::Type::Vector(elements) =&gt; {
                 <span class="kw">let </span>element_types = <span class="self">Self</span>::convert_type(elements).flatten();
                 Tree::Branch(<span class="macro">vec!</span>[
                     Tree::Leaf(f(Type::length_type())),
-                    Tree::Leaf(f(Type::Slice(Arc::new(element_types)))),
+                    Tree::Leaf(f(Type::Vector(Arc::new(element_types)))),
                 ])
             }
             other =&gt; Tree::Leaf(f(<span class="self">Self</span>::convert_non_tuple_type(other))),
@@ -1292,7 +1309,7 @@
             ast::Type::Unit =&gt; <span class="macro">panic!</span>(<span class="string">"convert_non_tuple_type called on a unit type"</span>),
             ast::Type::Tuple(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"convert_non_tuple_type called on a tuple: {typ}"</span>),
             ast::Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; Type::Function,
-            ast::Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"convert_non_tuple_type called on a slice: {typ}"</span>),
+            ast::Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"convert_non_tuple_type called on a vector: {typ}"</span>),
             ast::Type::Reference(element, <span class="kw">_</span>) =&gt; {
                 <span class="comment">// Recursive call to panic if element is a tuple
                 </span><span class="kw">let </span>element = <span class="self">Self</span>::convert_non_tuple_type(element);
@@ -1723,8 +1740,8 @@
     <span class="doccomment">/// Compile the given `array[index]` expression as a reference.
     /// This will return a triple of (array, index, lvalue_ref, `Option&lt;length&gt;`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing slices rather than arrays since slices
-    /// are represented as a tuple in the form: (length, slice contents).
+    /// The optional length is for indexing vectors rather than arrays since vectors
+    /// are represented as a tuple in the form: (length, vector contents).
     </span><span class="kw">fn </span>index_lvalue(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: <span class="kw-2">&amp;</span>ast::LValue,
@@ -1737,16 +1754,16 @@
         <span class="kw">let </span>array_values = old_array.clone().into_value_list(<span class="self">self</span>);
 
         <span class="kw">let </span>location = <span class="kw-2">*</span>location;
-        <span class="comment">// A slice is represented as a tuple (length, slice contents).
+        <span class="comment">// A vector is represented as a tuple (length, vector contents).
         // We need to fetch the second value.
         </span><span class="prelude-val">Ok</span>(<span class="kw">if </span>array_values.len() &gt; <span class="number">1 </span>{
-            <span class="kw">let </span>slice_lvalue = LValue::SliceIndex {
-                old_slice: old_array,
+            <span class="kw">let </span>vector_lvalue = LValue::VectorIndex {
+                old_vector: old_array,
                 index,
-                slice_lvalue: array_lvalue,
+                vector_lvalue: array_lvalue,
                 location,
             };
-            (array_values[<span class="number">1</span>], index, slice_lvalue, <span class="prelude-val">Some</span>(array_values[<span class="number">0</span>]))
+            (array_values[<span class="number">1</span>], index, vector_lvalue, <span class="prelude-val">Some</span>(array_values[<span class="number">0</span>]))
         } <span class="kw">else </span>{
             <span class="kw">let </span>array_lvalue =
                 LValue::Index { old_array: array_values[<span class="number">0</span>], index, array_lvalue, location };
@@ -1825,31 +1842,32 @@
                             <span class="self">self</span>.codegen_access_check(index, len);
                         }
                     }
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
                 }
 
                 array = <span class="self">self</span>.assign_lvalue_index(new_value, array, index, location);
                 <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>array_lvalue, array.into());
             }
-            LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>slice_values = slice.into_value_list(<span class="self">self</span>);
+            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>vector_values = vector.into_value_list(<span class="self">self</span>);
 
-                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(slice_values[<span class="number">1</span>]);
+                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(vector_values[<span class="number">1</span>]);
 
                 <span class="comment">// Checks for index Out-of-bounds
                 </span><span class="kw">match </span>array_type {
-                    Type::Slice(<span class="kw">_</span>) =&gt; {
-                        <span class="self">self</span>.codegen_access_check(index, slice_values[<span class="number">0</span>]);
+                    Type::Vector(<span class="kw">_</span>) =&gt; {
+                        <span class="self">self</span>.codegen_access_check(index, vector_values[<span class="number">0</span>]);
                     }
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
                 }
 
-                slice_values[<span class="number">1</span>] =
-                    <span class="self">self</span>.assign_lvalue_index(new_value, slice_values[<span class="number">1</span>], index, location);
+                vector_values[<span class="number">1</span>] =
+                    <span class="self">self</span>.assign_lvalue_index(new_value, vector_values[<span class="number">1</span>], index, location);
 
-                <span class="comment">// The size of the slice does not change in a slice index assignment so we can reuse the same length value
-                </span><span class="kw">let </span>new_slice = Tree::Branch(<span class="macro">vec!</span>[slice_values[<span class="number">0</span>].into(), slice_values[<span class="number">1</span>].into()]);
-                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>slice_lvalue, new_slice);
+                <span class="comment">// The size of the vector does not change in a vector index assignment so we can reuse the same length value
+                </span><span class="kw">let </span>new_vector =
+                    Tree::Branch(<span class="macro">vec!</span>[vector_values[<span class="number">0</span>].into(), vector_values[<span class="number">1</span>].into()]);
+                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>vector_lvalue, new_vector);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } =&gt; {
                 <span class="kw">let </span>new_object = <span class="self">Self</span>::replace_field(old_object, index, new_value);
@@ -2053,9 +2071,25 @@
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box&lt;LValue&gt;, location: Location },
-    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box&lt;LValue&gt;, location: Location },
-    MemberAccess { old_object: Values, index: usize, object_lvalue: Box&lt;LValue&gt; },
-    Dereference { reference: Values },
+    Index {
+        old_array: ValueId,
+        index: ValueId,
+        array_lvalue: Box&lt;LValue&gt;,
+        location: Location,
+    },
+    VectorIndex {
+        old_vector: Values,
+        index: ValueId,
+        vector_lvalue: Box&lt;LValue&gt;,
+        location: Location,
+    },
+    MemberAccess {
+        old_object: Values,
+        index: usize,
+        object_lvalue: Box&lt;LValue&gt;,
+    },
+    Dereference {
+        reference: Values,
+    },
 }
 </code></pre></div></section></main></body></html>

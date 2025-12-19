@@ -917,7 +917,7 @@
     Enum(<span class="comment">/*tag*/ </span>usize, <span class="comment">/*args*/ </span>Vec&lt;Value&gt;, Type),
     Pointer(Shared&lt;Value&gt;, <span class="comment">/* auto_deref */ </span>bool, <span class="comment">/* mutable */ </span>bool),
     Array(Vector&lt;Value&gt;, Type),
-    Slice(Vector&lt;Value&gt;, Type),
+    Vector(Vector&lt;Value&gt;, Type),
     Quoted(Rc&lt;Vec&lt;LocatedToken&gt;&gt;),
     TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
@@ -1007,7 +1007,7 @@
             Value::Struct(<span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
             Value::Enum(<span class="kw">_</span>, <span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
             Value::Array(<span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
-            Value::Slice(<span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
+            Value::Vector(<span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
             Value::Quoted(<span class="kw">_</span>) =&gt; Type::Quoted(QuotedType::Quoted),
             Value::TypeDefinition(<span class="kw">_</span>) =&gt; Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element, auto_deref, mutable) =&gt; {
@@ -1142,10 +1142,10 @@
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))<span class="question-mark">?</span>;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, <span class="kw">_</span>) =&gt; {
+            Value::Vector(elements, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))<span class="question-mark">?</span>;
-                ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) =&gt; {
                 <span class="comment">// Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -1326,11 +1326,11 @@
                 })<span class="question-mark">?</span>;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, <span class="kw">_</span>) =&gt; {
+            Value::Vector(elements, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>elements = try_vecmap(elements, |element| {
                     element.into_hir_expression(interner, location)
                 })<span class="question-mark">?</span>;
-                HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
+                HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) =&gt; HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) =&gt; interner.expression(<span class="kw-2">&amp;</span>expr_id),
@@ -1534,7 +1534,7 @@
             Value::Array(values, <span class="kw">_</span>) =&gt; {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Slice(values, <span class="kw">_</span>) =&gt; {
+            Value::Vector(values, <span class="kw">_</span>) =&gt; {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Tuple(values) =&gt; {

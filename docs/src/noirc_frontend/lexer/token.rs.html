@@ -1649,9 +1649,9 @@
     <span class="doccomment">/// &amp;
     </span>Ampersand,
     <span class="doccomment">/// &amp; followed immediately by '['
-    /// This is a lexer hack to distinguish slices
+    /// This is a lexer hack to distinguish vectors
     /// from taking a reference to an array
-    </span>SliceStart,
+    </span>VectorStart,
     <span class="doccomment">/// ^
     </span>Caret,
     <span class="doccomment">/// &lt;&lt;
@@ -1753,7 +1753,7 @@
         Token::Slash =&gt; BorrowedToken::Slash,
         Token::Percent =&gt; BorrowedToken::Percent,
         Token::Ampersand =&gt; BorrowedToken::Ampersand,
-        Token::SliceStart =&gt; BorrowedToken::Ampersand,
+        Token::VectorStart =&gt; BorrowedToken::Ampersand,
         Token::Caret =&gt; BorrowedToken::Caret,
         Token::ShiftLeft =&gt; BorrowedToken::ShiftLeft,
         Token::ShiftRight =&gt; BorrowedToken::ShiftRight,
@@ -1991,7 +1991,7 @@
             Token::Slash =&gt; <span class="macro">write!</span>(f, <span class="string">"/"</span>),
             Token::Percent =&gt; <span class="macro">write!</span>(f, <span class="string">"%"</span>),
             Token::Ampersand =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;"</span>),
-            Token::SliceStart =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;"</span>),
+            Token::VectorStart =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;"</span>),
             Token::Caret =&gt; <span class="macro">write!</span>(f, <span class="string">"^"</span>),
             Token::ShiftLeft =&gt; <span class="macro">write!</span>(f, <span class="string">"&lt;&lt;"</span>),
             Token::ShiftRight =&gt; <span class="macro">write!</span>(f, <span class="string">"&gt;&gt;"</span>),

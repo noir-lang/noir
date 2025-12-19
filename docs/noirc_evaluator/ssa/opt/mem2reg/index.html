@@ -92,7 +92,7 @@ the previous Store to the same address, the previous store can be removed.</li>
 <li>If any argument of the call is a reference, remove the known value of each alias of that
 reference</li>
 <li>Any builtin functions that may return aliases if their input also contains a
-reference should be tracked. Examples: <code>slice_push_back</code>, <code>slice_insert</code>, <code>slice_remove</code>, etc.</li>
+reference should be tracked. Examples: <code>vector_push_back</code>, <code>vector_insert</code>, <code>vector_remove</code>, etc.</li>
 <li>Remove the instance of the last load instruction for any reference arguments and their aliases</li>
 </ul>
 </li>

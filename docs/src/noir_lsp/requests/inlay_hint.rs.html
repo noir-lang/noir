@@ -1524,7 +1524,7 @@
             push_type_parts(size, parts, files);
             parts.push(string_part(<span class="string">"]"</span>));
         }
-        Type::Slice(typ) =&gt; {
+        Type::Vector(typ) =&gt; {
             parts.push(string_part(<span class="string">"["</span>));
             push_type_parts(typ, parts, files);
             parts.push(string_part(<span class="string">"]"</span>));

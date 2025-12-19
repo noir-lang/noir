@@ -663,9 +663,9 @@
                 <span class="kw">let </span>array = array.to_display_ast(interner, location);
                 ExpressionKind::Literal(Literal::Array(array))
             }
-            HirExpression::Literal(HirLiteral::Slice(array)) =&gt; {
+            HirExpression::Literal(HirLiteral::Vector(array)) =&gt; {
                 <span class="kw">let </span>array = array.to_display_ast(interner, location);
-                ExpressionKind::Literal(Literal::Slice(array))
+                ExpressionKind::Literal(Literal::Vector(array))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) =&gt; {
                 ExpressionKind::Literal(Literal::Bool(<span class="kw-2">*</span>value))
@@ -960,9 +960,9 @@
                 <span class="kw">let </span>element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)
             }
-            Type::Slice(element) =&gt; {
+            Type::Vector(element) =&gt; {
                 <span class="kw">let </span>element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::Slice(element)
+                UnresolvedTypeData::Vector(element)
             }
             Type::Integer(sign, bit_size) =&gt; {
                 UnresolvedTypeData::integer(<span class="kw-2">*</span>sign, <span class="kw-2">*</span>bit_size, Location::dummy())

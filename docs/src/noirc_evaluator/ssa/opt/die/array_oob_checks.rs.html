@@ -526,7 +526,7 @@
     <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
     <span class="kw">match </span>instruction {
         ArrayGet { array, index } | ArraySet { array, index, .. } =&gt; {
-            <span class="comment">// We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
+            <span class="comment">// We only care about arrays here as vectors are expected to have explicit checks laid down in the initial SSA.
             </span>function.dfg.try_get_array_length(<span class="kw-2">*</span>array).is_some()
                 &amp;&amp; !function.dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
         }
@@ -558,7 +558,7 @@
     </span>instructions: <span class="kw-2">&amp;</span>[InstructionId],
 ) {
     <span class="kw">if </span>function.dfg.try_get_array_length(<span class="kw-2">*</span>array).is_none() {
-        <span class="comment">// Nothing to do for slices
+        <span class="comment">// Nothing to do for vectors
         </span><span class="kw">return</span>;
     };
 

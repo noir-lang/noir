@@ -1392,13 +1392,13 @@
         TypedValue::new(res, array_elements_type)
     }
 
-    <span class="kw">pub fn </span>insert_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;TypedValue&gt;) -&gt; TypedValue {
+    <span class="kw">pub fn </span>insert_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;TypedValue&gt;) -&gt; TypedValue {
         <span class="kw">let </span>element_type = elements[<span class="number">0</span>].type_of_variable.clone();
         <span class="macro">assert!</span>(
             elements.iter().all(|e| e.type_of_variable == element_type),
             <span class="string">"All elements must have the same type"
         </span>);
-        <span class="kw">let </span>array_elements_type = Type::Slice(Arc::new(<span class="macro">vec!</span>[element_type]));
+        <span class="kw">let </span>array_elements_type = Type::Vector(Arc::new(<span class="macro">vec!</span>[element_type]));
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
             array_elements_type.clone().into(),

@@ -478,7 +478,9 @@
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     brillig::{BrilligOptions, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
@@ -612,7 +614,7 @@
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
-                    BrilligParameter::Slice(item_type, item_count),
+                    BrilligParameter::Vector(item_type, item_count),
                 ) =&gt; {
                     <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(argument);
                     <span class="self">self</span>.usize_const_instruction(vector.pointer, current_calldata_pointer.into());
@@ -643,7 +645,7 @@
                     <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(argument);
                     <span class="self">self</span>.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Slice(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                BrilligParameter::Vector(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                     <span class="self">self</span>.allocate_brillig_vector().map(BrilligVariable::from)
                 }
             })
@@ -662,7 +664,7 @@
             <span class="kw">match </span>param {
                 BrilligParameter::SingleAddr(bit_size) =&gt; Box::new(std::iter::once(<span class="kw-2">*</span>bit_size)),
                 BrilligParameter::Array(item_types, item_count)
-                | BrilligParameter::Slice(item_types, item_count) =&gt; Box::new(
+                | BrilligParameter::Vector(item_types, item_count) =&gt; Box::new(
                     (<span class="number">0</span>..<span class="kw-2">*</span>item_count).flat_map(<span class="kw">move </span>|<span class="kw">_</span>| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
             }
@@ -771,7 +773,9 @@
 
                             source_offset += <span class="self">Self</span>::flattened_size(subitem);
                         }
-                        BrilligParameter::Slice(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot deflatten slices"</span>),
+                        BrilligParameter::Vector(..) =&gt; {
+                            <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot deflatten vectors"</span>)
+                        }
                     }
                 }
             }
@@ -807,7 +811,7 @@
                 BrilligParameter::Array(item_types, item_count) =&gt; <span class="self">self
                     </span>.allocate_brillig_array(item_types.len() * item_count)
                     .map(BrilligVariable::from),
-                BrilligParameter::Slice(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return slices"</span>),
+                BrilligParameter::Vector(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return vectors"</span>),
             })
             .collect();
 
@@ -843,8 +847,8 @@
 
                     return_data_index += <span class="self">Self</span>::flattened_size(return_param);
                 }
-                BrilligParameter::Slice(..) =&gt; {
-                    <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return slices from brillig entrypoints"</span>)
+                BrilligParameter::Vector(..) =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return vectors from brillig entrypoints"</span>)
                 }
             }
         }

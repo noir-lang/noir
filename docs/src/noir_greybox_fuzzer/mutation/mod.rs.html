@@ -739,7 +739,7 @@
 <span class="kw">use </span>array::{mutate_vector_structure, splice_array_structure};
 <span class="kw">use </span>configurations::{
     BASIC_TESTCASE_SPLICE_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
-    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, BASIC_UNBALANCED_SLICE_CONFIGURATION,
+    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, BASIC_UNBALANCED_VECTOR_CONFIGURATION,
     TestCaseSpliceTypeOptions, UnbalancedSpliceOptions,
 };
 <span class="kw">use </span>dictionary::FullDictionary;
@@ -816,8 +816,8 @@
     }
 
     <span class="doccomment">/// Update the dictionary with values from a vector of field elements
-    </span><span class="kw">pub fn </span>update_dictionary_from_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: <span class="kw-2">&amp;</span>[FieldElement]) {
-        <span class="self">self</span>.full_dictionary.update_from_vector(elements);
+    </span><span class="kw">pub fn </span>update_dictionary_from_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: <span class="kw-2">&amp;</span>[FieldElement]) {
+        <span class="self">self</span>.full_dictionary.update_from_slice(elements);
     }
 
     <span class="doccomment">/// Count weights of each element recursively (complex structures return a vector of weights of their most basic elements)
@@ -1098,7 +1098,7 @@
         <span class="kw">match </span>abi_type {
             <span class="comment">// For a single-element type pick one based on the unbalanced schedule
             </span>AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } =&gt; {
-                <span class="kw">match </span>BASIC_UNBALANCED_SLICE_CONFIGURATION.select(prng) {
+                <span class="kw">match </span>BASIC_UNBALANCED_VECTOR_CONFIGURATION.select(prng) {
                     UnbalancedSpliceOptions::FirstTestCase =&gt; first_input.clone(),
                     UnbalancedSpliceOptions::SecondTestCase =&gt; second_input.clone(),
                 }
@@ -1106,7 +1106,7 @@
 
             <span class="comment">// For string, with a 50% chance pick one based on the unbalanced schedule, with 50% splice with string splicing methods
             </span>AbiType::String { length: <span class="kw">_ </span>} =&gt; <span class="kw">match </span>prng.gen_range(<span class="number">0</span>..<span class="number">2</span>) {
-                <span class="number">0 </span>=&gt; <span class="kw">match </span>BASIC_UNBALANCED_SLICE_CONFIGURATION.select(prng) {
+                <span class="number">0 </span>=&gt; <span class="kw">match </span>BASIC_UNBALANCED_VECTOR_CONFIGURATION.select(prng) {
                     UnbalancedSpliceOptions::FirstTestCase =&gt; first_input.clone(),
                     UnbalancedSpliceOptions::SecondTestCase =&gt; second_input.clone(),
                 },

@@ -656,7 +656,7 @@
 
 <span class="kw">fn </span>flatten_databus_value(value: Value, flattened_values: <span class="kw-2">&amp;mut </span>Vec&lt;Value&gt;) {
     <span class="kw">match </span>value {
-        Value::ArrayOrSlice(array_value) =&gt; {
+        Value::ArrayOrVector(array_value) =&gt; {
             <span class="kw">for </span>value <span class="kw">in </span>array_value.elements.borrow().iter() {
                 flatten_databus_value(value.clone(), flattened_values);
             }

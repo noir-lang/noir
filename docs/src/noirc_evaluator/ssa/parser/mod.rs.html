@@ -2058,7 +2058,7 @@
                 <span class="kw">return </span><span class="self">self</span>.expected_byte_string();
             };
             <span class="kw">let </span>u8 = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>});
-            <span class="kw">let </span>typ = Type::Slice(Arc::new(<span class="macro">vec!</span>[u8.clone()]));
+            <span class="kw">let </span>typ = Type::Vector(Arc::new(<span class="macro">vec!</span>[u8.clone()]));
             <span class="kw">let </span>elements = string
                 .bytes()
                 .map(|byte| {
@@ -2297,7 +2297,7 @@
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
             } <span class="kw">else </span>{
                 <span class="self">self</span>.eat_or_error(Token::RightBracket)<span class="question-mark">?</span>;
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(Type::Slice(Arc::new(element_types)));
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(Type::Vector(Arc::new(element_types)));
             }
         }
 

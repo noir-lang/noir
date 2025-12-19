@@ -1375,8 +1375,8 @@
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::NonArrayIndexed { typ, location } =&gt; {
-                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Expected an array or slice but found a(n) {typ}"</span>);
-                <span class="kw">let </span>secondary = <span class="string">"Only arrays or slices may be indexed"</span>.into();
+                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Expected an array or vector but found a(n) {typ}"</span>);
+                <span class="kw">let </span>secondary = <span class="string">"Only arrays or vectors may be indexed"</span>.into();
                 CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
             }
             InterpreterError::NonIntegerUsedAsIndex { typ, location } =&gt; {
@@ -1597,7 +1597,7 @@
             }
             InterpreterError::ExpectedIdentForStructField { value, index, location } =&gt; {
                 <span class="kw">let </span>msg = <span class="macro">format!</span>(
-                    <span class="string">"Quoted value in index {index} of this slice is not a valid field name"
+                    <span class="string">"Quoted value in index {index} of this vector is not a valid field name"
                 </span>);
                 <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"`{value}` is not a valid field name for `set_fields`"</span>);
                 CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)

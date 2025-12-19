@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_argument_count","check_argument_count_is_at_least","check_slice_can_pop_all_element_types","new_embedded_curve_point","value_to_printable_type","value_to_string","values_to_fields"]};
+window.SIDEBAR_ITEMS = {"fn":["check_argument_count","check_argument_count_is_at_least","check_vector_can_pop_all_element_types","new_embedded_curve_point","value_to_printable_type","value_to_string","values_to_fields"]};

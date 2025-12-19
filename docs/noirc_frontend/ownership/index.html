@@ -8,7 +8,7 @@ has any notion of cloning a value - specifically arrays with their brillig-only 
 count. These operations are equivalent on arrays. Cloning may be applied to any value and only
 increments the reference counts of any arrays contained within (but not behind references or
 inside nested arrays). This document also focuses on arrays but all reference count operations
-on arrays are also performed on slices.</p>
+on arrays are also performed on vectors.</p>
 <p>Arrays in brillig have copy on write semantics which relies on us incrementing their
 reference counts when they are shared in multiple places. Note that while Noir has references,
 arrays can also be shared by value and we want to avoid clones when possible. This pass

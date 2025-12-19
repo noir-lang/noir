@@ -3270,8 +3270,8 @@
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_trait_impl,
-    get_tuple, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
+    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
+    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
     has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
     parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
     visibility_to_quoted,
@@ -3338,7 +3338,7 @@
             <span class="string">"array_len" </span>=&gt; array_len(arguments, location),
             <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
             <span class="string">"assert_constant" </span>=&gt; <span class="prelude-val">Ok</span>(Value::Unit),
-            <span class="string">"as_slice" </span>=&gt; as_slice(arguments, location),
+            <span class="string">"as_vector" </span>=&gt; as_vector(arguments, location),
             <span class="string">"as_witness" </span>=&gt; as_witness(arguments, location),
             <span class="string">"black_box" </span>=&gt; black_box(arguments, location),
             <span class="string">"checked_transmute" </span>=&gt; checked_transmute(arguments, return_type, location),
@@ -3376,10 +3376,10 @@
             <span class="string">"expr_as_repeated_element_array" </span>=&gt; {
                 expr_as_repeated_element_array(interner, arguments, return_type, location)
             }
-            <span class="string">"expr_as_repeated_element_slice" </span>=&gt; {
-                expr_as_repeated_element_slice(interner, arguments, return_type, location)
+            <span class="string">"expr_as_repeated_element_vector" </span>=&gt; {
+                expr_as_repeated_element_vector(interner, arguments, return_type, location)
             }
-            <span class="string">"expr_as_slice" </span>=&gt; expr_as_slice(interner, arguments, return_type, location),
+            <span class="string">"expr_as_vector" </span>=&gt; expr_as_vector(interner, arguments, return_type, location),
             <span class="string">"expr_as_tuple" </span>=&gt; expr_as_tuple(interner, arguments, return_type, location),
             <span class="string">"expr_as_unary_op" </span>=&gt; expr_as_unary_op(interner, arguments, return_type, location),
             <span class="string">"expr_as_unsafe" </span>=&gt; expr_as_unsafe(interner, arguments, return_type, location),
@@ -3444,13 +3444,13 @@
             <span class="string">"quoted_eq" </span>=&gt; quoted_eq(<span class="self">self</span>.elaborator.interner, arguments, location),
             <span class="string">"quoted_hash" </span>=&gt; quoted_hash(arguments, location),
             <span class="string">"quoted_tokens" </span>=&gt; quoted_tokens(arguments, location),
-            <span class="string">"slice_insert" </span>=&gt; slice_insert(arguments, location, call_stack),
-            <span class="string">"slice_pop_back" </span>=&gt; slice_pop_back(arguments, location, call_stack),
-            <span class="string">"slice_pop_front" </span>=&gt; slice_pop_front(arguments, location, call_stack),
-            <span class="string">"slice_push_back" </span>=&gt; slice_push_back(arguments, location),
-            <span class="string">"slice_push_front" </span>=&gt; slice_push_front(arguments, location),
-            <span class="string">"slice_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
-            <span class="string">"slice_remove" </span>=&gt; slice_remove(arguments, location, call_stack),
+            <span class="string">"vector_insert" </span>=&gt; vector_insert(arguments, location, call_stack),
+            <span class="string">"vector_pop_back" </span>=&gt; vector_pop_back(arguments, location, call_stack),
+            <span class="string">"vector_pop_front" </span>=&gt; vector_pop_front(arguments, location, call_stack),
+            <span class="string">"vector_push_back" </span>=&gt; vector_push_back(arguments, location),
+            <span class="string">"vector_push_front" </span>=&gt; vector_push_front(arguments, location),
+            <span class="string">"vector_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
+            <span class="string">"vector_remove" </span>=&gt; vector_remove(arguments, location, call_stack),
             <span class="string">"static_assert" </span>=&gt; static_assert(interner, arguments, location, call_stack),
             <span class="string">"str_as_bytes" </span>=&gt; str_as_bytes(arguments, location),
             <span class="string">"str_as_ctstring" </span>=&gt; str_as_ctstring(arguments, location),
@@ -3475,7 +3475,7 @@
             <span class="string">"type_as_mutable_reference" </span>=&gt; {
                 type_as_mutable_reference(arguments, return_type, location)
             }
-            <span class="string">"type_as_slice" </span>=&gt; type_as_slice(arguments, return_type, location),
+            <span class="string">"type_as_vector" </span>=&gt; type_as_vector(arguments, return_type, location),
             <span class="string">"type_as_str" </span>=&gt; type_as_str(arguments, return_type, location),
             <span class="string">"type_as_data_type" </span>=&gt; type_as_data_type(arguments, return_type, location),
             <span class="string">"type_as_tuple" </span>=&gt; type_as_tuple(arguments, return_type, location),
@@ -3517,8 +3517,8 @@
             <span class="string">"unresolved_type_as_mutable_reference" </span>=&gt; {
                 unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
             }
-            <span class="string">"unresolved_type_as_slice" </span>=&gt; {
-                unresolved_type_as_slice(interner, arguments, return_type, location)
+            <span class="string">"unresolved_type_as_vector" </span>=&gt; {
+                unresolved_type_as_vector(interner, arguments, return_type, location)
             }
             <span class="string">"unresolved_type_is_bool" </span>=&gt; unresolved_type_is_bool(interner, arguments, location),
             <span class="string">"unresolved_type_is_field" </span>=&gt; unresolved_type_is_field(interner, arguments, location),
@@ -3548,7 +3548,7 @@
     <span class="kw">let </span>(argument, argument_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>argument {
-        Value::Array(values, <span class="kw">_</span>) | Value::Slice(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::U32(values.len() <span class="kw">as </span>u32)),
+        Value::Array(values, <span class="kw">_</span>) | Value::Vector(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::U32(values.len() <span class="kw">as </span>u32)),
         value =&gt; {
             <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
             <span class="kw">let </span>actual = value.get_type().into_owned();
@@ -3593,11 +3593,11 @@
     <span class="prelude-val">Ok</span>(Value::String(Rc::new(string)))
 }
 
-<span class="kw">fn </span>as_slice(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>as_vector(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(array, array_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>array {
-        Value::Array(values, Type::Array(<span class="kw">_</span>, typ)) =&gt; <span class="prelude-val">Ok</span>(Value::Slice(values, Type::Slice(typ))),
+        Value::Array(values, Type::Array(<span class="kw">_</span>, typ)) =&gt; <span class="prelude-val">Ok</span>(Value::Vector(values, Type::Vector(typ))),
         value =&gt; {
             <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
             <span class="kw">let </span>actual = value.get_type().into_owned();
@@ -3632,12 +3632,12 @@
     <span class="prelude-val">Ok</span>(value)
 }
 
-<span class="kw">fn </span>slice_push_back(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>(slice, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<span class="kw">fn </span>vector_push_back(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">let </span>(vector, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
     values.push_back(element);
-    <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(values, typ))
 }
 
 <span class="comment">// static_assert&lt;let N: u32&gt;(predicate: bool, message: T)
@@ -3784,7 +3784,7 @@
     <span class="kw">let </span>type_def = type_def_rc.borrow();
 
     <span class="kw">let </span>generics_location = generics.<span class="number">1</span>;
-    <span class="kw">let </span>(generics, <span class="kw">_</span>) = get_slice(generics)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(generics, <span class="kw">_</span>) = get_vector(generics)<span class="question-mark">?</span>;
     <span class="kw">let </span>generics = try_vecmap(generics, |generic| get_type((generic, generics_location)))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>correct_generic_count = type_def.generics.len() == generics.len();
@@ -3809,7 +3809,7 @@
     <span class="kw">let </span>type_def = type_def.borrow();
 
     <span class="kw">let </span>expected = || {
-        Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+        Type::Vector(Box::new(Type::Tuple(<span class="macro">vec!</span>[
             Type::Quoted(QuotedType::Type),
             interner.next_type_variable(), <span class="comment">// Option
         </span>])))
@@ -3818,12 +3818,12 @@
 
     <span class="kw">let </span>actual = return_type.clone();
 
-    <span class="kw">let </span>slice_item_type = <span class="kw">match </span>return_type {
-        Type::Slice(item_type) =&gt; <span class="kw-2">*</span>item_type,
+    <span class="kw">let </span>vector_item_type = <span class="kw">match </span>return_type {
+        Type::Vector(item_type) =&gt; <span class="kw-2">*</span>item_type,
         <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected: expected(), actual, location }),
     };
 
-    <span class="kw">let </span>option_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>slice_item_type {
+    <span class="kw">let </span>option_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>vector_item_type {
         Type::Tuple(types) <span class="kw">if </span>types.len() == <span class="number">2 </span>=&gt; types[<span class="number">1</span>].clone(),
         <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected: expected(), actual, location }),
     };
@@ -3842,7 +3842,7 @@
         })
         .collect();
 
-    <span class="prelude-val">Ok</span>(Value::Slice(generics, slice_item_type))
+    <span class="prelude-val">Ok</span>(Value::Vector(generics, vector_item_type))
 }
 
 <span class="kw">fn </span>type_def_hash(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
@@ -3882,7 +3882,7 @@
     <span class="kw">let </span>struct_def = struct_def.borrow();
 
     <span class="kw">let </span>args_location = generic_args.<span class="number">1</span>;
-    <span class="kw">let </span>generic_args = get_slice(generic_args)<span class="question-mark">?</span>.<span class="number">0</span>;
+    <span class="kw">let </span>generic_args = get_vector(generic_args)<span class="question-mark">?</span>.<span class="number">0</span>;
     <span class="kw">let </span>generic_args = try_vecmap(generic_args, |arg| get_type((arg, args_location)))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>actual = generic_args.len();
@@ -3911,12 +3911,12 @@
         }
     }
 
-    <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+    <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Tuple(<span class="macro">vec!</span>[
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
         Type::Quoted(QuotedType::Quoted),
     ])));
-    <span class="prelude-val">Ok</span>(Value::Slice(fields, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(fields, typ))
 }
 
 <span class="doccomment">/// fn fields_as_written(self) -&gt; [(Quoted, Type, Quoted)]
@@ -3946,12 +3946,12 @@
         }
     }
 
-    <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+    <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Tuple(<span class="macro">vec!</span>[
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
         Type::Quoted(QuotedType::Quoted),
     ])));
-    <span class="prelude-val">Ok</span>(Value::Slice(fields, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(fields, typ))
 }
 
 <span class="comment">// fn module(self) -&gt; Module
@@ -3995,7 +3995,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>struct_def = struct_def.borrow_mut();
 
     <span class="kw">let </span>field_location = fields.<span class="number">1</span>;
-    <span class="kw">let </span>fields = get_slice(fields)<span class="question-mark">?</span>.<span class="number">0</span>;
+    <span class="kw">let </span>fields = get_vector(fields)<span class="question-mark">?</span>.<span class="number">0</span>;
     <span class="kw">let </span>fields = fields
         .into_iter()
         .flat_map(|field_pair| get_tuple((field_pair, field_location)))
@@ -4059,93 +4059,93 @@
     <span class="prelude-val">Ok</span>(Value::Unit)
 }
 
-<span class="kw">fn </span>slice_remove(
+<span class="kw">fn </span>vector_remove(
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>(slice, index) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(vector, index) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
     <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
 
     <span class="kw">if </span>values.is_empty() {
-        <span class="kw">return </span>failing_constraint(<span class="string">"slice_remove called on empty slice"</span>, location, call_stack);
+        <span class="kw">return </span>failing_constraint(<span class="string">"vector_remove called on empty vector"</span>, location, call_stack);
     }
 
     <span class="kw">if </span>index &gt;= values.len() {
         <span class="kw">let </span>message = <span class="macro">format!</span>(
-            <span class="string">"slice_remove: index {index} is out of bounds for a slice of length {}"</span>,
+            <span class="string">"vector_remove: index {index} is out of bounds for a vector of length {}"</span>,
             values.len()
         );
         <span class="kw">return </span>failing_constraint(message, location, call_stack);
     }
 
     <span class="kw">let </span>element = Shared::new(values.remove(index));
-    <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Slice(values, typ)), element]))
+    <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Vector(values, typ)), element]))
 }
 
-<span class="kw">fn </span>slice_push_front(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>(slice, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<span class="kw">fn </span>vector_push_front(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">let </span>(vector, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
     values.push_front(element);
-    <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(values, typ))
 }
 
-<span class="kw">fn </span>slice_pop_front(
+<span class="kw">fn </span>vector_pop_front(
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(argument)<span class="question-mark">?</span>;
     <span class="kw">match </span>values.pop_front() {
         <span class="prelude-val">Some</span>(element) =&gt; {
-            <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(element), Shared::new(Value::Slice(values, typ))]))
+            <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
-        <span class="prelude-val">None </span>=&gt; failing_constraint(<span class="string">"slice_pop_front called on empty slice"</span>, location, call_stack),
+        <span class="prelude-val">None </span>=&gt; failing_constraint(<span class="string">"vector_pop_front called on empty vector"</span>, location, call_stack),
     }
 }
 
-<span class="kw">fn </span>slice_pop_back(
+<span class="kw">fn </span>vector_pop_back(
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(argument)<span class="question-mark">?</span>;
     <span class="kw">match </span>values.pop_back() {
         <span class="prelude-val">Some</span>(element) =&gt; {
-            <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Slice(values, typ)), Shared::new(element)]))
+            <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
-        <span class="prelude-val">None </span>=&gt; failing_constraint(<span class="string">"slice_pop_back called on empty slice"</span>, location, call_stack),
+        <span class="prelude-val">None </span>=&gt; failing_constraint(<span class="string">"vector_pop_back called on empty vector"</span>, location, call_stack),
     }
 }
 
-<span class="kw">fn </span>slice_insert(
+<span class="kw">fn </span>vector_insert(
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>(slice, index, (element, <span class="kw">_</span>)) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(vector, index, (element, <span class="kw">_</span>)) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
     <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
 
     <span class="comment">// If index is equal to the length, the insert is equivalent to a push
     </span><span class="kw">if </span>index &gt; values.len() {
         <span class="kw">let </span>message = <span class="macro">format!</span>(
-            <span class="string">"slice_insert: index {index} is out of bounds for a slice of length {}"</span>,
+            <span class="string">"vector_insert: index {index} is out of bounds for a vector of length {}"</span>,
             values.len()
         );
         <span class="kw">return </span>failing_constraint(message, location, call_stack);
     }
 
     values.insert(index, element);
-    <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(values, typ))
 }
 
 <span class="comment">// fn as_expr(quoted: Quoted) -&gt; Option&lt;Expr&gt;
@@ -4249,9 +4249,9 @@
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>value = get_quoted(argument)<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(Value::Slice(
+    <span class="prelude-val">Ok</span>(Value::Vector(
         value.iter().map(|token| Value::Quoted(Rc::new(<span class="macro">vec!</span>[token.clone()]))).collect(),
-        Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
+        Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
 }
 
@@ -4429,14 +4429,14 @@
     })
 }
 
-<span class="comment">// fn as_slice(self) -&gt; Option&lt;Type&gt;
-</span><span class="kw">fn </span>type_as_slice(
+<span class="comment">// fn as_vector(self) -&gt; Option&lt;Type&gt;
+</span><span class="kw">fn </span>type_as_vector(
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
     type_as(arguments, return_type, location, |typ| {
-        <span class="kw">if let </span>Type::Slice(slice_type) = typ { <span class="prelude-val">Some</span>(Value::Type(<span class="kw-2">*</span>slice_type)) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+        <span class="kw">if let </span>Type::Vector(vector_type) = typ { <span class="prelude-val">Some</span>(Value::Type(<span class="kw-2">*</span>vector_type)) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
     })
 }
 
@@ -4461,9 +4461,9 @@
         <span class="kw">if let </span>Type::DataType(struct_type, generics) = typ {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
                 Shared::new(Value::TypeDefinition(struct_type.borrow().id)),
-                Shared::new(Value::Slice(
+                Shared::new(Value::Vector(
                     generics.into_iter().map(Value::Type).collect(),
-                    Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
+                    Type::Vector(Box::new(Type::Quoted(QuotedType::Type))),
                 )),
             ]))
         } <span class="kw">else </span>{
@@ -4482,11 +4482,11 @@
         <span class="kw">if let </span>Type::Tuple(types) = typ {
             <span class="kw">let </span>t = extract_option_generic_type(return_type);
 
-            <span class="kw">let </span>Type::Slice(slice_type) = t <span class="kw">else </span>{
-                <span class="macro">panic!</span>(<span class="string">"Expected T to be a slice"</span>);
+            <span class="kw">let </span>Type::Vector(vector_type) = t <span class="kw">else </span>{
+                <span class="macro">panic!</span>(<span class="string">"Expected T to be a vector"</span>);
             };
 
-            <span class="prelude-val">Some</span>(Value::Slice(types.into_iter().map(Value::Type).collect(), <span class="kw-2">*</span>slice_type))
+            <span class="prelude-val">Some</span>(Value::Vector(types.into_iter().map(Value::Type).collect(), <span class="kw-2">*</span>vector_type))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -4639,9 +4639,9 @@
     <span class="kw">let </span>trait_impl = trait_impl.borrow();
     <span class="kw">let </span>methods =
         trait_impl.methods.iter().map(|func_id| Value::FunctionDefinition(<span class="kw-2">*</span>func_id)).collect();
-    <span class="kw">let </span>slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
+    <span class="kw">let </span>vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
 
-    <span class="prelude-val">Ok</span>(Value::Slice(methods, slice_type))
+    <span class="prelude-val">Ok</span>(Value::Vector(methods, vector_type))
 }
 
 <span class="comment">// fn trait_generic_args(self) -&gt; [Type]
@@ -4656,9 +4656,9 @@
     <span class="kw">let </span>trait_impl = interner.get_trait_implementation(trait_impl_id);
     <span class="kw">let </span>trait_impl = trait_impl.borrow();
     <span class="kw">let </span>trait_generics = trait_impl.trait_generics.iter().map(|t| Value::Type(t.clone())).collect();
-    <span class="kw">let </span>slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
+    <span class="kw">let </span>vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Type)));
 
-    <span class="prelude-val">Ok</span>(Value::Slice(trait_generics, slice_type))
+    <span class="prelude-val">Ok</span>(Value::Vector(trait_generics, vector_type))
 }
 
 <span class="comment">// fn as_function_definition(self) -&gt; Option&lt;FunctionDefinition&gt;
@@ -4713,15 +4713,15 @@
     })
 }
 
-<span class="comment">// fn as_slice(self) -&gt; Option&lt;UnresolvedType&gt;
-</span><span class="kw">fn </span>unresolved_type_as_slice(
+<span class="comment">// fn as_vector(self) -&gt; Option&lt;UnresolvedType&gt;
+</span><span class="kw">fn </span>unresolved_type_as_vector(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
     unresolved_type_as(interner, arguments, return_type, location, |typ| {
-        <span class="kw">if let </span>UnresolvedTypeData::Slice(typ) = typ {
+        <span class="kw">if let </span>UnresolvedTypeData::Vector(typ) = typ {
             <span class="prelude-val">Some</span>(Value::UnresolvedType(typ.typ))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -4824,7 +4824,7 @@
                 </span>Value::Zeroed(Type::Array(length_type, elem))
             }
         }
-        Type::Slice(<span class="kw">_</span>) =&gt; Value::Slice(Vector::new(), return_type),
+        Type::Vector(<span class="kw">_</span>) =&gt; Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) =&gt; <span class="kw">match </span>(sign, bits) {
             (Signedness::Unsigned, IntegerBitSize::One) =&gt; Value::U1(<span class="bool-val">false</span>),
             (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; Value::U8(<span class="number">0</span>),
@@ -4930,8 +4930,8 @@
         ))) = expr
         {
             <span class="kw">let </span>exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
-            <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            <span class="prelude-val">Some</span>(Value::Slice(exprs, typ))
+            <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
+            <span class="prelude-val">Some</span>(Value::Vector(exprs, typ))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -5132,7 +5132,7 @@
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Comptime(block_expr, <span class="kw">_</span>)) = expr {
             <span class="prelude-val">Some</span>(block_expression_to_value(block_expr))
         } <span class="kw">else if let </span>ExprValue::Statement(StatementKind::Comptime(statement)) = expr {
-            <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
 
             <span class="comment">// comptime { ... } as a statement wraps a block expression,
             // and in that case we return the block expression statements
@@ -5144,7 +5144,7 @@
             } <span class="kw">else </span>{
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = Vector::new();
                 elements.push_back(Value::statement(statement.kind));
-                <span class="prelude-val">Some</span>(Value::Slice(elements, typ))
+                <span class="prelude-val">Some</span>(Value::Vector(elements, typ))
             }
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5173,11 +5173,11 @@
                 Value::Tuple(<span class="macro">vec!</span>[ident, expr])
             });
             <span class="kw">let </span>fields = fields.collect();
-            <span class="kw">let </span>fields_type = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+            <span class="kw">let </span>fields_type = Type::Vector(Box::new(Type::Tuple(<span class="macro">vec!</span>[
                 Type::Quoted(QuotedType::Quoted),
                 Type::Quoted(QuotedType::Expr),
             ])));
-            <span class="kw">let </span>fields = Shared::new(Value::Slice(fields, fields_type));
+            <span class="kw">let </span>fields = Shared::new(Value::Vector(fields, fields_type));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[typ, fields]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5250,9 +5250,9 @@
             <span class="kw">let </span>function = Shared::new(Value::expression(call_expression.func.kind));
             <span class="kw">let </span>arguments = call_expression.arguments.into_iter();
             <span class="kw">let </span>arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            <span class="kw">let </span>arguments = Shared::new(Value::Slice(
+            <span class="kw">let </span>arguments = Shared::new(Value::Vector(
                 arguments,
-                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+                Type::Vector(Box::new(Type::Quoted(QuotedType::Expr))),
             ));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[function, arguments]))
         } <span class="kw">else </span>{
@@ -5374,9 +5374,9 @@
                     Value::Tuple(<span class="macro">vec!</span>[pattern, typ])
                 })
                 .collect();
-            <span class="kw">let </span>parameters = Shared::new(Value::Slice(
+            <span class="kw">let </span>parameters = Shared::new(Value::Vector(
                 parameters,
-                Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+                Type::Vector(Box::new(Type::Tuple(<span class="macro">vec!</span>[
                     Type::Quoted(QuotedType::Expr),
                     Type::Quoted(QuotedType::UnresolvedType),
                 ]))),
@@ -5463,16 +5463,16 @@
 
             <span class="kw">let </span>generics = method_call.generics.unwrap_or_default().into_iter();
             <span class="kw">let </span>generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
-            <span class="kw">let </span>generics = Shared::new(Value::Slice(
+            <span class="kw">let </span>generics = Shared::new(Value::Vector(
                 generics,
-                Type::Slice(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
+                Type::Vector(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
             ));
 
             <span class="kw">let </span>arguments = method_call.arguments.into_iter();
             <span class="kw">let </span>arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            <span class="kw">let </span>arguments = Shared::new(Value::Slice(
+            <span class="kw">let </span>arguments = Shared::new(Value::Vector(
                 arguments,
-                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+                Type::Vector(Box::new(Type::Quoted(QuotedType::Expr))),
             ));
 
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[object, name, generics, arguments]))
@@ -5504,15 +5504,15 @@
     })
 }
 
-<span class="comment">// fn as_repeated_element_slice(self) -&gt; Option&lt;(Expr, Expr)&gt;
-</span><span class="kw">fn </span>expr_as_repeated_element_slice(
+<span class="comment">// fn as_repeated_element_vector(self) -&gt; Option&lt;(Expr, Expr)&gt;
+</span><span class="kw">fn </span>expr_as_repeated_element_vector(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type, location, |expr| {
-        <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Literal(Literal::Slice(
+        <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Literal(Literal::Vector(
             ArrayLiteral::Repeated { repeated_element, length },
         ))) = expr
         {
@@ -5526,21 +5526,21 @@
     })
 }
 
-<span class="comment">// fn as_slice(self) -&gt; Option&lt;[Expr]&gt;
-</span><span class="kw">fn </span>expr_as_slice(
+<span class="comment">// fn as_vector(self) -&gt; Option&lt;[Expr]&gt;
+</span><span class="kw">fn </span>expr_as_vector(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type, location, |expr| {
-        <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Literal(Literal::Slice(
+        <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Literal(Literal::Vector(
             ArrayLiteral::Standard(exprs),
         ))) = expr
         {
             <span class="kw">let </span>exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
-            <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            <span class="prelude-val">Some</span>(Value::Slice(exprs, typ))
+            <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
+            <span class="prelude-val">Some</span>(Value::Vector(exprs, typ))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -5558,8 +5558,8 @@
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Tuple(expressions)) = expr {
             <span class="kw">let </span>expressions =
                 expressions.into_iter().map(|expr| Value::expression(expr.kind)).collect();
-            <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            <span class="prelude-val">Some</span>(Value::Slice(expressions, typ))
+            <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
+            <span class="prelude-val">Some</span>(Value::Vector(expressions, typ))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -5961,12 +5961,12 @@
         })
         .collect();
 
-    <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+    <span class="kw">let </span>typ = Type::Vector(Box::new(Type::Tuple(<span class="macro">vec!</span>[
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
     ])));
 
-    <span class="prelude-val">Ok</span>(Value::Slice(parameters, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(parameters, typ))
 }
 
 <span class="comment">// fn return_type(self) -&gt; Type
@@ -6035,7 +6035,7 @@
     <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
     check_function_not_yet_resolved(interpreter, func_id, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(input_parameters, _type) = get_slice(parameters_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(input_parameters, _type) = get_vector(parameters_argument)<span class="question-mark">?</span>;
 
     <span class="comment">// What follows is very similar to what happens in Elaborator::define_function_meta
     </span><span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
@@ -6216,8 +6216,8 @@
         .map(|local_id| Value::ModuleDefinition(ModuleId { local_id, krate: module_id.krate }))
         .collect();
 
-    <span class="kw">let </span>slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::Module)));
-    <span class="prelude-val">Ok</span>(Value::Slice(children, slice_type))
+    <span class="kw">let </span>vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Module)));
+    <span class="prelude-val">Ok</span>(Value::Vector(children, vector_type))
 }
 
 <span class="kw">fn </span>module_hash(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
@@ -6250,8 +6250,8 @@
         })
         .collect();
 
-    <span class="kw">let </span>slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
-    <span class="prelude-val">Ok</span>(Value::Slice(func_ids, slice_type))
+    <span class="kw">let </span>vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
+    <span class="prelude-val">Ok</span>(Value::Vector(func_ids, vector_type))
 }
 
 <span class="comment">// fn parent(self) -&gt; Option&lt;Module&gt;
@@ -6294,8 +6294,8 @@
         })
         .collect();
 
-    <span class="kw">let </span>slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::TypeDefinition)));
-    <span class="prelude-val">Ok</span>(Value::Slice(struct_ids, slice_type))
+    <span class="kw">let </span>vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::TypeDefinition)));
+    <span class="prelude-val">Ok</span>(Value::Vector(struct_ids, vector_type))
 }
 
 <span class="comment">// fn has_named_attribute&lt;let N: u32&gt;(self, name: str&lt;N&gt;) -&gt; bool {}
@@ -6350,8 +6350,8 @@
     <span class="kw">let </span>bits_vector = bits.into_iter().map(|bit| Value::U1(bit != <span class="number">0</span>)).collect();
 
     <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
-    <span class="kw">let </span>typ = Type::Slice(Box::new(int_type));
-    <span class="prelude-val">Ok</span>(Value::Slice(bits_vector, typ))
+    <span class="kw">let </span>typ = Type::Vector(Box::new(int_type));
+    <span class="prelude-val">Ok</span>(Value::Vector(bits_vector, typ))
 }
 
 <span class="kw">fn </span>modulus_be_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
@@ -6361,24 +6361,24 @@
     <span class="kw">let </span>bytes_vector = bytes.into_iter().map(Value::U8).collect();
 
     <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-    <span class="kw">let </span>typ = Type::Slice(Box::new(int_type));
-    <span class="prelude-val">Ok</span>(Value::Slice(bytes_vector, typ))
+    <span class="kw">let </span>typ = Type::Vector(Box::new(int_type));
+    <span class="prelude-val">Ok</span>(Value::Vector(bytes_vector, typ))
 }
 
 <span class="kw">fn </span>modulus_le_bits(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>Value::Slice(bits, typ) = modulus_be_bits(arguments, location)<span class="question-mark">? </span><span class="kw">else </span>{
-        <span class="macro">unreachable!</span>(<span class="string">"modulus_be_bits must return slice"</span>)
+    <span class="kw">let </span>Value::Vector(bits, typ) = modulus_be_bits(arguments, location)<span class="question-mark">? </span><span class="kw">else </span>{
+        <span class="macro">unreachable!</span>(<span class="string">"modulus_be_bits must return vector"</span>)
     };
     <span class="kw">let </span>reversed_bits = bits.into_iter().rev().collect();
-    <span class="prelude-val">Ok</span>(Value::Slice(reversed_bits, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(reversed_bits, typ))
 }
 
 <span class="kw">fn </span>modulus_le_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-    <span class="kw">let </span>Value::Slice(bytes, typ) = modulus_be_bytes(arguments, location)<span class="question-mark">? </span><span class="kw">else </span>{
-        <span class="macro">unreachable!</span>(<span class="string">"modulus_be_bytes must return slice"</span>)
+    <span class="kw">let </span>Value::Vector(bytes, typ) = modulus_be_bytes(arguments, location)<span class="question-mark">? </span><span class="kw">else </span>{
+        <span class="macro">unreachable!</span>(<span class="string">"modulus_be_bytes must return vector"</span>)
     };
     <span class="kw">let </span>reversed_bytes = bytes.into_iter().rev().collect();
-    <span class="prelude-val">Ok</span>(Value::Slice(reversed_bytes, typ))
+    <span class="prelude-val">Ok</span>(Value::Vector(reversed_bytes, typ))
 }
 
 <span class="kw">fn </span>modulus_num_bits(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {

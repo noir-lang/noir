@@ -411,8 +411,13 @@
 <a href="#410" id="410">410</a>
 <a href="#411" id="411">411</a>
 <a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_slice_ops;
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_vector_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
 <span class="kw">use </span>acvm::brillig_vm::offsets;
@@ -485,7 +490,7 @@
 
                     variable
                 }
-                Type::Slice(<span class="kw">_</span>) =&gt; {
+                Type::Vector(<span class="kw">_</span>) =&gt; {
                     <span class="kw">let </span>variable = <span class="self">self</span>.variables.define_variable(
                         <span class="self">self</span>.function_context,
                         <span class="self">self</span>.brillig_context,
@@ -526,7 +531,7 @@
     ///
     /// # Panics
     /// - If the provided `typ` is not an array.
-    /// - If any slice types are encountered within the nested structure, since slices
+    /// - If any vector types are encountered within the nested structure, since vectors
     ///   require runtime size information and cannot be allocated statically here.
     </span><span class="kw">fn </span>allocate_foreign_call_result_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, array: BrilligArray) {
         <span class="kw">let </span>Type::Array(types, size) = typ <span class="kw">else </span>{
@@ -566,8 +571,8 @@
                             inner_array.pointer,
                         );
                     }
-                    Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(
-                        <span class="string">"ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
+                    Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(
+                        <span class="string">"ICE: unsupported vector type in allocate_nested_array(), expects an array or a numeric type"
                     </span>),
                     <span class="kw">_ </span>=&gt; (),
                 }
@@ -597,14 +602,14 @@
         <span class="self">self</span>.brillig_context.codegen_call(func_id, <span class="kw-2">&amp;</span>argument_variables, <span class="kw-2">&amp;</span>return_variables);
     }
 
-    <span class="doccomment">/// Increase or decrease the slice length by 1.
+    <span class="doccomment">/// Increase or decrease the vector length by 1.
     ///
-    /// Slices have a tuple structure (slice length, slice contents) to enable logic
-    /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
-    /// This method codegens an update to the slice length.
+    /// Vectors have a tuple structure (vector length, vector contents) to enable logic
+    /// that uses dynamic vector lengths (such as with merging vectors in the flattening pass).
+    /// This method codegens an update to the vector length.
     ///
-    /// The binary operation performed on the slice length is always an addition or subtraction of `1`.
-    /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
+    /// The binary operation performed on the vector length is always an addition or subtraction of `1`.
+    /// This is because the vector length holds the user length (length as displayed by a `.len()` call),
     /// and not a flattened length used internally to represent arrays of tuples.
     /// The length inside of `RegisterOrMemory::HeapVector` represents the entire flattened number
     /// of fields in the vector.
@@ -612,7 +617,7 @@
     /// Note that when we subtract a value, we expect that there is a constraint in SSA
     /// to check that the length isn't already 0. We could add a constraint opcode here,
     /// but if it's in SSA, there is a chance it can be optimized out.
-    </span><span class="kw">fn </span>update_slice_length(
+    </span><span class="kw">fn </span>update_vector_length(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_len: SingleAddrVariable,
         source_len: SingleAddrVariable,
@@ -646,21 +651,21 @@
         }
     }
 
-    <span class="doccomment">/// Convert the SSA slice operations to brillig slice operations
-    </span><span class="kw">fn </span>convert_ssa_slice_intrinsic_call(
+    <span class="doccomment">/// Convert the SSA vector operations to brillig vector operations
+    </span><span class="kw">fn </span>convert_ssa_vector_intrinsic_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         intrinsic: <span class="kw-2">&amp;</span>Value,
         instruction_id: InstructionId,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
     ) {
-        <span class="comment">// Slice operations always look like `... = call slice_&lt;op&gt; source_len, source_vector, ...`
+        <span class="comment">// Vector operations always look like `... = call vector_&lt;op&gt; source_len, source_vector, ...`
         </span><span class="kw">let </span>source_len = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">0</span>], dfg);
         <span class="kw">let </span>source_len = source_len.extract_single_addr();
 
-        <span class="kw">let </span>slice_id = arguments[<span class="number">1</span>];
-        <span class="kw">let </span>element_size = dfg.type_of_value(slice_id).element_size();
-        <span class="kw">let </span>source_vector = <span class="self">self</span>.convert_ssa_value(slice_id, dfg).extract_vector();
+        <span class="kw">let </span>vector_id = arguments[<span class="number">1</span>];
+        <span class="kw">let </span>element_size = dfg.type_of_value(vector_id).element_size();
+        <span class="kw">let </span>source_vector = <span class="self">self</span>.convert_ssa_value(vector_id, dfg).extract_vector();
 
         <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
 
@@ -677,8 +682,8 @@
         };
 
         <span class="kw">match </span>intrinsic {
-            Value::Intrinsic(Intrinsic::SlicePushBack) =&gt; {
-                <span class="comment">// target_len, target_slice = slice_push_back source_len, source_slice, ...elements
+            Value::Intrinsic(Intrinsic::VectorPushBack) =&gt; {
+                <span class="comment">// target_len, target_vector = vector_push_back source_len, source_vector, ...elements
                 </span><span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
                 <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
@@ -687,16 +692,16 @@
                 });
 
                 <span class="comment">// target_len = source_len + 1
-                </span><span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
+                </span><span class="self">self</span>.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                <span class="self">self</span>.slice_push_back_operation(
+                <span class="self">self</span>.vector_push_back_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     <span class="kw-2">&amp;</span>item_values,
                 );
             }
-            Value::Intrinsic(Intrinsic::SlicePushFront) =&gt; {
+            Value::Intrinsic(Intrinsic::VectorPushFront) =&gt; {
                 <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
                 <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
@@ -704,16 +709,16 @@
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
 
-                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
+                <span class="self">self</span>.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                <span class="self">self</span>.slice_push_front_operation(
+                <span class="self">self</span>.vector_push_front_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     <span class="kw-2">&amp;</span>item_values,
                 );
             }
-            Value::Intrinsic(Intrinsic::SlicePopBack) =&gt; {
+            Value::Intrinsic(Intrinsic::VectorPopBack) =&gt; {
                 <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
                 <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
@@ -726,17 +731,17 @@
                     )
                 });
 
-                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
+                <span class="self">self</span>.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                <span class="self">self</span>.slice_pop_back_operation(
+                <span class="self">self</span>.vector_pop_back_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     <span class="kw-2">&amp;</span>pop_variables,
                 );
             }
-            Value::Intrinsic(Intrinsic::SlicePopFront) =&gt; {
-                <span class="comment">// ...elements, target_len, target_vector = slice_pop_front len, vector
+            Value::Intrinsic(Intrinsic::VectorPopFront) =&gt; {
+                <span class="comment">// ...elements, target_len, target_vector = vector_pop_front len, vector
                 </span><span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, element_size);
                 <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, element_size + <span class="number">1</span>);
 
@@ -749,16 +754,16 @@
                     )
                 });
 
-                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
+                <span class="self">self</span>.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                <span class="self">self</span>.slice_pop_front_operation(
+                <span class="self">self</span>.vector_pop_front_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     <span class="kw-2">&amp;</span>pop_variables,
                 );
             }
-            Value::Intrinsic(Intrinsic::SliceInsert) =&gt; {
+            Value::Intrinsic(Intrinsic::VectorInsert) =&gt; {
                 <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
                 <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
@@ -780,11 +785,16 @@
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
 
-                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
+                <span class="self">self</span>.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                <span class="self">self</span>.slice_insert_operation(target_vector, source_vector, <span class="kw-2">*</span>converted_index, <span class="kw-2">&amp;</span>items);
+                <span class="self">self</span>.vector_insert_operation(
+                    target_vector,
+                    source_vector,
+                    <span class="kw-2">*</span>converted_index,
+                    <span class="kw-2">&amp;</span>items,
+                );
             }
-            Value::Intrinsic(Intrinsic::SliceRemove) =&gt; {
+            Value::Intrinsic(Intrinsic::VectorRemove) =&gt; {
                 <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
                 <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
@@ -811,16 +821,16 @@
                     )
                 });
 
-                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
+                <span class="self">self</span>.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                <span class="self">self</span>.slice_remove_operation(
+                <span class="self">self</span>.vector_remove_operation(
                     target_vector,
                     source_vector,
                     <span class="kw-2">*</span>converted_index,
                     <span class="kw-2">&amp;</span>removed_items,
                 );
             }
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Slice operation not supported"</span>),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Vector operation not supported"</span>),
         }
     }
 }

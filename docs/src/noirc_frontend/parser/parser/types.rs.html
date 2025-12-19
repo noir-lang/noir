@@ -668,7 +668,7 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_array_or_slice_type() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_array_or_vector_type() {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
@@ -828,8 +828,8 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
-        <span class="comment">// The `&amp;` may be lexed as a slice start if this is an array or slice type
-        </span><span class="kw">if </span><span class="self">self</span>.eat(Token::Ampersand) || <span class="self">self</span>.eat(Token::SliceStart) {
+        <span class="comment">// The `&amp;` may be lexed as a vector start if this is an array or vector type
+        </span><span class="kw">if </span><span class="self">self</span>.eat(Token::Ampersand) || <span class="self">self</span>.eat(Token::VectorStart) {
             <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
 
             <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Reference(
@@ -841,7 +841,7 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="kw">fn </span>parse_array_or_slice_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
+    <span class="kw">fn </span>parse_array_or_vector_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.eat_left_bracket() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -857,12 +857,12 @@
                 <span class="prelude-val">Err</span>(error) =&gt; {
                     <span class="self">self</span>.errors.push(error);
                     <span class="self">self</span>.eat_or_error(Token::RightBracket);
-                    <span class="prelude-val">Some</span>(UnresolvedTypeData::Slice(Box::new(typ)))
+                    <span class="prelude-val">Some</span>(UnresolvedTypeData::Vector(Box::new(typ)))
                 }
             }
         } <span class="kw">else </span>{
             <span class="self">self</span>.eat_or_error(Token::RightBracket);
-            <span class="prelude-val">Some</span>(UnresolvedTypeData::Slice(Box::new(typ)))
+            <span class="prelude-val">Some</span>(UnresolvedTypeData::Vector(Box::new(typ)))
         }
     }
 
@@ -1046,15 +1046,15 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>parses_slice_type() {
+    </span><span class="kw">fn </span>parses_vector_type() {
         <span class="kw">let </span>src = <span class="string">"[Field]"</span>;
         <span class="kw">let </span>typ = parse_type_no_errors(src);
-        <span class="kw">let </span>UnresolvedTypeData::Slice(typ) = typ.typ <span class="kw">else </span>{ <span class="macro">panic!</span>(<span class="string">"Expected a slice type"</span>) };
+        <span class="kw">let </span>UnresolvedTypeData::Vector(typ) = typ.typ <span class="kw">else </span>{ <span class="macro">panic!</span>(<span class="string">"Expected a vector type"</span>) };
         <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>errors_if_missing_right_bracket_after_slice_type() {
+    </span><span class="kw">fn </span>errors_if_missing_right_bracket_after_vector_type() {
         <span class="kw">let </span>src = <span class="string">"
         [Field 
               ^

@@ -2014,7 +2014,7 @@
         }
         <span class="kw">let </span>abi_change_detected = elements_for_dictionary.is_some();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(elements_for_dictionary) = elements_for_dictionary {
-            <span class="self">self</span>.mutator.update_dictionary_from_vector(<span class="kw-2">&amp;</span>elements_for_dictionary);
+            <span class="self">self</span>.mutator.update_dictionary_from_slice(<span class="kw-2">&amp;</span>elements_for_dictionary);
         }
 
         <span class="kw">let </span>minimized_corpus = <span class="kw">if </span><span class="self">self</span>.minimize_corpus {

@@ -15,7 +15,7 @@ functions across all ACIR artifacts</p>
 There can be Brillig functions specified in SSA which do not act as
 entry points in ACIR (e.g. only called by other Brillig functions)
 This mapping is necessary to use the correct function pointer for a Brillig call.
-This uses the brillig parameters in the map since using slices with different lengths
+This uses the brillig parameters in the map since using vectors with different lengths
 needs to create different brillig entrypoints</p>
 </div><span id="structfield.brillig_stdlib_func_pointer" class="structfield section-header"><a href="#structfield.brillig_stdlib_func_pointer" class="anchor field">§</a><code>brillig_stdlib_func_pointer: FxHashMap&lt;<a class="enum" href="../acir_context/generated_acir/brillig_directive/enum.BrilligStdlibFunc.html" title="enum noirc_evaluator::acir::acir_context::generated_acir::brillig_directive::BrilligStdlibFunc">BrilligStdlibFunc</a>, <a class="struct" href="../../../acir/circuit/brillig/struct.BrilligFunctionId.html" title="struct acir::circuit::brillig::BrilligFunctionId">BrilligFunctionId</a>&gt;</code></span><div class="docblock"><p>Maps a Brillig std lib function (a handwritten primitive such as for inversion) -&gt; Final generated Brillig artifact index.
 A separate mapping from normal Brillig calls is necessary as these methods do not have an associated function id from SSA.</p>

@@ -447,7 +447,7 @@
                 );
                 <span class="self">self</span>.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::Reference(typ, <span class="kw">_</span>) | Type::Array(<span class="kw">_</span>, typ) | Type::Slice(typ) =&gt; {
+            Type::Reference(typ, <span class="kw">_</span>) | Type::Array(<span class="kw">_</span>, typ) | Type::Vector(typ) =&gt; {
                 <span class="self">self</span>.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, <span class="kw">_</span>) =&gt; {

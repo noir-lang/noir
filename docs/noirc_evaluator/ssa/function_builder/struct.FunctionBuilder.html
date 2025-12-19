@@ -161,8 +161,8 @@ inserted during the flattening pass when branching is removed.</p>
     &amp;mut self,
     elements: Vector&lt;<a class="type" href="../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     typ: <a class="enum" href="../ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
-) -&gt; <a class="type" href="../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert a <code>make_array</code> instruction to create a new array or slice.
-Returns the new array value. Expects <code>typ</code> to be an array or slice type.</p>
+) -&gt; <a class="type" href="../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert a <code>make_array</code> instruction to create a new array or vector.
+Returns the new array value. Expects <code>typ</code> to be an array or vector type.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.terminate_block_with" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/ssa/function_builder/mod.rs.html#401-405">Source</a><h4 class="code-header">fn <a href="#method.terminate_block_with" class="fn">terminate_block_with</a>(&amp;mut self, terminator: <a class="enum" href="../ir/instruction/enum.TerminatorInstruction.html" title="enum noirc_evaluator::ssa::ir::instruction::TerminatorInstruction">TerminatorInstruction</a>)</h4></section></summary><div class="docblock"><p>Terminates the current block with the given terminator instruction
 if the current block does not already have a terminator instruction.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.terminate_with_jmp" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/ssa/function_builder/mod.rs.html#409-416">Source</a><h4 class="code-header">pub fn <a href="#method.terminate_with_jmp" class="fn">terminate_with_jmp</a>(

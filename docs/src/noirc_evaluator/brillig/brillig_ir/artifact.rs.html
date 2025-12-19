@@ -381,9 +381,9 @@
     </span>SingleAddr(u32),
     <span class="doccomment">/// An array parameter or return value. Holds the type of an array item and its size.
     </span>Array(Vec&lt;BrilligParameter&gt;, usize),
-    <span class="doccomment">/// A slice parameter or return value. Holds the type of a slice item.
-    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
-    </span>Slice(Vec&lt;BrilligParameter&gt;, usize),
+    <span class="doccomment">/// A vector parameter or return value. Holds the type of a vector item.
+    /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
+    </span>Vector(Vec&lt;BrilligParameter&gt;, usize),
 }
 
 <span class="doccomment">/// The result of compiling and linking brillig artifacts.

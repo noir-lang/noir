@@ -690,7 +690,7 @@
 </span><span class="kw">pub enum </span>Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
-    ArrayOrSlice(ArrayValue),
+    ArrayOrVector(ArrayValue),
     Function(FunctionId),
     Intrinsic(Intrinsic),
     ForeignFunction(String),
@@ -803,7 +803,7 @@
     </span><span class="kw">pub </span>rc: Shared&lt;u32&gt;,
 
     <span class="kw">pub </span>element_types: Arc&lt;CompositeType&gt;,
-    <span class="kw">pub </span>is_slice: bool,
+    <span class="kw">pub </span>is_vector: bool,
 }
 
 <span class="kw">impl </span>Value {
@@ -812,10 +812,10 @@
         <span class="kw">match </span><span class="self">self </span>{
             Value::Numeric(numeric_value) =&gt; Type::Numeric(numeric_value.get_type()),
             Value::Reference(reference) =&gt; Type::Reference(reference.element_type.clone()),
-            Value::ArrayOrSlice(array) <span class="kw">if </span>array.is_slice =&gt; {
-                Type::Slice(array.element_types.clone())
+            Value::ArrayOrVector(array) <span class="kw">if </span>array.is_vector =&gt; {
+                Type::Vector(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) =&gt; {
+            Value::ArrayOrVector(array) =&gt; {
                 <span class="kw">let </span>len = array.elements.borrow().len().checked_div(array.element_types.len());
                 <span class="kw">let </span>len = len.unwrap_or(<span class="number">0</span>) <span class="kw">as </span>u32;
                 Type::Array(array.element_types.clone(), len)
@@ -871,9 +871,9 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_array_or_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayValue&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_array_or_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayValue&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::ArrayOrSlice(value) =&gt; <span class="prelude-val">Some</span>(value.clone()),
+            Value::ArrayOrVector(value) =&gt; <span class="prelude-val">Some</span>(value.clone()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -935,20 +935,20 @@
     }
 
     <span class="kw">pub fn </span>array(elements: Vec&lt;Value&gt;, element_types: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::ArrayOrSlice(ArrayValue {
+        <span class="self">Self</span>::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(<span class="number">1</span>),
             element_types: Arc::new(element_types),
-            is_slice: <span class="bool-val">false</span>,
+            is_vector: <span class="bool-val">false</span>,
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice(elements: Vec&lt;Value&gt;, element_types: Arc&lt;Vec&lt;Type&gt;&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::ArrayOrSlice(ArrayValue {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vector(elements: Vec&lt;Value&gt;, element_types: Arc&lt;Vec&lt;Type&gt;&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(<span class="number">1</span>),
             element_types,
-            is_slice: <span class="bool-val">true</span>,
+            is_vector: <span class="bool-val">true</span>,
         })
     }
 
@@ -976,13 +976,13 @@
                 <span class="kw">let </span>elements = elements.flatten().collect();
                 <span class="self">Self</span>::array(elements, element_types.to_vec())
             }
-            Type::Slice(element_types) =&gt; <span class="self">Self</span>::slice(Vec::new(), element_types.clone()),
+            Type::Vector(element_types) =&gt; <span class="self">Self</span>::vector(Vec::new(), element_types.clone()),
             Type::Function =&gt; Value::ForeignFunction(<span class="string">"uninitialized!"</span>.to_string()),
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.as_array_or_slice()<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.as_array_or_vector()<span class="question-mark">?</span>;
         <span class="kw">let </span>elements = array.elements.borrow();
         <span class="kw">let </span>bytes = elements.iter().map(|element| element.as_u8()).collect::&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>(String::from_utf8_lossy(<span class="kw-2">&amp;</span>bytes).into_owned())
@@ -1004,13 +1004,13 @@
                     element_type: r.element_type.clone(),
                 })
             }
-            Value::ArrayOrSlice(a) =&gt; {
+            Value::ArrayOrVector(a) =&gt; {
                 <span class="kw">let </span>elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
-                Value::ArrayOrSlice(ArrayValue {
+                Value::ArrayOrVector(ArrayValue {
                     elements: Shared::new(elements),
                     rc: Shared::new(<span class="kw-2">*</span>a.rc.borrow()),
                     element_types: a.element_types.clone(),
-                    is_slice: a.is_slice,
+                    is_vector: a.is_vector,
                 })
             }
             Value::Function(id) =&gt; Value::Function(<span class="kw-2">*</span>id),
@@ -1208,7 +1208,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Value::Numeric(numeric_value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{numeric_value}"</span>),
             Value::Reference(reference_value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{reference_value}"</span>),
-            Value::ArrayOrSlice(array_value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{array_value}"</span>),
+            Value::ArrayOrVector(array_value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{array_value}"</span>),
             Value::Function(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"{id}"</span>),
             Value::Intrinsic(intrinsic) =&gt; <span class="macro">write!</span>(f, <span class="string">"{intrinsic}"</span>),
             Value::ForeignFunction(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"ForeignFunction(\"{name}\")"</span>),
@@ -1258,8 +1258,8 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span>rc = <span class="self">self</span>.rc.borrow();
 
-        <span class="kw">let </span>is_slice = <span class="kw">if </span><span class="self">self</span>.is_slice { <span class="string">"&amp;" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
-        <span class="macro">write!</span>(f, <span class="string">"rc{rc} {is_slice}"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>is_vector = <span class="kw">if </span><span class="self">self</span>.is_vector { <span class="string">"&amp;" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
+        <span class="macro">write!</span>(f, <span class="string">"rc{rc} {is_vector}"</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// Check if the array could be shown as a string literal
         </span><span class="kw">if </span><span class="self">self</span>.element_types.len() == <span class="number">1
@@ -1329,7 +1329,7 @@
         <span class="comment">// Don't compare RC
         </span><span class="self">self</span>.elements == other.elements
             &amp;&amp; <span class="self">self</span>.element_types == other.element_types
-            &amp;&amp; <span class="self">self</span>.is_slice == other.is_slice
+            &amp;&amp; <span class="self">self</span>.is_vector == other.is_vector
     }
 }
 

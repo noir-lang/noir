@@ -271,14 +271,14 @@
             }
             InterpreterValue::array(elements, element_types.to_vec())
         }
-        Type::Slice(element_types) =&gt; {
+        Type::Vector(element_types) =&gt; {
             <span class="kw">let </span>(array_constant, <span class="kw">_</span>) =
                 dfg.get_array_constant(value_id).expect(<span class="string">"Should have an array constant"</span>);
             <span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::new();
             <span class="kw">for </span>element <span class="kw">in </span>array_constant {
                 elements.push(const_ir_value_to_interpreter_value(element, dfg));
             }
-            InterpreterValue::slice(elements, element_types)
+            InterpreterValue::vector(elements, element_types)
         }
         Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"Functions cannot be constant values"</span>),
     }
@@ -298,8 +298,8 @@
         }
         Type::Array(element_types, length) =&gt; {
             <span class="kw">let </span>array = <span class="kw">match </span>value {
-                InterpreterValue::ArrayOrSlice(array) =&gt; array,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an ArrayOrSlice"</span>),
+                InterpreterValue::ArrayOrVector(array) =&gt; array,
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an ArrayOrVector"</span>),
             };
 
             <span class="kw">let </span><span class="kw-2">mut </span>elements = Vector::new();
@@ -314,10 +314,10 @@
             dfg[block_id].instructions_mut().push(instruction_id);
             dfg.instruction_result::&lt;<span class="number">1</span>&gt;(instruction_id)[<span class="number">0</span>]
         }
-        Type::Slice(element_types) =&gt; {
+        Type::Vector(element_types) =&gt; {
             <span class="kw">let </span>array = <span class="kw">match </span>value {
-                InterpreterValue::ArrayOrSlice(array) =&gt; array,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an ArrayOrSlice"</span>),
+                InterpreterValue::ArrayOrVector(array) =&gt; array,
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an ArrayOrVector"</span>),
             };
 
             <span class="kw">let </span><span class="kw-2">mut </span>elements = Vector::new();
@@ -325,7 +325,7 @@
                 elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
             }
 
-            <span class="kw">let </span>instruction = Instruction::MakeArray { elements, typ: Type::Slice(element_types) };
+            <span class="kw">let </span>instruction = Instruction::MakeArray { elements, typ: Type::Vector(element_types) };
 
             <span class="kw">let </span>instruction_id = dfg.make_instruction(instruction, <span class="prelude-val">None</span>);
             dfg[block_id].instructions_mut().push(instruction_id);

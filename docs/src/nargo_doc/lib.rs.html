@@ -1069,7 +1069,7 @@
                     noirc_frontend::Type::String(..) =&gt; PrimitiveTypeKind::Str,
                     noirc_frontend::Type::FmtString(..) =&gt; PrimitiveTypeKind::Fmtstr,
                     noirc_frontend::Type::Array(..) =&gt; PrimitiveTypeKind::Array,
-                    noirc_frontend::Type::Slice(..) =&gt; PrimitiveTypeKind::Slice,
+                    noirc_frontend::Type::Vector(..) =&gt; PrimitiveTypeKind::Vector,
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">let </span>Type::Primitive(kind) = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>primitive_type.typ) <span class="kw">else </span>{
                             <span class="macro">panic!</span>(<span class="string">"Expected primitive type"</span>);
@@ -1250,8 +1250,8 @@
                 length: Box::new(<span class="self">self</span>.convert_type(length)),
                 element: Box::new(<span class="self">self</span>.convert_type(element)),
             },
-            noirc_frontend::Type::Slice(element) =&gt; {
-                Type::Slice { element: Box::new(<span class="self">self</span>.convert_type(element)) }
+            noirc_frontend::Type::Vector(element) =&gt; {
+                Type::Vector { element: Box::new(<span class="self">self</span>.convert_type(element)) }
             }
             noirc_frontend::Type::String(length) =&gt; {
                 Type::String { length: Box::new(<span class="self">self</span>.convert_type(length)) }

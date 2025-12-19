@@ -43,7 +43,7 @@ If the field is <code>None</code> then fuzzing is inactive.</p>
 <ol>
 <li>Checks if the foreign call results are already available. If not, it resolves the input
 values from memory and pauses execution by returning <code>VMStatus::ForeignCallWait</code>.
-For vectors, the preceding <code>u32</code> length field is used to truncate the slice input to its semantic length.</li>
+For vectors, the preceding <code>u32</code> length field is used to truncate the vector input to its semantic length.</li>
 <li>If results are available, it writes them to memory, ensuring that the returned data
 matches the expected types and sizes:
 <ul>
@@ -120,7 +120,7 @@ structure from the flat output array.</p>
     pointer: <a class="enum" href="../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
     values: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.slice.html">[F]</a>,
     value_types: &amp;[<a class="enum" href="../brillig/opcodes/enum.HeapValueType.html" title="enum brillig::opcodes::HeapValueType">HeapValueType</a>],
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;</h4></section></summary><div class="docblock"><p>Write the <code>values</code> of an array or slice to an address stored under the <code>pointer</code>.</p>
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;</h4></section></summary><div class="docblock"><p>Write the <code>values</code> of an array or vector to an address stored under the <code>pointer</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.write_flattened_values_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#477-537">Source</a><h4 class="code-header">fn <a href="#method.write_flattened_values_to_memory" class="fn">write_flattened_values_to_memory</a>(
     &amp;mut self,
     destination: <a class="enum" href="../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,

@@ -2977,7 +2977,7 @@
     ///     | fmtstr
     ///     | QuoteExpression
     ///     | ArrayExpression
-    ///     | SliceExpression
+    ///     | VectorExpression
     ///     | BlockExpression
     ///     | ConstrainExpression
     ///
@@ -3020,10 +3020,10 @@
             };
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(literal_or_error) = <span class="self">self</span>.parse_slice_literal() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(literal_or_error) = <span class="self">self</span>.parse_vector_literal() {
             <span class="kw">return match </span>literal_or_error {
                 ArrayLiteralOrError::ArrayLiteral(literal) =&gt; {
-                    <span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Slice(literal)))
+                    <span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Vector(literal)))
                 }
                 ArrayLiteralOrError::Error =&gt; <span class="prelude-val">Some</span>(ExpressionKind::Error),
             };
@@ -3107,9 +3107,9 @@
         <span class="prelude-val">Some</span>(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    <span class="doccomment">/// SliceExpression = '&amp;' ArrayLiteral
-    </span><span class="kw">fn </span>parse_slice_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteralOrError&gt; {
-        <span class="kw">if </span>!(<span class="self">self</span>.at(Token::SliceStart) &amp;&amp; <span class="self">self</span>.next_is(Token::LeftBracket)) {
+    <span class="doccomment">/// VectorExpression = '&amp;' ArrayLiteral
+    </span><span class="kw">fn </span>parse_vector_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteralOrError&gt; {
+        <span class="kw">if </span>!(<span class="self">self</span>.at(Token::VectorStart) &amp;&amp; <span class="self">self</span>.next_is(Token::LeftBracket)) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
@@ -3660,12 +3660,12 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>parses_empty_slice_expression() {
+    </span><span class="kw">fn </span>parses_empty_vector_expression() {
         <span class="kw">let </span>src = <span class="string">"&amp;[]"</span>;
         <span class="kw">let </span>expr = parse_expression_no_errors(src);
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected slice literal"</span>);
+            <span class="macro">panic!</span>(<span class="string">"Expected vector literal"</span>);
         };
         <span class="macro">assert!</span>(exprs.is_empty());
     }

@@ -765,7 +765,7 @@
 
         <span class="kw">let </span>is_crate_root = <span class="self">self</span>.is_at_crate_root();
         <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract(), is_crate_root);
-        <span class="comment">// Temporary allow slices for contract functions, until contracts are re-factored.
+        <span class="comment">// Temporary allow vectors for contract functions, until contracts are re-factored.
         </span><span class="kw">if </span>!func.attributes().has_contract_library_method() {
             <span class="self">self</span>.check_if_type_is_valid_for_program_output(
                 <span class="kw-2">&amp;</span>return_type,
@@ -963,7 +963,7 @@
     }
 
     <span class="doccomment">/// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     </span><span class="kw">fn </span>check_if_type_is_valid_for_program_input(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1021,7 +1021,7 @@
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
-        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_multiple_slices(func, modifiers).map(Into::into));
+        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         <span class="self">self</span>.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });

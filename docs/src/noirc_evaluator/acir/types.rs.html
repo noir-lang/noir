@@ -341,9 +341,9 @@
 ///
 /// Dynamic arrays might result from other operations. For example:
 /// - setting the value of an array element with a dynamic index
-/// - pushing back to a slice where it's length is not known at compile time
-/// - inserting to a slice with a dynamic index
-/// - removing from a slice at a dynamic index
+/// - pushing back to a vector where it's length is not known at compile time
+/// - inserting to a vector with a dynamic index
+/// - removing from a vector at a dynamic index
 </span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>AcirDynamicArray {
     <span class="doccomment">/// Identification for the Acir dynamic array
@@ -472,34 +472,34 @@
     }
 }
 
-<span class="doccomment">/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
+<span class="doccomment">/// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
 /// (recursively) and returns a flat list of all the contained numeric types.
-/// Panics if `self` is not an array or slice type or if a function or reference type
+/// Panics if `self` is not an array or vector type or if a function or reference type
 /// is found along the way.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flat_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType) -&gt; Vec&lt;NumericType&gt; {
     <span class="kw">match </span>typ {
-        SsaType::Array(..) | SsaType::Slice(..) =&gt; {
+        SsaType::Array(..) | SsaType::Vector(..) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>flat_types = Vec::new();
             collect_flat_numeric_types(typ, <span class="kw-2">&amp;mut </span>flat_types);
             flat_types
         }
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_numeric_types on a non-array/slice type"</span>),
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_numeric_types on a non-array/vector type"</span>),
     }
 }
 
-<span class="doccomment">/// Returns the fully flattened numeric types for one element of a slice/array,
+<span class="doccomment">/// Returns the fully flattened numeric types for one element of a vector/array,
 /// recursively flattening nested arrays.
-/// For example, for Slice([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
+/// For example, for Vector([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flat_element_types(typ: <span class="kw-2">&amp;</span>SsaType) -&gt; Vec&lt;NumericType&gt; {
     <span class="kw">match </span>typ {
-        SsaType::Slice(element_types) | SsaType::Array(element_types, <span class="kw">_</span>) =&gt; {
+        SsaType::Vector(element_types) | SsaType::Array(element_types, <span class="kw">_</span>) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>flat_types = Vec::new();
             <span class="kw">for </span>element_typ <span class="kw">in </span>element_types.iter() {
                 collect_fully_flattened_numeric_types(element_typ, <span class="kw-2">&amp;mut </span>flat_types);
             }
             flat_types
         }
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_element_types on a non-array/slice type"</span>),
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_element_types on a non-array/vector type"</span>),
     }
 }
 
@@ -518,8 +518,8 @@
                 }
             }
         }
-        SsaType::Slice(<span class="kw">_</span>) =&gt; {
-            <span class="macro">panic!</span>(<span class="string">"Cannot fully flatten a slice type - slices have dynamic length"</span>)
+        SsaType::Vector(<span class="kw">_</span>) =&gt; {
+            <span class="macro">panic!</span>(<span class="string">"Cannot fully flatten a vector type - vectors have dynamic length"</span>)
         }
         <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_fully_flattened_numeric_types on unsupported type"</span>),
     }
@@ -532,12 +532,12 @@
         SsaType::Numeric(numeric_type) =&gt; {
             flat_types.push(<span class="kw-2">*</span>numeric_type);
         }
-        SsaType::Array(types, <span class="kw">_</span>) | SsaType::Slice(types) =&gt; {
+        SsaType::Array(types, <span class="kw">_</span>) | SsaType::Vector(types) =&gt; {
             <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
                 collect_flat_numeric_types(typ, flat_types);
             }
         }
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_flat_numeric_types on non-array/slice/number type"</span>),
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_flat_numeric_types on non-array/vector/number type"</span>),
     }
 }
 </code></pre></div></section></main></body></html>

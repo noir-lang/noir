@@ -151,7 +151,8 @@
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -173,11 +174,11 @@
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
-    NestedSlices { location: Location },
+    NestedVectors { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
-    UnconstrainedSliceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
 }
 
 <span class="kw">impl </span>MonomorphizationError {
@@ -194,14 +195,14 @@
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
-            | MonomorphizationError::NestedSlices { location }
+            | MonomorphizationError::NestedVectors { location }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
             | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
             | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location, .. } =&gt; {
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. } =&gt; {
                 <span class="kw-2">*</span>location
             }
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
@@ -275,8 +276,9 @@
                 };
                 <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
             }
-            MonomorphizationError::NestedSlices { .. } =&gt; {
-                <span class="string">"Nested slices, i.e. slices within an array or slice, are not supported"</span>.to_string()
+            MonomorphizationError::NestedVectors { .. } =&gt; {
+                <span class="string">"Nested vectors, i.e. vectors within an array or vector, are not supported"
+                    </span>.to_string()
             }
             MonomorphizationError::InvalidTypeInErrorMessage { typ, location } =&gt; {
                 <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Invalid type {typ} used in the error message"</span>);
@@ -293,9 +295,9 @@
                     <span class="string">"Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 </span>)
             }
-            MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } =&gt; {
+            MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } =&gt; {
                 <span class="macro">format!</span>(
-                    <span class="string">"Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                    <span class="string">"Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 </span>)
             }
         };

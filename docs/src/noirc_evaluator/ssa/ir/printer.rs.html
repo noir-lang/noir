@@ -950,16 +950,16 @@
             // It could happen that the byte array is a random byte sequence that happens to be printable
             // (it didn't come from a string literal) but this still reduces the noise in the output
             // and actually represents the same value.
-            </span><span class="kw">let </span>(element_types, is_slice) = <span class="kw">match </span>typ {
+            </span><span class="kw">let </span>(element_types, is_vector) = <span class="kw">match </span>typ {
                 Type::Array(types, <span class="kw">_</span>) =&gt; (types, <span class="bool-val">false</span>),
-                Type::Slice(types) =&gt; (types, <span class="bool-val">true</span>),
-                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected array or slice type for MakeArray"</span>),
+                Type::Vector(types) =&gt; (types, <span class="bool-val">true</span>),
+                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected array or vector type for MakeArray"</span>),
             };
             <span class="kw">if </span>element_types.len() == <span class="number">1
                 </span>&amp;&amp; element_types[<span class="number">0</span>] == Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})
             {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(string) = try_byte_array_to_string(elements, dfg) {
-                    <span class="kw">if </span>is_slice {
+                    <span class="kw">if </span>is_vector {
                         <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">"make_array &amp;b{string:?}"</span>);
                     } <span class="kw">else </span>{
                         <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">"make_array b{string:?}"</span>);
@@ -989,7 +989,7 @@
 <span class="kw">fn </span>display_array_offset(offset: <span class="kw-2">&amp;</span>ArrayOffset) -&gt; String {
     <span class="kw">match </span>offset {
         ArrayOffset::None =&gt; String::new(),
-        ArrayOffset::Array | ArrayOffset::Slice =&gt; <span class="macro">format!</span>(<span class="string">" minus {}"</span>, offset.to_u32()),
+        ArrayOffset::Array | ArrayOffset::Vector =&gt; <span class="macro">format!</span>(<span class="string">" minus {}"</span>, offset.to_u32()),
     }
 }
 

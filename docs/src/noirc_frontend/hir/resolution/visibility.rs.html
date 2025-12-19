@@ -491,7 +491,7 @@
 
     <span class="kw">match </span>(type1.follow_bindings(), type2.follow_bindings()) {
         (Type::Array(..), Type::Array(..)) =&gt; <span class="bool-val">true</span>,
-        (Type::Slice(..), Type::Slice(..)) =&gt; <span class="bool-val">true</span>,
+        (Type::Vector(..), Type::Vector(..)) =&gt; <span class="bool-val">true</span>,
         (Type::String(..), Type::String(..)) =&gt; <span class="bool-val">true</span>,
         (Type::FmtString(..), Type::FmtString(..)) =&gt; <span class="bool-val">true</span>,
         (Type::Tuple(..), Type::Tuple(..)) =&gt; <span class="bool-val">true</span>,

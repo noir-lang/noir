@@ -679,7 +679,7 @@
             .unwrap_or(<span class="string">"invalid_path"</span>.to_string());
     <span class="kw">let </span>source = files.source(location.file).expect(<span class="string">"should have a file source"</span>);
 
-    <span class="kw">let </span>code_slice = source
+    <span class="kw">let </span>code_vector = source
         .as_ref()
         .chars()
         .skip(location.span.start() <span class="kw">as </span>usize)
@@ -687,12 +687,12 @@
         .collect::&lt;String&gt;();
 
     <span class="comment">// ";" is used for frame separation, and is not allowed by inferno
-    // Check code slice for ";" and replace it with 'GREEK QUESTION MARK' (U+037E)
-    </span><span class="kw">let </span>code_slice = code_slice.replace(<span class="string">';'</span>, <span class="string">"\u{037E}"</span>);
+    // Check code vector for ";" and replace it with 'GREEK QUESTION MARK' (U+037E)
+    </span><span class="kw">let </span>code_vector = code_vector.replace(<span class="string">';'</span>, <span class="string">"\u{037E}"</span>);
 
     <span class="kw">let </span>(line, column) = line_and_column_from_span(source.as_ref(), <span class="kw-2">&amp;</span>location.span);
 
-    <span class="macro">format!</span>(<span class="string">"{filename}:{line}:{column}::{code_slice}"</span>)
+    <span class="macro">format!</span>(<span class="string">"{filename}:{line}:{column}::{code_vector}"</span>)
 }
 
 <span class="kw">fn </span>add_locations_to_folded_stack_items(

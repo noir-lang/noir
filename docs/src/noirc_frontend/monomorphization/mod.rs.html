@@ -3912,7 +3912,7 @@
                     <span class="self">self</span>.repeated_array(expr, repeated_element, length, <span class="bool-val">false</span>)<span class="question-mark">?
                 </span>}
             },
-            HirExpression::Literal(HirLiteral::Slice(array)) =&gt; <span class="kw">match </span>array {
+            HirExpression::Literal(HirLiteral::Vector(array)) =&gt; <span class="kw">match </span>array {
                 HirArrayLiteral::Standard(array) =&gt; <span class="self">self</span>.standard_array(expr, array, <span class="bool-val">true</span>)<span class="question-mark">?</span>,
                 HirArrayLiteral::Repeated { repeated_element, length } =&gt; {
                     <span class="self">self</span>.repeated_array(expr, repeated_element, length, <span class="bool-val">true</span>)<span class="question-mark">?
@@ -4109,7 +4109,7 @@
             Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 
             Type::Array(_len, element) =&gt; <span class="self">Self</span>::contains_reference(element),
-            Type::Slice(element) =&gt; <span class="self">Self</span>::contains_reference(element),
+            Type::Vector(element) =&gt; <span class="self">Self</span>::contains_reference(element),
             Type::FmtString(<span class="kw">_</span>, environment) =&gt; <span class="self">Self</span>::contains_reference(environment),
             Type::Tuple(fields) =&gt; fields.iter().any(<span class="self">Self</span>::contains_reference),
             Type::DataType(datatype, generics) =&gt; {
@@ -4152,13 +4152,13 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ExprId,
         array_elements: Vec&lt;ExprId&gt;,
-        is_slice: bool,
+        is_vector: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>array);
         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(array), location)<span class="question-mark">?</span>;
         <span class="kw">let </span>contents = try_vecmap(array_elements, |id| <span class="self">self</span>.expr(id))<span class="question-mark">?</span>;
-        <span class="kw">if </span>is_slice {
-            <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
+        <span class="kw">if </span>is_vector {
+            <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ })))
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
         }
@@ -4170,7 +4170,7 @@
         array: ExprId,
         repeated_element: ExprId,
         length: HirType,
-        is_slice: bool,
+        is_vector: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>array);
         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(array), location)<span class="question-mark">?</span>;
@@ -4209,8 +4209,8 @@
                 ast::Ident { location: <span class="prelude-val">Some</span>(location), definition, mutable: <span class="bool-val">false</span>, name, typ, id };
             ast::Expression::Ident(ident)
         });
-        <span class="kw">let </span>array = <span class="kw">if </span>is_slice {
-            ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ }))
+        <span class="kw">let </span>array = <span class="kw">if </span>is_vector {
+            ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ }))
         } <span class="kw">else </span>{
             ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
         };
@@ -4761,7 +4761,7 @@
     /// Returns an error if the type was invalid somehow. For example, if the type contains:
     /// - an array with a size that does not evaluate to a positive integer
     /// - an unbound type variable without a default value
-    /// - a nested slice
+    /// - a nested vector
     /// - a compile-time only type (these should all be evaluated beforehand and thus never monomorphized)
     /// - an infinitely recursive type
     /// - a failed checked-cast
@@ -4811,8 +4811,8 @@
             }
             HirType::Unit =&gt; ast::Type::Unit,
             HirType::Array(length, element) =&gt; {
-                <span class="kw">if </span>element.contains_slice() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+                <span class="kw">if </span>element.contains_vector() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedVectors { location });
                 }
                 <span class="kw">let </span>element =
                     Box::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
@@ -4829,13 +4829,13 @@
                 };
                 ast::Type::Array(length, element)
             }
-            HirType::Slice(element) =&gt; {
-                <span class="kw">if </span>element.contains_slice() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+            HirType::Vector(element) =&gt; {
+                <span class="kw">if </span>element.contains_vector() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedVectors { location });
                 }
                 <span class="kw">let </span>element =
                     Box::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
-                ast::Type::Slice(element)
+                ast::Type::Vector(element)
             }
             HirType::TraitAsType(..) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"All TraitAsType should be replaced before calling convert_type"</span>);
@@ -5022,14 +5022,14 @@
 
             HirType::FmtString(_size, fields) =&gt; <span class="self">Self</span>::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) =&gt; {
-                <span class="kw">if </span>element.contains_slice() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+                <span class="kw">if </span>element.contains_vector() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedVectors { location });
                 }
                 <span class="self">Self</span>::check_type(element.as_ref(), location)
             }
-            HirType::Slice(element) =&gt; {
-                <span class="kw">if </span>element.contains_slice() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedSlices { location });
+            HirType::Vector(element) =&gt; {
+                <span class="kw">if </span>element.contains_vector() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedVectors { location });
                 }
                 <span class="self">Self</span>::check_type(element.as_ref(), location)
             }
@@ -5413,9 +5413,9 @@
         return_type: <span class="kw-2">&amp;</span>Type,
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
-        <span class="kw">if </span>return_type.contains_slice() {
+        <span class="kw">if </span>return_type.contains_vector() {
             <span class="kw">let </span>typ = return_type.to_string();
-            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnconstrainedSliceReturnToConstrained {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnconstrainedVectorReturnToConstrained {
                 typ,
                 location,
             });
@@ -5488,19 +5488,19 @@
                     }
                     <span class="string">"modulus_le_bits" </span>=&gt; {
                         <span class="kw">let </span>bits = FieldElement::modulus().to_radix_le(<span class="number">2</span>);
-                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_vector_literal(bits, IntegerBitSize::One, location))
                     }
                     <span class="string">"modulus_be_bits" </span>=&gt; {
                         <span class="kw">let </span>bits = FieldElement::modulus().to_radix_be(<span class="number">2</span>);
-                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_vector_literal(bits, IntegerBitSize::One, location))
                     }
                     <span class="string">"modulus_be_bytes" </span>=&gt; {
                         <span class="kw">let </span>bytes = FieldElement::modulus().to_bytes_be();
-                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     <span class="string">"modulus_le_bytes" </span>=&gt; {
                         <span class="kw">let </span>bytes = FieldElement::modulus().to_bytes_le();
-                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     <span class="string">"checked_transmute" </span>=&gt; {
                         <span class="prelude-val">Some</span>(<span class="self">self</span>.checked_transmute(<span class="kw-2">*</span>expr_id, arguments, argument_values)<span class="question-mark">?</span>)
@@ -5533,7 +5533,7 @@
         }
     }
 
-    <span class="kw">fn </span>modulus_slice_literal(
+    <span class="kw">fn </span>modulus_vector_literal(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         bytes: Vec&lt;u8&gt;,
         arr_elem_bits: IntegerBitSize,
@@ -5548,9 +5548,9 @@
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
-        <span class="kw">let </span>typ = Type::Slice(Box::new(int_type));
+        <span class="kw">let </span>typ = Type::Vector(Box::new(int_type));
         <span class="kw">let </span>arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
-        Expression::Literal(Literal::Slice(arr_literal))
+        Expression::Literal(Literal::Vector(arr_literal))
     }
 
     <span class="kw">fn </span>queue_function(
@@ -5988,10 +5988,10 @@
             })),
             ast::Type::Function(parameter_types, ret_type, env, unconstrained) =&gt; <span class="self">self
                 </span>.create_zeroed_function(parameter_types, ret_type, env, <span class="kw-2">*</span>unconstrained, location),
-            ast::Type::Slice(element_type) =&gt; {
-                ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral {
+            ast::Type::Vector(element_type) =&gt; {
+                ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral {
                     contents: <span class="macro">vec!</span>[],
-                    typ: ast::Type::Slice(element_type.clone()),
+                    typ: ast::Type::Vector(element_type.clone()),
                 }))
             }
             ast::Type::Reference(element, mutable) =&gt; {

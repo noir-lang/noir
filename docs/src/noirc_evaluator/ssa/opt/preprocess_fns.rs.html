@@ -188,7 +188,7 @@
             <span class="comment">// Start with an inline pass.
             </span><span class="kw">let </span><span class="kw-2">mut </span>function = function.inlined(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>should_inline_call)<span class="question-mark">?</span>;
             <span class="comment">// Help unrolling determine bounds.
-            </span>function.as_slice_optimization();
+            </span>function.as_vector_optimization();
             <span class="comment">// Prepare for unrolling
             </span>function.loop_invariant_code_motion();
             <span class="comment">// We might not be able to unroll all loops without fully inlining them, so ignore errors.

@@ -1528,7 +1528,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+    <span class="doccomment">/// For 0-length arrays and vectors, even the disabled memory operations would cause runtime failures.
     /// Set the result to a zero value that matches the type then bypass the rest of the operation,
     /// leaving an assertion that the side effect variable must be false.
     ///
@@ -1666,7 +1666,7 @@
         <span class="kw">if </span>is_simple_array {
             <span class="kw">let </span>result_type = dfg.type_of_value(dfg.instruction_results(instruction)[<span class="number">0</span>]);
             <span class="kw">match </span>array_typ {
-                Type::Array(item_type, <span class="kw">_</span>) | Type::Slice(item_type) =&gt; item_type
+                Type::Array(item_type, <span class="kw">_</span>) | Type::Vector(item_type) =&gt; item_type
                     .iter()
                     .enumerate()
                     .find_map(|(index, typ)| (result_type == <span class="kw-2">*</span>typ).then_some(index)),
@@ -2094,10 +2094,10 @@
         <span class="comment">// Every array has a length in its type, so we fetch that from
         // the SSA IR.
         //
-        // A slice's size must be fetched from the SSA value that represents the slice.
-        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
-        // and may contain data for which we want to restrict access. The true slice length is tracked in a
-        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
+        // A vector's size must be fetched from the SSA value that represents the vector.
+        // However, this size is simply the capacity of a vector. The capacity is dependent upon the witness
+        // and may contain data for which we want to restrict access. The true vector length is tracked in a
+        // a separate SSA value and restrictions on vector indices should be generated elsewhere in the SSA.
         </span><span class="kw">let </span>array_typ = dfg.type_of_value(array);
         <span class="kw">let </span>len = <span class="self">self</span>.flattened_size(array, dfg);
 
@@ -2137,9 +2137,9 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
         <span class="kw">let </span>element_type_sizes = <span class="self">self</span>.type_sizes_block_id(array_id);
         <span class="comment">// Check whether an internal type sizes array has already been initialized
-        // Need to look into how to optimize for slices as this could lead to different element type sizes
-        // for different slices that do not have consistent sizes.
-        // If we are initializing an element type sizes array for a growth operation (e.g., slice insert),
+        // Need to look into how to optimize for vectors as this could lead to different element type sizes
+        // for different vectors that do not have consistent sizes.
+        // If we are initializing an element type sizes array for a growth operation (e.g., vector insert),
         // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
         // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
         // that is bigger than what is needed for the supplied type/value.
@@ -2147,9 +2147,9 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(element_type_sizes);
         }
 
-        <span class="kw">if </span>!<span class="macro">matches!</span>(array_typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>)) {
+        <span class="kw">if </span>!<span class="macro">matches!</span>(array_typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>)) {
             <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
-                expected: <span class="string">"array or slice"</span>.to_owned(),
+                expected: <span class="string">"array or vector"</span>.to_owned(),
                 found: array_typ.to_string(),
                 call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
             }
@@ -2165,7 +2165,7 @@
             .into());
         }
 
-        <span class="comment">// An instruction representing the slice means it has been processed previously during ACIR gen.
+        <span class="comment">// An instruction representing the vector means it has been processed previously during ACIR gen.
         // Use the previously defined result of an array operation to fetch the internal type information.
         </span><span class="kw">let </span>array_acir_value =
             supplied_acir_value.unwrap_or_else(|| <span class="self">self</span>.convert_value(array_id, dfg));
@@ -2262,9 +2262,9 @@
             <span class="comment">//Array are already structured
             </span>AcirValue::Array(vars) =&gt; <span class="prelude-val">Ok</span>(vars),
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) =&gt; {
-                <span class="comment">// For slices/arrays, reconstruct the structure based on the element type
+                <span class="comment">// For vectors/arrays, reconstruct the structure based on the element type
                 </span><span class="kw">let </span>element_types = <span class="kw">match </span>array_typ {
-                    Type::Slice(types) | Type::Array(types, <span class="kw">_</span>) =&gt; types.as_ref(),
+                    Type::Vector(types) | Type::Array(types, <span class="kw">_</span>) =&gt; types.as_ref(),
                     <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: reading array into a non array type"</span>),
                 };
 
@@ -2375,7 +2375,7 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
         <span class="kw">let </span>array_typ = dfg.type_of_value(array);
-        <span class="kw">if </span>!array_typ.contains_slice_element() {
+        <span class="kw">if </span>!array_typ.contains_vector_element() {
             array_typ.flattened_size() <span class="kw">as </span>usize
         } <span class="kw">else </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[array] {
@@ -2385,13 +2385,13 @@
                     flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value)
                 }
                 <span class="kw">_ </span>=&gt; {
-                    <span class="macro">unreachable!</span>(<span class="string">"ICE: Unexpected SSA value when computing the slice size"</span>);
+                    <span class="macro">unreachable!</span>(<span class="string">"ICE: Unexpected SSA value when computing the vector size"</span>);
                 }
             }
         }
     }
 
-    <span class="doccomment">/// Check if the array or slice has 0 length.
+    <span class="doccomment">/// Check if the array or vector has 0 length.
     ///
     /// This is different from `flattened_size` in that a non-zero length
     /// array containing zero length arrays has zero size, but we can still
@@ -2408,14 +2408,14 @@
                         AcirValue::Array(values) =&gt; values.is_empty(),
                         AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                             <span class="macro">unreachable!</span>(
-                                <span class="string">"ICE: Unexpected ACIR value for array or slice: {array_acir_value:?}"
+                                <span class="string">"ICE: Unexpected ACIR value for array or vector: {array_acir_value:?}"
                             </span>)
                         }
                     }
                 }
                 other =&gt; {
                     <span class="macro">unreachable!</span>(
-                        <span class="string">"ICE: Unexpected SSA value when computing the slice size: {other:?}"
+                        <span class="string">"ICE: Unexpected SSA value when computing the vector size: {other:?}"
                     </span>);
                 }
             }
@@ -2488,15 +2488,15 @@
     }
 }
 
-<span class="doccomment">/// Calculates the element type sizes lookup array for heterogeneous arrays/slices.
+<span class="doccomment">/// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
 ///
 /// # Parameters
 ///
-/// * `array_typ` - Type of the array/slice for which we are generating an element types sizes array
+/// * `array_typ` - Type of the array/vector for which we are generating an element types sizes array
 /// * `flattened_length` - The total flattened size of the array data. For [AcirValue::Array],
 ///   this is computed via [flattened_value_size]. For [AcirValue::DynamicArray], this is
 ///   stored in the `len` field.
-/// * `additional_capacity` - Extra logical elements to allocate space for (e.g., for growth operations such as slice insert)
+/// * `additional_capacity` - Extra logical elements to allocate space for (e.g., for growth operations such as vector insert)
 ///
 /// # Returns
 ///
@@ -2507,8 +2507,8 @@
     additional_capacity: usize,
 ) -&gt; Vec&lt;usize&gt; {
     <span class="kw">let </span>element_types = <span class="kw">match </span>array_typ {
-        Type::Array(types, <span class="kw">_</span>) | Type::Slice(types) =&gt; types,
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: expected array or slice type"</span>),
+        Type::Array(types, <span class="kw">_</span>) | Type::Vector(types) =&gt; types,
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: expected array or vector type"</span>),
     };
     <span class="kw">if </span>element_types.is_empty() {
         <span class="kw">return </span><span class="macro">vec!</span>[];
@@ -2518,8 +2518,8 @@
         element_types.iter().map(|typ| typ.flattened_size() <span class="kw">as </span>usize).sum();
     <span class="kw">let </span>non_flattened_elements = flattened_length / element_flattened_size;
 
-    <span class="comment">// The implementation for slice insert requires one additional slot as insertions
-    // are allowed at the slice's length.
+    <span class="comment">// The implementation for vector insert requires one additional slot as insertions
+    // are allowed at the vector's length.
     </span><span class="kw">let </span>boundary = <span class="number">1</span>;
     <span class="comment">// Capacity is the number of entries in element_type_sizes array
     // One entry per field per logical element (+ boundary + additional)
@@ -2563,8 +2563,8 @@
 /// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>array_has_constant_element_size(array_typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
     <span class="kw">let </span>types = <span class="kw">match </span>array_typ {
-        Type::Array(types, <span class="kw">_</span>) | Type::Slice(types) =&gt; types,
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: expected array or slice type"</span>),
+        Type::Array(types, <span class="kw">_</span>) | Type::Vector(types) =&gt; types,
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: expected array or vector type"</span>),
     };
 
     <span class="kw">let </span><span class="kw-2">mut </span>element_sizes = types.iter().map(|typ| typ.flattened_size());

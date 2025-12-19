@@ -1981,7 +1981,9 @@
 <a href="#1980" id="1980">1980</a>
 <a href="#1981" id="1981">1981</a>
 <a href="#1982" id="1982">1982</a>
-<a href="#1983" id="1983">1983</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2165,13 +2167,13 @@
                 <span class="kw">if </span>!array_type.contains_an_array() {
                     <span class="macro">panic!</span>(<span class="string">"ArrayGet/ArraySet must operate on an array; got {array_type}"</span>);
                 }
-                <span class="macro">assert!</span>(!array_type.is_nested_slice(), <span class="string">"ICE: Nested slice type is not supported"</span>);
+                <span class="macro">assert!</span>(!array_type.is_nested_vector(), <span class="string">"ICE: Nested vector type is not supported"</span>);
                 <span class="kw">let </span>instruction_results = dfg.instruction_results(instruction);
                 <span class="kw">for </span>result <span class="kw">in </span>instruction_results {
                     <span class="kw">let </span>return_type = dfg.type_of_value(<span class="kw-2">*</span>result);
                     <span class="macro">assert!</span>(
-                        !return_type.is_nested_slice(),
-                        <span class="string">"ICE: Nested slice type is not supported"
+                        !return_type.is_nested_vector(),
+                        <span class="string">"ICE: Nested vector type is not supported"
                     </span>);
                 }
             }
@@ -2202,17 +2204,17 @@
                         }
                         composite_type
                     }
-                    Type::Slice(composite_type) =&gt; {
+                    Type::Vector(composite_type) =&gt; {
                         <span class="kw">if </span>composite_type.is_empty() {
                             <span class="kw">if </span>!elements.is_empty() {
                                 <span class="macro">panic!</span>(
-                                    <span class="string">"MakeArray slice has non-zero {} elements but composite type is empty"</span>,
+                                    <span class="string">"MakeArray vector has non-zero {} elements but composite type is empty"</span>,
                                     elements.len(),
                                 );
                             }
                         } <span class="kw">else if </span>elements.len() % composite_type.len() != <span class="number">0 </span>{
                             <span class="macro">panic!</span>(
-                                <span class="string">"MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements"</span>,
+                                <span class="string">"MakeArray vector has {} elements but composite type has {} types which don't divide the number of elements"</span>,
                                 elements.len(),
                                 composite_type.len()
                             );
@@ -2220,7 +2222,7 @@
                         composite_type
                     }
                     <span class="kw">_ </span>=&gt; {
-                        <span class="macro">panic!</span>(<span class="string">"MakeArray must return an array or slice type, not {result_type}"</span>);
+                        <span class="macro">panic!</span>(<span class="string">"MakeArray must return an array or vector type, not {result_type}"</span>);
                     }
                 };
 
@@ -2361,22 +2363,23 @@
                     <span class="string">"ArrayAsStrUnchecked array length must match string length"
                 </span>);
             }
-            Intrinsic::AsSlice =&gt; {
-                <span class="comment">// fn as_slice(self: [T; N]) -&gt; [T] {}
-                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"AsSlice"</span>);
-                <span class="kw">let </span>(array_types, _array_length) = assert_array(<span class="kw-2">&amp;</span>argument_type, <span class="string">"AsSlice argument"</span>);
+            Intrinsic::AsVector =&gt; {
+                <span class="comment">// fn as_vector(self: [T; N]) -&gt; [T] {}
+                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"AsVector"</span>);
+                <span class="kw">let </span>(array_types, _array_length) =
+                    assert_array(<span class="kw-2">&amp;</span>argument_type, <span class="string">"AsVector argument"</span>);
 
                 <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
-                <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>, <span class="string">"Expected two results for AsSlice"</span>,);
+                <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>, <span class="string">"Expected two results for AsVector"</span>,);
 
                 <span class="kw">let </span>length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>length_type, <span class="string">"AsSlice length"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>length_type, <span class="string">"AsVector length"</span>);
 
-                <span class="kw">let </span>slice_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
-                <span class="kw">let </span>slice_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"AsSlice return"</span>);
+                <span class="kw">let </span>vector_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
+                <span class="kw">let </span>vector_types = assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"AsVector return"</span>);
                 <span class="macro">assert_eq!</span>(
-                    array_types, slice_types,
-                    <span class="string">"AsSlice input array element types must match output slice element types"
+                    array_types, vector_types,
+                    <span class="string">"AsVector input array element types must match output vector element types"
                 </span>);
             }
             Intrinsic::AssertConstant =&gt; {
@@ -2392,117 +2395,118 @@
 
                 <span class="self">self</span>.assert_no_results(instruction, <span class="string">"StaticAssert"</span>);
             }
-            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront =&gt; {
+            Intrinsic::VectorPushBack | Intrinsic::VectorPushFront =&gt; {
                 <span class="comment">// fn push_back(self: [T], elem: T) -&gt; Self {}
                 // fn push_front(self: [T], elem: T) -&gt; Self {}
-                </span><span class="macro">assert!</span>(arguments.len() &gt;= <span class="number">2</span>, <span class="string">"SlicePush must have at least two arguments"</span>);
+                </span><span class="macro">assert!</span>(arguments.len() &gt;= <span class="number">2</span>, <span class="string">"VectorPush must have at least two arguments"</span>);
 
-                <span class="kw">let </span>slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SlicePush self length"</span>);
+                <span class="kw">let </span>vector_length_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>vector_length_type, <span class="string">"VectorPush self length"</span>);
 
-                <span class="kw">let </span>slice_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]);
-                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SlicePush self slice"</span>);
+                <span class="kw">let </span>vector_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]);
+                <span class="kw">let </span>vector_element_types = assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"VectorPush self vector"</span>);
 
-                <span class="kw">let </span>(returned_slice_length_type, returned_slice_type) =
-                    <span class="self">self</span>.assert_two_results(instruction, <span class="string">"SlicePush"</span>);
-                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SlicePush returned length"</span>);
-                <span class="kw">let </span>returned_slice_element_types =
-                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SlicePush returned slice"</span>);
+                <span class="kw">let </span>(returned_vector_length_type, returned_vector_type) =
+                    <span class="self">self</span>.assert_two_results(instruction, <span class="string">"VectorPush"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>returned_vector_length_type, <span class="string">"VectorPush returned length"</span>);
+                <span class="kw">let </span>returned_vector_element_types =
+                    assert_vector(<span class="kw-2">&amp;</span>returned_vector_type, <span class="string">"VectorPush returned vector"</span>);
                 <span class="macro">assert_eq!</span>(
-                    slice_element_types, returned_slice_element_types,
-                    <span class="string">"SlicePush self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    <span class="string">"VectorPush self vector element types must match returned vector element types"
                 </span>);
             }
-            Intrinsic::SlicePopBack =&gt; {
+            Intrinsic::VectorPopBack =&gt; {
                 <span class="comment">// fn pop_back(self: [T]) -&gt; (Self, T) {}
-                </span><span class="kw">let </span>(slice_length_type, slice_type) =
-                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"SlicePopBack"</span>);
-                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SlicePopBack self length"</span>);
-                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SlicePopBack self slice"</span>);
+                </span><span class="kw">let </span>(vector_length_type, vector_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"VectorPopBack"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>vector_length_type, <span class="string">"VectorPopBack self length"</span>);
+                <span class="kw">let </span>vector_element_types = assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"VectorPopBack self vector"</span>);
 
                 <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
-                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for SlicePopBack"</span>);
+                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for VectorPopBack"</span>);
 
-                <span class="kw">let </span>returned_slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SlicePopBack returned length"</span>);
+                <span class="kw">let </span>returned_vector_length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>returned_vector_length_type, <span class="string">"VectorPopBack returned length"</span>);
 
-                <span class="kw">let </span>returned_slice_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
-                <span class="kw">let </span>returned_slice_element_types =
-                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SlicePopBack returned slice"</span>);
+                <span class="kw">let </span>returned_vector_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
+                <span class="kw">let </span>returned_vector_element_types =
+                    assert_vector(<span class="kw-2">&amp;</span>returned_vector_type, <span class="string">"VectorPopBack returned vector"</span>);
                 <span class="macro">assert_eq!</span>(
-                    slice_element_types, returned_slice_element_types,
-                    <span class="string">"SlicePopBack self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    <span class="string">"VectorPopBack self vector element types must match returned vector element types"
                 </span>);
             }
-            Intrinsic::SlicePopFront =&gt; {
+            Intrinsic::VectorPopFront =&gt; {
                 <span class="comment">// fn pop_front(self: [T]) -&gt; (T, Self) {}
-                </span><span class="kw">let </span>(slice_length_type, slice_type) =
-                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"SlicePopFront"</span>);
-                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SlicePopFront self length"</span>);
-                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SlicePopFront self slice"</span>);
+                </span><span class="kw">let </span>(vector_length_type, vector_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"VectorPopFront"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>vector_length_type, <span class="string">"VectorPopFront self length"</span>);
+                <span class="kw">let </span>vector_element_types =
+                    assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"VectorPopFront self vector"</span>);
 
                 <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
-                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for SlicePopFront"</span>);
+                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for VectorPopFront"</span>);
 
-                <span class="kw">let </span>returned_slice_type =
+                <span class="kw">let </span>returned_vector_type =
                     <span class="self">self</span>.function.dfg.type_of_value(results[results.len() - <span class="number">1</span>]);
-                <span class="kw">let </span>returned_slice_element_types =
-                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SlicePopFront returned slice"</span>);
+                <span class="kw">let </span>returned_vector_element_types =
+                    assert_vector(<span class="kw-2">&amp;</span>returned_vector_type, <span class="string">"VectorPopFront returned vector"</span>);
                 <span class="macro">assert_eq!</span>(
-                    slice_element_types, returned_slice_element_types,
-                    <span class="string">"SlicePopFront self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    <span class="string">"VectorPopFront self vector element types must match returned vector element types"
                 </span>);
 
-                <span class="kw">let </span>returned_slice_length_type =
+                <span class="kw">let </span>returned_vector_length_type =
                     <span class="self">self</span>.function.dfg.type_of_value(results[results.len() - <span class="number">2</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SlicePopFront returned length"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>returned_vector_length_type, <span class="string">"VectorPopFront returned length"</span>);
             }
-            Intrinsic::SliceInsert =&gt; {
+            Intrinsic::VectorInsert =&gt; {
                 <span class="comment">// fn insert(self: [T], index: u32, elem: T) -&gt; Self {}
-                </span><span class="macro">assert!</span>(arguments.len() &gt;= <span class="number">3</span>, <span class="string">"SliceInsert must have at least three arguments"</span>);
+                </span><span class="macro">assert!</span>(arguments.len() &gt;= <span class="number">3</span>, <span class="string">"VectorInsert must have at least three arguments"</span>);
 
-                <span class="kw">let </span>slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SliceInsert self length"</span>);
+                <span class="kw">let </span>vector_length_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>vector_length_type, <span class="string">"VectorInsert self length"</span>);
 
-                <span class="kw">let </span>slice_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]);
-                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SliceInsert self slice"</span>);
+                <span class="kw">let </span>vector_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]);
+                <span class="kw">let </span>vector_element_types = assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"VectorInsert self vector"</span>);
 
                 <span class="kw">let </span>index_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">2</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>index_type, <span class="string">"SliceInsert index"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>index_type, <span class="string">"VectorInsert index"</span>);
 
-                <span class="kw">let </span>(returned_slice_length_type, returned_slice_type) =
-                    <span class="self">self</span>.assert_two_results(instruction, <span class="string">"SliceInsert"</span>);
-                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SliceInsert returned length"</span>);
-                <span class="kw">let </span>returned_slice_element_types =
-                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SliceInsert returned slice"</span>);
+                <span class="kw">let </span>(returned_vector_length_type, returned_vector_type) =
+                    <span class="self">self</span>.assert_two_results(instruction, <span class="string">"VectorInsert"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>returned_vector_length_type, <span class="string">"VectorInsert returned length"</span>);
+                <span class="kw">let </span>returned_vector_element_types =
+                    assert_vector(<span class="kw-2">&amp;</span>returned_vector_type, <span class="string">"VectorInsert returned vector"</span>);
                 <span class="macro">assert_eq!</span>(
-                    slice_element_types, returned_slice_element_types,
-                    <span class="string">"SliceInsert self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    <span class="string">"VectorInsert self vector element types must match returned vector element types"
                 </span>);
             }
-            Intrinsic::SliceRemove =&gt; {
+            Intrinsic::VectorRemove =&gt; {
                 <span class="comment">// fn remove(self: [T], index: u32) -&gt; (Self, T) {}
-                </span><span class="kw">let </span>(slice_length_type, slice_type, index_type) =
-                    <span class="self">self</span>.assert_three_arguments(arguments, <span class="string">"SliceRemove"</span>);
+                </span><span class="kw">let </span>(vector_length_type, vector_type, index_type) =
+                    <span class="self">self</span>.assert_three_arguments(arguments, <span class="string">"VectorRemove"</span>);
 
-                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SliceRemove self length"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>vector_length_type, <span class="string">"VectorRemove self length"</span>);
 
-                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SliceRemove self slice"</span>);
+                <span class="kw">let </span>vector_element_types = assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"VectorRemove self vector"</span>);
 
-                assert_u32(<span class="kw-2">&amp;</span>index_type, <span class="string">"SliceRemove index"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>index_type, <span class="string">"VectorRemove index"</span>);
 
                 <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
-                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for SliceRemove"</span>);
+                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for VectorRemove"</span>);
 
-                <span class="kw">let </span>returned_slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
-                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SliceRemove returned length"</span>);
+                <span class="kw">let </span>returned_vector_length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>returned_vector_length_type, <span class="string">"VectorRemove returned length"</span>);
 
-                <span class="kw">let </span>returned_slice_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
-                <span class="kw">let </span>returned_slice_element_types =
-                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SliceRemove returned slice"</span>);
+                <span class="kw">let </span>returned_vector_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
+                <span class="kw">let </span>returned_vector_element_types =
+                    assert_vector(<span class="kw-2">&amp;</span>returned_vector_type, <span class="string">"VectorRemove returned vector"</span>);
                 <span class="macro">assert_eq!</span>(
-                    slice_element_types, returned_slice_element_types,
-                    <span class="string">"SliceRemove self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    <span class="string">"VectorRemove self vector element types must match returned vector element types"
                 </span>);
             }
             Intrinsic::ApplyRangeConstraint =&gt; {
@@ -2585,15 +2589,15 @@
                 <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"ArrayRefCount"</span>);
                 assert_u32(<span class="kw-2">&amp;</span>result_type, <span class="string">"ArrayRefCount result"</span>);
             }
-            Intrinsic::SliceRefCount =&gt; {
-                <span class="comment">// fn slice_refcount&lt;T&gt;(slice: [T]) -&gt; u32 {}
-                </span><span class="kw">let </span>(slice_length_type, slice_type) =
-                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"SliceRefCount"</span>);
-                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SliceRefCount length"</span>);
-                assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SliceRefCount slice"</span>);
+            Intrinsic::VectorRefCount =&gt; {
+                <span class="comment">// fn vector_refcount&lt;T&gt;(vector: [T]) -&gt; u32 {}
+                </span><span class="kw">let </span>(vector_length_type, vector_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"VectorRefCount"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>vector_length_type, <span class="string">"VectorRefCount length"</span>);
+                assert_vector(<span class="kw-2">&amp;</span>vector_type, <span class="string">"VectorRefCount vector"</span>);
 
-                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"SliceRefCount"</span>);
-                assert_u32(<span class="kw-2">&amp;</span>result_type, <span class="string">"SliceRefCount result"</span>);
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"VectorRefCount"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>result_type, <span class="string">"VectorRefCount result"</span>);
             }
             Intrinsic::BlackBox(blackbox) =&gt; {
                 <span class="self">self</span>.type_check_black_box(instruction, arguments, blackbox);
@@ -3072,9 +3076,9 @@
     }
 }
 
-<span class="kw">fn </span>assert_slice&lt;<span class="lifetime">'a</span>&gt;(typ: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Arc&lt;Vec&lt;Type&gt;&gt; {
-    <span class="kw">let </span>Type::Slice(elements) = typ <span class="kw">else </span>{
-        <span class="macro">panic!</span>(<span class="string">"{object} must be a slice"</span>);
+<span class="kw">fn </span>assert_vector&lt;<span class="lifetime">'a</span>&gt;(typ: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Arc&lt;Vec&lt;Type&gt;&gt; {
+    <span class="kw">let </span>Type::Vector(elements) = typ <span class="kw">else </span>{
+        <span class="macro">panic!</span>(<span class="string">"{object} must be a vector"</span>);
     };
     elements
 }
@@ -3588,9 +3592,9 @@
 
     <span class="attr">#[test]
     #[should_panic(
-        expected = <span class="string">"MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
+        expected = <span class="string">"MakeArray vector has 3 elements but composite type has 2 types which don't divide the number of elements"
     </span>)]
-    </span><span class="kw">fn </span>make_array_slice_returns_incorrect_length() {
+    </span><span class="kw">fn </span>make_array_vector_returns_incorrect_length() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0():
@@ -3602,7 +3606,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>make_array_slice_empty_composite_type() {
+    </span><span class="kw">fn </span>make_array_vector_empty_composite_type() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0():
@@ -3796,8 +3800,8 @@
     }
 
     <span class="attr">#[test]
-    #[should_panic(expected = <span class="string">"AsSlice argument must be an array"</span>)]
-    </span><span class="kw">fn </span>as_slice_length_on_slice_type() {
+    #[should_panic(expected = <span class="string">"AsVector argument must be an array"</span>)]
+    </span><span class="kw">fn </span>as_vector_length_on_vector_type() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
             b0():
@@ -3808,7 +3812,7 @@
 
         acir(inline) fn foo f1 {
             b0(v0: [Field]):
-              v2, v3 = call as_slice(v0) -&gt; (u32, [Field])
+              v2, v3 = call as_vector(v0) -&gt; (u32, [Field])
               return v2
         }
         "</span>;
@@ -3816,12 +3820,12 @@
     }
 
     <span class="attr">#[test]
-    #[should_panic(expected = <span class="string">"AsSlice argument must be an array"</span>)]
-    </span><span class="kw">fn </span>as_slice_length_on_numeric_type() {
+    #[should_panic(expected = <span class="string">"AsVector argument must be an array"</span>)]
+    </span><span class="kw">fn </span>as_vector_length_on_numeric_type() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v2, v3 = call as_slice(v0) -&gt; (u32, [Field])
+            v2, v3 = call as_vector(v0) -&gt; (u32, [Field])
             return v2
         }
         "</span>;
@@ -3830,13 +3834,13 @@
 
     <span class="attr">#[test]
     #[should_panic(
-        expected = <span class="string">"assertion `left == right` failed: Expected AsSlice to have 1 arguments, got 0\n  left: 0\n right: 1"
+        expected = <span class="string">"assertion `left == right` failed: Expected AsVector to have 1 arguments, got 0\n  left: 0\n right: 1"
     </span>)]
-    </span><span class="kw">fn </span>as_slice_wrong_number_of_arguments() {
+    </span><span class="kw">fn </span>as_vector_wrong_number_of_arguments() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0():
-            v1, v2 = call as_slice() -&gt; (u32, [Field])
+            v1, v2 = call as_vector() -&gt; (u32, [Field])
             return v1
         }
         "</span>;

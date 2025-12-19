@@ -1184,10 +1184,10 @@
     /// argument: array (value id)
     /// result: str
     </span>ArrayAsStrUnchecked,
-    <span class="doccomment">/// AsSlice
+    <span class="doccomment">/// AsVector
     /// argument: value id
-    /// result: a slice containing the elements of the argument. Panic if the value id does not correspond to an `array` type
-    </span>AsSlice,
+    /// result: a vector containing the elements of the argument. Panic if the value id does not correspond to an `array` type
+    </span>AsVector,
     <span class="doccomment">/// AssertConstant - Enforce the argument to be a constant value, at compile time.
     /// argument: value id
     /// result: (), panic if the argument does not resolve to a constant value
@@ -1196,30 +1196,30 @@
     /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
     /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     </span>StaticAssert,
-    <span class="doccomment">/// SlicePushBack - Add elements at the end of a slice
-    /// arguments:  slice length, slice contents, ...elements_to_push
-    /// result: a slice containing `slice contents,..elements_to_push`
-    </span>SlicePushBack,
-    <span class="doccomment">/// SlicePushFront - Add elements at the start of a slice
-    /// arguments:  slice length, slice contents, ...elements_to_push
-    /// result: a slice containing `..elements_to_push, slice contents`
-    </span>SlicePushFront,
-    <span class="doccomment">/// SlicePopBack - Removes the last element of a slice
-    /// arguments: slice length, slice contents
-    /// result: a slice without the last element of `slice contents`
-    </span>SlicePopBack,
-    <span class="doccomment">/// SlicePopFront - Removes the first element of a slice
-    /// arguments: slice length, slice contents
-    /// result: a slice without the first element of `slice contents`
-    </span>SlicePopFront,
-    <span class="doccomment">/// SliceInsert - Insert elements inside a slice.
-    /// arguments: slice length, slice contents, insert index, ...elements_to_insert
-    /// result: a slice with ...elements_to_insert inserted at the `insert index`
-    </span>SliceInsert,
-    <span class="doccomment">/// SliceRemove - Removes an element from a slice
-    /// arguments: slice length, slice contents, remove index
-    /// result: a slice with without the element at `remove index`
-    </span>SliceRemove,
+    <span class="doccomment">/// VectorPushBack - Add elements at the end of a vector
+    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// result: a vector containing `vector contents,..elements_to_push`
+    </span>VectorPushBack,
+    <span class="doccomment">/// VectorPushFront - Add elements at the start of a vector
+    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// result: a vector containing `..elements_to_push, vector contents`
+    </span>VectorPushFront,
+    <span class="doccomment">/// VectorPopBack - Removes the last element of a vector
+    /// arguments: vector length, vector contents
+    /// result: a vector without the last element of `vector contents`
+    </span>VectorPopBack,
+    <span class="doccomment">/// VectorPopFront - Removes the first element of a vector
+    /// arguments: vector length, vector contents
+    /// result: a vector without the first element of `vector contents`
+    </span>VectorPopFront,
+    <span class="doccomment">/// VectorInsert - Insert elements inside a vector.
+    /// arguments: vector length, vector contents, insert index, ...elements_to_insert
+    /// result: a vector with ...elements_to_insert inserted at the `insert index`
+    </span>VectorInsert,
+    <span class="doccomment">/// VectorRemove - Removes an element from a vector
+    /// arguments: vector length, vector contents, remove index
+    /// result: a vector with without the element at `remove index`
+    </span>VectorRemove,
     <span class="doccomment">/// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
     /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
@@ -1266,11 +1266,11 @@
     /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
     /// in constrained context, it will be 0.
     </span>ArrayRefCount,
-    <span class="doccomment">/// SliceRefCount - Gives the reference count of the slice
-    /// arguments: slice length, slice contents (value id)
-    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
+    <span class="doccomment">/// VectorRefCount - Gives the reference count of the vector
+    /// arguments: vector length, vector contents (value id)
+    /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
     /// in constrained context, it will be 0.
-    </span>SliceRefCount,
+    </span>VectorRefCount,
 }
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Intrinsic {
@@ -1278,15 +1278,15 @@
         <span class="kw">match </span><span class="self">self </span>{
             Intrinsic::ArrayLen =&gt; <span class="macro">write!</span>(f, <span class="string">"array_len"</span>),
             Intrinsic::ArrayAsStrUnchecked =&gt; <span class="macro">write!</span>(f, <span class="string">"array_as_str_unchecked"</span>),
-            Intrinsic::AsSlice =&gt; <span class="macro">write!</span>(f, <span class="string">"as_slice"</span>),
+            Intrinsic::AsVector =&gt; <span class="macro">write!</span>(f, <span class="string">"as_vector"</span>),
             Intrinsic::AssertConstant =&gt; <span class="macro">write!</span>(f, <span class="string">"assert_constant"</span>),
             Intrinsic::StaticAssert =&gt; <span class="macro">write!</span>(f, <span class="string">"static_assert"</span>),
-            Intrinsic::SlicePushBack =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_push_back"</span>),
-            Intrinsic::SlicePushFront =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_push_front"</span>),
-            Intrinsic::SlicePopBack =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_pop_back"</span>),
-            Intrinsic::SlicePopFront =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_pop_front"</span>),
-            Intrinsic::SliceInsert =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_insert"</span>),
-            Intrinsic::SliceRemove =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_remove"</span>),
+            Intrinsic::VectorPushBack =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_push_back"</span>),
+            Intrinsic::VectorPushFront =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_push_front"</span>),
+            Intrinsic::VectorPopBack =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_pop_back"</span>),
+            Intrinsic::VectorPopFront =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_pop_front"</span>),
+            Intrinsic::VectorInsert =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_insert"</span>),
+            Intrinsic::VectorRemove =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_remove"</span>),
             Intrinsic::StrAsBytes =&gt; <span class="macro">write!</span>(f, <span class="string">"str_as_bytes"</span>),
             Intrinsic::ApplyRangeConstraint =&gt; <span class="macro">write!</span>(f, <span class="string">"apply_range_constraint"</span>),
             Intrinsic::ToBits(Endian::Big) =&gt; <span class="macro">write!</span>(f, <span class="string">"to_be_bits"</span>),
@@ -1300,7 +1300,7 @@
             Intrinsic::DerivePedersenGenerators =&gt; <span class="macro">write!</span>(f, <span class="string">"derive_pedersen_generators"</span>),
             Intrinsic::FieldLessThan =&gt; <span class="macro">write!</span>(f, <span class="string">"field_less_than"</span>),
             Intrinsic::ArrayRefCount =&gt; <span class="macro">write!</span>(f, <span class="string">"array_refcount"</span>),
-            Intrinsic::SliceRefCount =&gt; <span class="macro">write!</span>(f, <span class="string">"slice_refcount"</span>),
+            Intrinsic::VectorRefCount =&gt; <span class="macro">write!</span>(f, <span class="string">"vector_refcount"</span>),
         }
     }
 }
@@ -1317,23 +1317,23 @@
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            <span class="comment">// Array &amp; slice ref counts are treated as having side effects since they operate
+            <span class="comment">// Array &amp; vector ref counts are treated as having side effects since they operate
             // on hidden variables on otherwise identical array values.
             </span>| Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount
+            | Intrinsic::VectorRefCount
             | Intrinsic::AsWitness =&gt; <span class="bool-val">true</span>,
 
             <span class="comment">// These apply a constraint that the input must fit into a specified number of limbs.
             </span>Intrinsic::ToBits(<span class="kw">_</span>) | Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 
-            <span class="comment">// These imply a check that the slice is non-empty and should fail otherwise.
-            </span>Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove | Intrinsic::SliceInsert =&gt; <span class="bool-val">true</span>,
+            <span class="comment">// These imply a check that the vector is non-empty and should fail otherwise.
+            </span>Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert =&gt; <span class="bool-val">true</span>,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsSlice
-            | Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
+            | Intrinsic::AsVector
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -1359,12 +1359,12 @@
             </span>Intrinsic::ToBits(<span class="kw">_</span>) | Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; Purity::PureWithPredicate,
             Intrinsic::BlackBox(func) <span class="kw">if </span>func.has_side_effects() =&gt; Purity::PureWithPredicate,
 
-            <span class="comment">// Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
-            // Slice insert also reads from its input slice, thus needing to assert that it is non-empty.
-            </span>Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
-            | Intrinsic::SliceRemove
-            | Intrinsic::SliceInsert =&gt; Purity::PureWithPredicate,
+            <span class="comment">// Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
+            // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            </span>Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorRemove
+            | Intrinsic::VectorInsert =&gt; Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -1382,16 +1382,16 @@
         <span class="kw">match </span>name {
             <span class="string">"array_len" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::ArrayLen),
             <span class="string">"array_as_str_unchecked" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::ArrayAsStrUnchecked),
-            <span class="string">"as_slice" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::AsSlice),
+            <span class="string">"as_vector" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::AsVector),
             <span class="string">"assert_constant" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::AssertConstant),
             <span class="string">"static_assert" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::StaticAssert),
             <span class="string">"apply_range_constraint" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::ApplyRangeConstraint),
-            <span class="string">"slice_push_back" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SlicePushBack),
-            <span class="string">"slice_push_front" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SlicePushFront),
-            <span class="string">"slice_pop_back" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SlicePopBack),
-            <span class="string">"slice_pop_front" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SlicePopFront),
-            <span class="string">"slice_insert" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SliceInsert),
-            <span class="string">"slice_remove" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SliceRemove),
+            <span class="string">"vector_push_back" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorPushBack),
+            <span class="string">"vector_push_front" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorPushFront),
+            <span class="string">"vector_pop_back" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorPopBack),
+            <span class="string">"vector_pop_front" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorPopFront),
+            <span class="string">"vector_insert" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorInsert),
+            <span class="string">"vector_remove" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorRemove),
             <span class="string">"str_as_bytes" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::StrAsBytes),
             <span class="string">"to_le_radix" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::ToRadix(Endian::Little)),
             <span class="string">"to_be_radix" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::ToRadix(Endian::Big)),
@@ -1403,7 +1403,7 @@
             <span class="string">"field_less_than" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::FieldLessThan),
             <span class="string">"black_box" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::Hint(Hint::BlackBox)),
             <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::ArrayRefCount),
-            <span class="string">"slice_refcount" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::SliceRefCount),
+            <span class="string">"vector_refcount" </span>=&gt; <span class="prelude-val">Some</span>(Intrinsic::VectorRefCount),
 
             other =&gt; BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
@@ -1529,9 +1529,9 @@
         else_value: ValueId,
     },
 
-    <span class="doccomment">/// Creates a new array or slice.
+    <span class="doccomment">/// Creates a new array or vector.
     ///
-    /// `typ` should be an array or slice type with an element type
+    /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
     </span>MakeArray { elements: im::Vector&lt;ValueId&gt;, typ: Type },
 
@@ -1609,12 +1609,12 @@
                     <span class="kw">match </span>intrinsic {
                         <span class="comment">// These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                         // which uses the side effects predicate.
-                        </span>Intrinsic::SliceInsert | Intrinsic::SliceRemove =&gt; <span class="bool-val">true</span>,
-                        <span class="comment">// Technically these don't use the side effects predicate, but they fail on empty slices,
+                        </span>Intrinsic::VectorInsert | Intrinsic::VectorRemove =&gt; <span class="bool-val">true</span>,
+                        <span class="comment">// Technically these don't use the side effects predicate, but they fail on empty vectors,
                         // and by pretending that they require the predicate, we can preserve any current side
                         // effect variable in the SSA and use it to optimize out memory operations that we know
                         // would fail, but they shouldn't because they might be disabled.
-                        </span>Intrinsic::SlicePopFront | Intrinsic::SlicePopBack =&gt; <span class="bool-val">true</span>,
+                        </span>Intrinsic::VectorPopFront | Intrinsic::VectorPopBack =&gt; <span class="bool-val">true</span>,
                         <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
                     }
                 }
@@ -1975,7 +1975,7 @@
 </span><span class="kw">pub enum </span>ArrayOffset {
     <span class="prelude-val">None</span>,
     Array,
-    Slice,
+    Vector,
 }
 
 <span class="kw">impl </span>ArrayOffset {
@@ -1983,7 +1983,7 @@
         <span class="kw">match </span>value {
             <span class="number">0 </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::None),
             <span class="number">1 </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Array),
-            <span class="number">3 </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Slice),
+            <span class="number">3 </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Vector),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -1993,8 +1993,8 @@
             <span class="self">Self</span>::None =&gt; <span class="number">0</span>,
             <span class="comment">// Arrays in brillig are represented as [RC, ...items]
             </span><span class="self">Self</span>::Array =&gt; <span class="number">1</span>,
-            <span class="comment">// Slices in brillig are represented as [RC, Size, Capacity, ...items]
-            </span><span class="self">Self</span>::Slice =&gt; <span class="number">3</span>,
+            <span class="comment">// Vectors in brillig are represented as [RC, Size, Capacity, ...items]
+            </span><span class="self">Self</span>::Vector =&gt; <span class="number">3</span>,
         }
     }
 }

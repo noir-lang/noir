@@ -1556,19 +1556,19 @@
                     <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: unexpected array literal type, got {}"</span>, array.typ),
                 })
             }
-            ast::Literal::Slice(array) =&gt; {
+            ast::Literal::Vector(array) =&gt; {
                 <span class="kw">let </span>elements = <span class="self">self</span>.codegen_array_elements(<span class="kw-2">&amp;</span>array.contents)<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>array.typ).flatten();
                 <span class="prelude-val">Ok</span>(<span class="kw">match </span>array.typ {
-                    ast::Type::Slice(<span class="kw">_</span>) =&gt; {
-                        <span class="kw">let </span>slice_length =
+                    ast::Type::Vector(<span class="kw">_</span>) =&gt; {
+                        <span class="kw">let </span>vector_length =
                             <span class="self">self</span>.builder.length_constant(array.contents.len() <span class="kw">as </span>u128);
-                        <span class="kw">let </span>slice_contents =
+                        <span class="kw">let </span>vector_contents =
                             <span class="self">self</span>.codegen_array_checked(elements, typ[<span class="number">1</span>].clone())<span class="question-mark">?</span>;
-                        Tree::Branch(<span class="macro">vec!</span>[slice_length.into(), slice_contents])
+                        Tree::Branch(<span class="macro">vec!</span>[vector_length.into(), vector_contents])
                     }
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: unexpected slice literal type, got {}"</span>, array.typ),
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: unexpected vector literal type, got {}"</span>, array.typ),
                 })
             }
             ast::Literal::Integer(value, typ, location) =&gt; {
@@ -1627,7 +1627,7 @@
         <span class="self">self</span>.codegen_array(elements, typ)
     }
 
-    <span class="comment">// Codegen an array but make sure that we do not have a nested slice
+    <span class="comment">// Codegen an array but make sure that we do not have a nested vector
     </span><span class="doccomment">///
     /// The bool aspect of each array element indicates whether the element is an array constant
     /// or not. If it is, we avoid incrementing the reference count because we consider the
@@ -1637,8 +1637,8 @@
         elements: Vec&lt;Values&gt;,
         typ: Type,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-        <span class="kw">if </span>typ.is_nested_slice() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::NestedSlice { call_stack: <span class="self">self</span>.builder.get_call_stack() });
+        <span class="kw">if </span>typ.is_nested_vector() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::NestedVector { call_stack: <span class="self">self</span>.builder.get_call_stack() });
         }
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_array(elements, typ))
     }
@@ -1752,13 +1752,13 @@
         <span class="comment">// Generate the index value first, it might modify the collection itself.
         </span><span class="kw">let </span>index_value = <span class="self">self</span>.codegen_non_tuple_expression(<span class="kw-2">&amp;</span>index.index)<span class="question-mark">?</span>;
         <span class="comment">// The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
-        </span><span class="kw">let </span>array_or_slice = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>index.collection)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
-        <span class="comment">// Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, slices require two value ids for their representation.
-        </span><span class="kw">let </span>(array, slice_length) = <span class="kw">if </span>array_or_slice.len() &gt; <span class="number">1 </span>{
-            (array_or_slice[<span class="number">1</span>], <span class="prelude-val">Some</span>(array_or_slice[<span class="number">0</span>]))
+        </span><span class="kw">let </span>array_or_vector = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>index.collection)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
+        <span class="comment">// Vectors are represented as a tuple in the form: (length, vector contents).
+        // Thus, vectors require two value ids for their representation.
+        </span><span class="kw">let </span>(array, vector_length) = <span class="kw">if </span>array_or_vector.len() &gt; <span class="number">1 </span>{
+            (array_or_vector[<span class="number">1</span>], <span class="prelude-val">Some</span>(array_or_vector[<span class="number">0</span>]))
         } <span class="kw">else </span>{
-            (array_or_slice[<span class="number">0</span>], <span class="prelude-val">None</span>)
+            (array_or_vector[<span class="number">0</span>], <span class="prelude-val">None</span>)
         };
 
         <span class="self">self</span>.codegen_array_index(
@@ -1766,7 +1766,7 @@
             index_value,
             <span class="kw-2">&amp;</span>index.element_type,
             index.location,
-            slice_length,
+            vector_length,
         )
     }
 
@@ -1805,8 +1805,8 @@
                     <span class="self">self</span>.codegen_access_check(index, len);
                 }
             }
-            Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="comment">// The slice length is dynamic however so we can't rely on it being equal to the underlying memory
+            Type::Vector(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// The vector length is dynamic however so we can't rely on it being equal to the underlying memory
                 // block as we can do for array types. We then inject a access check for both ACIR and brillig.
                 </span><span class="self">self</span>.codegen_access_check(
                     index,
@@ -1814,7 +1814,7 @@
                 );
             }
 
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
         }
 
         <span class="comment">// This can overflow if the original index is already not in the bounds of the array
@@ -1837,16 +1837,16 @@
             field_index += <span class="number">1</span>;
 
             <span class="comment">// Reference counting in brillig relies on us incrementing reference
-            // counts when nested arrays/slices are constructed or indexed. This
+            // counts when nested arrays/vectors are constructed or indexed. This
             // has no effect in ACIR code.
             </span><span class="kw">let </span>result = <span class="self">self</span>.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }
 
-    <span class="doccomment">/// Prepare an array or slice access.
-    /// Check that the index being used to access an array/slice element
-    /// is less than the (potentially dynamic) array/slice length.
+    <span class="doccomment">/// Prepare an array or vector access.
+    /// Check that the index being used to access an array/vector element
+    /// is less than the (potentially dynamic) array/vector length.
     </span><span class="kw">fn </span>codegen_access_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ValueId, length: ValueId) {
         <span class="kw">let </span>index = <span class="self">self</span>.make_array_index(index);
         <span class="comment">// We convert the length as an array index type for comparison
@@ -2396,12 +2396,12 @@
             <span class="self">self</span>.builder.set_location(location).get_intrinsic_from_value(function)
         {
             <span class="kw">match </span>intrinsic {
-                Intrinsic::SliceInsert =&gt; {
+                Intrinsic::VectorInsert =&gt; {
                     <span class="kw">let </span>one = <span class="self">self</span>.builder.length_constant(<span class="number">1u128</span>);
 
-                    <span class="comment">// We add one here in the case of a slice insert as a slice insert at the length of the slice
-                    // can be converted to a slice push back
-                    // This is unchecked as the slice length could be u32::max
+                    <span class="comment">// We add one here in the case of a vector insert as a vector insert at the length of the vector
+                    // can be converted to a vector push back
+                    // This is unchecked as the vector length could be u32::max
                     </span><span class="kw">let </span>len_plus_one = <span class="self">self</span>.builder.insert_binary(
                         arguments[<span class="number">0</span>],
                         BinaryOp::Add { unchecked: <span class="bool-val">false </span>},
@@ -2410,17 +2410,17 @@
 
                     <span class="self">self</span>.codegen_access_check(arguments[<span class="number">2</span>], len_plus_one);
                 }
-                Intrinsic::SliceRemove =&gt; {
+                Intrinsic::VectorRemove =&gt; {
                     <span class="self">self</span>.codegen_access_check(arguments[<span class="number">2</span>], arguments[<span class="number">0</span>]);
                 }
-                Intrinsic::SlicePopFront | Intrinsic::SlicePopBack
+                Intrinsic::VectorPopFront | Intrinsic::VectorPopBack
                     <span class="kw">if </span><span class="self">self</span>.builder.current_function.runtime().is_brillig() =&gt;
                 {
-                    <span class="comment">// We need to put in a constraint to protect against accessing empty slices:
+                    <span class="comment">// We need to put in a constraint to protect against accessing empty vectors:
                     // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
-                    // * In ACIR we do have protection against reading empty slices (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    // * In ACIR we do have protection against reading empty vectors (it returns "Index Out of Bounds"), so we don't get invalid reads.
                     //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
-                    //   when it inevitably tries to read from an empty slice anyway. We have to handle that by removing operations which are known
+                    //   when it inevitably tries to read from an empty vector anyway. We have to handle that by removing operations which are known
                     //   to fail and replace them with conditional constraints that do take the side effect into account.
                     // By doing this in the SSA we might be able to optimize this away later.
                     </span><span class="kw">let </span>zero =

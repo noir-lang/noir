@@ -1871,7 +1871,7 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_literal_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>ArrayLiteral, <span class="kw">_</span>: Span) -&gt; bool {
+    <span class="kw">fn </span>visit_literal_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>ArrayLiteral, <span class="kw">_</span>: Span) -&gt; bool {
         <span class="bool-val">true
     </span>}
 
@@ -2088,7 +2088,7 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_slice_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>UnresolvedType, <span class="kw">_</span>: Span) -&gt; bool {
+    <span class="kw">fn </span>visit_vector_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>UnresolvedType, <span class="kw">_</span>: Span) -&gt; bool {
         <span class="bool-val">true
     </span>}
 
@@ -2705,8 +2705,8 @@
                     array_literal.accept(span, visitor);
                 }
             }
-            Literal::Slice(array_literal) =&gt; {
-                <span class="kw">if </span>visitor.visit_literal_slice(array_literal, span) {
+            Literal::Vector(array_literal) =&gt; {
+                <span class="kw">if </span>visitor.visit_literal_vector(array_literal, span) {
                     array_literal.accept(span, visitor);
                 }
             }
@@ -3130,8 +3130,8 @@
                     unresolved_type.accept(visitor);
                 }
             }
-            UnresolvedTypeData::Slice(unresolved_type) =&gt; {
-                <span class="kw">if </span>visitor.visit_slice_type(unresolved_type, <span class="self">self</span>.location.span) {
+            UnresolvedTypeData::Vector(unresolved_type) =&gt; {
+                <span class="kw">if </span>visitor.visit_vector_type(unresolved_type, <span class="self">self</span>.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }

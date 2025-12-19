@@ -906,7 +906,8 @@
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{hash::BuildHasher, io::Write};
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{hash::BuildHasher, io::Write};
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -933,7 +934,7 @@
         <span class="kw">match </span>intrinsic {
             Intrinsic::ArrayLen =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
-                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"call to array_len"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">0</span>], <span class="string">"call to array_len"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span>length = array.elements.borrow().len();
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::u32(length <span class="kw">as </span>u32)])
             }
@@ -941,15 +942,15 @@
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.lookup(args[<span class="number">0</span>])<span class="question-mark">?</span>])
             }
-            Intrinsic::AsSlice =&gt; {
+            Intrinsic::AsVector =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
-                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"call to as_slice"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">0</span>], <span class="string">"call to as_vector"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span>length = array.elements.borrow().len();
                 <span class="kw">let </span>length = Value::u32(length <span class="kw">as </span>u32);
 
                 <span class="kw">let </span>elements = array.elements.borrow().to_vec();
-                <span class="kw">let </span>slice = Value::slice(elements, array.element_types.clone());
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[length, slice])
+                <span class="kw">let </span>vector = Value::vector(elements, array.element_types.clone());
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[length, vector])
             }
             Intrinsic::AssertConstant =&gt; {
                 <span class="comment">// Nothing we can do here unfortunately if we want to allow code with
@@ -974,12 +975,12 @@
                     <span class="prelude-val">Err</span>(InterpreterError::StaticAssertFailed { condition: args[<span class="number">0</span>], message })
                 }
             }
-            Intrinsic::SlicePushBack =&gt; <span class="self">self</span>.slice_push_back(args),
-            Intrinsic::SlicePushFront =&gt; <span class="self">self</span>.slice_push_front(args),
-            Intrinsic::SlicePopBack =&gt; <span class="self">self</span>.slice_pop_back(args),
-            Intrinsic::SlicePopFront =&gt; <span class="self">self</span>.slice_pop_front(args),
-            Intrinsic::SliceInsert =&gt; <span class="self">self</span>.slice_insert(args),
-            Intrinsic::SliceRemove =&gt; <span class="self">self</span>.slice_remove(args),
+            Intrinsic::VectorPushBack =&gt; <span class="self">self</span>.vector_push_back(args),
+            Intrinsic::VectorPushFront =&gt; <span class="self">self</span>.vector_push_front(args),
+            Intrinsic::VectorPopBack =&gt; <span class="self">self</span>.vector_pop_back(args),
+            Intrinsic::VectorPopFront =&gt; <span class="self">self</span>.vector_pop_front(args),
+            Intrinsic::VectorInsert =&gt; <span class="self">self</span>.vector_insert(args),
+            Intrinsic::VectorRemove =&gt; <span class="self">self</span>.vector_remove(args),
             Intrinsic::ApplyRangeConstraint =&gt; {
                 <span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::UnexpectedInstruction {
                     reason: <span class="string">"Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction"</span>,
@@ -1168,7 +1169,7 @@
                 acvm::acir::BlackBoxFunc::MultiScalarMul =&gt; {
                     check_argument_count(args, <span class="number">3</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>input_points =
-                        <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"call to MultiScalarMul blackbox"</span>)<span class="question-mark">?</span>;
+                        <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">0</span>], <span class="string">"call to MultiScalarMul blackbox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span><span class="kw-2">mut </span>points = Vec::new();
                     <span class="kw">for </span>(i, v) <span class="kw">in </span>input_points.elements.borrow().iter().enumerate() {
                         <span class="kw">if </span>i % <span class="number">3 </span>== <span class="number">2 </span>{
@@ -1193,7 +1194,7 @@
                         }
                     }
                     <span class="kw">let </span>scalars =
-                        <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to MultiScalarMul blackbox"</span>)<span class="question-mark">?</span>;
+                        <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to MultiScalarMul blackbox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span><span class="kw-2">mut </span>scalars_lo = Vec::new();
                     <span class="kw">let </span><span class="kw-2">mut </span>scalars_hi = Vec::new();
                     <span class="kw">for </span>(i, v) <span class="kw">in </span>scalars.elements.borrow().iter().enumerate() {
@@ -1389,10 +1390,10 @@
                 <span class="kw">let </span>rhs = <span class="self">self</span>.lookup_field(args[<span class="number">1</span>], <span class="string">"rhs of call to field less than"</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::bool(lhs &lt; rhs)])
             }
-            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
-                <span class="comment">// `slice_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
-                </span><span class="kw">let </span>idx = <span class="kw">if </span><span class="macro">matches!</span>(intrinsic, Intrinsic::SliceRefCount) { <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
-                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[idx], <span class="string">"array/slice ref count"</span>)<span class="question-mark">?</span>;
+            Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount =&gt; {
+                <span class="comment">// `vector_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
+                </span><span class="kw">let </span>idx = <span class="kw">if </span><span class="macro">matches!</span>(intrinsic, Intrinsic::VectorRefCount) { <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
+                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_vector(args[idx], <span class="string">"array/vector ref count"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>rc = <span class="kw-2">*</span>array.rc.borrow();
                 <span class="comment">// ACIR always returns 0 for the refcounts, and we expect that IncRc and DecRc don't appear in constrained SSA.
                 // The interpreter starts with a default ref-count value of 1. If it did not change, treat it as zero to match ACIR.
@@ -1439,17 +1440,17 @@
         <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::array(elements, <span class="macro">vec!</span>[Type::Numeric(element_type)])])
     }
 
-    <span class="doccomment">/// (length, slice, elem...) -&gt; (length, slice)
-    </span><span class="kw">fn </span>slice_push_back(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
-        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to slice_push_back"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to slice_push_back"</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// (length, vector, elem...) -&gt; (length, vector)
+    </span><span class="kw">fn </span>vector_push_back(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
+        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to vector_push_back"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to vector_push_back"</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">// The resulting slice should be cloned - should we check RC here to try mutating it?
+        <span class="comment">// The resulting vector should be cloned - should we check RC here to try mutating it?
         // It'd need to be brillig-only if so since RC is always 1 in acir.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>new_elements = slice.elements.borrow().to_vec();
-        <span class="kw">let </span>element_types = slice.element_types.clone();
+        </span><span class="kw">let </span><span class="kw-2">mut </span>new_elements = vector.elements.borrow().to_vec();
+        <span class="kw">let </span>element_types = vector.element_types.clone();
 
-        <span class="comment">// The slice might contain more elements than its length.
+        <span class="comment">// The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
         </span>new_elements.truncate(element_types.len() * length <span class="kw">as </span>usize);
         <span class="kw">for </span>arg <span class="kw">in </span>args.iter().skip(<span class="number">2</span>) {
@@ -1457,117 +1458,118 @@
         }
 
         <span class="kw">let </span>new_length = Value::u32(length + <span class="number">1</span>);
-        <span class="kw">let </span>new_slice = Value::slice(new_elements, element_types);
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_slice])
+        <span class="kw">let </span>new_vector = Value::vector(new_elements, element_types);
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_vector])
     }
 
-    <span class="doccomment">/// (length, slice, elem...) -&gt; (length, slice)
-    </span><span class="kw">fn </span>slice_push_front(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
-        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to slice_push_front"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to slice_push_front"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice_elements = slice.elements.clone();
-        <span class="kw">let </span>element_types = slice.element_types.clone();
+    <span class="doccomment">/// (length, vector, elem...) -&gt; (length, vector)
+    </span><span class="kw">fn </span>vector_push_front(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
+        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to vector_push_front"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to vector_push_front"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector_elements = vector.elements.clone();
+        <span class="kw">let </span>element_types = vector.element_types.clone();
 
         <span class="kw">let </span><span class="kw-2">mut </span>new_elements = try_vecmap(args.iter().skip(<span class="number">2</span>), |arg| <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg))<span class="question-mark">?</span>;
-        new_elements.extend_from_slice(<span class="kw-2">&amp;</span>slice_elements.borrow());
+        new_elements.extend_from_slice(<span class="kw-2">&amp;</span>vector_elements.borrow());
 
         <span class="kw">let </span>new_length = Value::u32(length + <span class="number">1</span>);
-        <span class="kw">let </span>new_slice = Value::slice(new_elements, element_types);
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_slice])
+        <span class="kw">let </span>new_vector = Value::vector(new_elements, element_types);
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_vector])
     }
 
-    <span class="doccomment">/// (length, slice) -&gt; (length, slice, elem...)
-    </span><span class="kw">fn </span>slice_pop_back(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
-        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to slice_pop_back"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to slice_pop_back"</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// (length, vector) -&gt; (length, vector, elem...)
+    </span><span class="kw">fn </span>vector_pop_back(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
+        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to vector_pop_back"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to vector_pop_back"</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>slice_elements = slice.elements.borrow().to_vec();
-        <span class="kw">let </span>element_types = slice.element_types.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_elements = vector.elements.borrow().to_vec();
+        <span class="kw">let </span>element_types = vector.element_types.clone();
 
-        <span class="kw">if </span>slice_elements.is_empty() || length == <span class="number">0 </span>{
-            <span class="kw">let </span>instruction = <span class="string">"slice_pop_back"</span>;
-            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptySlice { slice: args[<span class="number">1</span>], instruction });
+        <span class="kw">if </span>vector_elements.is_empty() || length == <span class="number">0 </span>{
+            <span class="kw">let </span>instruction = <span class="string">"vector_pop_back"</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptyVector { vector: args[<span class="number">1</span>], instruction });
         }
-        check_slice_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>slice)<span class="question-mark">?</span>;
+        check_vector_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>vector)<span class="question-mark">?</span>;
 
-        <span class="comment">// The slice might contain more elements than its length.
+        <span class="comment">// The vector might contain more elements than its length.
         // We want the last valid element, ignoring any extras following it.
         // We don't ever access the extras, so we might as well remove any.
-        </span>slice_elements.truncate(element_types.len() * length <span class="kw">as </span>usize);
-        <span class="kw">let </span><span class="kw-2">mut </span>popped_elements = vecmap(<span class="number">0</span>..element_types.len(), |<span class="kw">_</span>| slice_elements.pop().unwrap());
+        </span>vector_elements.truncate(element_types.len() * length <span class="kw">as </span>usize);
+        <span class="kw">let </span><span class="kw-2">mut </span>popped_elements =
+            vecmap(<span class="number">0</span>..element_types.len(), |<span class="kw">_</span>| vector_elements.pop().unwrap());
         popped_elements.reverse();
 
         <span class="kw">let </span>new_length = Value::u32(length - <span class="number">1</span>);
-        <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
-        <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[new_length, new_slice];
+        <span class="kw">let </span>new_vector = Value::vector(vector_elements, element_types);
+        <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[new_length, new_vector];
         results.extend(popped_elements);
         <span class="prelude-val">Ok</span>(results)
     }
 
-    <span class="doccomment">/// (length, slice) -&gt; (elem..., length, slice)
-    </span><span class="kw">fn </span>slice_pop_front(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
-        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to slice_pop_front"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to slice_pop_front"</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// (length, vector) -&gt; (elem..., length, vector)
+    </span><span class="kw">fn </span>vector_pop_front(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
+        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to vector_pop_front"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to vector_pop_front"</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>slice_elements = slice.elements.borrow().to_vec();
-        <span class="kw">let </span>element_types = slice.element_types.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_elements = vector.elements.borrow().to_vec();
+        <span class="kw">let </span>element_types = vector.element_types.clone();
 
-        <span class="kw">if </span>slice_elements.is_empty() || length == <span class="number">0 </span>{
-            <span class="kw">let </span>instruction = <span class="string">"slice_pop_front"</span>;
-            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptySlice { slice: args[<span class="number">1</span>], instruction });
+        <span class="kw">if </span>vector_elements.is_empty() || length == <span class="number">0 </span>{
+            <span class="kw">let </span>instruction = <span class="string">"vector_pop_front"</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptyVector { vector: args[<span class="number">1</span>], instruction });
         }
-        check_slice_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>slice)<span class="question-mark">?</span>;
+        check_vector_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>vector)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>results = slice_elements.drain(<span class="number">0</span>..element_types.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span><span class="kw-2">mut </span>results = vector_elements.drain(<span class="number">0</span>..element_types.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="kw">let </span>new_length = Value::u32(length - <span class="number">1</span>);
-        <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
+        <span class="kw">let </span>new_vector = Value::vector(vector_elements, element_types);
         results.push(new_length);
-        results.push(new_slice);
+        results.push(new_vector);
         <span class="prelude-val">Ok</span>(results)
     }
 
-    <span class="doccomment">/// (length, slice, index:u32, elem...) -&gt; (length, slice)
-    </span><span class="kw">fn </span>slice_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
-        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to slice_insert"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to slice_insert"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(args[<span class="number">2</span>], <span class="string">"call to slice_insert"</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// (length, vector, index:u32, elem...) -&gt; (length, vector)
+    </span><span class="kw">fn </span>vector_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
+        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to vector_insert"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to vector_insert"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(args[<span class="number">2</span>], <span class="string">"call to vector_insert"</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>slice_elements = slice.elements.borrow().to_vec();
-        <span class="kw">let </span>element_types = slice.element_types.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_elements = vector.elements.borrow().to_vec();
+        <span class="kw">let </span>element_types = vector.element_types.clone();
 
         <span class="kw">let </span><span class="kw-2">mut </span>index = index <span class="kw">as </span>usize * element_types.len();
         <span class="kw">for </span>arg <span class="kw">in </span>args.iter().skip(<span class="number">3</span>) {
-            slice_elements.insert(index, <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)<span class="question-mark">?</span>);
+            vector_elements.insert(index, <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)<span class="question-mark">?</span>);
             index += <span class="number">1</span>;
         }
 
         <span class="kw">let </span>new_length = Value::u32(length + <span class="number">1</span>);
-        <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_slice])
+        <span class="kw">let </span>new_vector = Value::vector(vector_elements, element_types);
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_vector])
     }
 
-    <span class="doccomment">/// (length, slice, index:u32) -&gt; (length, slice, elem...)
-    </span><span class="kw">fn </span>slice_remove(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
-        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to slice_remove"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>slice = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">1</span>], <span class="string">"call to slice_remove"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(args[<span class="number">2</span>], <span class="string">"call to slice_remove"</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// (length, vector, index:u32) -&gt; (length, vector, elem...)
+    </span><span class="kw">fn </span>vector_remove(<span class="kw-2">&amp;</span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[ValueId]) -&gt; IResults {
+        <span class="kw">let </span>length = <span class="self">self</span>.lookup_u32(args[<span class="number">0</span>], <span class="string">"call to vector_remove"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>vector = <span class="self">self</span>.lookup_array_or_vector(args[<span class="number">1</span>], <span class="string">"call to vector_remove"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(args[<span class="number">2</span>], <span class="string">"call to vector_remove"</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>slice_elements = slice.elements.borrow().to_vec();
-        <span class="kw">let </span>element_types = slice.element_types.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_elements = vector.elements.borrow().to_vec();
+        <span class="kw">let </span>element_types = vector.element_types.clone();
 
-        <span class="kw">if </span>slice_elements.is_empty() {
-            <span class="kw">let </span>instruction = <span class="string">"slice_remove"</span>;
-            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptySlice { slice: args[<span class="number">1</span>], instruction });
+        <span class="kw">if </span>vector_elements.is_empty() {
+            <span class="kw">let </span>instruction = <span class="string">"vector_remove"</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptyVector { vector: args[<span class="number">1</span>], instruction });
         }
-        check_slice_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>slice)<span class="question-mark">?</span>;
+        check_vector_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>vector)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>index = index <span class="kw">as </span>usize * element_types.len();
-        <span class="kw">let </span>removed: Vec&lt;<span class="kw">_</span>&gt; = slice_elements.drain(index..index + element_types.len()).collect();
+        <span class="kw">let </span>removed: Vec&lt;<span class="kw">_</span>&gt; = vector_elements.drain(index..index + element_types.len()).collect();
 
         <span class="kw">let </span>new_length = Value::u32(length - <span class="number">1</span>);
-        <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
-        <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[new_length, new_slice];
+        <span class="kw">let </span>new_vector = Value::vector(vector_elements, element_types);
+        <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[new_length, new_vector];
         results.extend(removed);
         <span class="prelude-val">Ok</span>(results)
     }
@@ -1688,16 +1690,16 @@
     }
 }
 
-<span class="kw">fn </span>check_slice_can_pop_all_element_types(slice_id: ValueId, slice: <span class="kw-2">&amp;</span>ArrayValue) -&gt; IResult&lt;()&gt; {
-    <span class="kw">let </span>actual_length = slice.elements.borrow().len();
-    <span class="kw">if </span>actual_length &gt;= slice.element_types.len() {
+<span class="kw">fn </span>check_vector_can_pop_all_element_types(vector_id: ValueId, vector: <span class="kw-2">&amp;</span>ArrayValue) -&gt; IResult&lt;()&gt; {
+    <span class="kw">let </span>actual_length = vector.elements.borrow().len();
+    <span class="kw">if </span>actual_length &gt;= vector.element_types.len() {
         <span class="prelude-val">Ok</span>(())
     } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::NotEnoughElementsToPopSliceOfStructs {
-            slice_id,
-            slice: slice.to_string(),
+        <span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::NotEnoughElementsToPopVectorOfStructs {
+            vector_id,
+            vector: vector.to_string(),
             actual_length,
-            element_types: vecmap(slice.element_types.iter(), ToString::to_string),
+            element_types: vecmap(vector.element_types.iter(), ToString::to_string),
         }))
     }
 }
@@ -1720,10 +1722,10 @@
     ))
 }
 
-<span class="doccomment">/// Convert a slice of [Value] to a flattened vector of [FieldElement] for printing.
+<span class="doccomment">/// Convert a vector of [Value] to a flattened vector of [FieldElement] for printing.
 ///
-/// It takes a slice, rather than individual values, so that it can try to
-/// pair up `u32` fields indicating the size of a `Slice` with its elements
+/// It takes a vector, rather than individual values, so that it can try to
+/// pair up `u32` fields indicating the size of a `Vector` with its elements
 /// following in the next value, and truncate the data to the semantic length.
 </span><span class="kw">fn </span>values_to_fields(values: <span class="kw-2">&amp;</span>[Value]) -&gt; Vec&lt;FieldElement&gt; {
     <span class="kw">fn </span>go&lt;<span class="lifetime">'a</span>, I&gt;(values: I, fields: <span class="kw-2">&amp;mut </span>Vec&lt;FieldElement&gt;)
@@ -1739,9 +1741,9 @@
                         go(std::iter::once(value), fields);
                     }
                 }
-                Value::ArrayOrSlice(array_value) =&gt; {
+                Value::ArrayOrVector(array_value) =&gt; {
                     <span class="kw">let </span>length = <span class="kw">match </span>vector_length {
-                        <span class="prelude-val">Some</span>(length) <span class="kw">if </span>array_value.is_slice =&gt; {
+                        <span class="prelude-val">Some</span>(length) <span class="kw">if </span>array_value.is_vector =&gt; {
                             length * array_value.element_types.len()
                         }
                         <span class="kw">_ </span>=&gt; array_value.elements.borrow().len(),
@@ -1795,7 +1797,7 @@
 
 <span class="doccomment">/// Parse a value as `[u8]` and convert to UTF-8 `String`.
 </span><span class="kw">fn </span>value_to_string(name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, value: <span class="kw-2">&amp;</span>Value) -&gt; IResult&lt;String&gt; {
-    <span class="kw">let </span>arr = value.as_array_or_slice().and_then(|arr| {
+    <span class="kw">let </span>arr = value.as_array_or_vector().and_then(|arr| {
         arr.elements.borrow().iter().map(|v| v.as_u8()).collect::&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()
     });
     <span class="kw">let </span><span class="prelude-val">Some</span>(bz) = arr <span class="kw">else </span>{

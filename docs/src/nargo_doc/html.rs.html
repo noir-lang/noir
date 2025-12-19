@@ -3200,7 +3200,7 @@
                 <span class="self">self</span>.render_type(length);
                 <span class="self">self</span>.output.push(<span class="string">']'</span>);
             }
-            Type::Slice { element } =&gt; {
+            Type::Vector { element } =&gt; {
                 <span class="self">self</span>.output.push(<span class="string">'['</span>);
                 <span class="self">self</span>.render_type(element);
                 <span class="self">self</span>.output.push(<span class="string">']'</span>);
@@ -3784,7 +3784,7 @@
                 type_to_string(length, self_type)
             )
         }
-        Type::Slice { element } =&gt; <span class="macro">format!</span>(<span class="string">"[{}]"</span>, type_to_string(element, self_type)),
+        Type::Vector { element } =&gt; <span class="macro">format!</span>(<span class="string">"[{}]"</span>, type_to_string(element, self_type)),
         Type::String { length } =&gt; <span class="macro">format!</span>(<span class="string">"str&amp;lt;{}&amp;gt;"</span>, type_to_string(length, self_type)),
         Type::FmtString { length, element } =&gt; {
             <span class="macro">format!</span>(

@@ -266,7 +266,11 @@
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
@@ -284,9 +288,9 @@
     dfg: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>DataFlowGraph,
     block: BasicBlockId,
 
-    <span class="doccomment">/// Maps SSA array values with a slice type to their size.
+    <span class="doccomment">/// Maps SSA array values with a vector type to their size.
     /// This must be computed before merging values.
-    </span>slice_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, u32&gt;,
+    </span>vector_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, u32&gt;,
 
     call_stack: CallStackId,
 }
@@ -295,10 +299,10 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         dfg: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, u32&gt;,
+        vector_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, u32&gt;,
         call_stack: CallStackId,
     ) -&gt; <span class="self">Self </span>{
-        ValueMerger { dfg, block, slice_sizes, call_stack }
+        ValueMerger { dfg, block, vector_sizes, call_stack }
     }
 
     <span class="doccomment">/// Merge two values a and b to a single value.
@@ -332,9 +336,13 @@
             typ @ Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 <span class="self">self</span>.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="self">self</span>.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
-            }
+            typ @ Type::Vector(<span class="kw">_</span>) =&gt; <span class="self">self</span>.merge_vector_values(
+                typ,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
             Type::Reference(<span class="kw">_</span>) =&gt; {
                 <span class="comment">// FIXME: none of then_value, else_value, then_condition, or else_condition have
                 // non-empty call stacks
@@ -450,7 +458,7 @@
         <span class="prelude-val">Ok</span>(result.first())
     }
 
-    <span class="kw">fn </span>merge_slice_values(
+    <span class="kw">fn </span>merge_vector_values(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: Type,
         then_condition: ValueId,
@@ -461,16 +469,16 @@
         <span class="kw">let </span><span class="kw-2">mut </span>merged = im::Vector::new();
 
         <span class="kw">let </span>element_types = <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
-            Type::Slice(elements) =&gt; elements.as_slice(),
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected slice type"</span>),
+            Type::Vector(elements) =&gt; elements.as_slice(),
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected vector type"</span>),
         };
 
-        <span class="kw">let </span>then_len = <span class="self">self</span>.slice_sizes.get(<span class="kw-2">&amp;</span>then_value_id).copied().unwrap_or_else(|| {
-            <span class="macro">panic!</span>(<span class="string">"ICE: Merging values during flattening encountered slice {then_value_id} without a preset size"</span>);
+        <span class="kw">let </span>then_len = <span class="self">self</span>.vector_sizes.get(<span class="kw-2">&amp;</span>then_value_id).copied().unwrap_or_else(|| {
+            <span class="macro">panic!</span>(<span class="string">"ICE: Merging values during flattening encountered vector {then_value_id} without a preset size"</span>);
         });
 
-        <span class="kw">let </span>else_len = <span class="self">self</span>.slice_sizes.get(<span class="kw-2">&amp;</span>else_value_id).copied().unwrap_or_else(|| {
-            <span class="macro">panic!</span>(<span class="string">"ICE: Merging values during flattening encountered slice {else_value_id} without a preset size"</span>);
+        <span class="kw">let </span>else_len = <span class="self">self</span>.vector_sizes.get(<span class="kw-2">&amp;</span>else_value_id).copied().unwrap_or_else(|| {
+            <span class="macro">panic!</span>(<span class="string">"ICE: Merging values during flattening encountered vector {else_value_id} without a preset size"</span>);
         });
 
         <span class="kw">let </span>len = then_len.max(else_len);
@@ -499,16 +507,16 @@
                     results.first()
                 };
 
-                <span class="comment">// If it's out of bounds for the "then" slice, a value in the "else" *must* exist.
+                <span class="comment">// If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
                 // We can use that value directly as accessing it is always checked against the actual
-                // slice length.
+                // vector length.
                 </span><span class="kw">if </span>index_u32 &gt;= flat_then_length {
                     <span class="kw">let </span>else_element = get_element(else_value_id, typevars, flat_else_length);
                     merged.push_back(else_element);
                     <span class="kw">continue</span>;
                 }
 
-                <span class="comment">// Same for if it's out of bounds for the "else" slice.
+                <span class="comment">// Same for if it's out of bounds for the "else" vector.
                 </span><span class="kw">if </span>index_u32 &gt;= flat_else_length {
                     <span class="kw">let </span>then_element = get_element(then_value_id, typevars, flat_then_length);
                     merged.push_back(then_element);

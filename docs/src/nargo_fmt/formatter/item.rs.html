@@ -362,20 +362,20 @@
     }
 
     <span class="kw">fn </span>span_has_comments(<span class="kw-2">&amp;</span><span class="self">self</span>, span: Span) -&gt; bool {
-        <span class="kw">let </span>slice = <span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize];
-        slice.contains(<span class="string">"/*"</span>) || slice.contains(<span class="string">"//"</span>)
+        <span class="kw">let </span>vector = <span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize];
+        vector.contains(<span class="string">"/*"</span>) || vector.contains(<span class="string">"//"</span>)
     }
 
     <span class="kw">fn </span>span_starts_with_trailing_comment(<span class="kw-2">&amp;</span><span class="self">self</span>, span: Span) -&gt; bool {
-        <span class="kw">let </span>slice = <span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize];
-        slice.trim_start_matches(<span class="string">' '</span>).starts_with(<span class="string">"//"</span>)
+        <span class="kw">let </span>vector = <span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize];
+        vector.trim_start_matches(<span class="string">' '</span>).starts_with(<span class="string">"//"</span>)
     }
 
     <span class="doccomment">/// Returns true if there at most one newline in the given span and it contains no comments.
     </span><span class="kw">fn </span>span_is_import_group_separator(<span class="kw-2">&amp;</span><span class="self">self</span>, span: Span) -&gt; bool {
-        <span class="kw">let </span>slice = <span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize];
-        <span class="kw">let </span>number_of_newlines = slice.chars().filter(|char| <span class="kw-2">*</span>char == <span class="string">'\n'</span>).count();
-        number_of_newlines &gt; <span class="number">1 </span>|| slice.contains(<span class="string">"//"</span>) || slice.contains(<span class="string">"/*"</span>)
+        <span class="kw">let </span>vector = <span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize];
+        <span class="kw">let </span>number_of_newlines = vector.chars().filter(|char| <span class="kw-2">*</span>char == <span class="string">'\n'</span>).count();
+        number_of_newlines &gt; <span class="number">1 </span>|| vector.contains(<span class="string">"//"</span>) || vector.contains(<span class="string">"/*"</span>)
     }
 }
 
