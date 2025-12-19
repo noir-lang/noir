@@ -1,0 +1,6 @@
+[package]
+name = "slice_dynamic_insert"
+type = "bin"
+authors = [""]
+
+[dependencies]

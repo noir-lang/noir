@@ -1,0 +1,7 @@
+[package]
+name = "slice_coercion"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.25.0"
+
+[dependencies]
