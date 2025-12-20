@@ -41,7 +41,6 @@ jsonrpsee = { workspace = true, features = ["server"] }
 serde_json.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true
-num-bigint.workspace = true
 
 [features]
 default = []
