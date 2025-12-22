@@ -1983,7 +1983,24 @@
 <a href="#1982" id="1982">1982</a>
 <a href="#1983" id="1983">1983</a>
 <a href="#1984" id="1984">1984</a>
-<a href="#1985" id="1985">1985</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a>
+<a href="#1988" id="1988">1988</a>
+<a href="#1989" id="1989">1989</a>
+<a href="#1990" id="1990">1990</a>
+<a href="#1991" id="1991">1991</a>
+<a href="#1992" id="1992">1992</a>
+<a href="#1993" id="1993">1993</a>
+<a href="#1994" id="1994">1994</a>
+<a href="#1995" id="1995">1995</a>
+<a href="#1996" id="1996">1996</a>
+<a href="#1997" id="1997">1997</a>
+<a href="#1998" id="1998">1998</a>
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2251,6 +2268,10 @@
                         address_value_type, value_type
                     );
                 }
+            }
+            Instruction::EnableSideEffectsIf { condition } =&gt; {
+                <span class="kw">let </span>condition_type = dfg.type_of_value(<span class="kw-2">*</span>condition);
+                assert_u1(<span class="kw-2">&amp;</span>condition_type, <span class="string">"enable_side_effects condition"</span>);
             }
             <span class="kw">_ </span>=&gt; (),
         }
@@ -3966,6 +3987,19 @@
         <span class="kw">let </span>ssa = builder.finish();
 
         Validator::new(<span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>main_id], <span class="kw-2">&amp;</span>ssa).run();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"enable_side_effects condition must be u1, not u32"</span>)]
+    </span><span class="kw">fn </span>enable_side_effects_with_non_bool() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) pure fn main f0 {
+          b0(v0: u32):
+            enable_side_effects v0
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
     }
 }
 </code></pre></div></section></main></body></html>
