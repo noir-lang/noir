@@ -1081,7 +1081,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_capacity_larger_than_length() {
+    fn merge_vector_with_capacity_larger_than_length() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -1090,7 +1090,7 @@ mod tests {
             v6 = allocate -> &mut [(u32, u32)]
             v8 = lt v2, u32 10
             enable_side_effects v8
-            v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
             v14 = not v8
             v15 = cast v8 as u32
             v16 = cast v14 as u32
@@ -1129,7 +1129,7 @@ mod tests {
             v6 = allocate -> &mut [(u32, u32)]
             v8 = lt v2, u32 10
             enable_side_effects v8
-            v12, v13 = call slice_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
             v14 = not v8
             v15 = cast v8 as u32
             v16 = cast v14 as u32
