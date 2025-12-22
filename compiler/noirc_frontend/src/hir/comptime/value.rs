@@ -16,6 +16,7 @@ use crate::{
     },
     elaborator::Elaborator,
     hir::{
+        comptime::interpreter::builtin_helpers::fragments_to_string,
         def_collector::dc_crate::CompilationError, def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
@@ -697,6 +698,11 @@ impl Value {
             }
             Value::String(value) | Value::CtString(value) => {
                 vec![Token::Str(unwrap_rc(value))]
+            }
+            Value::FormatString(fragments, _, _) => {
+                // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
+                let string = fragments_to_string(&fragments, interner);
+                vec![Token::Str(string)]
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };

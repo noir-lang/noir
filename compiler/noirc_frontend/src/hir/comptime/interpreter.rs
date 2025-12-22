@@ -85,6 +85,8 @@ mod foreign;
 mod infix;
 mod unquote;
 
+pub(crate) use builtin::builtin_helpers;
+
 /// Maximum depth of evaluation, limiting recursion during comptime as well as
 /// expression depth. The goal is to be able to provide Noir stack traces if
 /// we run out, rather than a Rust backtrace.

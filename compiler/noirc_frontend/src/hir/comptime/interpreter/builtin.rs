@@ -37,6 +37,7 @@ use crate::{
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
+            interpreter::builtin::builtin_helpers::fragments_to_string,
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
@@ -2513,41 +2514,6 @@ fn fmtstr_quoted_contents(
     let string = fragments_to_string(&fragments, interner);
     let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
-}
-
-fn fragments_to_string(fragments: &[FormatStringFragment], interner: &NodeInterner) -> String {
-    let mut result = String::new();
-    for fragment in fragments {
-        match fragment {
-            FormatStringFragment::String(string) => {
-                result.push_str(string);
-            }
-            FormatStringFragment::Value { name: _, value } => {
-                match value {
-                    Value::Quoted(tokens) => {
-                        // When interpolating a quoted value inside a format string, we don't include the
-                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
-                        for (index, token) in tokens.iter().enumerate() {
-                            if index > 0 {
-                                result.push(' ');
-                            }
-                            result.push_str(&token.token().display(interner).to_string());
-                        }
-                    }
-                    Value::FormatString(fragments, _, _) => {
-                        // Nested format strings might have quoted values inside them,
-                        // so we need to recurse here instead of calling `value.display`.
-                        let inner_string = fragments_to_string(fragments, interner);
-                        result.push_str(&inner_string);
-                    }
-                    _ => {
-                        result.push_str(&value.display(interner).to_string());
-                    }
-                }
-            }
-        }
-    }
-    result
 }
 
 // fn fresh_type_variable() -> Type
