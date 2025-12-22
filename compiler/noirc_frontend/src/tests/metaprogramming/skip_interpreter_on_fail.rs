@@ -959,7 +959,7 @@ fn mismatched_tuple_size_assignment() {
 }
 
 #[test]
-fn mismatched_struct_pattern_assigment() {
+fn mismatched_struct_pattern_assignment() {
     let src = "
     struct Foo {
         x: Field,
