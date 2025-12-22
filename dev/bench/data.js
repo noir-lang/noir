@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766417973571,
+  "lastUpdate": 1766419533107,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5a65daee121a836e2c084b9839159163d4811c20",
-          "message": "fix(acir): Do not read empty array under inactive predicates for various slice ops (#10882)",
-          "timestamp": "2025-12-10T17:33:00Z",
-          "tree_id": "b36407a8eb32b48d098585c8fbb0844918507728",
-          "url": "https://github.com/noir-lang/noir/commit/5a65daee121a836e2c084b9839159163d4811c20"
-        },
-        "date": 1765389430256,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258591,
-            "range": "± 1004",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228418,
-            "range": "± 2714",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789703,
-            "range": "± 44276",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25334,6 +25292,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2263426,
             "range": "± 2395",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a1fed428ee97736dc5320cbe7e6e823ea3da2da3",
+          "message": "chore(comptime): Defensive assertions when mutating struct pointers (#10659)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-12-22T15:43:54Z",
+          "tree_id": "814077bf2586edce6a9d014772da13fa904a16a9",
+          "url": "https://github.com/noir-lang/noir/commit/a1fed428ee97736dc5320cbe7e6e823ea3da2da3"
+        },
+        "date": 1766419500670,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254769,
+            "range": "± 489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225119,
+            "range": "± 2968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790260,
+            "range": "± 984",
             "unit": "ns/iter"
           }
         ]
