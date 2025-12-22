@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766419773679,
+  "lastUpdate": 1766419892299,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23215,48 +23215,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "93ce49c6c00112ac7831219bed43024183328b83",
-          "message": "chore: check for division by zero (#10884)",
-          "timestamp": "2025-12-11T10:44:09Z",
-          "tree_id": "5dcaa8aec6663e6b6e7cef0bf4f76b4c298315bd",
-          "url": "https://github.com/noir-lang/noir/commit/93ce49c6c00112ac7831219bed43024183328b83"
-        },
-        "date": 1765451560481,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258125,
-            "range": "± 753",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227298,
-            "range": "± 5267",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788510,
-            "range": "± 4594",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "660d3ac653221b2fc557a802688a8b862e788bd3",
           "message": "chore: better naming in out_of_bounds checks (#10889)",
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790260,
             "range": "± 984",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "40847e0b83c68be37fe9f27bb5391a9990c3f5a6",
+          "message": "fix(SSA): validate that enable_side_effects takes a u1 (#11001)",
+          "timestamp": "2025-12-22T15:49:54Z",
+          "tree_id": "ce5916c82346d48f4e394df76e5e4983c9ddcb4c",
+          "url": "https://github.com/noir-lang/noir/commit/40847e0b83c68be37fe9f27bb5391a9990c3f5a6"
+        },
+        "date": 1766419860196,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256197,
+            "range": "± 663",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226009,
+            "range": "± 7608",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789564,
+            "range": "± 1612",
             "unit": "ns/iter"
           }
         ]
