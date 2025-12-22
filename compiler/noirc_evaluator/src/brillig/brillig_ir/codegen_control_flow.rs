@@ -269,8 +269,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                             *deflattened_items_pointer,
                         );
                     }
-                    BrilligParameter::Slice(_, _) => {
-                        unimplemented!("Slices are not supported as error data")
+                    BrilligParameter::Vector(_, _) => {
+                        unimplemented!("Vectors are not supported as error data")
                     }
                 }
                 ctx.codegen_usize_op_in_place(
@@ -313,7 +313,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         match param {
             BrilligParameter::SingleAddr(_) => 1,
             BrilligParameter::Array(item_types, item_count)
-            | BrilligParameter::Slice(item_types, item_count) => {
+            | BrilligParameter::Vector(item_types, item_count) => {
                 let item_size: usize = item_types.iter().map(Self::flattened_size).sum();
                 item_count * item_size
             }
@@ -404,7 +404,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
                             target_offset += Self::flattened_size(subitem);
                         }
-                        BrilligParameter::Slice(..) => unreachable!("ICE: Cannot flatten slices"),
+                        BrilligParameter::Vector(..) => unreachable!("ICE: Cannot flatten vectors"),
                     }
                 }
             }

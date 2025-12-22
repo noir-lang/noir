@@ -73,8 +73,8 @@ pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
     Value::from_constant(constant, typ).unwrap()
 }
 
-fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
-    let values = slice.iter().map(|v| from_constant(u128::from(*v).into(), typ)).collect();
+fn from_u32_vector(vector: &[u32], typ: NumericType) -> Value {
+    let values = vector.iter().map(|v| from_constant(u128::from(*v).into(), typ)).collect();
     Value::array(values, vec![Type::Numeric(typ)])
 }
 
@@ -95,12 +95,12 @@ fn value_snapshot_detaches_from_original() {
     where
         F: FnOnce(&mut bool),
     {
-        let Value::ArrayOrSlice(ArrayValue { elements, .. }) = value else {
+        let Value::ArrayOrVector(ArrayValue { elements, .. }) = value else {
             unreachable!("values are arrays")
         };
         let elements = elements.borrow_mut();
         let value = &elements[0];
-        let Value::ArrayOrSlice(ArrayValue { elements, .. }) = value else {
+        let Value::ArrayOrVector(ArrayValue { elements, .. }) = value else {
             unreachable!("inner values are arrays")
         };
         let mut elements = elements.borrow_mut();
@@ -493,7 +493,7 @@ fn store_with_aliases() {
 }
 
 #[test]
-fn literally_just_the_slices_integration_test() {
+fn literally_just_the_vectors_integration_test() {
     let src = r#"
 acir(inline) fn main f0 {
   b0(v0: Field, v1: Field):
@@ -533,7 +533,7 @@ acir(inline) fn main f0 {
     constrain v30 == v0
     v32 = load v5 -> u32
     v33 = load v7 -> [Field]
-    v35, v36 = call slice_push_back(v32, v33, v1) -> (u32, [Field])
+    v35, v36 = call vector_push_back(v32, v33, v1) -> (u32, [Field])
     v37 = lt u32 2, v35
     constrain v37 == u1 1, "Index out of bounds"
     v38 = array_get v36, index u32 2 -> Field
@@ -559,7 +559,7 @@ acir(inline) fn main f0 {
   b2():
     v167 = load v49 -> u32
     v168 = load v50 -> [u32]
-    v169, v170 = call slice_push_back(v167, v168, v2) -> (u32, [u32])
+    v169, v170 = call vector_push_back(v167, v168, v2) -> (u32, [u32])
     store v169 at v49
     store v170 at v50
     v171 = unchecked_add v2, u32 1
@@ -571,7 +571,7 @@ acir(inline) fn main f0 {
     constrain v53 == u32 5
     v56 = load v49 -> u32
     v57 = load v50 -> [u32]
-    v60, v61 = call slice_push_front(v56, v57, u32 20) -> (u32, [u32])
+    v60, v61 = call vector_push_front(v56, v57, u32 20) -> (u32, [u32])
     store v60 at v49
     store v61 at v50
     v62 = load v49 -> u32
@@ -587,12 +587,12 @@ acir(inline) fn main f0 {
     constrain v67 == u32 6
     v71 = load v49 -> u32
     v72 = load v50 -> [u32]
-    v74, v75, v76 = call slice_pop_back(v71, v72) -> (u32, [u32], u32)
+    v74, v75, v76 = call vector_pop_back(v71, v72) -> (u32, [u32], u32)
     v78 = eq v76, u32 4
     constrain v76 == u32 4
     v79 = eq v74, u32 5
     constrain v74 == u32 5
-    v81, v82, v83 = call slice_pop_front(v74, v75) -> (u32, u32, [u32])
+    v81, v82, v83 = call vector_pop_front(v74, v75) -> (u32, u32, [u32])
     v84 = eq v81, u32 20
     constrain v81 == u32 20
     v85 = eq v82, u32 4
@@ -600,7 +600,7 @@ acir(inline) fn main f0 {
     v87 = add v82, u32 1
     v88 = lt u32 2, v87
     constrain v88 == u1 1, "Index out of bounds"
-    v91, v92 = call slice_insert(v82, v83, u32 2, u32 100) -> (u32, [u32])
+    v91, v92 = call vector_insert(v82, v83, u32 2, u32 100) -> (u32, [u32])
     store v91 at v49
     store v92 at v50
     v93 = load v49 -> u32
@@ -625,7 +625,7 @@ acir(inline) fn main f0 {
     v107 = load v50 -> [u32]
     v108 = lt u32 3, v106
     constrain v108 == u1 1, "Index out of bounds"
-    v110, v111, v112 = call slice_remove(v106, v107, u32 3) -> (u32, [u32], u32)
+    v110, v111, v112 = call vector_remove(v106, v107, u32 3) -> (u32, [u32], u32)
     v113 = eq v112, u32 2
     constrain v112 == u32 2
     v114 = lt u32 3, v110
@@ -693,7 +693,7 @@ acir(inline) fn append f1 {
     v13 = array_get v3, index v4 -> Field
     v14 = load v5 -> u32
     v15 = load v6 -> [Field]
-    v17, v18 = call slice_push_back(v14, v15, v13) -> (u32, [Field])
+    v17, v18 = call vector_push_back(v14, v15, v13) -> (u32, [Field])
     store v17 at v5
     store v18 at v6
     v20 = unchecked_add v4, u32 1
@@ -721,7 +721,7 @@ acir(inline) fn map f2 {
     v14 = load v5 -> u32
     v15 = load v7 -> [Field]
     v16 = call v2(v13) -> Field
-    v18, v19 = call slice_push_back(v14, v15, v16) -> (u32, [Field])
+    v18, v19 = call vector_push_back(v14, v15, v16) -> (u32, [Field])
     store v18 at v5
     store v19 at v7
     v21 = unchecked_add v3, u32 1
@@ -883,7 +883,7 @@ acir(inline) fn regression_2083 f13 {
     v19 = make_array [Field 55, Field 56, Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
     return
 }
-acir(inline) fn regression_merge_slices f14 {
+acir(inline) fn regression_merge_vectors f14 {
   b0(v0: Field, v1: Field):
     call f22(v0, v1)
     call f23(v0)
@@ -917,7 +917,7 @@ acir(inline) fn regression_4418 f16 {
   b2():
     return
 }
-acir(inline) fn regression_slice_call_result f17 {
+acir(inline) fn regression_vector_call_result f17 {
   b0(v0: Field, v1: Field):
     v3, v4 = call f19(v0, v1) -> (u32, [Field])
     v5 = allocate -> &mut u32
@@ -930,19 +930,19 @@ acir(inline) fn regression_slice_call_result f17 {
   b1():
     v16 = load v5 -> u32
     v17 = load v6 -> [Field]
-    v18, v19 = call slice_push_back(v16, v17, Field 5) -> (u32, [Field])
+    v18, v19 = call vector_push_back(v16, v17, Field 5) -> (u32, [Field])
     store v18 at v5
     store v19 at v6
     v20 = load v5 -> u32
     v21 = load v6 -> [Field]
-    v23, v24 = call slice_push_back(v20, v21, Field 10) -> (u32, [Field])
+    v23, v24 = call vector_push_back(v20, v21, Field 10) -> (u32, [Field])
     store v23 at v5
     store v24 at v6
     jmp b3()
   b2():
     v10 = load v5 -> u32
     v11 = load v6 -> [Field]
-    v14, v15 = call slice_push_back(v10, v11, Field 5) -> (u32, [Field])
+    v14, v15 = call vector_push_back(v10, v11, Field 5) -> (u32, [Field])
     store v14 at v5
     store v15 at v6
     jmp b3()
@@ -995,7 +995,7 @@ acir(inline) fn regression_4506 f18 {
     constrain v6 == u1 1
     return
 }
-acir(inline) fn merge_slices_return f19 {
+acir(inline) fn merge_vectors_return f19 {
   b0(v0: Field, v1: Field):
     v7 = make_array [Field 0, Field 0] : [Field]
     v8 = eq v0, v1
@@ -1072,7 +1072,7 @@ acir(inline) fn to_be_radix f21 {
     v4 = call to_be_radix(v0, v1) -> [u8; 32]
     return v4
 }
-acir(inline) fn merge_slices_if f22 {
+acir(inline) fn merge_vectors_if f22 {
   b0(v0: Field, v1: Field):
     v3, v4 = call f19(v0, v1) -> (u32, [Field])
     v6 = eq v3, u32 3
@@ -1173,7 +1173,7 @@ acir(inline) fn merge_slices_if f22 {
     constrain v91 == u32 5
     return
 }
-acir(inline) fn merge_slices_else f23 {
+acir(inline) fn merge_vectors_else f23 {
   b0(v0: Field):
     v3, v4 = call f19(v0, Field 5) -> (u32, [Field])
     v6 = lt u32 0, v3
@@ -1206,7 +1206,7 @@ acir(inline) fn merge_slices_else f23 {
     constrain v26 == u32 3
     return
 }
-acir(inline) fn merge_slices_mutate f24 {
+acir(inline) fn merge_vectors_mutate f24 {
   b0(v0: Field, v1: Field):
     v3 = make_array [Field 0, Field 0] : [Field]
     v4 = allocate -> &mut u32
@@ -1219,19 +1219,19 @@ acir(inline) fn merge_slices_mutate f24 {
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
-    v16, v17 = call slice_push_back(v14, v15, v1) -> (u32, [Field])
+    v16, v17 = call vector_push_back(v14, v15, v1) -> (u32, [Field])
     store v16 at v4
     store v17 at v6
     v18 = load v4 -> u32
     v19 = load v6 -> [Field]
-    v20, v21 = call slice_push_back(v18, v19, v0) -> (u32, [Field])
+    v20, v21 = call vector_push_back(v18, v19, v0) -> (u32, [Field])
     store v20 at v4
     store v21 at v6
     jmp b3()
   b2():
     v9 = load v4 -> u32
     v10 = load v6 -> [Field]
-    v12, v13 = call slice_push_back(v9, v10, v0) -> (u32, [Field])
+    v12, v13 = call vector_push_back(v9, v10, v0) -> (u32, [Field])
     store v12 at v4
     store v13 at v6
     jmp b3()
@@ -1240,7 +1240,7 @@ acir(inline) fn merge_slices_mutate f24 {
     v23 = load v6 -> [Field]
     return v22, v23
 }
-acir(inline) fn merge_slices_mutate_in_loop f25 {
+acir(inline) fn merge_vectors_mutate_in_loop f25 {
   b0(v0: Field, v1: Field):
     v4 = make_array [Field 0, Field 0] : [Field]
     v5 = allocate -> &mut u32
@@ -1255,7 +1255,7 @@ acir(inline) fn merge_slices_mutate_in_loop f25 {
   b2():
     v10 = load v5 -> u32
     v11 = load v7 -> [Field]
-    v13, v14 = call slice_push_back(v10, v11, v0) -> (u32, [Field])
+    v13, v14 = call vector_push_back(v10, v11, v0) -> (u32, [Field])
     store v13 at v5
     store v14 at v7
     jmp b6()
@@ -1266,7 +1266,7 @@ acir(inline) fn merge_slices_mutate_in_loop f25 {
     v20 = load v5 -> u32
     v21 = load v7 -> [Field]
     v22 = cast v2 as Field
-    v23, v24 = call slice_push_back(v20, v21, v22) -> (u32, [Field])
+    v23, v24 = call vector_push_back(v20, v21, v22) -> (u32, [Field])
     store v23 at v5
     store v24 at v7
     v26 = unchecked_add v2, u32 1
@@ -1278,7 +1278,7 @@ acir(inline) fn merge_slices_mutate_in_loop f25 {
     v19 = load v7 -> [Field]
     return v18, v19
 }
-acir(inline) fn merge_slices_mutate_two_ifs f26 {
+acir(inline) fn merge_vectors_mutate_two_ifs f26 {
   b0(v0: Field, v1: Field):
     v3 = make_array [Field 0, Field 0] : [Field]
     v4 = allocate -> &mut u32
@@ -1291,19 +1291,19 @@ acir(inline) fn merge_slices_mutate_two_ifs f26 {
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
-    v16, v17 = call slice_push_back(v14, v15, v1) -> (u32, [Field])
+    v16, v17 = call vector_push_back(v14, v15, v1) -> (u32, [Field])
     store v16 at v4
     store v17 at v6
     v18 = load v4 -> u32
     v19 = load v6 -> [Field]
-    v20, v21 = call slice_push_back(v18, v19, v0) -> (u32, [Field])
+    v20, v21 = call vector_push_back(v18, v19, v0) -> (u32, [Field])
     store v20 at v4
     store v21 at v6
     jmp b3()
   b2():
     v9 = load v4 -> u32
     v10 = load v6 -> [Field]
-    v12, v13 = call slice_push_back(v9, v10, v0) -> (u32, [Field])
+    v12, v13 = call vector_push_back(v9, v10, v0) -> (u32, [Field])
     store v12 at v4
     store v13 at v6
     jmp b3()
@@ -1313,26 +1313,26 @@ acir(inline) fn merge_slices_mutate_two_ifs f26 {
   b4():
     v24 = load v4 -> u32
     v25 = load v6 -> [Field]
-    v26, v27 = call slice_push_back(v24, v25, Field 20) -> (u32, [Field])
+    v26, v27 = call vector_push_back(v24, v25, Field 20) -> (u32, [Field])
     store v26 at v4
     store v27 at v6
     jmp b5()
   b5():
     v28 = load v4 -> u32
     v29 = load v6 -> [Field]
-    v31, v32 = call slice_push_back(v28, v29, Field 15) -> (u32, [Field])
+    v31, v32 = call vector_push_back(v28, v29, Field 15) -> (u32, [Field])
     store v31 at v4
     store v32 at v6
     v33 = load v4 -> u32
     v34 = load v6 -> [Field]
-    v36, v37 = call slice_push_back(v33, v34, Field 30) -> (u32, [Field])
+    v36, v37 = call vector_push_back(v33, v34, Field 30) -> (u32, [Field])
     store v36 at v4
     store v37 at v6
     v38 = load v4 -> u32
     v39 = load v6 -> [Field]
     return v38, v39
 }
-acir(inline) fn merge_slices_mutate_between_ifs f27 {
+acir(inline) fn merge_vectors_mutate_between_ifs f27 {
   b0(v0: Field, v1: Field):
     v3 = make_array [Field 0, Field 0] : [Field]
     v4 = allocate -> &mut u32
@@ -1345,26 +1345,26 @@ acir(inline) fn merge_slices_mutate_between_ifs f27 {
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
-    v16, v17 = call slice_push_back(v14, v15, v1) -> (u32, [Field])
+    v16, v17 = call vector_push_back(v14, v15, v1) -> (u32, [Field])
     store v16 at v4
     store v17 at v6
     v18 = load v4 -> u32
     v19 = load v6 -> [Field]
-    v20, v21 = call slice_push_back(v18, v19, v0) -> (u32, [Field])
+    v20, v21 = call vector_push_back(v18, v19, v0) -> (u32, [Field])
     store v20 at v4
     store v21 at v6
     jmp b3()
   b2():
     v9 = load v4 -> u32
     v10 = load v6 -> [Field]
-    v12, v13 = call slice_push_back(v9, v10, v0) -> (u32, [Field])
+    v12, v13 = call vector_push_back(v9, v10, v0) -> (u32, [Field])
     store v12 at v4
     store v13 at v6
     jmp b3()
   b3():
     v22 = load v4 -> u32
     v23 = load v6 -> [Field]
-    v25, v26 = call slice_push_back(v22, v23, Field 30) -> (u32, [Field])
+    v25, v26 = call vector_push_back(v22, v23, Field 30) -> (u32, [Field])
     store v25 at v4
     store v26 at v6
     v28 = eq v0, Field 20
@@ -1372,14 +1372,14 @@ acir(inline) fn merge_slices_mutate_between_ifs f27 {
   b4():
     v29 = load v4 -> u32
     v30 = load v6 -> [Field]
-    v31, v32 = call slice_push_back(v29, v30, Field 20) -> (u32, [Field])
+    v31, v32 = call vector_push_back(v29, v30, Field 20) -> (u32, [Field])
     store v31 at v4
     store v32 at v6
     jmp b5()
   b5():
     v33 = load v4 -> u32
     v34 = load v6 -> [Field]
-    v36, v37 = call slice_push_back(v33, v34, Field 15) -> (u32, [Field])
+    v36, v37 = call vector_push_back(v33, v34, Field 15) -> (u32, [Field])
     store v36 at v4
     store v37 at v6
     v38 = eq v0, Field 20
@@ -1388,21 +1388,21 @@ acir(inline) fn merge_slices_mutate_between_ifs f27 {
   b6():
     v40 = load v4 -> u32
     v41 = load v6 -> [Field]
-    v43, v44 = call slice_push_back(v40, v41, Field 50) -> (u32, [Field])
+    v43, v44 = call vector_push_back(v40, v41, Field 50) -> (u32, [Field])
     store v43 at v4
     store v44 at v6
     jmp b7()
   b7():
     v45 = load v4 -> u32
     v46 = load v6 -> [Field]
-    v48, v49 = call slice_push_back(v45, v46, Field 60) -> (u32, [Field])
+    v48, v49 = call vector_push_back(v45, v46, Field 60) -> (u32, [Field])
     store v48 at v4
     store v49 at v6
     v50 = load v4 -> u32
     v51 = load v6 -> [Field]
     return v50, v51
 }
-acir(inline) fn merge_slices_push_then_pop f28 {
+acir(inline) fn merge_vectors_push_then_pop f28 {
   b0(v0: Field, v1: Field):
     v3 = make_array [Field 0, Field 0] : [Field]
     v4 = allocate -> &mut u32
@@ -1415,26 +1415,26 @@ acir(inline) fn merge_slices_push_then_pop f28 {
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
-    v16, v17 = call slice_push_back(v14, v15, v1) -> (u32, [Field])
+    v16, v17 = call vector_push_back(v14, v15, v1) -> (u32, [Field])
     store v16 at v4
     store v17 at v6
     v18 = load v4 -> u32
     v19 = load v6 -> [Field]
-    v20, v21 = call slice_push_back(v18, v19, v0) -> (u32, [Field])
+    v20, v21 = call vector_push_back(v18, v19, v0) -> (u32, [Field])
     store v20 at v4
     store v21 at v6
     jmp b3()
   b2():
     v9 = load v4 -> u32
     v10 = load v6 -> [Field]
-    v12, v13 = call slice_push_back(v9, v10, v0) -> (u32, [Field])
+    v12, v13 = call vector_push_back(v9, v10, v0) -> (u32, [Field])
     store v12 at v4
     store v13 at v6
     jmp b3()
   b3():
     v22 = load v4 -> u32
     v23 = load v6 -> [Field]
-    v25, v26 = call slice_push_back(v22, v23, Field 30) -> (u32, [Field])
+    v25, v26 = call vector_push_back(v22, v23, Field 30) -> (u32, [Field])
     store v25 at v4
     store v26 at v6
     v28 = eq v0, Field 20
@@ -1442,26 +1442,26 @@ acir(inline) fn merge_slices_push_then_pop f28 {
   b4():
     v29 = load v4 -> u32
     v30 = load v6 -> [Field]
-    v31, v32 = call slice_push_back(v29, v30, Field 20) -> (u32, [Field])
+    v31, v32 = call vector_push_back(v29, v30, Field 20) -> (u32, [Field])
     store v31 at v4
     store v32 at v6
     jmp b5()
   b5():
     v33 = load v4 -> u32
     v34 = load v6 -> [Field]
-    v36, v37, v38 = call slice_pop_back(v33, v34) -> (u32, [Field], Field)
+    v36, v37, v38 = call vector_pop_back(v33, v34) -> (u32, [Field], Field)
     v40 = eq v36, u32 4
     constrain v36 == u32 4
     v41 = eq v38, Field 30
     constrain v38 == Field 30
-    v42, v43, v44 = call slice_pop_back(v36, v37) -> (u32, [Field], Field)
+    v42, v43, v44 = call vector_pop_back(v36, v37) -> (u32, [Field], Field)
     v46 = eq v42, u32 3
     constrain v42 == u32 3
     v47 = eq v44, v0
     constrain v44 == v0
     return
 }
-acir(inline) fn merge_slices_push_then_insert f29 {
+acir(inline) fn merge_vectors_push_then_insert f29 {
   b0(v0: Field, v1: Field):
     v3 = make_array [Field 0, Field 0] : [Field]
     v4 = allocate -> &mut u32
@@ -1474,26 +1474,26 @@ acir(inline) fn merge_slices_push_then_insert f29 {
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
-    v16, v17 = call slice_push_back(v14, v15, v1) -> (u32, [Field])
+    v16, v17 = call vector_push_back(v14, v15, v1) -> (u32, [Field])
     store v16 at v4
     store v17 at v6
     v18 = load v4 -> u32
     v19 = load v6 -> [Field]
-    v20, v21 = call slice_push_back(v18, v19, v0) -> (u32, [Field])
+    v20, v21 = call vector_push_back(v18, v19, v0) -> (u32, [Field])
     store v20 at v4
     store v21 at v6
     jmp b3()
   b2():
     v9 = load v4 -> u32
     v10 = load v6 -> [Field]
-    v12, v13 = call slice_push_back(v9, v10, v0) -> (u32, [Field])
+    v12, v13 = call vector_push_back(v9, v10, v0) -> (u32, [Field])
     store v12 at v4
     store v13 at v6
     jmp b3()
   b3():
     v22 = load v4 -> u32
     v23 = load v6 -> [Field]
-    v25, v26 = call slice_push_back(v22, v23, Field 30) -> (u32, [Field])
+    v25, v26 = call vector_push_back(v22, v23, Field 30) -> (u32, [Field])
     store v25 at v4
     store v26 at v6
     v28 = eq v0, Field 20
@@ -1501,12 +1501,12 @@ acir(inline) fn merge_slices_push_then_insert f29 {
   b4():
     v29 = load v4 -> u32
     v30 = load v6 -> [Field]
-    v31, v32 = call slice_push_back(v29, v30, Field 20) -> (u32, [Field])
+    v31, v32 = call vector_push_back(v29, v30, Field 20) -> (u32, [Field])
     store v31 at v4
     store v32 at v6
     v33 = load v4 -> u32
     v34 = load v6 -> [Field]
-    v36, v37 = call slice_push_back(v33, v34, Field 15) -> (u32, [Field])
+    v36, v37 = call vector_push_back(v33, v34, Field 15) -> (u32, [Field])
     store v36 at v4
     store v37 at v6
     jmp b5()
@@ -1516,7 +1516,7 @@ acir(inline) fn merge_slices_push_then_insert f29 {
     v41 = add v38, u32 1
     v42 = lt u32 1, v41
     constrain v42 == u1 1, "Index out of bounds"
-    v46, v47 = call slice_insert(v38, v39, u32 1, Field 50) -> (u32, [Field])
+    v46, v47 = call vector_insert(v38, v39, u32 1, Field 50) -> (u32, [Field])
     store v46 at v4
     store v47 at v6
     v48 = load v4 -> u32
@@ -1524,14 +1524,14 @@ acir(inline) fn merge_slices_push_then_insert f29 {
     v50 = add v48, u32 1
     v52 = lt u32 6, v50
     constrain v52 == u1 1, "Index out of bounds"
-    v54, v55 = call slice_insert(v48, v49, u32 6, Field 100) -> (u32, [Field])
+    v54, v55 = call vector_insert(v48, v49, u32 6, Field 100) -> (u32, [Field])
     store v54 at v4
     store v55 at v6
     v56 = load v4 -> u32
     v57 = load v6 -> [Field]
     return v56, v57
 }
-acir(inline) fn merge_slices_remove_between_ifs f30 {
+acir(inline) fn merge_vectors_remove_between_ifs f30 {
   b0(v0: Field, v1: Field):
     v3 = make_array [Field 0, Field 0] : [Field]
     v4 = allocate -> &mut u32
@@ -1544,19 +1544,19 @@ acir(inline) fn merge_slices_remove_between_ifs f30 {
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
-    v16, v17 = call slice_push_back(v14, v15, v1) -> (u32, [Field])
+    v16, v17 = call vector_push_back(v14, v15, v1) -> (u32, [Field])
     store v16 at v4
     store v17 at v6
     v18 = load v4 -> u32
     v19 = load v6 -> [Field]
-    v20, v21 = call slice_push_back(v18, v19, v0) -> (u32, [Field])
+    v20, v21 = call vector_push_back(v18, v19, v0) -> (u32, [Field])
     store v20 at v4
     store v21 at v6
     jmp b3()
   b2():
     v9 = load v4 -> u32
     v10 = load v6 -> [Field]
-    v12, v13 = call slice_push_back(v9, v10, v0) -> (u32, [Field])
+    v12, v13 = call vector_push_back(v9, v10, v0) -> (u32, [Field])
     store v12 at v4
     store v13 at v6
     jmp b3()
@@ -1565,7 +1565,7 @@ acir(inline) fn merge_slices_remove_between_ifs f30 {
     v23 = load v6 -> [Field]
     v24 = lt u32 2, v22
     constrain v24 == u1 1, "Index out of bounds"
-    v27, v28, v29 = call slice_remove(v22, v23, u32 2) -> (u32, [Field], Field)
+    v27, v28, v29 = call vector_remove(v22, v23, u32 2) -> (u32, [Field], Field)
     v30 = allocate -> &mut u32
     store v27 at v30
     v31 = allocate -> &mut [Field]
@@ -1577,14 +1577,14 @@ acir(inline) fn merge_slices_remove_between_ifs f30 {
   b4():
     v35 = load v30 -> u32
     v36 = load v31 -> [Field]
-    v37, v38 = call slice_push_back(v35, v36, Field 20) -> (u32, [Field])
+    v37, v38 = call vector_push_back(v35, v36, Field 20) -> (u32, [Field])
     store v37 at v30
     store v38 at v31
     jmp b5()
   b5():
     v39 = load v30 -> u32
     v40 = load v31 -> [Field]
-    v42, v43 = call slice_push_back(v39, v40, Field 15) -> (u32, [Field])
+    v42, v43 = call vector_push_back(v39, v40, Field 15) -> (u32, [Field])
     store v42 at v30
     store v43 at v31
     v44 = eq v0, Field 20
@@ -1593,7 +1593,7 @@ acir(inline) fn merge_slices_remove_between_ifs f30 {
   b6():
     v46 = load v30 -> u32
     v47 = load v31 -> [Field]
-    v49, v50 = call slice_push_back(v46, v47, Field 50) -> (u32, [Field])
+    v49, v50 = call vector_push_back(v46, v47, Field 50) -> (u32, [Field])
     store v49 at v30
     store v50 at v31
     jmp b7()

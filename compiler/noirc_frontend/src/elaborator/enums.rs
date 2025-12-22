@@ -1023,7 +1023,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             }
             // We could match on these types in the future
             typ @ (Type::Array(_, _)
-            | Type::Slice(_)
+            | Type::Vector(_)
             | Type::String(_)
             // Some of these may be possible to match on:
             | Type::FmtString(_, _)

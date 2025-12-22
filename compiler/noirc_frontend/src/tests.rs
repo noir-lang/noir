@@ -32,6 +32,7 @@ mod visibility;
 use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
 use crate::test_utils::{get_program, get_program_with_options};
 
@@ -372,7 +373,7 @@ fn regression_10553() {
         let x = &[false];
         let s = f"{x}";
         let _ = &[s];
-                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+                ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
         println(s);
     }
     "#;
@@ -386,10 +387,56 @@ fn regression_10554() {
     fn main() {
         let x = &[false];
         let t = &[x];
-                ^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+                ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
         let s = f"{t}";
         println(s);
     }
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn deeply_nested_expression_overflow() {
+    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 100
+    // If we build it too deep (like 200), then even the parser gets stack overflow,
+    // but `nargo` uses a larger stack size, so it can go higher than the test.
+    // Instead we use it to build a mix of recursive calls and nested expressions,
+    // so that we can provide an overall limit on evaluation depth.
+    fn make_nested_expr(stem: &str) -> String {
+        let mut expr = String::from(stem);
+        for i in 2..=100 {
+            expr = format!("({expr} + {i})");
+        }
+        expr
+    }
+
+    let expr = make_nested_expr("if max_depth == 0 { 1 } else { foo(max_depth - 1) }");
+
+    let src = format!(
+        "
+      fn foo(max_depth: u32) -> u32 {{
+        {expr}
+      }}
+      fn main() {{
+          comptime {{
+              let _ = foo(5);
+          }}
+      }}
+      "
+    );
+
+    println!("{src}");
+
+    let errors = get_program_errors(&src);
+
+    for error in errors {
+        if matches!(
+            error,
+            CompilationError::InterpreterError(InterpreterError::EvaluationDepthOverflow { .. })
+        ) {
+            return;
+        }
+    }
+
+    panic!("should have got a EvaluationDepthOverflow error");
 }

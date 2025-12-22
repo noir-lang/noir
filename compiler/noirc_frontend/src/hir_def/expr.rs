@@ -126,7 +126,7 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
-    Slice(HirArrayLiteral),
+    Vector(HirArrayLiteral),
     Bool(bool),
     Integer(SignedField),
     Str(String),
@@ -234,7 +234,11 @@ pub struct HirMethodCallExpression {
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
-pub struct HirConstrainExpression(pub ExprId, pub FileId, pub Option<ExprId>);
+pub struct HirConstrainExpression(
+    /*condition*/ pub ExprId,
+    pub FileId,
+    /*message*/ pub Option<ExprId>,
+);
 
 #[derive(Debug, Clone)]
 pub enum HirMethodReference {
