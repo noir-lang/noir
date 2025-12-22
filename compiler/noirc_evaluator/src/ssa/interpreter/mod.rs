@@ -212,7 +212,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
         assert_eq!(self.call_stack.len(), 1, "should be in the global context");
-        let (_, function) = self.functions.first_key_value().unwrap();
+        let Some((_, function)) = self.functions.first_key_value() else {
+            return Ok(());
+        };
+
         let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
