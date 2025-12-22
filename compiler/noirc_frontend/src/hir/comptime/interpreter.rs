@@ -1410,11 +1410,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
                 for (name, lvalue) in lvalue_fields.iter() {
-                    let Some(rvalue) = rvalue_fields.remove(name) else { continue };
+                    let Some(rvalue) = rvalue_fields.remove(name) else {
+                        // Defensive check: If we reach here, it indicates a type system bug
+                        panic!(
+                            "ICE: store_flattened encountered a struct field mismatch. \
+                            Struct field '{name}' exists in lvalue but not in rvalue. \
+                            This should have been caught by type checking.",
+                        );
+                    };
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }
             (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
+                // Defensive check: tuple lengths should match. If they do not, it indicates a type system bug
+                assert_eq!(
+                    lvalue_fields.len(),
+                    rvalue_fields.len(),
+                    "ICE: store_flattened encountered a tuple length mismatch. \
+                    This should have been caught by type checking."
+                );
+
                 for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }

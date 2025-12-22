@@ -1002,3 +1002,42 @@ fn access_non_existent_struct_field() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn mismatched_tuple_size_assignment() {
+    let src = "
+    fn main() {
+        comptime {
+            let mut a = (false,);
+            let _b = &mut a.0;
+            a = (true, false);
+                ^^^^^^^^^^^^^ Cannot assign an expression of type (bool, bool) to a value of type (bool,)
+            assert_eq(a.0, false);
+            assert_eq(a.0, true);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn mismatched_struct_pattern_assignment() {
+    let src = "
+    struct Foo {
+        x: Field,
+    }
+
+    struct Bar {
+        y: Field,
+    }
+
+    fn main() {
+        comptime {
+            let mut a = Foo { x: 1 };
+            a = Bar { y: 2 };
+                ^^^^^^^^^^^^ Cannot assign an expression of type Bar to a value of type Foo
+        }
+    }
+    ";
+    check_errors(src);
+}
