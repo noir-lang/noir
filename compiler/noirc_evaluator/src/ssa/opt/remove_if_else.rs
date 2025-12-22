@@ -255,7 +255,7 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
+                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                                 // would otherwise underflow.
                                 self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
                             }
