@@ -371,7 +371,7 @@ fn test_constrain_not_equal() {
 fn test_enable_side_effects() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u1):
             enable_side_effects v0
             return
         }
