@@ -942,7 +942,7 @@ fn call_to_quoted_function_from_invalid_comptime_block() {
 }
 
 #[test]
-fn mismatched_tuple_size_assigment() {
+fn mismatched_tuple_size_assignment() {
     let src = "
     fn main() {
         comptime {
