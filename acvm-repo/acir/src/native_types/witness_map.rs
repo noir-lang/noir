@@ -11,7 +11,7 @@ use flate2::bufread::GzEncoder;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{native_types::Witness, serialization};
+use crate::{SerializationFormat, native_types::Witness, serialization};
 
 #[derive(Debug, Error)]
 enum SerializationError {
@@ -91,7 +91,17 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
 impl<F: AcirField + Serialize> WitnessMap<F> {
     /// Serialize and compress.
     pub fn serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
-        let buf = serialization::serialize_with_format_from_env(self)
+        let format = SerializationFormat::from_env()
+            .map_err(|err| SerializationError::Serialize(std::io::Error::other(err)))?;
+        self.serialize_with_format(format.unwrap_or_default())
+    }
+
+    /// Serialize and compress with a given format.
+    pub fn serialize_with_format(
+        &self,
+        format: SerializationFormat,
+    ) -> Result<Vec<u8>, WitnessMapError> {
+        let buf = serialization::serialize_with_format(self, format)
             .map_err(|e| WitnessMapError(SerializationError::Serialize(e)))?;
 
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());

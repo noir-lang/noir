@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { UltraHonkBackend } from '@aztec/bb.js';
+import { UltraHonkBackend, Barretenberg } from '@aztec/bb.js';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
@@ -24,6 +24,16 @@ const test_cases = [
     numPublicInputs: 1,
   },
 ];
+
+let api: Barretenberg;
+
+before(async () => {
+  api = await Barretenberg.new({ threads: 1 });
+});
+
+after(async () => {
+  await api?.destroy();
+});
 
 test_cases.forEach((testInfo) => {
   const test_name = testInfo.case.split('/').pop();
@@ -46,7 +56,7 @@ test_cases.forEach((testInfo) => {
     const prover_toml = readFileSync(resolve(`${base_relative_path}/${test_case}/Prover.toml`)).toString();
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
-    const backend = new UltraHonkBackend(noir_program.bytecode);
+    const backend = new UltraHonkBackend(noir_program.bytecode, api);
     const proofData = await backend.generateProof(witness, { keccakZK: true });
     // JS verification
 

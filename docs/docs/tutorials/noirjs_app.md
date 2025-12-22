@@ -23,7 +23,7 @@ Let's go barebones. Doing the bare minimum is not only simple, but also allows y
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-beta.15 @aztec/bb.js@3.0.0-nightly.20251104 buffer vite vite-plugin-node-polyfills@0.17.0
+yarn add @noir-lang/noir_js@1.0.0-beta.15 @aztec/bb.js@3.0.0-nightly.20251216 buffer vite vite-plugin-node-polyfills@0.17.0
 ```
 
 Wait, what are these dependencies?
@@ -33,7 +33,7 @@ Wait, what are these dependencies?
 
 :::info
 
-In this guide, we will install versions pinned to 1.0.0-beta.15. These work with Barretenberg version 3.0.0-nightly.20251104, so we are using that one version too. Feel free to try with older or later versions, though!
+In this guide, we will install versions pinned to 1.0.0-beta.15. These work with Barretenberg version 3.0.0-nightly.20251216, so we are using that one version too. Feel free to try with older or later versions, though!
 
 :::
 
