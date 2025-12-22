@@ -239,6 +239,8 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
+                        self.vector_constant_size_override(context.dfg, intrinsic, arguments);
+
                         match self.vector_capacity_change(
                             context.dfg,
                             intrinsic,
@@ -250,33 +252,9 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                // If we have already determined a constant for the slice length, we can override the backing capacity
-                                // of the slice contents. There is no need to use the backing capacity if we have already determined the actual length of the slice.
-                                // Using the capacity over the slice length here, would just need to extra instructions to handle the extra padding
-                                // and prevent downstream passes or runtimes from implementing optimizations using the slice length.
-                                if let Some(const_len) =
-                                    context.dfg.get_numeric_constant(arguments[0])
-                                {
-                                    self.vector_sizes.insert(
-                                        old,
-                                        const_len.try_to_u32().expect("Type should be u32"),
-                                    );
-                                }
                                 self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                // If we have already determined a constant for the slice length, we can override the backing capacity
-                                // of the slice contents. There is no need to use the backing capacity if we have already determined the actual length of the slice.
-                                // Using the capacity over the slice length here, would just need to extra instructions to handle the extra padding
-                                // and prevent downstream passes or runtimes from implementing optimizations using the slice length.
-                                if let Some(const_len) =
-                                    context.dfg.get_numeric_constant(arguments[0])
-                                {
-                                    self.vector_sizes.insert(
-                                        old,
-                                        const_len.try_to_u32().expect("Type should be u32"),
-                                    );
-                                }
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
                                 self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
@@ -328,6 +306,32 @@ impl Context {
                 let dbg_value = &dfg[value];
                 unreachable!("ICE: No size for vector {value} = {dbg_value:?}")
             }
+        }
+    }
+
+    /// If we have already determined a constant for the vector length, we can override the backing capacity
+    /// of the vector contents. There is no need to use the backing capacity if we have already determined the actual length of the vector.
+    /// In these situations, using the capacity over the vector length would require laying down more instructions to handle the extra padding
+    /// while preventing downstream passes or runtimes from implementing optimizations using the vector length.
+    fn vector_constant_size_override(
+        &mut self,
+        dfg: &DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+    ) {
+        match intrinsic {
+            Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorRemove
+            | Intrinsic::VectorPopFront => {
+                if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
+                    self.vector_sizes
+                        .insert(arguments[1], const_len.try_to_u32().expect("Type should be u32"));
+                }
+            }
+            _ => {}
         }
     }
 
