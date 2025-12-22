@@ -1414,7 +1414,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
                 // Defensive check: tuple lengths should match. If they do not, it indicates a type system bug
-                debug_assert_eq!(
+                assert_eq!(
                     lvalue_fields.len(),
                     rvalue_fields.len(),
                     "ICE: store_flattened encountered a tuple length mismatch. \
