@@ -136,10 +136,7 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 7] = [
-    // bugs
-    "array_sort",
-    "regression_11294",
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
