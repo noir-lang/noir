@@ -843,7 +843,11 @@
 <a href="#842" id="842">842</a>
 <a href="#843" id="843">843</a>
 <a href="#844" id="844">844</a>
-<a href="#845" id="845">845</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -853,7 +857,7 @@
 <span class="kw">use </span>strum_macros::Display;
 
 <span class="kw">use crate</span>::{
-    Kind, QuotedType, Shared, Type, TypeBindings,
+    Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
@@ -941,6 +945,10 @@
     <span class="kw">pub </span>typ: Type,
     <span class="kw">pub </span>function_scope: <span class="prelude-ty">Option</span>&lt;FuncId&gt;,
     <span class="kw">pub </span>module_scope: ModuleId,
+    <span class="doccomment">/// The type bindings where the closure was created.
+    /// This is needed because when the closure is interpreted, those type bindings
+    /// need to be restored.
+    </span><span class="kw">pub </span>bindings: HashMap&lt;TypeVariable, (Type, Kind)&gt;,
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Display)]
