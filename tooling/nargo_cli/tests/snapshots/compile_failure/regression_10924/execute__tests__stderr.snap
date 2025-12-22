@@ -24,21 +24,4 @@ error: Function expects 2 parameters but 1 was given
    │                 ----
    │
 
-error: Expected 2 arguments, but only 1 was provided
-   ┌─ src/main.nr:13:17
-   │
-13 │         let _ = f(1);
-   │                 ---- Too few arguments
-   │
-
-error: Internal Compiler Error: Error node encountered
-   ┌─ src/main.nr:11:5
-   │  
-11 │ ╭     comptime {
-12 │ │         let f = |a: u32, b: u32| a + b;
-13 │ │         let _ = f(1);
-14 │ │     }
-   │ ╰─────' This is a bug, please report this if found!
-   │  
-
-Aborting due to 4 previous errors
+Aborting due to 2 previous errors

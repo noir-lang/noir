@@ -192,7 +192,7 @@ impl Monomorphizer<'_> {
 fn element_type_at_index(printable_type: &PrintableType, i: usize) -> &PrintableType {
     match printable_type {
         PrintableType::Array { length: _length, typ } => typ.as_ref(),
-        PrintableType::Slice { typ } => typ.as_ref(),
+        PrintableType::Vector { typ } => typ.as_ref(),
         PrintableType::Tuple { types } => &types[i],
         PrintableType::Struct { name: _name, fields } => &fields[i].1,
         PrintableType::String { length: _length } => &PrintableType::UnsignedInteger { width: 8 },

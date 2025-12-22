@@ -131,8 +131,8 @@ impl Elaborator<'_> {
     ) -> Type {
         let location = typ.location;
         let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
-        if !self.in_comptime_context && resolved_type.is_nested_slice() {
-            self.push_err(ResolverError::NestedSlices { location });
+        if !self.in_comptime_context && resolved_type.is_nested_vector() {
+            self.push_err(ResolverError::NestedVectors { location });
         }
         resolved_type
     }
@@ -181,14 +181,14 @@ impl Elaborator<'_> {
                     self.convert_expression_type(size, &Kind::u32(), location, wildcard_allowed);
                 Type::Array(Box::new(size), elem)
             }
-            Slice(elem) => {
+            Vector(elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(
                     *elem,
                     kind,
                     mode,
                     wildcard_allowed,
                 ));
-                Type::Slice(elem)
+                Type::Vector(elem)
             }
             Expression(expr) => {
                 self.convert_expression_type(expr, kind, location, wildcard_allowed)
@@ -200,6 +200,7 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
+                self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                 let path = self.validate_path(path);
                 self.resolve_trait_as_type(path, args, mode)
             }
@@ -475,6 +476,7 @@ impl Elaborator<'_> {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
         let location = path.location;
+        self.use_unstable_feature(UnstableFeature::TraitAsType, location);
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
@@ -2427,6 +2429,7 @@ impl Elaborator<'_> {
 
         let func_location = self.interner.expr_location(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
+            self.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             if self
                 .interner
                 .lookup_trait_implementation(
@@ -2511,12 +2514,12 @@ impl Elaborator<'_> {
                     // instantiation bindings. We should avoid doing this if `select_impl` is
                     // not true since that means we're not solving for this expressions exact
                     // impl anyway. If we ignore this, we may rarely overwrite existing type
-                    // bindings causing incorrect types. The `slice_regex` test is one example
+                    // bindings causing incorrect types. The `vector_regex` test is one example
                     // of that happening without this being behind `select_impl`.
                     let mut bindings =
                         self.interner.get_instantiation_bindings(function_ident_id).clone();
 
-                    // These can clash in the `slice_regex` test which causes us to insert
+                    // These can clash in the `vector_regex` test which causes us to insert
                     // incorrect type bindings if they override the previous bindings.
                     for (id, binding) in instantiation_bindings {
                         let existing = bindings.insert(id, binding.clone());

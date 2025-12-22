@@ -23,13 +23,6 @@ error: Globals must have a specified type
   │        ---   ---- Inferred type is `_`
   │
 
-error: Variable not in scope
-  ┌─ src/main.nr:1:14
-  │
-1 │ global BAR = OOPS;
-  │              ---- Could not find variable
-  │
-
 error: Global failed to evaluate
   ┌─ src/main.nr:1:14
   │
@@ -44,4 +37,4 @@ error: expected type got global
   │                   ---
   │
 
-Aborting due to 5 previous errors
+Aborting due to 4 previous errors
