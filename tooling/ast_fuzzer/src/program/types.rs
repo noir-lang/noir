@@ -18,7 +18,7 @@ pub const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Thirty
 pub fn type_depth(typ: &Type) -> usize {
     match typ {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
-        Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
+        Type::Array(_, typ) | Type::Vector(typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),
@@ -118,7 +118,7 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // Maybe we can also cast to u1 or u8 etc?
                 acc.insert(Type::Field);
             }
-            Type::Slice(item_type) => {
+            Type::Vector(item_type) => {
                 // pop_front -> (T, [T])
                 acc.insert(Type::Tuple(vec![item_type.as_ref().clone(), typ.clone()]));
                 // pop_back -> ([T], T)
@@ -165,9 +165,9 @@ pub(crate) fn is_function(typ: &Type) -> bool {
     matches!(typ, Type::Function(_, _, _, _))
 }
 
-/// Check if the type is a slice or an array.
-pub(crate) fn is_array_or_slice(typ: &Type) -> bool {
-    matches!(typ, Type::Array(_, _) | Type::Slice(_))
+/// Check if the type is a vector or an array.
+pub(crate) fn is_array_or_vector(typ: &Type) -> bool {
+    matches!(typ, Type::Array(_, _) | Type::Vector(_))
 }
 
 /// Peel off all reference types, to get to a concrete underlying type.
@@ -191,15 +191,15 @@ pub fn contains_reference(typ: &Type) -> bool {
         | Type::Unit
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
-        Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
+        Type::Array(_, typ) | Type::Vector(typ) => contains_reference(typ),
         Type::Tuple(types) => types.iter().any(contains_reference),
     }
 }
 
 /// Check if the type contains any references.
-pub fn contains_slice(typ: &Type) -> bool {
+pub fn contains_vector(typ: &Type) -> bool {
     match typ {
-        Type::Slice(_) => true,
+        Type::Vector(_) => true,
         Type::Field
         | Type::Integer(_, _)
         | Type::Bool
@@ -207,8 +207,8 @@ pub fn contains_slice(typ: &Type) -> bool {
         | Type::Unit
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
-        Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
-        Type::Tuple(types) => types.iter().any(contains_slice),
+        Type::Array(_, typ) | Type::Reference(typ, _) => contains_vector(typ),
+        Type::Tuple(types) => types.iter().any(contains_vector),
     }
 }
 
@@ -217,7 +217,7 @@ pub fn is_printable(typ: &Type) -> bool {
     match typ {
         Type::Reference(_, _) => false,
         Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
-        Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
+        Type::Vector(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
         Type::Tuple(types) => types.iter().all(is_printable),
         // Function signatures are printable, although they might differ when we force things to be Brillig.
         Type::Function(_, _, _, _) => true,
@@ -365,7 +365,7 @@ pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
         Type::String(size) => HirType::String(size_const(*size)),
         Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
-        Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
+        Type::Vector(typ) => HirType::Vector(Box::new(to_hir_type(typ))),
         Type::FmtString(size, typ) => {
             HirType::FmtString(size_const(*size), Box::new(to_hir_type(typ)))
         }

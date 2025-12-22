@@ -331,7 +331,7 @@ The following is an incomplete list of some `comptime` types along with some use
 - `FunctionDefinition`: A function definition
   - Methods:
     - `fn parameters(self) -> [(Quoted, Type)]`
-      - Returns a slice of `(name, type)` pairs for each parameter
+      - Returns a vector of `(name, type)` pairs for each parameter
 - `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`

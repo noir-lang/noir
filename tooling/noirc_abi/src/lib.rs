@@ -457,7 +457,7 @@ pub enum AbiErrorType {
 /// Decode the raw revert data according to some error type descriptor.
 ///
 /// By contrast to how arguments are passed to foreign calls, the revert data is already flattened,
-/// so we don't have control over how we flatten the data before decoding, however note that slices
+/// so we don't have control over how we flatten the data before decoding, however note that vectors
 /// are not allowed in revert data, so this shouldn't be a problem.
 pub fn display_abi_error<F: AcirField>(
     fields: &[F],
