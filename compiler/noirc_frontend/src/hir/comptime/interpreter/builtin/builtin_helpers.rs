@@ -11,8 +11,8 @@ use noirc_errors::Location;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
-use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
@@ -279,9 +279,9 @@ pub(crate) fn get_expr(
 
 pub(crate) fn get_format_string(
     (value, location): (Value, Location),
-) -> IResult<(Rc<String>, Type)> {
+) -> IResult<(Vec<FormatStringFragment>, Type, u32)> {
     match value {
-        Value::FormatString(value, typ) => Ok((value, typ)),
+        Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
         value => type_mismatch(value, "fmtstr", location),
     }
 }

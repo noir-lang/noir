@@ -8,7 +8,7 @@ fn main() {
         // compiling breaks the test runner.
         let s1 = f"x is {x}, fake interpolation: {{y}}, y is {y}";
         let s2 = std::mem::zeroed::<fmtstr<4, ()>>();
-        (s1, s2)
+        (s1.as_quoted_str(), s2.as_quoted_str())
     };
     assert_eq(s1, "x is 4, fake interpolation: {y}, y is 5");
     assert_eq(s2, "\0\0\0\0");

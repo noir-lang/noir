@@ -11,8 +11,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
-        UnresolvedTypeData,
+        IntegerBitSize, LValue, LetStatement, Literal, Pattern, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -27,7 +27,7 @@ use crate::{
     parser::{Item, Parser},
     shared::Signedness,
     signed_field::SignedField,
-    token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -53,7 +53,7 @@ pub enum Value {
     U64(u64),
     U128(u128),
     String(Rc<String>),
-    FormatString(Rc<String>, Type),
+    FormatString(Vec<FormatStringFragment>, Type, u32 /* length */),
     CtString(Rc<String>),
     Function(FuncId, Type, Rc<TypeBindings>),
 
@@ -85,6 +85,12 @@ pub enum Value {
     Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormatStringFragment {
+    String(String),
+    Value { name: String, value: Value },
 }
 
 pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
@@ -157,7 +163,7 @@ impl Value {
                 let length = Type::Constant(value.len().into(), Kind::u32());
                 Type::String(Box::new(length))
             }
-            Value::FormatString(_, typ) => return Cow::Borrowed(typ),
+            Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
@@ -194,8 +200,7 @@ impl Value {
     /// Lowers this value into a runtime expression.
     ///
     /// For literals this is often simple, e.g. `Value::I8(3)` translates to `3`, but not
-    /// all values are valid to lower. Certain values change form - e.g. format strings lowering
-    /// into normal string literals. Lowering quoted code will simply return the quoted code (after
+    /// all values are valid to lower. Lowering quoted code will simply return the quoted code (after
     /// parsing), this is how macros are implemented.
     pub(crate) fn into_expression(
         self,
@@ -251,9 +256,46 @@ impl Value {
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
-            // Format strings are lowered as normal strings since they are already interpolated.
-            Value::FormatString(value, _) => {
-                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            Value::FormatString(fragments, _, length) => {
+                // Format strings are lowered to format strings. The interpolated values are assigned
+                // to temporary let variables. All of this is created inside a block expression so
+                // the variables don't leak out.
+                let mut statements = Vec::new();
+                let mut new_fragments = Vec::with_capacity(fragments.len());
+                let mut has_values = false;
+                for fragment in fragments {
+                    let new_fragment = match fragment {
+                        FormatStringFragment::String(string) => FmtStrFragment::String(string),
+                        FormatStringFragment::Value { name, value } => {
+                            has_values = true;
+
+                            let expression = value.into_expression(elaborator, location)?;
+                            let let_statement = LetStatement {
+                                pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
+                                r#type: None,
+                                expression,
+                                attributes: Vec::new(),
+                                comptime: false,
+                                is_global_let: false,
+                            };
+                            let statement =
+                                Statement { kind: StatementKind::Let(let_statement), location };
+                            statements.push(statement);
+                            FmtStrFragment::Interpolation(name, location)
+                        }
+                    };
+                    new_fragments.push(new_fragment);
+                }
+                let fmtstr = ExpressionKind::Literal(Literal::FmtStr(new_fragments, length));
+                if has_values {
+                    statements.push(Statement {
+                        kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
+                        location,
+                    });
+                    ExpressionKind::Block(BlockExpression { statements })
+                } else {
+                    fmtstr
+                }
             }
             Value::Function(id, typ, bindings) => {
                 let id = elaborator.interner.function_definition_id(id);
@@ -427,9 +469,22 @@ impl Value {
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
             }
-            // Format strings are lowered as normal strings since they are already interpolated.
-            Value::FormatString(value, _) => {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            Value::FormatString(fragments, _typ, length) => {
+                let mut captures = Vec::new();
+                let mut new_fragments = Vec::with_capacity(fragments.len());
+                for fragment in fragments {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            new_fragments.push(FmtStrFragment::String(string));
+                        }
+                        FormatStringFragment::Value { name, value } => {
+                            let expr_id = value.into_hir_expression(interner, location)?;
+                            captures.push(expr_id);
+                            new_fragments.push(FmtStrFragment::Interpolation(name, location));
+                        }
+                    }
+                }
+                HirExpression::Literal(HirLiteral::FmtStr(new_fragments, captures, length))
             }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
@@ -640,7 +695,7 @@ impl Value {
                     vec![Token::Int(value.absolute_value(), None)]
                 }
             }
-            Value::String(value) | Value::CtString(value) | Value::FormatString(value, _) => {
+            Value::String(value) | Value::CtString(value) => {
                 vec![Token::Str(unwrap_rc(value))]
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
@@ -720,7 +775,7 @@ impl Value {
             | Value::U64(_)
             | Value::U128(_)
             | Value::String(_)
-            | Value::FormatString(_, _)
+            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)

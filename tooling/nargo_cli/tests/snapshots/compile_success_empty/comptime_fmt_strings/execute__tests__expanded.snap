@@ -3,7 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let (s1, s2): (str<39>, str<4>) = ("x is 4, fake interpolation: {y}, y is 5", "\0\0\0\0");
+    let (s1, s2): (str<39>, str<4>) =
+        ({ "x is 4, fake interpolation: {y}, y is 5" }, { "\0\0\0\0" });
     assert(s1 == "x is 4, fake interpolation: {y}, y is 5");
     assert(s2 == "\0\0\0\0");
     { hello_world() };

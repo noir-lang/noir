@@ -37,7 +37,7 @@ use crate::{
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
-            value::{ExprValue, TypedExpr},
+            value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
@@ -127,8 +127,8 @@ impl Interpreter<'_, '_> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "field_less_than" => field_less_than(arguments, location),
-            "fmtstr_as_ctstring" => fmtstr_as_ctstring(arguments, location),
-            "fmtstr_quoted_contents" => fmtstr_quoted_contents(arguments, location),
+            "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
+            "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
@@ -1592,7 +1592,8 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             let length = length_type.evaluate_to_u32(location);
             let typ = Type::FmtString(length_type, captures);
             if let Ok(length) = length {
-                Value::FormatString(Rc::new("\0".repeat(length as usize)), typ)
+                let fragments = vec![FormatStringFragment::String("\0".repeat(length as usize))];
+                Value::FormatString(fragments, typ, length)
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(typ)
@@ -2490,18 +2491,63 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
 }
 
 // fn fmtstr_as_ctstring(self) -> CtString
-fn fmtstr_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn fmtstr_as_ctstring(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let (string, _) = get_format_string(self_argument)?;
-    Ok(Value::CtString(string))
+    let (fragments, _, _) = get_format_string(self_argument)?;
+    let string = fragments_to_string(&fragments, interner);
+    Ok(Value::CtString(Rc::new(string)))
 }
 
 // fn quoted_contents(self) -> Quoted
-fn fmtstr_quoted_contents(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn fmtstr_quoted_contents(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let (string, _) = get_format_string(self_argument)?;
+    let (fragments, _, _) = get_format_string(self_argument)?;
+    let string = fragments_to_string(&fragments, interner);
     let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
+}
+
+fn fragments_to_string(fragments: &[FormatStringFragment], interner: &NodeInterner) -> String {
+    let mut result = String::new();
+    for fragment in fragments {
+        match fragment {
+            FormatStringFragment::String(string) => {
+                result.push_str(string);
+            }
+            FormatStringFragment::Value { name: _, value } => {
+                match value {
+                    Value::Quoted(tokens) => {
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        for (index, token) in tokens.iter().enumerate() {
+                            if index > 0 {
+                                result.push(' ');
+                            }
+                            result.push_str(&token.token().display(interner).to_string());
+                        }
+                    }
+                    Value::FormatString(fragments, _, _) => {
+                        // Nested format strings might have quoted values inside them,
+                        // so we need to recurse here instead of calling `value.display`.
+                        let inner_string = fragments_to_string(fragments, interner);
+                        result.push_str(&inner_string);
+                    }
+                    _ => {
+                        result.push_str(&value.display(interner).to_string());
+                    }
+                }
+            }
+        }
+    }
+    result
 }
 
 // fn fresh_type_variable() -> Type

@@ -14,6 +14,7 @@ use crate::{
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
+    hir::comptime::value::FormatStringFragment,
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
@@ -400,7 +401,19 @@ impl Display for ValuePrinter<'_, '_> {
             Value::U128(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
-            Value::FormatString(value, _) => write!(f, "{value}"),
+            Value::FormatString(fragments, _, _) => {
+                for fragment in fragments {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            write!(f, "{string}")?;
+                        }
+                        FormatStringFragment::Value { name: _, value } => {
+                            write!(f, "{}", value.display(self.interner))?;
+                        }
+                    }
+                }
+                Ok(())
+            }
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
