@@ -410,7 +410,6 @@ fn regression_10863() {
     ";
     // The only errors must be about index type mismatch
     with_interpreter(program, |_interpreter, _main, errors| {
-        dbg!(&errors);
         let has_type_mismatch_with_source = errors.iter().any(|e| {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
