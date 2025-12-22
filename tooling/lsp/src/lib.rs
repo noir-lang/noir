@@ -325,7 +325,6 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         entry_path: PathBuf::from(file_path),
         name: crate_name,
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     let workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),

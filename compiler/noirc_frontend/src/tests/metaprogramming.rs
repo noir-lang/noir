@@ -1,3 +1,5 @@
+mod skip_interpreter_on_fail;
+
 use crate::{
     elaborator::UnstableFeature,
     hir::{
@@ -1004,7 +1006,7 @@ fn empty_comptime_block() {
 }
 
 #[test]
-fn comptime_uhashmap_of_slices() {
+fn comptime_uhashmap_of_vectors() {
     let src = r#"
     pub struct Option<T> {
         _is_some: bool,
@@ -1037,7 +1039,7 @@ fn comptime_uhashmap_of_slices() {
 }
 
 #[test]
-fn comptime_uhashmap_of_slices_attribute() {
+fn comptime_uhashmap_of_vectors_attribute() {
     let src = r#"
     pub struct Option<T> {
         _is_some: bool,
@@ -1075,12 +1077,12 @@ fn comptime_uhashmap_of_slices_attribute() {
         }
     }
 
-    comptime fn empty_function_definition_slice() -> [FunctionDefinition] {
+    comptime fn empty_function_definition_vector() -> [FunctionDefinition] {
         &[]
     }
 
     comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =
-        UHashMap::default_umap((false, empty_function_definition_slice()));
+        UHashMap::default_umap((false, empty_function_definition_vector()));
 
     comptime fn add_to_registry(
         _registry: &mut UHashMap<bool, [FunctionDefinition]>,

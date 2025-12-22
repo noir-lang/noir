@@ -6,7 +6,7 @@ use noirc_frontend::{
     ParsedModule,
     ast::{
         AttributeTarget, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait,
-        TypeAlias, Visitor,
+        TraitItem, TypeAlias, Visitor,
     },
     hir::{
         def_map::{LocalModuleId, ModuleId},
@@ -238,6 +238,18 @@ impl Visitor for VisitorReferenceFinder<'_> {
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
         };
+
+        for item in noir_trait.items.iter() {
+            if let TraitItem::Function { name, .. } = &item.item {
+                let func_name_location = name.location();
+                if let Some(reference) =
+                    self.args.interner.reference_at_location(func_name_location)
+                {
+                    self.find_in_reference_doc_comments(reference);
+                };
+            }
+        }
+
         true
     }
 

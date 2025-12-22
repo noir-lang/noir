@@ -73,6 +73,21 @@ pub(super) fn inlining_attributes(
     }
 }
 
+/// The `#[no_predicates]` attribute is not allowed on entry point functions
+/// since it's meant to control inlining into the entry point.
+pub(super) fn no_predicates_on_entry_point(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    (func.is_entry_point && attribute.kind.is_no_predicates()).then(|| {
+        ResolverError::NoPredicatesAttributeOnEntryPoint {
+            ident: func_meta_name_ident(func, modifiers),
+            location: attribute.location,
+        }
+    })
+}
+
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
     modifiers: &FunctionModifiers,
@@ -109,15 +124,15 @@ pub(super) fn oracle_not_marked_unconstrained(
     }
 }
 
-/// Oracle functions cannot return more than 1 slice in their output.
+/// Oracle functions cannot return more than 1 vector in their output.
 ///
-/// This is currently a limitation with the AVM: to return multiple slices
+/// This is currently a limitation with the AVM: to return multiple vectors
 /// of unknown length, it would need to support allocating memory for
 /// them in the call handler, and return their final address. Currently
 /// only the Brillig codegen knows about the Free Memory Pointer, and
 /// the VM writes to whatever address is in the destination, so we
 /// can only safely deal with one vector.
-pub(super) fn oracle_returns_multiple_slices(
+pub(super) fn oracle_returns_multiple_vectors(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
@@ -126,27 +141,27 @@ pub(super) fn oracle_returns_multiple_slices(
         return None;
     }
 
-    fn slice_count(typ: &Type) -> usize {
+    fn vector_count(typ: &Type) -> usize {
         match typ {
-            Type::Array(_, item) => slice_count(item),
-            Type::Slice(typ) => 1 + slice_count(typ),
-            Type::FmtString(_, item) => slice_count(item),
-            Type::Tuple(items) => items.iter().map(slice_count).sum(),
+            Type::Array(_, item) => vector_count(item),
+            Type::Vector(typ) => 1 + vector_count(typ),
+            Type::FmtString(_, item) => vector_count(item),
+            Type::Tuple(items) => items.iter().map(vector_count).sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, typ, _)| slice_count(typ)).sum()
+                    fields.iter().map(|(_, typ, _)| vector_count(typ)).sum()
                 } else if let Some(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(_, types)| types).map(slice_count).sum()
+                    variants.iter().flat_map(|(_, types)| types).map(vector_count).sum()
                 } else {
                     0
                 }
             }
-            Type::Alias(def, args) => slice_count(&def.borrow().get_type(args)),
+            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args)),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => slice_count(binding),
+                    TypeBinding::Bound(binding) => vector_count(binding),
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -167,30 +182,9 @@ pub(super) fn oracle_returns_multiple_slices(
         }
     }
 
-    if slice_count(func.return_type()) > 1 {
+    if vector_count(func.return_type()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleReturnsMultipleSlices { location: ident.location() })
-    } else {
-        None
-    }
-}
-
-/// Oracle functions may not be called by constrained functions directly.
-///
-/// In order for a constrained function to call an oracle it must first call through an unconstrained function.
-pub(super) fn oracle_called_from_constrained_function(
-    interner: &NodeInterner,
-    called_func: &FuncId,
-    calling_from_constrained_runtime: bool,
-    location: Location,
-) -> Option<ResolverError> {
-    if !calling_from_constrained_runtime {
-        return None;
-    }
-
-    let function_attributes = interner.function_attributes(called_func);
-    if function_attributes.function()?.kind.is_oracle() {
-        Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
+        Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {
         None
     }
@@ -226,15 +220,15 @@ pub(super) fn unconstrained_function_args(
 }
 
 /// Check that that a type returned from an unconstrained to a constrained runtime is safe:
-/// * cannot return slices
+/// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
 ) -> Option<TypeCheckError> {
-    if return_type.contains_slice() {
-        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
+    if return_type.contains_vector() {
+        Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } else if return_type.contains_function() {
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {

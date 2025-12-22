@@ -61,7 +61,6 @@
 <li><a href="../primitive.i8.html">i8</a></div></li>
 <li><a href="../primitive.Module.html">Module</a></div></li>
 <li><a href="../primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="../primitive.slice.html">slice</a></div></li>
 <li><a href="../primitive.str.html">str</a></div></li>
 <li><a href="../primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="../primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -76,6 +75,7 @@
 <li><a href="../primitive.u64.html">u64</a></div></li>
 <li><a href="../primitive.u8.html">u8</a></div></li>
 <li><a href="../primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="../primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="../fn.as_witness.html">as_witness</a></div></li>
@@ -101,19 +101,7 @@ By definition, the scalar field of the embedded curve is base field of the provi
 It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.</div></li>
 </ul>
 <h2 id="functions">Functions</h2><ul class="item-list">
-<li><div class="item-name"><a href="fn.embedded_curve_add.html" class="fn">embedded_curve_add</a></div><div class="item-description">This function only assumes that the points are on the curve
-It handles corner cases around the infinity point causing some overhead compared to embedded_curve_add_not_nul and embedded_curve_add_unsafe</div></li>
-<li><div class="item-name"><a href="fn.embedded_curve_add_not_nul.html" class="fn">embedded_curve_add_not_nul</a></div><div class="item-description">This function assumes that:
-The points are on the curve, and
-The points don't share an x-coordinate, and
-Neither point is the infinity point.
-If it is used with correct input, the function ensures the correct non-zero result is returned.
-Except for points on the curve, the other assumptions are checked by the function. It will cause assertion failure if they are not respected.</div></li>
-<li><div class="item-name"><a href="fn.embedded_curve_add_unsafe.html" class="fn">embedded_curve_add_unsafe</a></div><div class="item-description">Unsafe ec addition
-If the inputs are the same, it will perform a doubling, but only if point1 and point2 are the same variable.
-If they have the same value but are different variables, the result will be incorrect because in this case
-it assumes (but does not check) that the points' x-coordinates are not equal.
-It also assumes neither point is the infinity point.</div></li>
+<li><div class="item-name"><a href="fn.embedded_curve_add.html" class="fn">embedded_curve_add</a></div><div class="item-description">This function assumes that the points are on the curve</div></li>
 <li><div class="item-name"><a href="fn.fixed_base_scalar_mul.html" class="fn">fixed_base_scalar_mul</a></div><div class="item-description"></div></li>
 <li><div class="item-name"><a href="fn.multi_scalar_mul.html" class="fn">multi_scalar_mul</a></div><div class="item-description"></div></li>
 </ul>

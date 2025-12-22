@@ -250,7 +250,7 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
                 self.visit_type(length);
                 self.visit_type(element);
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 self.visit_type(element);
             }
             Type::FmtString(length, element) => {
