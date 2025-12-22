@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766182933516,
+  "lastUpdate": 1766416480503,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23241,48 +23241,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f0ffe71385e106a63aca5beb535052ed8184e19f",
-          "message": "chore: Add more comments to monomorphization pass (#10873)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-12-10T16:46:25Z",
-          "tree_id": "09ed5c1a65819198462372947380860c11d81454",
-          "url": "https://github.com/noir-lang/noir/commit/f0ffe71385e106a63aca5beb535052ed8184e19f"
-        },
-        "date": 1765388746689,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255467,
-            "range": "± 819",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224231,
-            "range": "± 2458",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793003,
-            "range": "± 3689",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25334,6 +25292,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791888,
             "range": "± 11525",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39aeb7ff52e147754dd959b807abbb57ebdc201e",
+          "message": "chore(frontend): Add various regressions for skipping comptime eval on static errors (#10974)",
+          "timestamp": "2025-12-22T14:53:08Z",
+          "tree_id": "652a8f257813816c4f6eef18d95cb76526838122",
+          "url": "https://github.com/noir-lang/noir/commit/39aeb7ff52e147754dd959b807abbb57ebdc201e"
+        },
+        "date": 1766416443683,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258093,
+            "range": "± 1266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229006,
+            "range": "± 6242",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2263426,
+            "range": "± 2395",
             "unit": "ns/iter"
           }
         ]
