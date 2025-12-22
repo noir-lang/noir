@@ -129,11 +129,11 @@ pub(crate) fn get_struct_field<T>(
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<T> {
-    let key = Rc::new(field_name.to_string());
+    let key = field_name.to_string();
     let Some(value) = struct_fields.get(&key) else {
         return Err(InterpreterError::ExpectedStructToHaveField {
             typ: struct_type.clone(),
-            field_name: Rc::into_inner(key).unwrap(),
+            field_name: key,
             location,
         });
     };
@@ -147,13 +147,13 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
     }
 }
 
-pub(crate) fn get_slice(
+pub(crate) fn get_vector(
     (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
-        Value::Slice(values, typ) => Ok((values, typ)),
+        Value::Vector(values, typ) => Ok((values, typ)),
         value => {
-            let expected = "slice";
+            let expected = "vector";
             type_mismatch(value, expected, location)
         }
     }
@@ -508,7 +508,10 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
-        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = errors
+            .into_iter()
+            .find(|error| !error.is_warning())
+            .expect("there is at least 1 error");
         let error = Box::new(error);
         let tokens = tokens_to_string(&tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
@@ -549,11 +552,11 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
 }
 
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
-    Value::Slice(statements, typ)
+    Value::Vector(statements, typ)
 }
 
 pub(super) fn has_named_attribute(

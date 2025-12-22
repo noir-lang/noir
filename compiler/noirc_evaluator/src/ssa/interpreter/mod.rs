@@ -38,11 +38,6 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
 
-    /// This variable can be modified by `enable_side_effects_if` instructions and is
-    /// expected to have no effect if there are no such instructions or if the code
-    /// being executed is an unconstrained function.
-    side_effects_enabled: bool,
-
     /// The options the interpreter was created with.
     options: InterpreterOptions,
 
@@ -70,15 +65,24 @@ struct CallContext {
 
     /// Contains each value currently defined and visible to the current function.
     scope: HashMap<ValueId, Value>,
+
+    /// This variable can be modified by `enable_side_effects_if` instructions and is
+    /// expected to have no effect if there are no such instructions or if the code
+    /// being executed is an unconstrained function.
+    side_effects_enabled: bool,
 }
 
 impl CallContext {
     fn new(called_function: FunctionId) -> Self {
-        Self { called_function: Some(called_function), scope: Default::default() }
+        Self {
+            called_function: Some(called_function),
+            scope: Default::default(),
+            side_effects_enabled: true,
+        }
     }
 
     fn global_context() -> Self {
-        Self { called_function: None, scope: Default::default() }
+        Self { called_function: None, scope: Default::default(), side_effects_enabled: true }
     }
 }
 
@@ -109,7 +113,7 @@ impl Ssa {
     ) -> IResults {
         let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
-        interpreter.call_function(function, args)
+        interpreter.interpret_function(function, args)
     }
 }
 
@@ -124,19 +128,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, side_effects_enabled: true, options, output, step_counter: 0 }
+        Self { functions, call_stack, options, output, step_counter: 0 }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
         self.functions
-    }
-
-    /// Resets the step counter to 0.
-    ///
-    /// This can be used when the interpreter is reused between calls,
-    /// to reset the budget before interpreting the next entry point.
-    pub(crate) fn reset_step_counter(&mut self) {
-        self.step_counter = 0;
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
@@ -210,7 +206,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
+    /// Interpret the global instructions.
+    ///
+    /// Once this is complete, the interpreter can be reused for multiple
+    /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
+        assert_eq!(self.call_stack.len(), 1, "should be in the global context");
         let (_, function) = self.functions.first_key_value().unwrap();
         let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
@@ -237,11 +238,24 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    pub(crate) fn call_function(
+    /// Interpret an entry point, assuming the globals have already been interpreted.
+    ///
+    /// This resets any previous call stack and step counter.
+    pub(crate) fn interpret_function(
         &mut self,
         function_id: FunctionId,
-        mut arguments: Vec<Value>,
+        arguments: Vec<Value>,
     ) -> IResults {
+        self.step_counter = 0;
+        self.call_stack.truncate(1);
+        self.call_function(function_id, arguments)
+    }
+
+    /// Interpret a function call.
+    ///
+    /// Unlike `interpret_function` this does not reset the state;
+    /// it is meant to be used for internal calls.
+    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.functions[&function_id];
@@ -410,12 +424,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.lookup_helper(value_id, instruction, "numeric", Value::as_numeric)
     }
 
-    fn lookup_array_or_slice(
+    fn lookup_array_or_vector(
         &self,
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<ArrayValue> {
-        self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
+        self.lookup_helper(value_id, instruction, "array or vector", Value::as_array_or_vector)
     }
 
     /// Look up an array index.
@@ -440,7 +454,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -458,7 +472,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -476,7 +490,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -498,7 +512,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -539,7 +553,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         match current_function.runtime() {
             RuntimeType::Acir(_) => {
-                self.side_effects_enabled
+                self.call_context().side_effects_enabled
                     || !instruction.requires_acir_gen_predicate(&current_function.dfg)
             }
             RuntimeType::Brillig(_) => true,
@@ -637,7 +651,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             Instruction::Load { address } => self.interpret_load(*address, results[0]),
             Instruction::Store { address, value } => self.interpret_store(*address, *value),
             Instruction::EnableSideEffectsIf { condition } => {
-                self.side_effects_enabled = self.lookup_bool(*condition, "enable_side_effects")?;
+                self.call_context_mut().side_effects_enabled =
+                    self.lookup_bool(*condition, "enable_side_effects")?;
                 Ok(())
             }
             Instruction::ArrayGet { array, index } => {
@@ -968,7 +983,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
             }
 
-            Value::ArrayOrSlice(array_value) => {
+            Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
                 for element in elements.iter_mut() {
                     Self::reset_array_state(element)?;
@@ -1035,7 +1050,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
 
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_slice(array, "array get")?;
+        let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
         let index = match self.lookup_array_index(index, "array get index", length) {
@@ -1078,15 +1093,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
-                if let Some(array) = element.as_array_or_slice() {
+                if let Some(array) = element.as_array_or_vector() {
                     // In the ACIR runtime we expect fresh arrays when accessing a nested array.
                     // If we do not clone the elements here a mutable array set afterwards could mutate
                     // not just this returned array but the array we are fetching from in this array get.
-                    Value::ArrayOrSlice(ArrayValue {
+                    Value::ArrayOrVector(ArrayValue {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_slice: array.is_slice,
+                        is_vector: array.is_vector,
                     })
                 } else {
                     element.clone()
@@ -1110,7 +1125,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         side_effects_enabled: bool,
     ) -> IResult<()> {
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_slice(array, "array set")?;
+        let array = self.lookup_array_or_vector(array, "array set")?;
 
         let result_array = if side_effects_enabled {
             let length = array.elements.borrow().len() as u32;
@@ -1127,7 +1142,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrSlice(array.clone())
+                Value::ArrayOrVector(array.clone())
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);
@@ -1137,12 +1152,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_slice = array.is_slice;
-                Value::ArrayOrSlice(ArrayValue { elements, rc, element_types, is_slice })
+                let is_vector = array.is_vector;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
             }
         } else {
             // Side effects are disabled, return the original array
-            Value::ArrayOrSlice(array)
+            Value::ArrayOrVector(array)
         };
         self.define(result, result_array)?;
         Ok(())
@@ -1157,7 +1172,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_slice(value_id, "inc_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "inc_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1170,7 +1185,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_dec_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_slice(value_id, "dec_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "dec_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1227,7 +1242,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_slice = matches!(&result_type, Type::Slice(..));
+        let is_vector = matches!(&result_type, Type::Vector(..));
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1262,11 +1277,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
         }
 
-        let array = Value::ArrayOrSlice(ArrayValue {
+        let array = Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_slice,
+            is_vector,
         });
         self.define(result, array)
     }

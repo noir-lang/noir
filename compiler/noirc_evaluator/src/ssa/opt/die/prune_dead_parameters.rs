@@ -156,11 +156,12 @@ impl Ssa {
 
                     // Apply call site rewrites
                     for (instruction_id, new_args) in call_sites_to_update {
-                        if let Instruction::Call { arguments, .. } =
+                        let Instruction::Call { arguments, .. } =
                             &mut caller_func.dfg[instruction_id]
-                        {
-                            *arguments = new_args;
-                        }
+                        else {
+                            unreachable!("expected call site to be call instruction");
+                        };
+                        *arguments = new_args;
                     }
                 }
             }
@@ -215,7 +216,7 @@ impl Function {
             self.dfg[block].set_parameters(new_params);
 
             // Update the predecessor argument list to match the new parameter list
-            self.update_predecessor_terminators(cfg.predecessors(block), block, &keep_list);
+            self.update_predecessor_terminators(&cfg, block, &keep_list);
 
             if block == self.entry_block() {
                 entry_block_keep_list = Some(keep_list);
@@ -227,10 +228,11 @@ impl Function {
     /// Update terminator arguments of predecessor blocks after pruning.
     fn update_predecessor_terminators(
         &mut self,
-        predecessors: impl IntoIterator<Item = BasicBlockId>,
+        cfg: &ControlFlowGraph,
         target_block: BasicBlockId,
         keep_list: &[bool],
     ) {
+        let predecessors = cfg.predecessors(target_block);
         for pred in predecessors {
             let terminator = self.dfg[pred].unwrap_terminator_mut();
 
@@ -239,14 +241,14 @@ impl Function {
                     // No terminator arguments in a JmpIf
                 }
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                    if *destination == target_block {
-                        let new_args = arguments
-                            .iter()
-                            .zip(keep_list.iter())
-                            .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
-                            .collect();
-                        *arguments = new_args;
-                    }
+                    // Predecessor must jump to its successor
+                    assert_eq!(*destination, target_block);
+                    let new_args = arguments
+                        .iter()
+                        .zip(keep_list.iter())
+                        .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
+                        .collect();
+                    *arguments = new_args;
                 }
                 TerminatorInstruction::Return { .. } => {
                     unreachable!("ICE: A return block should not be a predecessor");

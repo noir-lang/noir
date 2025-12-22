@@ -5,7 +5,6 @@ use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
-use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -60,10 +59,6 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 
 #[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
-    /// Specify the backend expression width that should be targeted
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
-
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -103,10 +98,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub minimal_ssa: bool,
 
+    /// Display debug prints during Brillig generation.
     #[arg(long, hide = true)]
     pub show_brillig: bool,
 
-    /// Display the ACIR for compiled circuit
+    /// Display Brillig opcodes with advisories, if any.
+    #[arg(long, hide = true)]
+    pub show_brillig_opcode_advisories: bool,
+
+    /// Display the ACIR for compiled circuit, including the Brillig bytecode.
     #[arg(long)]
     pub print_acir: bool,
 
@@ -229,7 +229,6 @@ pub struct CompileOptions {
 impl Default for CompileOptions {
     fn default() -> Self {
         Self {
-            expression_width: None,
             force_compile: false,
             show_ssa: false,
             show_ssa_pass: Vec::new(),
@@ -239,6 +238,7 @@ impl Default for CompileOptions {
             emit_ssa: false,
             minimal_ssa: false,
             show_brillig: false,
+            show_brillig_opcode_advisories: false,
             print_acir: false,
             benchmark_codegen: false,
             deny_warnings: false,
@@ -280,6 +280,7 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
+                show_opcode_advisories: self.show_brillig_opcode_advisories,
                 layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
@@ -295,22 +296,6 @@ impl CompileOptions {
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
         }
-    }
-}
-
-pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
-            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
-        )),
     }
 }
 
@@ -536,7 +521,7 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        noirc_errors::println_to_stdout!("Compiled ACIR for main (non-transformed):");
+        noirc_errors::println_to_stdout!("Compiled ACIR for main:");
         noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
@@ -724,7 +709,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -878,7 +863,7 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 

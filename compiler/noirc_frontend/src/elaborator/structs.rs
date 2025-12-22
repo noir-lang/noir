@@ -21,7 +21,7 @@ impl Elaborator<'_> {
     /// - Resolves the types of all struct fields
     /// - Validates visibility constraints (public structs cannot expose private types)
     /// - Registers LSP definition locations for IDE support
-    /// - Checks for disallowed nested slice types
+    /// - Checks for disallowed nested vector types
     ///
     /// Structs must already be interned from the earlier definition collection phase.
     /// This method fills in the field information for each struct.
@@ -65,7 +65,7 @@ impl Elaborator<'_> {
             });
         }
 
-        self.check_for_nested_slices(&struct_ids);
+        self.check_for_nested_vectors(&struct_ids);
     }
 
     /// Resolves the field types for a single struct definition.
@@ -103,12 +103,12 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Checks all resolved structs for nested slice types, which are not allowed.
+    /// Checks all resolved structs for nested vector types, which are not allowed.
     ///
     /// This check must happen after all struct fields are resolved to ensure we have
     /// complete type information. We only check structs without generics here, as
     /// generic structs are validated after monomorphization during SSA codegen.
-    fn check_for_nested_slices(&mut self, struct_ids: &[TypeId]) {
+    fn check_for_nested_vectors(&mut self, struct_ids: &[TypeId]) {
         for id in struct_ids {
             let struct_type = self.interner.get_type(*id);
 
@@ -117,9 +117,9 @@ impl Elaborator<'_> {
             if struct_type.borrow().generics.is_empty() {
                 let fields = struct_type.borrow().get_fields(&[]).unwrap();
                 for (_, field_type, _) in fields.iter() {
-                    if field_type.is_nested_slice() {
+                    if field_type.is_nested_vector() {
                         let location = struct_type.borrow().location;
-                        self.push_err(ResolverError::NestedSlices { location });
+                        self.push_err(ResolverError::NestedVectors { location });
                     }
                 }
             }

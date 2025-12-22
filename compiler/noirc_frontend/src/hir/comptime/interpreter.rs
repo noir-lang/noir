@@ -5,7 +5,7 @@
 //! 2. A macro call `foo!()`
 //!   - The interpreter calls the function `foo` and inlines the resulting `Quoted` code at the callsite.
 //! 3. An attribute call `#[my_attr] struct Foo {}`
-//!   - The interpreter calls the function `my_attr` and, if `foo`returns a `Quoted` value,
+//!   - The interpreter calls the function `my_attr` and, if `my_attr` returns a `Quoted` value,
 //!     inlines the resulting `Quoted` code.
 //! 4. A global `global FOO = expr;`
 //!   - The interpreter evaluates `expr` to simplify the global to a constant.
@@ -84,6 +84,22 @@ mod foreign;
 mod infix;
 mod unquote;
 
+/// Maximum depth of evaluation, limiting recursion during comptime as well as
+/// expression depth. The goal is to be able to provide Noir stack traces if
+/// we run out, rather than a Rust backtrace.
+///
+/// Ideally we would like the recursion limit to be 1000, to match what we do in ACIR,
+/// however due to the overhead of the interpreter itself, which recursively evaluates
+/// expressions, this needs to be lower.
+///
+/// Furthermore, since every expression is evaluated via recursion in the interpreter,
+/// a deeply nested expression can also hit the Rust stack limit. We would like to
+/// provide a Noir stack trace for these as well.
+///
+/// If, in the future, we refactor the interpreter to be iterative, rather than use recursion,
+/// we could have a separate limit just for comptime call stack depth.
+const MAX_EVALUATION_DEPTH: usize = 300;
+
 #[allow(unused)]
 pub struct Interpreter<'local, 'interner> {
     /// To expand macros the Interpreter needs access to the Elaborator
@@ -102,6 +118,9 @@ pub struct Interpreter<'local, 'interner> {
     /// multiple times. Without the outer Vec, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
+
+    /// Current evaluation depth.
+    evaluation_depth: usize,
 }
 
 impl<'local, 'interner> Interpreter<'local, 'interner> {
@@ -109,7 +128,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         current_function: Option<FuncId>,
     ) -> Self {
-        Self { elaborator, current_function, bound_generics: Vec::new(), in_loop: false }
+        Self {
+            elaborator,
+            current_function,
+            bound_generics: Vec::new(),
+            in_loop: false,
+            evaluation_depth: 0,
+        }
     }
 
     /// Call the given function with the given arguments and return the result.
@@ -141,11 +166,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
-        self.elaborator.interpreter_call_stack.push_back(location);
+        self.elaborator.push_interpreter_call_stack(location)?;
 
         let result = self.call_function_inner(function, arguments, location);
 
-        self.elaborator.interpreter_call_stack.pop_back();
+        self.elaborator.pop_interpreter_call_stack();
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();
@@ -231,6 +256,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         elaborator.elaborate_function(function);
                     });
 
+                    // Recursive call - this will now hit the Some(body) branch
                     self.get_function_body(function, location)
                 } else {
                     let function = self.elaborator.interner.function_name(&function).to_owned();
@@ -295,7 +321,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             } else if oracle.starts_with("__debug") {
                 Ok(Value::Unit)
             } else {
-                let item = format!("Comptime evaluation for oracle functions like {oracle}");
+                let item = format!("Comptime evaluation for oracle functions like '{oracle}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
@@ -318,16 +344,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let old_module = self.elaborator.replace_module(module_scope);
         let old_function = std::mem::replace(&mut self.current_function, function_scope);
 
-        self.elaborator.interpreter_call_stack.push_back(call_location);
+        self.elaborator.push_interpreter_call_stack(call_location)?;
 
         let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
-        self.elaborator.interpreter_call_stack.pop_back();
+        self.elaborator.pop_interpreter_call_stack();
 
         self.current_function = old_function;
-        if let Some(old_module) = old_module {
-            self.elaborator.replace_module(old_module);
-        }
+        let Some(old_module) = old_module else {
+            // The module should always be set by the time we're interpreting comptime code
+            panic!("ICE: Expected local_module to be set when calling a closure");
+        };
+        self.elaborator.replace_module(old_module);
         result
     }
 
@@ -344,6 +372,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         if closure.parameters.len() != arguments.len() {
+            self.exit_function(previous_state);
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: closure.parameters.len(),
                 actual: arguments.len(),
@@ -582,6 +611,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluate an expression and return the result.
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+        // If comptime evaluation has been halted, don't execute anything
+        if self.elaborator.comptime_evaluation_halted {
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        // Skip expressions that had errors during elaboration and halt all future execution
+        if self.elaborator.interner.exprs_with_errors.contains(&id) {
+            self.elaborator.comptime_evaluation_halted = true;
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         match self.evaluate_no_dereference(id)? {
             Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
             other => Ok(other.move_struct()),
@@ -592,7 +632,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This function should be used when that is not desired - e.g. when
     /// compiling a `&mut var` expression to grab the original reference.
     fn evaluate_no_dereference(&mut self, id: ExprId) -> IResult<Value> {
-        match self.elaborator.interner.expression(&id) {
+        if self.evaluation_depth >= MAX_EVALUATION_DEPTH {
+            let location = self.elaborator.interner.expr_location(&id);
+            return Err(InterpreterError::EvaluationDepthOverflow {
+                location,
+                call_stack: self.elaborator.interpreter_call_stack().clone(),
+            });
+        }
+        self.evaluation_depth += 1;
+        let result = match self.elaborator.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
             HirExpression::Block(block) => self.evaluate_block(block),
@@ -623,7 +671,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let location = self.elaborator.interner.expr_location(&id);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
-        }
+        };
+        self.evaluation_depth -= 1;
+        result
     }
 
     /// Evaluates a variable
@@ -741,7 +791,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_format_string(fragments, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
-            HirLiteral::Slice(array) => self.evaluate_slice(array, id),
+            HirLiteral::Vector(array) => self.evaluate_vector(array, id),
         }
     }
 
@@ -806,7 +856,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         evaluate_integer(typ, value, location)
     }
 
-    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub(crate) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -859,9 +909,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_slice(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_vector(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
         self.evaluate_array(array, id).map(|value| match value {
-            Value::Array(array, typ) => Value::Slice(array, typ),
+            Value::Array(array, typ) => Value::Vector(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
         })
     }
@@ -922,7 +972,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         use BinaryOpKind::*;
         match operator {
             NotEqual => evaluate_prefix_with_value(value, UnaryOp::Not, location),
-            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            Less | LessEqual | Greater | GreaterEqual => {
+                self.evaluate_ordering(value, operator, location)
+            }
             _ => Ok(value),
         }
     }
@@ -946,13 +998,41 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
-    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
-        let ordering = match ordering {
-            Value::Struct(fields, _) => match &*fields.into_iter().next().unwrap().1.borrow() {
-                Value::Field(ordering) => *ordering,
-                _ => unreachable!("`cmp` should always return an Ordering value"),
-            },
-            _ => unreachable!("`cmp` should always return an Ordering value"),
+    fn evaluate_ordering(
+        &self,
+        ordering: Value,
+        operator: BinaryOpKind,
+        location: Location,
+    ) -> IResult<Value> {
+        let field_ordering = match &ordering {
+            Value::Struct(fields, typ) => {
+                // Check the struct is named "Ordering"
+                let is_ordering_type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def.borrow().name.as_str() == "Ordering",
+                    _ => false,
+                };
+                if is_ordering_type {
+                    let first_field = fields.iter().next();
+                    match first_field {
+                        Some((_, value)) => match &*value.borrow() {
+                            Value::Field(ordering) => Some(*ordering),
+                            _ => None,
+                        },
+                        None => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        // Error if there is no ordering field
+        let Some(ordering) = field_ordering else {
+            return Err(InterpreterError::TypeMismatch {
+                expected: "Ordering".to_string(),
+                actual: ordering.get_type().into_owned(),
+                location,
+            });
         };
 
         // Ordering::Less: 0, Ordering::Equal: 1, Ordering::Greater: 2
@@ -1185,6 +1265,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+        // If comptime evaluation has been halted, don't execute anything
+        if self.elaborator.comptime_evaluation_halted {
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        // Skip statements that had errors during elaboration and halt all future execution
+        if self.elaborator.interner.stmts_with_errors.contains(&statement) {
+            self.elaborator.comptime_evaluation_halted = true;
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
@@ -1206,7 +1297,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub(crate) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.elaborator.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
@@ -1221,7 +1312,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 let message =
                     message.map(|value| value.display(self.elaborator.interner).to_string());
-                let call_stack = self.elaborator.interpreter_call_stack.clone();
+                let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
             value => {
@@ -1285,7 +1376,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let constructor = match &array_value {
                     Value::Array(..) => Value::Array,
-                    _ => Value::Slice,
+                    _ => Value::Vector,
                 };
 
                 let typ = array_value.get_type().into_owned();
@@ -1376,9 +1467,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
         let start_value = self.evaluate(for_.start_range)?;
         let end_value = self.evaluate(for_.end_range)?;
-        let loop_index_type = start_value.get_type();
+        let start_type = start_value.get_type();
+        let end_type = end_value.get_type();
 
-        if loop_index_type.is_signed() {
+        // Check that start and end have the same type
+        if start_type.unify(&end_type).is_err() {
+            let location = self.elaborator.interner.expr_location(&for_.end_range);
+            return Err(InterpreterError::RangeBoundsTypeMismatch {
+                start_type: start_type.into_owned(),
+                end_type: end_type.into_owned(),
+                location,
+            });
+        }
+
+        if start_type.is_signed() {
             let get_index = match start_value {
                 Value::I8(_) => |i| Value::I8(i as i8),
                 Value::I16(_) => |i| Value::I16(i as i16),
@@ -1389,10 +1491,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             // i128 can store all values from i8 - u64
             let start = to_i128(start_value).expect("Checked above that value is signed type");
-            let end = to_i128(end_value).expect("Checked above that value is signed type");
+            let end = to_i128(end_value).expect("Checked above that types match");
 
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
-        } else if loop_index_type.is_unsigned() {
+        } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
                 Value::U8(_) => |i| Value::U8(i as u8),
@@ -1405,12 +1507,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             // u128 can store all values from u8 - u128
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
-            let end = to_u128(end_value).expect("Checked above that value is unsigned type");
+            let end = to_u128(end_value).expect("Checked above that types match");
 
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
-            let typ = loop_index_type.into_owned();
+            let typ = start_type.into_owned();
             Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
         }
     }
@@ -1479,14 +1581,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut result = Ok(Value::Unit);
 
         loop {
-            let condition = match self.evaluate(condition)? {
-                Value::Bool(value) => value,
-                value => {
+            let condition = match self.evaluate(condition) {
+                Ok(Value::Bool(value)) => value,
+                Ok(value) => {
                     let location = self.elaborator.interner.expr_location(&condition);
                     let typ = value.get_type().into_owned();
-                    return Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                    result = Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                    break;
+                }
+                Err(err) => {
+                    result = Err(err);
+                    break;
                 }
             };
+
             if !condition {
                 break;
             }
@@ -1512,6 +1620,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
+    /// Evaluate one iteration of a loop.
+    ///
+    /// Returns a flag to indicate whether the loop should be exited.
     fn evaluate_loop_body(&mut self, body: ExprId, result: &mut IResult<Value>) -> bool {
         match self.evaluate(body) {
             Ok(_) => false,
@@ -1654,7 +1765,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
-        Value::Slice(array, _) => array,
+        Value::Vector(array, _) => array,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonArrayIndexed { typ, location });
@@ -1684,6 +1795,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
         Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
         Value::U64(value) => value as usize,
+        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });

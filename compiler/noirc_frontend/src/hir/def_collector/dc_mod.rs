@@ -448,7 +448,7 @@ impl ModCollector<'_> {
             let doc_comments = trait_definition.doc_comments;
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
-            let location = trait_definition.location;
+            let location = trait_definition.name.location();
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
@@ -462,7 +462,7 @@ impl ModCollector<'_> {
                 context,
                 &name,
                 ItemVisibility::Public,
-                name.location(),
+                location,
                 Vec::new(),
                 Vec::new(),
                 false,
@@ -520,6 +520,26 @@ impl ModCollector<'_> {
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
                     desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
+                }
+            }
+
+            // Check for duplicate trait item names across all item types (functions, types, constants)
+            let mut trait_item_names: HashMap<String, Ident> = HashMap::default();
+            for trait_item in &trait_definition.items {
+                let item_name = match &trait_item.item {
+                    TraitItem::Function { name, .. } => name,
+                    TraitItem::Constant { name, .. } => name,
+                    TraitItem::Type { name, .. } => name,
+                };
+                if let Some(first_def) = trait_item_names.get(item_name.as_str()) {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
             }
 

@@ -17,7 +17,7 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
-        lints,
+        UnstableFeature, lints,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -181,7 +181,7 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
-        // Temporary allow slices for contract functions, until contracts are re-factored.
+        // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
                 &return_type,
@@ -344,6 +344,7 @@ impl Elaborator<'_> {
             let type_location = typ.location;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {
+                    self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                     self.desugar_impl_trait_arg(path, args, generics, trait_constraints)
                 }
                 // Function parameters have Kind::Normal
@@ -378,7 +379,7 @@ impl Elaborator<'_> {
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program_input(
         &mut self,
@@ -429,13 +430,14 @@ impl Elaborator<'_> {
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
         self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
         self.run_lint(|_| {
             let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
-        self.run_lint(|_| lints::oracle_returns_multiple_slices(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });

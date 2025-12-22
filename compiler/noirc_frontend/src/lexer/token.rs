@@ -244,9 +244,9 @@ pub enum Token {
     /// &
     Ampersand,
     /// & followed immediately by '['
-    /// This is a lexer hack to distinguish slices
+    /// This is a lexer hack to distinguish vectors
     /// from taking a reference to an array
-    SliceStart,
+    VectorStart,
     /// ^
     Caret,
     /// <<
@@ -348,7 +348,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
-        Token::SliceStart => BorrowedToken::Ampersand,
+        Token::VectorStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -586,7 +586,7 @@ impl Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::SliceStart => write!(f, "&"),
+            Token::VectorStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -1245,10 +1245,12 @@ pub enum Keyword {
     CallData,
     Comptime,
     Constrain,
+    Constrained,
     Continue,
     Contract,
     Crate,
     Dep,
+    Dual,
     Else,
     Enum,
     Fn,
@@ -1287,10 +1289,12 @@ impl Display for Keyword {
             Keyword::CallData => write!(f, "call_data"),
             Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Constrained => write!(f, "constrained"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
+            Keyword::Dual => write!(f, "dual"),
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
             Keyword::Fn => write!(f, "fn"),
@@ -1332,10 +1336,12 @@ impl Keyword {
             "call_data" => Keyword::CallData,
             "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
+            "constrained" => Keyword::Constrained,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
+            "dual" => Keyword::Dual,
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,
             "fn" => Keyword::Fn,

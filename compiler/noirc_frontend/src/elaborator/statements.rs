@@ -74,6 +74,21 @@ impl Elaborator<'_> {
         statement: Statement,
         target_type: Option<&Type>,
     ) -> (StmtId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
+
+        if has_errors {
+            self.interner.stmts_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    fn elaborate_statement_inner(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
         let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
@@ -523,7 +538,7 @@ impl Elaborator<'_> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =
@@ -647,8 +662,11 @@ impl Elaborator<'_> {
 
             hir_statement
         });
+
+        // Run the interpreter - it will check if execution has been halted
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
+
         let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);
