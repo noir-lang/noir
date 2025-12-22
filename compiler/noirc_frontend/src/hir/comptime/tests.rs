@@ -12,6 +12,7 @@ use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, ModuleData};
+use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
@@ -330,4 +331,126 @@ fn capture_variables_by_copy() {
     ";
     let result = interpret(program);
     assert_eq!(result, Value::Unit);
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10896
+fn regression_10896() {
+    let program = "
+    fn main() -> pub Field {
+        comptime {
+            let i: i8 = -1;
+            let xs = [1, 2, 3];
+            xs[i]
+        }
+    }
+    ";
+    // This program produces a type mismatch error because the index is i8 but should be u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+fn regression_10896_with_valid_index() {
+    let program = "
+    fn main() -> pub Field {
+        comptime {
+            let i: u8 = 1;
+            let xs = [1, 2, 3];
+            xs[i]
+        }
+    }
+    ";
+    // Even if the index is valid (1), the program should still produce a type mismatch error
+    // because the index is not u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10684
+fn regression_10684() {
+    let program = "
+    fn main() {
+        comptime {
+            let array = [1, 2, 3];
+            let _ = array[-1_i32];
+        }
+    }
+    ";
+    // Even if the index is valid (1), the program should still produce a type mismatch error
+    // because the index is not u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10863
+fn regression_10863() {
+    let program = "
+    fn main() {
+        comptime {
+            let x: i8 = -1;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+        }
+    }
+    ";
+    // The only errors must be about index type mismatch
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch_with_source = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::InterpreterError(InterpreterError::TypeMismatch { .. }))
+        });
+        assert!(
+            has_type_mismatch && has_type_mismatch_with_source,
+            "Expected a TypeMismatch error for negative index"
+        );
+        assert_eq!(errors.len(), 2, "Expected exactly two errors");
+    });
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10863
+fn regression_10861() {
+    let program = "
+    fn main() {
+        comptime {
+            // u32::MAX + 1
+            let x: Field = 4294967296;
+            // u64::MAX + 1
+            // let x: Field = 18446744073709551616;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+        }
+    }
+    ";
+    // The only errors must be about index type mismatch
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch_with_source = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::InterpreterError(InterpreterError::TypeMismatch { .. }))
+        });
+        assert!(
+            has_type_mismatch && has_type_mismatch_with_source,
+            "Expected a TypeMismatch error for negative index"
+        );
+        assert_eq!(errors.len(), 2, "Expected exactly two errors");
+    });
 }
