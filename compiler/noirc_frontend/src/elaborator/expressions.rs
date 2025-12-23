@@ -579,7 +579,7 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        let expected = Type::u32();
         self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
             expected: expected.clone(),
             actual: index_type.clone(),
@@ -1272,6 +1272,7 @@ impl Elaborator<'_> {
                         expr_id,
                         trait_method_id,
                         operand_type,
+                        &typ,
                         location,
                     );
                 }
