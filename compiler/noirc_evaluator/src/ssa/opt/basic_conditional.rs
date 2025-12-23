@@ -439,7 +439,7 @@ impl Context<'_> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_normalized_ssa_equals},

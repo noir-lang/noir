@@ -952,7 +952,7 @@ impl Context {
     }
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::Ssa;
     use tracing_test::traced_test;
 
