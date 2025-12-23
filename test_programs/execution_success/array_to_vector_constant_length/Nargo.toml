@@ -1,5 +1,5 @@
 [package]
-name = "array_to_slice_constant_length"
+name = "array_to_vector_constant_length"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.26.0"

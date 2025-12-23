@@ -1,5 +1,5 @@
 [package]
-name = "slice_coercion"
+name = "vector_coercion"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.25.0"

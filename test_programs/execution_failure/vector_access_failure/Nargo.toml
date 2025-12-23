@@ -1,5 +1,5 @@
 [package]
-name = "slice_access_failure"
+name = "vector_access_failure"
 type = "bin"
 authors = [""]
 

@@ -1,5 +1,5 @@
 [package]
-name = "slices"
+name = "vectors"
 type = "bin"
 authors = [""]
 [dependencies]
