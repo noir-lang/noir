@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766514379251,
+  "lastUpdate": 1766516934825,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1d0d7824a2a7492a406eaa8bf1528cfa643d8d6d",
-          "message": "chore: remove mutable get access to `SimplificationCache` (#10894)",
-          "timestamp": "2025-12-11T16:28:34Z",
-          "tree_id": "1e618ad6a8a8d34a9451ffd3f4f9b707fb371a57",
-          "url": "https://github.com/noir-lang/noir/commit/1d0d7824a2a7492a406eaa8bf1528cfa643d8d6d"
-        },
-        "date": 1765470667800,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255956,
-            "range": "± 516",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226397,
-            "range": "± 11525",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789391,
-            "range": "± 1383",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792838,
             "range": "± 11758",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "201ffe6e9bb6f7de5e3c3cabdbd5a048ec209630",
+          "message": "chore: refactors and fixes for issues created by stry-tt (#11003)",
+          "timestamp": "2025-12-23T18:48:13Z",
+          "tree_id": "3cc93fb34f0f688e3761cc7a779b460d50b43752",
+          "url": "https://github.com/noir-lang/noir/commit/201ffe6e9bb6f7de5e3c3cabdbd5a048ec209630"
+        },
+        "date": 1766516901983,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259811,
+            "range": "± 832",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227936,
+            "range": "± 8234",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794094,
+            "range": "± 1965",
             "unit": "ns/iter"
           }
         ]
