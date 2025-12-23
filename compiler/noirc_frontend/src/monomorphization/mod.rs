@@ -701,6 +701,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = infix.trait_method_id;
 
+                    let method = method.expect("ICE: Monomorphizer::expr: expected the infix operator method to be resolved by monomorphization");
                     // True here since we're immediately calling this operator method in the
                     // current runtime.
                     let func = self.resolve_trait_item_expr(expr, function_type, method, true)?;
@@ -2632,9 +2633,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg = "match failure";
                 let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
 
-                let u32_type = HirType::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-                let length = (msg.len() as u128).into();
-                let length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
+                let length: u32 = msg.len().try_into().expect(
+                    "ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32",
+                );
+                let length = length.into();
                 let msg_type = HirType::String(Box::new(length));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
