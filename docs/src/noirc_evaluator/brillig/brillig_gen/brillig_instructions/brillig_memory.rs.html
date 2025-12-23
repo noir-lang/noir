@@ -860,7 +860,7 @@
         <span class="kw">let </span>index_variable = <span class="self">self</span>.convert_ssa_single_addr_value(index, dfg);
 
         <span class="comment">// Constants are assumed to have been offset just before Brillig gen.
-        </span><span class="kw">let </span>has_offset = dfg.is_constant(index);
+        </span><span class="kw">let </span>has_offset = dfg.get_numeric_constant(index).is_some();
 
         <span class="self">self</span>.convert_ssa_array_get(
             array_variable,
@@ -893,7 +893,7 @@
         );
 
         <span class="comment">// Constants are assumed to have been offset just before Brillig gen.
-        </span><span class="kw">let </span>has_offset = dfg.is_constant(index);
+        </span><span class="kw">let </span>has_offset = dfg.get_numeric_constant(index).is_some();
 
         <span class="self">self</span>.convert_ssa_array_set(
             source_variable,

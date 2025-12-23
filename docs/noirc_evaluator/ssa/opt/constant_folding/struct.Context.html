@@ -15,7 +15,7 @@ starting from these blocks and revisiting all their descendants to:</p>
 <li>Unlock further instructions that can be hoisted after deduplication.</li>
 </ol>
 </div><span id="structfield.use_constraint_info" class="structfield section-header"><a href="#structfield.use_constraint_info" class="anchor field">§</a><code>use_constraint_info: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></code></span><div class="docblock"><p>Whether to use <a href="../../ir/instruction/enum.Instruction.html#variant.Constrain" title="variant noirc_evaluator::ssa::ir::instruction::Instruction::Constrain">constraints</a> to inform simplifications later on in the program.</p>
-<p>For example, this allows simplifying the instructions below to determine that <code>v2 == Field 3</code> without
+<p>For example, this allows simplifying the instructions below to determine that <code>v2 == Field 2</code> without
 laying down constraints for the addition:</p>
 <div class="example-wrap"><pre class="language-ssa"><code>constrain v1 == Field 0
 v2 = add v1, Field 2</code></pre></div></div><span id="structfield.constraint_simplification_mappings" class="structfield section-header"><a href="#structfield.constraint_simplification_mappings" class="anchor field">§</a><code>constraint_simplification_mappings: <a class="struct" href="simplification_cache/struct.ConstraintSimplificationCache.html" title="struct noirc_evaluator::ssa::opt::constant_folding::simplification_cache::ConstraintSimplificationCache">ConstraintSimplificationCache</a></code></span><div class="docblock"><p>Contains sets of values which are constrained to be equivalent to each other.</p>

@@ -3,7 +3,7 @@ arithmetic instructions since ACIR doesn’t directly support bit shifts.</p>
 <p>In all cases, if the shift amount is equal to or exceeds the operand’s number of bits,
 the result will be a constrain failure (attempt to bit-shift with overflow).</p>
 <h3 id="unsigned-shift-right"><a class="doc-anchor" href="#unsigned-shift-right">§</a>Unsigned shift-right</h3>
-<p>Shifting an unsigned integer to the right by N is the same as diving by 2^N:</p>
+<p>Shifting an unsigned integer to the right by N is the same as dividing by 2^N:</p>
 <div class="example-wrap"><pre class="language-ssa"><code>// this:
 v2 = shr v1, 3
 

@@ -266,7 +266,7 @@
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
             </span><span class="kw">if let </span>CacheResult::Cached { results, .. } = results {
-                <span class="kw">let </span>old_results = dfg.instruction_results(id).to_vec();
+                <span class="kw">let </span>old_results = dfg.instruction_results(id);
 
                 results.len() == old_results.len()
                     &amp;&amp; old_results
