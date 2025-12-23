@@ -1838,7 +1838,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 <span class="kw">use </span><span class="kw">crate</span>::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 <span class="kw">use </span><span class="kw">crate</span>::usage_tracker::{UnusedItem, UsageTracker};
-<span class="kw">use crate</span>::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
+<span class="kw">use crate</span>::{Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 <span class="kw">use crate</span>::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -2331,7 +2331,7 @@
             };
 
             <span class="kw">let </span><span class="kw-2">mut </span>method_ids = HashMap::default();
-            <span class="kw">let </span><span class="kw-2">mut </span>associated_types = Generics::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>associated_types = ResolvedGenerics::new();
             <span class="kw">let </span><span class="kw-2">mut </span>associated_constant_ids = HashMap::default();
 
             <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_definition.items {

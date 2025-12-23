@@ -2718,7 +2718,38 @@
 <a href="#2717" id="2717">2717</a>
 <a href="#2718" id="2718">2718</a>
 <a href="#2719" id="2719">2719</a>
-<a href="#2720" id="2720">2720</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a>
+<a href="#2740" id="2740">2740</a>
+<a href="#2741" id="2741">2741</a>
+<a href="#2742" id="2742">2742</a>
+<a href="#2743" id="2743">2743</a>
+<a href="#2744" id="2744">2744</a>
+<a href="#2745" id="2745">2745</a>
+<a href="#2746" id="2746">2746</a>
+<a href="#2747" id="2747">2747</a>
+<a href="#2748" id="2748">2748</a>
+<a href="#2749" id="2749">2749</a>
+<a href="#2750" id="2750">2750</a>
+<a href="#2751" id="2751">2751</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3197,7 +3228,7 @@
         // requires exclusive access to `self`
         </span><span class="kw">let </span>location = path.location;
         <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, location);
-        <span class="kw">let </span>trait_as_type_info = <span class="self">self</span>.lookup_trait_or_error(path).map(|t| t.id);
+        <span class="kw">let </span>trait_as_type_info = <span class="self">self</span>.lookup_trait_or_error(path).map(|trait_| trait_.id);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = trait_as_type_info {
             <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitAsType);
@@ -3384,13 +3415,13 @@
 
                 <span class="kw">let </span>reference_location = path.location;
                 <span class="self">self</span>.interner.add_global_reference(id, reference_location);
-                <span class="kw">let </span>kind = <span class="self">self
-                    </span>.interner
-                    .get_global_let_statement(id)
-                    .map(|let_statement| Kind::numeric(let_statement.r#type))
+                <span class="kw">let </span>opt_global_let_statement = <span class="self">self</span>.interner.get_global_let_statement(id);
+                <span class="kw">let </span>kind = opt_global_let_statement
+                    .as_ref()
+                    .map(|let_statement| Kind::numeric(let_statement.r#type.clone()))
                     .unwrap_or(Kind::u32());
 
-                <span class="kw">let </span><span class="prelude-val">Some</span>(stmt) = <span class="self">self</span>.interner.get_global_let_statement(id) <span class="kw">else </span>{
+                <span class="kw">let </span><span class="prelude-val">Some</span>(stmt) = opt_global_let_statement <span class="kw">else </span>{
                     <span class="kw">if </span><span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>id) {
                         <span class="kw">return </span><span class="self">self</span>.lookup_generic_or_global_type(path, mode);
                     } <span class="kw">else </span>{
@@ -3798,11 +3829,13 @@
         <span class="kw">let </span>method_name = last_segment.ident.as_str();
 
         <span class="comment">// If we can find a method on the type, this is definitely not a trait method
-        </span><span class="kw">if </span><span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>).is_some() {
+        </span><span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
+        <span class="kw">if </span><span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, check_self_param).is_some() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let </span>trait_methods = <span class="self">self</span>.interner.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>);
+        <span class="kw">let </span>has_self_arg = <span class="bool-val">false</span>;
+        <span class="kw">let </span>trait_methods = <span class="self">self</span>.interner.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, has_self_arg);
 
         <span class="kw">if </span>trait_methods.is_empty() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -3811,7 +3844,6 @@
         <span class="kw">let </span>(hir_method_reference, error) =
             <span class="self">self</span>.get_trait_method_in_scope(<span class="kw-2">&amp;</span>trait_methods, method_name, last_segment.location);
         <span class="kw">let </span>hir_method_reference = hir_method_reference<span class="question-mark">?</span>;
-        <span class="kw">let </span>func_id = hir_method_reference.func_id(<span class="self">self</span>.interner)<span class="question-mark">?</span>;
         <span class="kw">match </span>hir_method_reference {
             HirMethodReference::FuncId(func_id) =&gt; {
                 <span class="comment">// It could happen that we find a single function (one in a trait impl)
@@ -3833,6 +3865,7 @@
                 constraint.typ = typ.clone();
 
                 <span class="kw">let </span>trait_method = TraitItem { definition, constraint, assumed: <span class="bool-val">false </span>};
+                <span class="kw">let </span>func_id = hir_method_reference.func_id(<span class="self">self</span>.interner)<span class="question-mark">?</span>;
                 <span class="kw">let </span>item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>errors = path_resolution.errors;
@@ -4462,13 +4495,38 @@
         expr_id: ExprId,
         trait_method_id: TraitItemId,
         object_type: <span class="kw-2">&amp;</span>Type,
+        return_type: <span class="kw-2">&amp;</span>Type,
         location: Location,
     ) {
         <span class="kw">let </span>method_type = <span class="self">self</span>.interner.definition_type(trait_method_id.item_id);
         <span class="kw">let </span>(method_type, <span class="kw-2">mut </span>bindings) = method_type.instantiate(<span class="self">self</span>.interner);
 
         <span class="kw">match </span>method_type {
-            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+            Type::Function(args, ret, env, _unconstrained) =&gt; {
+                <span class="macro">assert!</span>(
+                    !args.is_empty(),
+                    <span class="string">"type_check_operator_method ICE: expected operator method to have at least one argument type"
+                </span>);
+
+                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>env, <span class="kw-2">&amp;</span>Type::Unit, || TypeCheckError::TypeMismatch {
+                    expected_typ: Type::Unit.to_string(),
+                    expr_typ: env.to_string(),
+                    expr_location: location,
+                });
+
+                <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+                <span class="kw">let </span>unifies = ret.try_unify(return_type, <span class="kw-2">&amp;mut </span>bindings).is_ok();
+                <span class="kw">if </span>!unifies {
+                    <span class="comment">// // TODO(https://github.com/noir-lang/noir/issues/10537): the following comment
+                    // // on unifying 'object_type' with 'expected_object_type' is out of date because
+                    // // attempting to unify the return type of 'method_type' with 'result_type' is
+                    // // failing sometimes, e.g. the following 'panic!' message is being reached when running
+                    // // 'cargo run check' in the 'noir_stdlib':
+                    // // type_check_operator_method: ret: Ordering, return_type: bool, args: ['6832, '6832], object_type: T'67, definition_name: "cmp"
+                    // let definition_name = &amp;self.interner.definition(trait_method_id.item_id).name;
+                    // panic!("type_check_operator_method: ret: {ret:?}, return_type: {return_type:?}, args: {args:?}, object_type: {object_type:?}, definition_name: {definition_name:?}");
+                </span>}
+
                 <span class="comment">// We can cheat a bit and match against only the object type here since no operator
                 // overload uses other generic parameters or return types aside from the object type.
                 </span><span class="kw">let </span>expected_object_type = <span class="kw-2">&amp;</span>args[<span class="number">0</span>];
@@ -4630,8 +4688,8 @@
         check_self_param: bool,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
         <span class="kw">match </span>object_type.follow_bindings() {
-            <span class="comment">// TODO: We should allow method calls on `impl Trait`s eventually.
-            //       For now it is fine since they are only allowed on return types.
+            <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
+            // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
             </span>Type::TraitAsType(..) =&gt; {
                 <span class="self">self</span>.push_err(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
@@ -4646,7 +4704,8 @@
                 location,
                 object_location,
             ),
-            <span class="comment">// References to another type should resolve to methods of their element type.
+            <span class="comment">// `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
+            // References to another type should resolve to methods of their element type.
             // This may be a data type or a primitive type.
             </span>Type::Reference(element, _mutable) =&gt; <span class="self">self</span>.lookup_method(
                 <span class="kw-2">&amp;</span>element,
@@ -4803,12 +4862,12 @@
                     <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                     <span class="self">self</span>.fully_qualified_trait_path(trait_)
                 });
-                <span class="kw">let </span>method = <span class="prelude-val">None</span>;
+                <span class="kw">let </span>method_not_found = <span class="prelude-val">None</span>;
                 <span class="kw">let </span>error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), location),
                     traits,
                 };
-                <span class="kw">return </span>(method, <span class="prelude-val">Some</span>(error));
+                <span class="kw">return </span>(method_not_found, <span class="prelude-val">Some</span>(error));
             }
         }
 
@@ -4817,12 +4876,12 @@
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="self">self</span>.fully_qualified_trait_path(trait_)
             });
-            <span class="kw">let </span>method = <span class="prelude-val">None</span>;
+            <span class="kw">let </span>method_not_found = <span class="prelude-val">None</span>;
             <span class="kw">let </span>error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), location),
                 traits,
             };
-            <span class="kw">return </span>(method, <span class="prelude-val">Some</span>(error));
+            <span class="kw">return </span>(method_not_found, <span class="prelude-val">Some</span>(error));
         }
 
         <span class="kw">let </span>trait_id = traits_in_scope[<span class="number">0</span>].<span class="number">0</span>;
@@ -4849,11 +4908,12 @@
         </span><span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
         <span class="kw">let </span>trait_generics = trait_.get_trait_generics(location);
         <span class="kw">let </span>definition = trait_.find_method(method_name, <span class="self">self</span>.interner).unwrap();
+        <span class="kw">let </span>assumed = <span class="bool-val">false</span>;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
             definition,
             trait_id,
             trait_generics,
-            assumed: <span class="bool-val">false</span>,
+            assumed,
         })
     }
 
@@ -4890,11 +4950,12 @@
                 );
                 <span class="kw">if </span>matches.len() == <span class="number">1 </span>{
                     <span class="kw">let </span>method = matches.remove(<span class="number">0</span>);
+                    <span class="kw">let </span>assumed = <span class="bool-val">true</span>;
                     <span class="comment">// If it is, it's an assumed trait
                     // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
                     // might return a method on a parent trait.
                     </span><span class="kw">return </span><span class="prelude-val">Some</span>(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                        assumed: <span class="bool-val">true</span>,
+                        assumed,
                         ..method
                     }));
                 }
@@ -4988,11 +5049,12 @@
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_method) = the_trait.find_method(method_name, <span class="self">self</span>.interner) {
             <span class="kw">let </span>trait_generics = trait_bound.trait_generics.clone();
+            <span class="kw">let </span>assumed = <span class="bool-val">false</span>;
             <span class="kw">let </span>trait_method = HirTraitMethodReference {
                 definition: trait_method,
                 trait_id: the_trait.id,
                 trait_generics,
-                assumed: <span class="bool-val">false</span>,
+                assumed,
             };
             matches.push(trait_method);
         }
@@ -5147,7 +5209,7 @@
         <span class="kw">let </span>(expr_location, empty_function) = <span class="self">self</span>.function_info(body_id);
         <span class="kw">let </span>declared_return_type = meta.return_type();
 
-        <span class="kw">let </span>func_location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>body_id); <span class="comment">// XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        <span class="kw">let </span>func_location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>body_id); <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         </span><span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
             <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             <span class="kw">if </span><span class="self">self

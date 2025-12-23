@@ -126,7 +126,11 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -210,7 +214,8 @@
         struct_id: TypeId,
     ) -&gt; Vec&lt;StructField&gt; {
         <span class="self">self</span>.recover_generics(|this| {
-            this.current_item = <span class="prelude-val">Some</span>(DependencyId::Struct(struct_id));
+            <span class="kw">let </span>previous_item =
+                std::mem::replace(<span class="kw-2">&amp;mut </span>this.current_item, <span class="prelude-val">Some</span>(DependencyId::Struct(struct_id)));
 
             this.resolving_ids.insert(struct_id);
 
@@ -219,13 +224,15 @@
 
             <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
             <span class="kw">let </span>fields = vecmap(<span class="kw-2">&amp;</span>unresolved.fields, |field| {
+                <span class="kw">let </span>visibility = field.item.visibility;
                 <span class="kw">let </span>name = field.item.name.clone();
                 <span class="kw">let </span>typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
-                <span class="kw">let </span>visibility = field.item.visibility;
                 StructField { visibility, name, typ }
             });
 
             this.resolving_ids.remove(<span class="kw-2">&amp;</span>struct_id);
+
+            this.current_item = previous_item;
 
             fields
         })
@@ -235,7 +242,8 @@
     ///
     /// This check must happen after all struct fields are resolved to ensure we have
     /// complete type information. We only check structs without generics here, as
-    /// generic structs are validated after monomorphization during SSA codegen.
+    /// generic structs are validated during monomorphization and after monomorphization
+    /// during SSA codegen.
     </span><span class="kw">fn </span>check_for_nested_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_ids: <span class="kw-2">&amp;</span>[TypeId]) {
         <span class="kw">for </span>id <span class="kw">in </span>struct_ids {
             <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>id);

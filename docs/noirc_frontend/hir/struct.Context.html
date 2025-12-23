@@ -76,7 +76,7 @@ will return all functions marked with <code>#[fuzz]</code>.</p>
     interner: &amp;<a class="struct" href="../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
     generics: &amp;<a class="type" href="../ast/type.UnresolvedGenerics.html" title="type noirc_frontend::ast::UnresolvedGenerics">UnresolvedGenerics</a>,
     errors: &amp;mut <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="def_collector/dc_crate/enum.CompilationError.html" title="enum noirc_frontend::hir::def_collector::dc_crate::CompilationError">CompilationError</a>&gt;,
-) -&gt; <a class="type" href="../hir_def/types/type.Generics.html" title="type noirc_frontend::hir_def::types::Generics">Generics</a></h4></section></summary><div class="docblock"><p>Generics need to be resolved before elaboration to distinguish
+) -&gt; <a class="type" href="../hir_def/types/type.ResolvedGenerics.html" title="type noirc_frontend::hir_def::types::ResolvedGenerics">ResolvedGenerics</a></h4></section></summary><div class="docblock"><p>Generics need to be resolved before elaboration to distinguish
 between normal and numeric generics.
 This method is expected to be used during definition collection.
 Each result is returned in a list rather than returned as a single result as to allow

@@ -327,7 +327,7 @@
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
@@ -351,7 +351,7 @@
 
     <span class="doccomment">/// Add the given generics to scope.
     /// Each generic will have a fresh `Shared&lt;TypeBinding&gt;` associated with it.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: <span class="kw-2">&amp;</span>UnresolvedGenerics) -&gt; Generics {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: <span class="kw-2">&amp;</span>UnresolvedGenerics) -&gt; ResolvedGenerics {
         vecmap(generics, |generic| {
             <span class="kw">let </span><span class="kw-2">mut </span>is_error = <span class="bool-val">false</span>;
             <span class="kw">let </span>(type_var, name) = <span class="kw">match </span><span class="self">self</span>.resolve_generic(generic) {
@@ -392,7 +392,7 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_existing_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         unresolved_generics: <span class="kw-2">&amp;</span>UnresolvedGenerics,
-        generics: <span class="kw-2">&amp;</span>Generics,
+        generics: <span class="kw-2">&amp;</span>ResolvedGenerics,
     ) {
         <span class="macro">assert_eq!</span>(unresolved_generics.len(), generics.len());
 

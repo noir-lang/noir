@@ -5803,7 +5803,7 @@
             expression: Box::new(env_tuple),
         });
 
-        <span class="kw">let </span>location = <span class="prelude-val">None</span>; <span class="comment">// TODO: This should match the location of the lambda expression
+        <span class="kw">let </span>location = <span class="prelude-val">None</span>; <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
         </span><span class="kw">let </span>mutable = <span class="bool-val">true</span>;
         <span class="kw">let </span>definition = Definition::Local(env_local_id);
 
@@ -5830,7 +5830,7 @@
         <span class="kw">let </span>lambda_fn = ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
             mutable: <span class="bool-val">false</span>,
-            location: <span class="prelude-val">None</span>, <span class="comment">// TODO: This should match the location of the lambda expression
+            location: <span class="prelude-val">None</span>, <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
             </span>name: name.clone(),
             typ: lambda_fn_typ.clone(),
             id: <span class="self">self</span>.next_ident_id(),
@@ -5898,7 +5898,7 @@
                 <span class="kw">let </span>msg = <span class="string">"match failure"</span>;
                 <span class="kw">let </span>msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
 
-                <span class="kw">let </span>u32_type = HirType::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                <span class="kw">let </span>u32_type = HirType::u32();
                 <span class="kw">let </span>length = (msg.len() <span class="kw">as </span>u128).into();
                 <span class="kw">let </span>length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
                 <span class="kw">let </span>msg_type = HirType::String(Box::new(length));

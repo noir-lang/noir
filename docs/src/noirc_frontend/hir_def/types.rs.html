@@ -3238,7 +3238,16 @@
 <a href="#3237" id="3237">3237</a>
 <a href="#3238" id="3238">3238</a>
 <a href="#3239" id="3239">3239</a>
-<a href="#3240" id="3240">3240</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3240" id="3240">3240</a>
+<a href="#3241" id="3241">3241</a>
+<a href="#3242" id="3242">3242</a>
+<a href="#3243" id="3243">3243</a>
+<a href="#3244" id="3244">3244</a>
+<a href="#3245" id="3245">3245</a>
+<a href="#3246" id="3246">3246</a>
+<a href="#3247" id="3247">3247</a>
+<a href="#3248" id="3248">3248</a>
+<a href="#3249" id="3249">3249</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3299,6 +3308,7 @@
 
     <span class="doccomment">/// `FmtString(N, Vec&lt;E&gt;)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
+    /// and where N is either a type variable of some kind or a Type::Constant
     </span>FmtString(Box&lt;Type&gt;, Box&lt;Type&gt;),
 
     <span class="doccomment">/// The unit type `()`.
@@ -3318,7 +3328,7 @@
     </span>Alias(Shared&lt;TypeAlias&gt;, Vec&lt;Type&gt;),
 
     <span class="doccomment">/// TypeVariables are stand-in variables for some type which is not yet known.
-    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// They are not to be confused with NamedGenerics. While the latter mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
     /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
@@ -3356,7 +3366,7 @@
     <span class="doccomment">/// &amp;T
     </span>Reference(Box&lt;Type&gt;, <span class="comment">/*mutable*/ </span>bool),
 
-    <span class="doccomment">/// A type generic over the given type variables.
+    <span class="doccomment">/// A type that's generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
@@ -3439,7 +3449,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>u32() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
+        <span class="self">Self</span>::numeric(Type::u32())
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>follow_bindings(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
@@ -3596,7 +3606,7 @@
     /// since these will handle applying generic arguments to fields as well.
     </span>body: TypeBody,
 
-    <span class="kw">pub </span>generics: Generics,
+    <span class="kw">pub </span>generics: ResolvedGenerics,
     <span class="kw">pub </span>location: Location,
 
     <span class="kw">pub </span>must_use: MustUse,
@@ -3651,7 +3661,7 @@
 <span class="doccomment">/// Corresponds to generic lists such as `&lt;T, U&gt;` with additional
 /// information gathered during name resolution that is necessary
 /// correctly resolving types.
-</span><span class="kw">pub type </span>Generics = Vec&lt;ResolvedGeneric&gt;;
+</span><span class="kw">pub type </span>ResolvedGenerics = Vec&lt;ResolvedGeneric&gt;;
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>ResolvedGeneric {
@@ -3705,7 +3715,7 @@
         id: TypeId,
         name: Ident,
         location: Location,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
     ) -&gt; DataType {
         DataType {
@@ -3850,7 +3860,11 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         generic_args: <span class="kw-2">&amp;</span>[Type],
     ) -&gt; HashMap&lt;TypeVariableId, (TypeVariable, Kind, Type)&gt; {
-        <span class="macro">assert_eq!</span>(<span class="self">self</span>.generics.len(), generic_args.len());
+        <span class="macro">assert_eq!</span>(
+            <span class="self">self</span>.generics.len(),
+            generic_args.len(),
+            <span class="string">"get_fields_substitutions: expected the number of generics to equal the number of generic_args"
+        </span>);
 
         <span class="self">self</span>.generics
             .iter()
@@ -3956,7 +3970,7 @@
     <span class="kw">pub </span>name: Ident,
     <span class="kw">pub </span>id: TypeAliasId,
     <span class="kw">pub </span>typ: Type,
-    <span class="kw">pub </span>generics: Generics,
+    <span class="kw">pub </span>generics: ResolvedGenerics,
     <span class="kw">pub </span>visibility: ItemVisibility,
     <span class="kw">pub </span>location: Location,
     <span class="doccomment">/// Optional expression, used by type aliases to numeric generics
@@ -4000,7 +4014,7 @@
         name: Ident,
         location: Location,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -&gt; TypeAlias {
@@ -4010,7 +4024,7 @@
     <span class="kw">pub fn </span>set_type_and_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         new_typ: Type,
-        new_generics: Generics,
+        new_generics: ResolvedGenerics,
         num_expr: <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt;,
     ) {
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.typ, Type::Error);
@@ -4451,6 +4465,10 @@
     }
 
     <span class="kw">pub fn </span>default_int_type() -&gt; Type {
+        <span class="self">Self</span>::u32()
+    }
+
+    <span class="kw">pub fn </span>u32() -&gt; Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 

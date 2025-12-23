@@ -994,8 +994,8 @@
     <span class="kw">match </span>value {
         Value::U32(value) =&gt; <span class="prelude-val">Ok</span>(value),
         value =&gt; {
-            <span class="kw">let </span>expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            type_mismatch(value, expected.to_string(), location)
+            <span class="kw">let </span>expected = Type::u32().to_string();
+            type_mismatch(value, expected, location)
         }
     }
 }

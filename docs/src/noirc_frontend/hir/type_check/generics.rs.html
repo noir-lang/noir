@@ -246,20 +246,14 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cell::Ref;
+<a href="#248" id="248">248</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cell::Ref;
 
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
     DataType, Kind, ResolvedGeneric, Type,
-    ast::IntegerBitSize,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
-    shared::Signedness,
 };
 
 <span class="doccomment">/// Represents something that can be generic over type variables
@@ -390,8 +384,7 @@
     }
 
     <span class="kw">fn </span>generic_kinds(<span class="kw-2">&amp;</span><span class="self">self</span>, _interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; Vec&lt;Kind&gt; {
-        <span class="kw">let </span>length =
-            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        <span class="kw">let </span>length = Kind::u32();
         <span class="macro">vec!</span>[length]
     }
 
@@ -416,8 +409,7 @@
     }
 
     <span class="kw">fn </span>generic_kinds(<span class="kw-2">&amp;</span><span class="self">self</span>, _interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; Vec&lt;Kind&gt; {
-        <span class="kw">let </span>length =
-            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        <span class="kw">let </span>length = Kind::u32();
         <span class="kw">let </span>element = Kind::Normal;
         <span class="macro">vec!</span>[length, element]
     }

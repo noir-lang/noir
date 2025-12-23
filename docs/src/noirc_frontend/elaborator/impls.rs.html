@@ -467,7 +467,7 @@
                 }
             } <span class="kw">else </span>{
                 <span class="kw">let </span>is_primitive = self_type.is_primitive();
-                <span class="self">self</span>.push_err(DefCollectorErrorKind::NonStructTypeInImpl {
+                <span class="self">self</span>.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
                     location,
                     is_primitive,
                 });

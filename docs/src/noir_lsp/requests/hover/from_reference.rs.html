@@ -1081,7 +1081,7 @@
 <span class="kw">use </span>noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{
-    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    DataType, EnumVariant, ResolvedGenerics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
@@ -1687,21 +1687,21 @@
     string
 }
 
-<span class="kw">fn </span>format_generics(generics: <span class="kw-2">&amp;</span>Generics, string: <span class="kw-2">&amp;mut </span>String) {
+<span class="kw">fn </span>format_generics(generics: <span class="kw-2">&amp;</span>ResolvedGenerics, string: <span class="kw-2">&amp;mut </span>String) {
     format_generics_impl(
         generics, <span class="bool-val">false</span>, <span class="comment">// only show names
         </span>string,
     );
 }
 
-<span class="kw">fn </span>format_generic_names(generics: <span class="kw-2">&amp;</span>Generics, string: <span class="kw-2">&amp;mut </span>String) {
+<span class="kw">fn </span>format_generic_names(generics: <span class="kw-2">&amp;</span>ResolvedGenerics, string: <span class="kw-2">&amp;mut </span>String) {
     format_generics_impl(
         generics, <span class="bool-val">true</span>, <span class="comment">// only show names
         </span>string,
     );
 }
 
-<span class="kw">fn </span>format_generics_impl(generics: <span class="kw-2">&amp;</span>Generics, only_show_names: bool, string: <span class="kw-2">&amp;mut </span>String) {
+<span class="kw">fn </span>format_generics_impl(generics: <span class="kw-2">&amp;</span>ResolvedGenerics, only_show_names: bool, string: <span class="kw-2">&amp;mut </span>String) {
     <span class="kw">if </span>generics.is_empty() {
         <span class="kw">return</span>;
     }

@@ -1370,7 +1370,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::visibility::module_def_id_visibility;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::TraitImplId;
 <span class="kw">use crate</span>::{
-    DataType, Generics, Kind, NamedGeneric, Type,
+    DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
     ast::{Ident, ItemVisibility},
     graph::Dependency,
     hir::{
@@ -2052,7 +2052,7 @@
         <span class="self">self</span>.push(<span class="string">'&gt;'</span>);
     }
 
-    <span class="kw">fn </span>show_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: <span class="kw-2">&amp;</span>Generics) {
+    <span class="kw">fn </span>show_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: <span class="kw-2">&amp;</span>ResolvedGenerics) {
         <span class="kw">if </span>generics.is_empty() {
             <span class="kw">return</span>;
         }

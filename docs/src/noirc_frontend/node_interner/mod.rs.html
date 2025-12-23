@@ -1555,7 +1555,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::token::MetaAttribute;
 <span class="kw">use </span><span class="kw">crate</span>::token::MetaAttributeName;
 
-<span class="kw">use </span><span class="kw">crate</span>::Generics;
+<span class="kw">use </span><span class="kw">crate</span>::ResolvedGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::TraitAssociatedType;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
@@ -2077,8 +2077,8 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         type_id: TraitId,
         unresolved_trait: <span class="kw-2">&amp;</span>UnresolvedTrait,
-        generics: Generics,
-        associated_types: Generics,
+        generics: ResolvedGenerics,
+        associated_types: ResolvedGenerics,
         associated_constant_ids: HashMap&lt;String, DefinitionId&gt;,
     ) {
         <span class="kw">let </span>new_trait = Trait {
@@ -2109,7 +2109,7 @@
         name: Ident,
         span: Span,
         attributes: Vec&lt;SecondaryAttribute&gt;,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
@@ -2127,7 +2127,7 @@
     <span class="kw">pub fn </span>push_type_alias(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>UnresolvedTypeAlias,
-        generics: Generics,
+        generics: ResolvedGenerics,
     ) -&gt; TypeAliasId {
         <span class="kw">let </span>type_id = TypeAliasId(<span class="self">self</span>.type_aliases.len());
 
@@ -2179,7 +2179,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         type_id: TypeAliasId,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         num_expr: <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt;,
     ) {
         <span class="kw">let </span>type_alias_type = <span class="kw-2">&amp;mut </span><span class="self">self</span>.type_aliases[type_id.<span class="number">0</span>];

@@ -343,7 +343,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner, TypeId};
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserError;
 <span class="kw">use </span><span class="kw">crate</span>::usage_tracker::UsageTracker;
-<span class="kw">use crate</span>::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
+<span class="kw">use crate</span>::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, TypeVariable};
 <span class="kw">use </span>def_collector::dc_crate::CompilationError;
 <span class="kw">use </span>def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 <span class="kw">use </span>fm::{FileId, FileManager};
@@ -570,7 +570,7 @@
         interner: <span class="kw-2">&amp;</span>NodeInterner,
         generics: <span class="kw-2">&amp;</span>UnresolvedGenerics,
         errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-    ) -&gt; Generics {
+    ) -&gt; ResolvedGenerics {
         vecmap(generics, |generic| {
             <span class="comment">// Map the generic to a fresh type variable
             </span><span class="kw">let </span>id = interner.next_type_variable_id();

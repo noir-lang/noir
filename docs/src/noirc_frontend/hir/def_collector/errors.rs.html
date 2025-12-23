@@ -348,8 +348,8 @@
     </span>PathResolutionError(PathResolutionError),
     <span class="attr">#[error(<span class="string">"Cannot re-export {item_name} because it has less visibility than this use statement"</span>)]
     </span>CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
-    <span class="attr">#[error(<span class="string">"Non-struct type used in impl"</span>)]
-    </span>NonStructTypeInImpl { location: Location, is_primitive: bool },
+    <span class="attr">#[error(<span class="string">"Non-enum, non-struct type used in impl"</span>)]
+    </span>NonEnumNonStructTypeInImpl { location: Location, is_primitive: bool },
     <span class="attr">#[error(<span class="string">"Cannot implement trait on a reference type"</span>)]
     </span>ReferenceInTraitImpl { location: Location },
     <span class="attr">#[error(<span class="string">"Impl for type `{typ}` overlaps with existing impl"</span>)]
@@ -415,7 +415,7 @@
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
-            | DefCollectorErrorKind::NonStructTypeInImpl { location, .. }
+            | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, .. }
             | DefCollectorErrorKind::ReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
@@ -507,7 +507,7 @@
                     <span class="macro">format!</span>(<span class="string">"consider marking {item_name} as {desired_visibility}"</span>),
                     item_name.location())
             }
-            DefCollectorErrorKind::NonStructTypeInImpl { location, is_primitive } =&gt;{
+            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, is_primitive } =&gt;{
                 <span class="kw">if </span><span class="kw-2">*</span>is_primitive {
                     Diagnostic::simple_error(
                         <span class="string">"Cannot define inherent `impl` for primitive types"</span>.into(),
@@ -516,15 +516,15 @@
                     )
                 }<span class="kw">else</span>{
                     Diagnostic::simple_error(
-                        <span class="string">"Non-struct type used in impl"</span>.into(),
-                        <span class="string">"Only struct types may have implementation methods"</span>.into(),
+                        <span class="string">"Non-enum, non-struct type used in impl"</span>.into(),
+                        <span class="string">"Only enum and struct types may have implementation methods"</span>.into(),
                         <span class="kw-2">*</span>location,
                     )
                 }
             }
             DefCollectorErrorKind::ReferenceInTraitImpl { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"Trait impls are not allowed on reference types"</span>.into(),
-                <span class="string">"Try using a struct type here instead"</span>.into(),
+                <span class="string">"Try using a struct or enum type here instead"</span>.into(),
                 <span class="kw-2">*</span>location,
             ),
             DefCollectorErrorKind::OverlappingImpl { location, typ, prev_location } =&gt; {

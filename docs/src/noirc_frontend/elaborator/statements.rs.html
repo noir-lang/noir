@@ -643,16 +643,15 @@
 <a href="#642" id="642">642</a>
 <a href="#643" id="643">643</a>
 <a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
+<a href="#645" id="645">645</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     Type,
     ast::{
-        AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
-        LoopStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
     elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
@@ -668,7 +667,6 @@
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
-    shared::Signedness,
 };
 
 <span class="kw">use super</span>::{Elaborator, Loop};
@@ -1140,7 +1138,7 @@
                 <span class="kw">let </span>expr_location = index.location;
                 <span class="kw">let </span>(<span class="kw-2">mut </span>index, index_type) = <span class="self">self</span>.elaborate_expression(index);
 
-                <span class="kw">let </span>expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                <span class="kw">let </span>expected = Type::u32();
                 <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>index_type, <span class="kw-2">&amp;</span>expected, || TypeCheckError::TypeMismatchWithSource {
                     expected: expected.clone(),
                     actual: index_type.clone(),

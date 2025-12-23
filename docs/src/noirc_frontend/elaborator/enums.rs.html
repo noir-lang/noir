@@ -1452,7 +1452,33 @@
 <a href="#1451" id="1451">1451</a>
 <a href="#1452" id="1452">1452</a>
 <a href="#1453" id="1453">1453</a>
-<a href="#1454" id="1454">1454</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
 
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
@@ -2392,7 +2418,7 @@
         <span class="self">self</span>.push_tests_against_bare_variables(<span class="kw-2">&amp;mut </span>rows);
 
         <span class="comment">// If the first row is a match-all we match it and the remaining rows are ignored.
-        </span><span class="kw">if </span>rows.first().is_some_and(|row| row.columns.is_empty()) {
+        </span><span class="kw">if </span>rows.first().unwrap().columns.is_empty() {
             <span class="kw">let </span>row = rows.remove(<span class="number">0</span>);
 
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="kw">match </span>row.guard {
@@ -2408,7 +2434,6 @@
         }
 
         <span class="kw">let </span>branch_var = <span class="self">self</span>.branch_variable(<span class="kw-2">&amp;</span>rows);
-        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.definition(branch_var).location;
 
         <span class="kw">let </span>definition_type = <span class="self">self</span>.elaborator.interner.definition_type(branch_var);
         <span class="kw">match </span>definition_type.follow_bindings_shallow().into_owned() {
@@ -2436,16 +2461,18 @@
                 <span class="prelude-val">Ok</span>(HirMatch::Switch(branch_var, cases, fallback))
             }
             Type::Tuple(fields) =&gt; {
+                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.definition(branch_var).location;
                 <span class="kw">let </span>field_variables = <span class="self">self</span>.fresh_match_variables(fields.clone(), location);
                 <span class="kw">let </span>cases = <span class="macro">vec!</span>[(Constructor::Tuple(fields), field_variables, Vec::new())];
                 <span class="kw">let </span>(cases, fallback) = <span class="self">self</span>.compile_constructor_cases(rows, branch_var, cases)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(HirMatch::Switch(branch_var, cases, fallback))
             }
-            Type::DataType(type_def, generics) =&gt; {
-                <span class="kw">let </span>def = type_def.borrow();
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(variants) = def.get_variants(<span class="kw-2">&amp;</span>generics) {
-                    drop(def);
-                    <span class="kw">let </span>typ = Type::DataType(type_def, generics);
+            Type::DataType(type_definition, generics) =&gt; {
+                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.definition(branch_var).location;
+                <span class="kw">let </span>definition = type_definition.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(variants) = definition.get_variants(<span class="kw-2">&amp;</span>generics) {
+                    drop(definition);
+                    <span class="kw">let </span>typ = Type::DataType(type_definition, generics);
 
                     <span class="kw">let </span>cases = vecmap(variants.iter().enumerate(), |(idx, (_name, args))| {
                         <span class="kw">let </span>constructor = Constructor::Variant(typ.clone(), idx);
@@ -2456,9 +2483,9 @@
                     <span class="kw">let </span>(cases, fallback) =
                         <span class="self">self</span>.compile_constructor_cases(rows, branch_var, cases)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(HirMatch::Switch(branch_var, cases, fallback))
-                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(fields) = def.get_fields(<span class="kw-2">&amp;</span>generics) {
-                    drop(def);
-                    <span class="kw">let </span>typ = Type::DataType(type_def, generics);
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(fields) = definition.get_fields(<span class="kw-2">&amp;</span>generics) {
+                    drop(definition);
+                    <span class="kw">let </span>typ = Type::DataType(type_definition, generics);
 
                     <span class="comment">// Just treat structs as a single-variant type
                     </span><span class="kw">let </span>fields = vecmap(fields, |(_name, typ, <span class="kw">_</span>)| typ);
@@ -2469,8 +2496,8 @@
                         <span class="self">self</span>.compile_constructor_cases(rows, branch_var, cases)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(HirMatch::Switch(branch_var, cases, fallback))
                 } <span class="kw">else </span>{
-                    drop(def);
-                    <span class="kw">let </span>typ = Type::DataType(type_def, generics);
+                    drop(definition);
+                    <span class="kw">let </span>typ = Type::DataType(type_definition, generics);
                     <span class="prelude-val">Err</span>(ResolverError::TypeUnsupportedInMatch { typ, location })
                 }
             }
@@ -2478,20 +2505,25 @@
             </span>typ @ (Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Vector(<span class="kw">_</span>)
             | Type::String(<span class="kw">_</span>)
-            <span class="comment">// But we'll never be able to match on these
+            <span class="comment">// Some of these may be possible to match on:
+            </span>| Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Reference(..)
+            | Type::Quoted(<span class="kw">_</span>)
+
+            <span class="comment">// These seem unlikely to be able to be matched on:
+            </span>| Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::CheckedCast { .. }
+            | Type::NamedGeneric(<span class="kw">_</span>)
+
+            <span class="comment">// But we don't expect to ever be able to match on these:
             </span>| Type::Alias(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::TypeVariable(<span class="kw">_</span>)
-            | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::NamedGeneric(<span class="kw">_</span>)
-            | Type::CheckedCast { .. }
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::Quoted(<span class="kw">_</span>)
             | Type::InfixExpr(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Error) =&gt; {
+                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.definition(branch_var).location;
                 <span class="prelude-val">Err</span>(ResolverError::TypeUnsupportedInMatch { typ, location })
             },
         }
@@ -2514,8 +2546,16 @@
         location: Location,
     ) -&gt; DefinitionId {
         <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"internal_match_variable_{index}"</span>);
-        <span class="kw">let </span>kind = DefinitionKind::Local(<span class="prelude-val">None</span>);
-        <span class="kw">let </span>id = <span class="self">self</span>.elaborator.interner.push_definition(name, <span class="bool-val">false</span>, <span class="bool-val">false</span>, kind, location);
+        <span class="kw">let </span>definition_kind = DefinitionKind::Local(<span class="prelude-val">None</span>);
+        <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
+        <span class="kw">let </span>comptime = <span class="bool-val">false</span>;
+        <span class="kw">let </span>id = <span class="self">self</span>.elaborator.interner.push_definition(
+            name,
+            mutable,
+            comptime,
+            definition_kind,
+            location,
+        );
         <span class="self">self</span>.elaborator.interner.push_definition_type(id, variable_type);
         id
     }
@@ -2529,8 +2569,9 @@
         rows: Vec&lt;Row&gt;,
         branch_var: DefinitionId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;Case&gt;, Box&lt;HirMatch&gt;), ResolverError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>raw_cases: Vec&lt;(Constructor, Vec&lt;DefinitionId&gt;, Vec&lt;Row&gt;)&gt; = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>fallback_rows = Vec::new();
+        <span class="comment">// Elements of 'raw_cases' are of the form (Constructor, Variables, Rows)
+        </span><span class="kw">let </span><span class="kw-2">mut </span>raw_cases: Vec&lt;(Constructor, Vec&lt;DefinitionId&gt;, Vec&lt;Row&gt;)&gt; = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>fallback_rows: Vec&lt;Row&gt; = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>tested: HashMap&lt;(SignedField, SignedField), usize&gt; = HashMap::default();
 
         <span class="kw">for </span><span class="kw-2">mut </span>row <span class="kw">in </span>rows {
@@ -2550,22 +2591,22 @@
 
                 tested.insert(key, raw_cases.len());
 
-                <span class="kw">let </span><span class="kw-2">mut </span>rows = fallback_rows.clone();
+                <span class="kw">let </span><span class="kw-2">mut </span>inner_rows = fallback_rows.clone();
 
-                rows.push(row);
-                raw_cases.push((cons, Vec::new(), rows));
+                inner_rows.push(row);
+                raw_cases.push((cons, Vec::new(), inner_rows));
             } <span class="kw">else </span>{
-                <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, rows) <span class="kw">in </span><span class="kw-2">&amp;mut </span>raw_cases {
-                    rows.push(row.clone());
+                <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, inner_rows) <span class="kw">in </span><span class="kw-2">&amp;mut </span>raw_cases {
+                    inner_rows.push(row.clone());
                 }
 
                 fallback_rows.push(row);
             }
         }
 
-        <span class="kw">let </span>cases = try_vecmap(raw_cases, |(cons, vars, rows)| {
+        <span class="kw">let </span>cases = try_vecmap(raw_cases, |(constructors, variables, rows)| {
             <span class="kw">let </span>rows = <span class="self">self</span>.compile_rows(rows)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, ResolverError&gt;(Case::new(cons, vars, rows))
+            <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, ResolverError&gt;(Case::new(constructors, variables, rows))
         })<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>((cases, Box::new(<span class="self">self</span>.compile_rows(fallback_rows)<span class="question-mark">?</span>)))
@@ -2622,6 +2663,14 @@
         }
 
         <span class="kw">let </span>cases = try_vecmap(cases, |(cons, vars, rows)| {
+            <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+                cons,
+                Constructor::True
+                    | Constructor::False
+                    | Constructor::Unit
+                    | Constructor::Tuple(<span class="kw">_</span>)
+                    | Constructor::Variant(..)
+            ));
             <span class="kw">let </span>rows = <span class="self">self</span>.compile_rows(rows)<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, ResolverError&gt;(Case::new(cons, vars, rows))
         })<span class="question-mark">?</span>;
@@ -2631,7 +2680,7 @@
 
     <span class="doccomment">/// Move any cases with duplicate branches into a shared 'else' branch
     </span><span class="kw">fn </span>deduplicate_cases(<span class="kw-2">mut </span>cases: Vec&lt;Case&gt;) -&gt; (Vec&lt;Case&gt;, <span class="prelude-ty">Option</span>&lt;Box&lt;HirMatch&gt;&gt;) {
-        <span class="kw">let </span><span class="kw-2">mut </span>else_case = <span class="prelude-val">None</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>opt_else_case = <span class="prelude-val">None</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>ending_cases = Vec::with_capacity(cases.len());
         <span class="kw">let </span><span class="kw-2">mut </span>previous_case: <span class="prelude-ty">Option</span>&lt;Case&gt; = <span class="prelude-val">None</span>;
 
@@ -2645,7 +2694,7 @@
         //   case, not just the first duplicated case we find. I suspect in most
         //   actual code snippets these are the same but it could still be nice to guarantee.
         </span><span class="kw">while let </span><span class="prelude-val">Some</span>(case) = cases.pop() {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(else_case) = <span class="kw-2">&amp;</span>else_case {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(else_case) = <span class="kw-2">&amp;</span>opt_else_case {
                 <span class="kw">if </span>case.body == <span class="kw-2">*</span>else_case {
                     <span class="comment">// Delete the current case by not pushing it to `ending_cases`
                     </span><span class="kw">continue</span>;
@@ -2654,8 +2703,8 @@
                 }
             } <span class="kw">else if let </span><span class="prelude-val">Some</span>(previous) = previous_case {
                 <span class="kw">if </span>case.body == previous.body {
-                    <span class="comment">// else_case is known to be None here
-                    </span>else_case = <span class="prelude-val">Some</span>(previous.body);
+                    <span class="comment">// opt_else_case is known to be None here
+                    </span>opt_else_case = <span class="prelude-val">Some</span>(previous.body);
 
                     <span class="comment">// Delete both previous_case and case
                     </span>previous_case = <span class="prelude-val">None</span>;
@@ -2674,11 +2723,13 @@
         }
 
         ending_cases.reverse();
-        (ending_cases, else_case.map(Box::new))
+        (ending_cases, opt_else_case.map(Box::new))
     }
 
-    <span class="doccomment">/// Return the variable that was referred to the most in `rows`
+    <span class="doccomment">/// Return the variable that was referred to the most in `rows`, or panic if there are zero
+    /// `rows`
     </span><span class="kw">fn </span>branch_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rows: <span class="kw-2">&amp;</span>[Row]) -&gt; DefinitionId {
+        <span class="macro">assert!</span>(!rows.is_empty(), <span class="string">"ICE branch_variable: expected at least one row"</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>counts = HashMap::default();
 
         <span class="kw">for </span>row <span class="kw">in </span>rows {
@@ -2826,13 +2877,13 @@
     <span class="kw">fn </span>missing_cases(<span class="kw-2">&amp;</span><span class="self">self</span>, cases: <span class="kw-2">&amp;</span>[Case], typ: <span class="kw-2">&amp;</span>Type) -&gt; Vec&lt;(String, Vec&lt;DefinitionId&gt;)&gt; {
         <span class="comment">// We expect `cases` to come from a `Switch` which should always have
         // at least 2 cases, otherwise it should be a Success or Failure node.
-        </span><span class="kw">let </span>first = <span class="kw-2">&amp;</span>cases[<span class="number">0</span>];
+        </span><span class="kw">let </span>first_case = <span class="kw-2">&amp;</span>cases[<span class="number">0</span>];
 
-        <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>first.constructor, Constructor::Int(<span class="kw">_</span>) | Constructor::Range(..)) {
+        <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>first_case.constructor, Constructor::Int(<span class="kw">_</span>) | Constructor::Range(..)) {
             <span class="kw">return </span><span class="self">self</span>.missing_integer_cases(cases, typ);
         }
 
-        <span class="kw">let </span>all_constructors = first.constructor.all_constructors();
+        <span class="kw">let </span>all_constructors = first_case.constructor.all_constructors();
         <span class="kw">let </span><span class="kw-2">mut </span>all_constructors =
             btree_map(all_constructors, |(constructor, arg_count)| (constructor, arg_count));
 
@@ -2886,6 +2937,7 @@
             <span class="kw">if </span>range.start() == range.end() {
                 (<span class="macro">format!</span>(<span class="string">"{}"</span>, range.start()), Vec::new())
             } <span class="kw">else </span>{
+                <span class="macro">assert!</span>(range.start() &lt; range.end());
                 (<span class="macro">format!</span>(<span class="string">"{}..={}"</span>, range.start(), range.end()), Vec::new())
             }
         })
@@ -2895,7 +2947,7 @@
         starting_id: DefinitionId,
         env: <span class="kw-2">&amp;</span>HashMap&lt;DefinitionId, (String, Vec&lt;DefinitionId&gt;)&gt;,
     ) -&gt; String {
-        <span class="kw">let </span><span class="prelude-val">Some</span>((constructor, arguments)) = env.get(<span class="kw-2">&amp;</span>starting_id) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>((constructor_str, arguments)) = env.get(<span class="kw-2">&amp;</span>starting_id) <span class="kw">else </span>{
             <span class="kw">return </span>WILDCARD_PATTERN.to_string();
         };
 
@@ -2903,7 +2955,7 @@
 
         <span class="kw">let </span>args = vecmap(arguments, |arg| <span class="self">Self</span>::construct_missing_case(<span class="kw-2">*</span>arg, env)).join(<span class="string">", "</span>);
 
-        <span class="kw">if </span>no_arguments { constructor.clone() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{constructor}({args})"</span>) }
+        <span class="kw">if </span>no_arguments { constructor_str.clone() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{constructor_str}({args})"</span>) }
     }
 }
 </code></pre></div></section></main></body></html>

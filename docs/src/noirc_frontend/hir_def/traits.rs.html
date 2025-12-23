@@ -302,7 +302,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, NodeInterner};
 <span class="kw">use crate</span>::{
-    Generics, Type, TypeBindings, TypeVariable,
+    ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -317,7 +317,7 @@
     <span class="kw">pub </span>default_impl: <span class="prelude-ty">Option</span>&lt;Box&lt;NoirFunction&gt;&gt;,
     <span class="kw">pub </span>default_impl_module_id: <span class="kw">crate</span>::hir::def_map::LocalModuleId,
     <span class="kw">pub </span>trait_constraints: Vec&lt;TraitConstraint&gt;,
-    <span class="kw">pub </span>direct_generics: Generics,
+    <span class="kw">pub </span>direct_generics: ResolvedGenerics,
 }
 
 <span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
@@ -358,11 +358,11 @@
     /// the information needed to create the full TraitFunction.
     </span><span class="kw">pub </span>method_ids: HashMap&lt;String, FuncId&gt;,
 
-    <span class="kw">pub </span>associated_types: Generics,
+    <span class="kw">pub </span>associated_types: ResolvedGenerics,
     <span class="kw">pub </span>associated_type_bounds: HashMap&lt;String, Vec&lt;ResolvedTraitBound&gt;&gt;,
 
     <span class="kw">pub </span>name: Ident,
-    <span class="kw">pub </span>generics: Generics,
+    <span class="kw">pub </span>generics: ResolvedGenerics,
     <span class="kw">pub </span>location: Location,
     <span class="kw">pub </span>visibility: ItemVisibility,
 
@@ -377,7 +377,7 @@
 
     <span class="kw">pub </span>where_clause: Vec&lt;TraitConstraint&gt;,
 
-    <span class="kw">pub </span>all_generics: Generics,
+    <span class="kw">pub </span>all_generics: ResolvedGenerics,
 
     <span class="doccomment">/// Map from each associated constant's name to a unique DefinitionId for that constant.
     </span><span class="kw">pub </span>associated_constant_ids: HashMap&lt;String, DefinitionId&gt;,
@@ -489,7 +489,7 @@
         <span class="self">self</span>.visibility = visibility;
     }
 
-    <span class="kw">pub fn </span>set_all_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: Generics) {
+    <span class="kw">pub fn </span>set_all_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: ResolvedGenerics) {
         <span class="self">self</span>.all_generics = generics;
     }
 

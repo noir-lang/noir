@@ -614,7 +614,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::locations::ReferencesTracker;
 <span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 <span class="kw">use </span><span class="kw">crate</span>::usage_tracker::UnusedItem;
-<span class="kw">use crate</span>::{Generics, Type};
+<span class="kw">use crate</span>::{ResolvedGenerics, Type};
 
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::{ImportDirective, resolve_import};
@@ -702,7 +702,7 @@
     </span><span class="kw">pub </span>trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
     <span class="kw">pub </span>impl_id: <span class="prelude-ty">Option</span>&lt;TraitImplId&gt;,
     <span class="kw">pub </span>resolved_object_type: <span class="prelude-ty">Option</span>&lt;Type&gt;,
-    <span class="kw">pub </span>resolved_generics: Generics,
+    <span class="kw">pub </span>resolved_generics: ResolvedGenerics,
     <span class="kw">pub </span>unresolved_associated_types: Vec&lt;(Ident, UnresolvedType)&gt;,
 
     <span class="comment">// The resolved generic on the trait itself. E.g. it is the `&lt;C, D&gt;` in
