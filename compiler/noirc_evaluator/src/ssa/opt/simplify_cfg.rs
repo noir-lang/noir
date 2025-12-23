@@ -440,7 +440,7 @@ fn try_inline_into_predecessor(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},

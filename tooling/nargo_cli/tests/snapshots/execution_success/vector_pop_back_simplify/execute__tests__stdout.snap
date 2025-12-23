@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[slice_pop_back_simplify] Circuit output: ((10, 4), 1)
+[vector_pop_back_simplify] Circuit output: ((10, 4), 1)

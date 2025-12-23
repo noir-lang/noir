@@ -1,5 +1,5 @@
 [package]
-name = "zeroed_slice"
+name = "zeroed_vector"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

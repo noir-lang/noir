@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[nested_slice_last_index_access_post_insert] Circuit output: 4
+[nested_vector_last_index_access_post_insert] Circuit output: 4

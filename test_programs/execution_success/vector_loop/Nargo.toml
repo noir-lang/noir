@@ -1,5 +1,5 @@
 [package]
-name = "slice_loop"
+name = "vector_loop"
 type = "bin"
 authors = [""]
 

@@ -1,5 +1,5 @@
 [package]
-name = "reference_counts_slices_inliner_0"
+name = "reference_counts_vectors_inliner_0"
 type = "bin"
 authors = [""]
 
