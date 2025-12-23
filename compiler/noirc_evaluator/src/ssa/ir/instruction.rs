@@ -450,7 +450,7 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
+            Instruction::Binary(binary) => binary.has_side_effects(dfg),
 
             Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
@@ -865,25 +865,6 @@ impl Binary {
             | BinaryOp::And
             | BinaryOp::Or
             | BinaryOp::Xor => false,
-        }
-    }
-
-    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
-        match self.operator {
-            BinaryOp::Add { unchecked: false }
-            | BinaryOp::Sub { unchecked: false }
-            | BinaryOp::Mul { unchecked: false } => {
-                match dfg.type_of_value(self.rhs).unwrap_numeric() {
-                    NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
-                }
-            }
-            _ => self.has_side_effects(dfg),
         }
     }
 }

@@ -273,8 +273,7 @@ impl Function {
                     };
 
                     // Check if this operation is one that should only fail if the predicate is enabled.
-                    let requires_acir_gen_predicate =
-                        binary.requires_acir_gen_predicate(context.dfg);
+                    let requires_acir_gen_predicate = binary.has_side_effects(context.dfg);
 
                     let fails_under_predicate =
                         requires_acir_gen_predicate && !is_predicate_constant_one;
