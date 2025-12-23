@@ -259,9 +259,17 @@ impl Value {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
             Value::FormatString(fragments, _, length) => {
-                // Format strings are lowered to format strings. The interpolated values are assigned
-                // to temporary let variables. All of this is created inside a block expression so
-                // the variables don't leak out.
+                // When turning a format string into an expression we could either:
+                // 1. Create a single string literal with all interpolations resolved
+                // 2. Create a format string literal
+                // The problem with 1 is that the type of the value ends up being different
+                // than the type of the value itself (a `fmtstr` in this case, which is also what
+                // `get_type` returns).
+                // In order to implement 2, and to preserve the type, we need to create
+                // a format string with interpolated values. These values are referenced by
+                // name, so we end up returning a block with `let` statements with names
+                // that reference those values, with a final format string as the resulting
+                // block expression.
                 let mut statements = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
                 let mut has_values = false;
