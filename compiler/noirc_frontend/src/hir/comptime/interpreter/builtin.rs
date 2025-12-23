@@ -1079,10 +1079,11 @@ fn to_le_radix(
         if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
     });
 
-    let result_type = Type::Array(
-        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
-        element_type,
-    );
+    let len: u32 = decomposed_integer
+        .len()
+        .try_into()
+        .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
+    let result_type = Type::Array(Box::new(len.into()), element_type);
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }

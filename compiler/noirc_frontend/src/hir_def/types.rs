@@ -2757,6 +2757,27 @@ impl Type {
     }
 }
 
+impl From<u8> for Type {
+    fn from(value: u8) -> Self {
+        Type::Constant(
+            value.into(),
+            Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        )
+    }
+}
+
+impl From<u32> for Type {
+    fn from(value: u32) -> Self {
+        Type::Constant(value.into(), Kind::u32())
+    }
+}
+
+impl From<SignedField> for Type {
+    fn from(value: SignedField) -> Self {
+        Type::Constant(value, Kind::numeric(Type::FieldElement))
+    }
+}
+
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
@@ -2766,7 +2787,7 @@ impl BinaryTypeOperator {
         kind: &Kind,
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
-        match kind.follow_bindings().integral_maximum_size() {
+        match kind.integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
                 BinaryTypeOperator::Subtraction => Ok(a - b),
@@ -2818,7 +2839,7 @@ impl BinaryTypeOperator {
                         BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                     };
 
-                    Ok(result.into())
+                    kind.ensure_value_fits(result.into(), location)
                 }
             }
         }

@@ -453,6 +453,9 @@ pub fn check_crate(
     if options.disable_comptime_printing {
         context.disable_comptime_printing();
     }
+    if options.pedantic_solving {
+        context.enable_pedantic_solving();
+    }
 
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
     let crate_files = context.crate_files(&crate_id);

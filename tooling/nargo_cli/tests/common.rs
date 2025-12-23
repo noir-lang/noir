@@ -22,6 +22,7 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
     let parsed_files = parse_all(&file_manager);
 
     let mut context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)

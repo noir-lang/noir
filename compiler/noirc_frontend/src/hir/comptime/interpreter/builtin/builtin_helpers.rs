@@ -8,6 +8,7 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
@@ -18,7 +19,6 @@ use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
-use crate::{Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
@@ -183,8 +183,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
         let Type::Array(_, ref elem) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let expected =
-            Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone()).to_string();
+        let len: u32 =
+            N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
+        let expected = Type::Array(Box::new(len.into()), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -637,8 +638,9 @@ pub(super) fn eq_item<T: Eq>(
 
 /// Type to be used in `Value::Array(<values>, <array-type>)`.
 pub(crate) fn byte_array_type(len: usize) -> Type {
+    let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(Type::Constant(len.into(), Kind::u32())),
+        Box::new(len.into()),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
 }

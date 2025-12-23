@@ -162,8 +162,11 @@ impl Value {
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
             }
             Value::String(value) => {
-                let length = Type::Constant(value.len().into(), Kind::u32());
-                Type::String(Box::new(length))
+                let length: u32 = value
+                    .len()
+                    .try_into()
+                    .expect("ICE: Value::get_type: value.len() is expected to fit into a u32");
+                Type::String(Box::new(length.into()))
             }
             Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
@@ -819,20 +822,26 @@ impl Value {
 
     /// Converts any integral `Value` into a `SignedField`.
     /// Returns `None` for non-integral `Value`s and negative numbers.
+    pub(crate) fn to_non_negative_signed_field(&self) -> Option<SignedField> {
+        let value = self.to_signed_field()?;
+        value.is_positive().then_some(value)
+    }
+
+    /// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s
     pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
         match self {
-            Self::Field(value) => Some(*value),
-
-            Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U1(value) => Some(if *value { SignedField::one() } else { SignedField::zero() }),
-            Self::U8(value) => Some(u128::from(*value).into()),
-            Self::U16(value) => Some(u128::from(*value).into()),
-            Self::U32(value) => Some(u128::from(*value).into()),
-            Self::U64(value) => Some(u128::from(*value).into()),
-            Self::U128(value) => Some((*value).into()),
+            Value::Field(value) => Some(value.into()),
+            Value::I8(value) => Some(value.into()),
+            Value::I16(value) => Some(value.into()),
+            Value::I32(value) => Some(value.into()),
+            Value::I64(value) => Some(value.into()),
+            Value::U1(value) => Some(value.into()),
+            Value::U8(value) => Some(value.into()),
+            Value::U16(value) => Some(value.into()),
+            Value::U32(value) => Some(value.into()),
+            Value::U64(value) => Some(value.into()),
+            Value::U128(value) => Some(value.into()),
             _ => None,
         }
     }

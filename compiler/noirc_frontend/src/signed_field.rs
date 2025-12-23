@@ -39,12 +39,16 @@ impl SignedField {
         self.is_negative
     }
 
+    pub fn is_positive(&self) -> bool {
+        !self.is_negative
+    }
+
     pub fn is_zero(&self) -> bool {
         self.field.is_zero()
     }
 
     pub fn is_one(&self) -> bool {
-        !self.is_negative && self.field.is_one()
+        self.is_positive() && self.field.is_one()
     }
 
     /// Convert a signed integer to a SignedField, carefully handling
@@ -108,7 +112,7 @@ impl SignedField {
     }
 
     pub fn to_u128(self) -> u128 {
-        assert!(!self.is_negative());
+        assert!(self.is_positive());
         self.to_field_element().to_u128()
     }
 
@@ -207,7 +211,7 @@ impl std::ops::Neg for SignedField {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self::new(self.field, !self.is_negative)
+        Self::new(self.field, self.is_positive())
     }
 }
 
@@ -230,15 +234,63 @@ impl PartialOrd for SignedField {
     }
 }
 
+impl From<bool> for SignedField {
+    fn from(value: bool) -> Self {
+        if value { Self::one() } else { Self::zero() }
+    }
+}
+
+impl From<u8> for SignedField {
+    fn from(value: u8) -> Self {
+        u32::from(value).into()
+    }
+}
+
+impl From<u16> for SignedField {
+    fn from(value: u16) -> Self {
+        u32::from(value).into()
+    }
+}
+
 impl From<u32> for SignedField {
     fn from(value: u32) -> Self {
         Self::new(value.into(), false)
     }
 }
 
+impl From<u64> for SignedField {
+    fn from(value: u64) -> Self {
+        u128::from(value).into()
+    }
+}
+
 impl From<u128> for SignedField {
     fn from(value: u128) -> Self {
         Self::new(value.into(), false)
+    }
+}
+
+impl From<i8> for SignedField {
+    fn from(value: i8) -> Self {
+        i128::from(value).into()
+    }
+}
+
+impl From<i16> for SignedField {
+    fn from(value: i16) -> Self {
+        i128::from(value).into()
+    }
+}
+
+impl From<i32> for SignedField {
+    fn from(value: i32) -> Self {
+        i128::from(value).into()
+    }
+}
+
+impl From<i64> for SignedField {
+    fn from(value: i64) -> Self {
+        i128::from(value).into()
     }
 }
 
@@ -263,6 +315,16 @@ impl From<usize> for SignedField {
 impl From<FieldElement> for SignedField {
     fn from(value: FieldElement) -> Self {
         Self::new(value, false)
+    }
+}
+
+impl<T> From<&T> for SignedField
+where
+    T: Clone,
+    SignedField: From<T>,
+{
+    fn from(value: &T) -> Self {
+        value.clone().into()
     }
 }
 

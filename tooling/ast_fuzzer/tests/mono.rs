@@ -83,6 +83,7 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
     let parsed_files = parse_all(&file_manager);
 
     let mut context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     let crate_id = prepare_crate(&mut context, file_name);
 
     let options = CompileOptions {

@@ -245,6 +245,8 @@ pub struct NodeInterner {
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
+    pub(crate) pedantic_solving: bool,
+
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
@@ -487,6 +489,7 @@ impl Default for NodeInterner {
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
+            pedantic_solving: false,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -1082,16 +1085,30 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
+    /// Attempts to retrieve the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.infix_operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn try_get_operator_trait_method(&self, operator: BinaryOpKind) -> Option<TraitItemId> {
+        let trait_id = *self.infix_operator_traits.get(&operator)?;
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        Some(TraitItemId { trait_id, item_id: self.function_definition_id(func_id) })
+    }
+
     /// Retrieves the trait id for a given binary operator.
     /// All binary operators correspond to a trait - although multiple may correspond
     /// to the same trait (such as `==` and `!=`).
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitItemId {
-        let trait_id = self.infix_operator_traits[&operator];
-        let the_trait = self.get_trait(trait_id);
-        let func_id = *the_trait.method_ids.values().next().unwrap();
-        TraitItemId { trait_id, item_id: self.function_definition_id(func_id) }
+        self.try_get_operator_trait_method(operator).unwrap_or_else(|| {
+            panic!(
+                "get_operator_trait_method: missing trait method: {operator:?}, {:?}",
+                self.infix_operator_traits
+            )
+        })
     }
 
     /// Retrieves the trait id for a given unary operator.

@@ -338,7 +338,10 @@ impl Elaborator<'_> {
                 (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len().into(), Kind::u32());
+                let len: u32 = str.len().try_into().expect(
+                    "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
+                );
+                let len = len.into();
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
@@ -407,7 +410,8 @@ impl Elaborator<'_> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len().into(), Kind::u32());
+                let length: u32 = elements.len().try_into().expect("ICE: Elaborator::elaborate_array_literal: elements.len() is expected to fit into a u32");
+                let length = length.into();
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -462,7 +466,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let len = Type::Constant(length.into(), Kind::u32());
+        let len = length.into();
         let fmtstr_type =
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
@@ -1215,14 +1219,14 @@ impl Elaborator<'_> {
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
-        let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
+        let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
         let operator = HirBinaryOp::new(infix.operator, file);
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
-            trait_method_id: trait_id,
+            trait_method_id: opt_trait_id,
             rhs,
         });
 
@@ -1232,7 +1236,7 @@ impl Elaborator<'_> {
         let typ = self.handle_operand_type_rules_result(
             result,
             &lhs_type,
-            Some(trait_id),
+            opt_trait_id,
             *expr_id,
             location,
         );

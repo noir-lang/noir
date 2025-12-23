@@ -689,7 +689,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.to_signed_field() else {
+                let Some(global_value) = global_value.to_non_negative_signed_field() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });

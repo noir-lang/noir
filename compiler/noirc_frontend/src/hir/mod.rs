@@ -272,6 +272,10 @@ impl Context<'_, '_> {
         self.def_interner.lsp_mode = true;
     }
 
+    pub fn enable_pedantic_solving(&mut self) {
+        self.def_interner.pedantic_solving = true;
+    }
+
     pub fn disable_comptime_printing(&mut self) {
         self.interpreter_output = None;
     }
