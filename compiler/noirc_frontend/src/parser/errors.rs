@@ -115,6 +115,8 @@ pub enum ParserErrorReason {
     AssociatedTraitConstantDefaultValuesAreNotSupported,
     #[error("`mut` on a binding cannot be repeated")]
     MutOnABindingCannotBeRepeated,
+    #[error("Maximum recursion depth exceeded while parsing expression")]
+    MaximumRecursionDepthExceeded,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
