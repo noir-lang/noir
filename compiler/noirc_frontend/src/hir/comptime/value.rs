@@ -31,6 +31,7 @@ use crate::{
     token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use super::{
     display::tokens_to_string,
@@ -264,10 +265,17 @@ impl Value {
                 let mut statements = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
                 let mut has_values = false;
+                let mut seen_names: HashSet<String> = HashSet::default();
                 for fragment in fragments {
                     let new_fragment = match fragment {
                         FormatStringFragment::String(string) => FmtStrFragment::String(string),
                         FormatStringFragment::Value { name, value } => {
+                            // A name might be interpolated multiple times. In that case it will always
+                            // have the same value: we just need one `let` for it.
+                            if !seen_names.insert(name.clone()) {
+                                continue;
+                            }
+
                             has_values = true;
 
                             let expression = value.into_expression(elaborator, location)?;
