@@ -8,7 +8,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
