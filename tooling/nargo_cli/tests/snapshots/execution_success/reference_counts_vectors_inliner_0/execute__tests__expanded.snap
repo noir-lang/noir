@@ -1,0 +1,113 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::mem::vector_refcount;
+
+fn main(i: u32) {
+    let mut vector: [Field] = &[0_Field, 1_Field, 2_Field];
+    assert_refcount(vector, 1_u32, true);
+    borrow(vector, vector_refcount(vector));
+    borrow_mut(&mut vector, vector_refcount(vector));
+    let _: [Field] = copy_mut(vector, vector_refcount(vector));
+    borrow_mut_two(&mut vector, &mut vector, vector_refcount(vector));
+    let mut u32_vector: [u32] = &[0_u32, 1_u32, 2_u32];
+    let rc1: u32 = vector_refcount(vector);
+    let rc2: u32 = vector_refcount(u32_vector);
+    borrow_mut_two_separate(&mut vector, &mut u32_vector, rc1, rc2);
+    regression_7297();
+    // Safety: comment added by `nargo expand`
+    unsafe { regression_10335(i) };
+}
+
+fn borrow(vector: [Field], rc_before_call: u32) {
+    assert_refcount(vector, rc_before_call, true);
+    println(vector[0_u32]);
+}
+
+fn borrow_mut(vector: &mut [Field], rc_before_call: u32) {
+    assert_refcount(*vector, rc_before_call, true);
+    vector[0_u32] = 3_Field;
+    println(vector[0_u32]);
+}
+
+fn copy_mut(mut vector: [Field], rc_before_call: u32) -> [Field] {
+    assert_refcount(vector, rc_before_call, true);
+    vector = &[4_Field, vector[1_u32], vector[2_u32]];
+    println(vector[0_u32]);
+    vector
+}
+
+fn borrow_mut_two(vector1: &mut [Field], vector2: &mut [Field], rc_before_call: u32) {
+    assert_refcount(*vector1, rc_before_call, true);
+    assert_refcount(*vector2, rc_before_call + 1_u32, true);
+    vector1[0_u32] = 5_Field;
+    vector2[0_u32] = 6_Field;
+    println(vector1[0_u32]);
+    println(vector2[0_u32]);
+}
+
+fn borrow_mut_two_separate(
+    vector1: &mut [Field],
+    vector2: &mut [u32],
+    rc_before_call1: u32,
+    rc_before_call2: u32,
+) {
+    assert_refcount(*vector1, rc_before_call1, true);
+    assert_refcount(*vector2, rc_before_call2, true);
+    vector1[0_u32] = 7_Field;
+    vector2[0_u32] = 8_u32;
+    println(vector1[0_u32]);
+    println(vector2[0_u32]);
+}
+
+fn assert_refcount<T>(vector: [T], mut expected: u32, expect_copy: bool) {
+    let count: u32 = vector_refcount(vector);
+    if expect_copy { expected = expected + 1_u32; };
+    if std::runtime::is_unconstrained() {
+        if count != expected {
+            println(f"actual = {count}, expected = {expected}");
+        };
+        assert(count == expected);
+    } else {
+        assert(count == 0_u32);
+    }
+}
+
+fn regression_7297() {
+    let mut vector: [Field] = &[0_Field, 1_Field, 2_Field];
+    let refcount_0: u32 = vector_refcount(vector);
+    borrow_mut_two(&mut vector, &mut vector, refcount_0);
+    let refcount_1: u32 = vector_refcount(vector);
+    let vector_2: [Field] = copy_mut(vector, refcount_1 + 1_u32);
+    let refcount_2: u32 = vector_refcount(vector);
+    assert(
+        vector[0_u32] == 6_Field,
+        "the original should not be mutated by copy_mut, only borrow_mut_two",
+    );
+    assert(vector_2[0_u32] == 4_Field, "the copy should have the expected content");
+    if std::runtime::is_unconstrained() {
+        assert(
+            refcount_1 != 0_u32,
+            "borrow_mut_two should create a fresh vector and not decrease its RC",
+        );
+        assert(
+            refcount_1 == 2_u32,
+            "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before vector_refcount call)",
+        );
+        assert(
+            refcount_2 == (refcount_1 + 3_u32),
+            "after refcount_1 we clone once in passing vector to copy_mut, once to vector_refcount after, and once within copy_mut",
+        );
+    }
+}
+
+unconstrained fn regression_10335(i: u32) {
+    let a: [Field] = &[0_Field, 1_Field, 2_Field];
+    let mut b: [Field] = a;
+    b[i] = 3_Field;
+    let rc_a: u32 = vector_refcount(a);
+    let rc_b: u32 = vector_refcount(b);
+    assert(rc_a == 2_u32);
+    assert(rc_b == 1_u32);
+}

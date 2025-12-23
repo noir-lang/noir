@@ -21,7 +21,7 @@
 //!     references in constrained (ACIR) code.
 //!   - Flattening inserts `Instruction::IfElse` to merge the values from an if-expression's "then"
 //!     and "else" branches. These are immediately simplified out for numeric values, but for
-//!     arrays and slices we require the `remove_if_else` SSA pass to later be run to remove the
+//!     arrays and vectors we require the `remove_if_else` SSA pass to later be run to remove the
 //!     remaining `Instruction::IfElse` instructions.
 //!
 //! Implementation details & examples:
@@ -80,7 +80,7 @@
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
 //!    `c * then_arg + !c * else_arg` is used for each argument. Note that this is represented by
 //!    `Instruction::IfElse` which is often simplified to the above when inserted, but in the case
-//!    of complex values (arrays and slices) this simplification is delayed until the
+//!    of complex values (arrays and vectors) this simplification is delayed until the
 //!    `remove_if_else` SSA pass.
 //!
 //! ```text
@@ -439,7 +439,7 @@ impl<'f> Context<'f> {
         self.next_arguments.take().expect("there are no arguments prepared")
     }
 
-    /// Inline all instructions from the given block into the target block, and track slice capacities.
+    /// Inline all instructions from the given block into the target block, and track vector capacities.
     /// This is done by processing every instruction in the block and using the flattening context
     /// to push them in the target block.
     ///
@@ -966,15 +966,15 @@ impl<'f> Context<'f> {
             // multiplying their arguments with the condition.
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsSlice
+            | Intrinsic::AsVector
             | Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
-            | Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
-            | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorRemove
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)
@@ -983,7 +983,7 @@ impl<'f> Context<'f> {
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount => arguments,
+            | Intrinsic::VectorRefCount => arguments,
         }
     }
 
@@ -1064,7 +1064,7 @@ impl<'f> Context<'f> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::acir::AcirField;
 
     use crate::{

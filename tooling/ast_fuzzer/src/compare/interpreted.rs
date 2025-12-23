@@ -214,8 +214,8 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
                 true
             }
-            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
-                // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+            (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
+                // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
                 msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
@@ -235,11 +235,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
 impl Comparable for Value {
     fn equivalent(a: &Self, b: &Self) -> bool {
         match (a, b) {
-            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
+            (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_slice == b.is_slice
+                    && a.is_vector == b.is_vector
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -276,11 +276,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Value>, types: Vec<Type>| {
-        Value::ArrayOrSlice(ArrayValue {
+        Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_slice: false,
+            is_vector: false,
         })
     };
     match input {

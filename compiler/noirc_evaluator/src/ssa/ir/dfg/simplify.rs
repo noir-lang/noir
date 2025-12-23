@@ -115,9 +115,9 @@ pub(crate) fn simplify(
                 return try_optimize_array_get_from_previous_set(dfg, *array, index);
             }
 
-            let array_or_slice_type = dfg.type_of_value(*array);
-            if matches!(array_or_slice_type, Type::Array(_, 1))
-                && array_or_slice_type.element_size() == 1
+            let array_or_vector_type = dfg.type_of_value(*array);
+            if matches!(array_or_vector_type, Type::Array(_, 1))
+                && array_or_vector_type.element_size() == 1
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.

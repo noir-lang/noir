@@ -1,0 +1,6 @@
+[package]
+name = "vector_pop_front_oob_invalid_pred"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -172,6 +172,7 @@ jobs:
 
       - name: Compare gates reports
         id: gates_diff
+        continue-on-error: true  # Allow workflow to succeed even if no baseline exists yet
         uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report.json

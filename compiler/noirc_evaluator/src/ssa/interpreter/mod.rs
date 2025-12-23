@@ -424,12 +424,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.lookup_helper(value_id, instruction, "numeric", Value::as_numeric)
     }
 
-    fn lookup_array_or_slice(
+    fn lookup_array_or_vector(
         &self,
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<ArrayValue> {
-        self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
+        self.lookup_helper(value_id, instruction, "array or vector", Value::as_array_or_vector)
     }
 
     /// Look up an array index.
@@ -454,7 +454,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -472,7 +472,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -490,7 +490,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -512,7 +512,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -983,7 +983,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
             }
 
-            Value::ArrayOrSlice(array_value) => {
+            Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
                 for element in elements.iter_mut() {
                     Self::reset_array_state(element)?;
@@ -1050,7 +1050,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
 
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_slice(array, "array get")?;
+        let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
         let index = match self.lookup_array_index(index, "array get index", length) {
@@ -1093,15 +1093,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
-                if let Some(array) = element.as_array_or_slice() {
+                if let Some(array) = element.as_array_or_vector() {
                     // In the ACIR runtime we expect fresh arrays when accessing a nested array.
                     // If we do not clone the elements here a mutable array set afterwards could mutate
                     // not just this returned array but the array we are fetching from in this array get.
-                    Value::ArrayOrSlice(ArrayValue {
+                    Value::ArrayOrVector(ArrayValue {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_slice: array.is_slice,
+                        is_vector: array.is_vector,
                     })
                 } else {
                     element.clone()
@@ -1125,7 +1125,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         side_effects_enabled: bool,
     ) -> IResult<()> {
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_slice(array, "array set")?;
+        let array = self.lookup_array_or_vector(array, "array set")?;
 
         let result_array = if side_effects_enabled {
             let length = array.elements.borrow().len() as u32;
@@ -1142,7 +1142,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrSlice(array.clone())
+                Value::ArrayOrVector(array.clone())
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);
@@ -1152,12 +1152,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_slice = array.is_slice;
-                Value::ArrayOrSlice(ArrayValue { elements, rc, element_types, is_slice })
+                let is_vector = array.is_vector;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
             }
         } else {
             // Side effects are disabled, return the original array
-            Value::ArrayOrSlice(array)
+            Value::ArrayOrVector(array)
         };
         self.define(result, result_array)?;
         Ok(())
@@ -1172,7 +1172,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_slice(value_id, "inc_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "inc_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1185,7 +1185,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_dec_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_slice(value_id, "dec_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "dec_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1242,7 +1242,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_slice = matches!(&result_type, Type::Slice(..));
+        let is_vector = matches!(&result_type, Type::Vector(..));
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1277,11 +1277,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
         }
 
-        let array = Value::ArrayOrSlice(ArrayValue {
+        let array = Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_slice,
+            is_vector,
         });
         self.define(result, array)
     }
@@ -1876,85 +1876,4 @@ where
 
 fn internal(error: InternalError) -> InterpreterError {
     InterpreterError::Internal(error)
-}
-
-#[cfg(test)]
-mod test {
-    use crate::ssa::{
-        interpreter::{IResult, errors::InterpreterError, value::NumericValue},
-        ir::{
-            instruction::{Binary, BinaryOp},
-            value::ValueId,
-        },
-    };
-
-    #[test]
-    fn test_truncate_unsigned() {
-        assert_eq!(super::truncate_unsigned(57_u32, 8).unwrap(), 57);
-        assert_eq!(super::truncate_unsigned(257_u16, 8).unwrap(), 1);
-        assert_eq!(super::truncate_unsigned(130_u8, 7).unwrap(), 2);
-        assert_eq!(super::truncate_unsigned(u8::MAX, 8).unwrap(), u8::MAX);
-        assert_eq!(super::truncate_unsigned(u128::MAX, 128).unwrap(), u128::MAX);
-    }
-
-    #[test]
-    fn test_truncate_signed() {
-        // Signed values roundtrip through truncate_unsigned
-        assert_eq!(super::truncate_unsigned(57_i32 as u32, 8).unwrap() as i32, 57);
-        assert_eq!(super::truncate_unsigned(257_i16 as u16, 8).unwrap() as i16, 1);
-        assert_eq!(super::truncate_unsigned(130_i64 as u64, 7).unwrap() as i64, 2);
-        assert_eq!(super::truncate_unsigned(i16::MAX as u16, 16).unwrap() as i16, i16::MAX);
-
-        // For negatives we rely on the `as iN` cast at the end to convert large integers
-        // back into negatives. For this reason we don't test bit sizes other than 8, 16, 32, 64
-        // although we don't support other bit sizes anyway.
-        assert_eq!(super::truncate_unsigned(-57_i32 as u32, 8).unwrap() as i8, -57);
-        assert_eq!(super::truncate_unsigned(-258_i16 as u16, 8).unwrap() as i8, -2);
-        assert_eq!(super::truncate_unsigned(i8::MIN as u8, 8).unwrap() as i8, i8::MIN);
-        assert_eq!(super::truncate_unsigned(-129_i32 as u32, 8).unwrap() as i8, 127);
-
-        // underflow to i16::MAX
-        assert_eq!(super::truncate_unsigned(i16::MIN as u32 - 1, 16).unwrap() as i16, 32767);
-    }
-
-    #[test]
-    fn test_shl() {
-        let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
-
-        fn display(_: &Binary) -> String {
-            String::new()
-        }
-
-        let i8_testcases: Vec<((i8, i8), IResult<i8>)> = vec![
-            ((1, 7), Ok(-128)),
-            ((2, 6), Ok(-128)),
-            ((4, 5), Ok(-128)),
-            ((8, 4), Ok(-128)),
-            ((16, 3), Ok(-128)),
-            ((32, 2), Ok(-128)),
-            ((64, 1), Ok(-128)),
-            ((3, 7), Ok(-128)),
-            (
-                (1, 8),
-                Err(InterpreterError::Overflow {
-                    operator: BinaryOp::Shl,
-                    instruction: "`` (i8 1 << i8 8)".to_string(),
-                }),
-            ),
-        ];
-
-        for ((lhs, rhs), expected_result) in i8_testcases {
-            assert_eq!(
-                super::evaluate_binary(
-                    &binary,
-                    NumericValue::I8(lhs.into()),
-                    NumericValue::I8(rhs.into()),
-                    true,
-                    display
-                ),
-                expected_result.map(|i| NumericValue::I8(i.into())),
-                "{lhs} << {rhs}",
-            );
-        }
-    }
 }

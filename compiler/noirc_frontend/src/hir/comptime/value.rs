@@ -8,7 +8,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    QuotedType, Shared, Type, TypeBindings,
+    QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
@@ -72,7 +72,7 @@ pub enum Value {
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
-    Slice(Vector<Value>, Type),
+    Vector(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
     TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
@@ -96,6 +96,10 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
+    /// The type bindings where the closure was created.
+    /// This is needed because when the closure is interpreted, those type bindings
+    /// need to be restored.
+    pub bindings: HashMap<TypeVariable, (Type, Kind)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -165,7 +169,7 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
-            Value::Slice(_, typ) => return Cow::Borrowed(typ),
+            Value::Vector(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
             Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element, auto_deref, mutable) => {
@@ -300,10 +304,10 @@ impl Value {
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, _) => {
+            Value::Vector(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -484,11 +488,11 @@ impl Value {
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, _) => {
+            Value::Vector(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
                     element.into_hir_expression(interner, location)
                 })?;
-                HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
+                HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
@@ -692,7 +696,7 @@ impl Value {
             Value::Array(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Slice(values, _) => {
+            Value::Vector(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Tuple(values) => {

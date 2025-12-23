@@ -333,22 +333,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Call a closure value with the given arguments and environment, returning the result.
     fn call_closure(
         &mut self,
-        lambda: HirLambda,
-        environment: Vec<Value>,
+        closure: Closure,
         arguments: Vec<(Value, Location)>,
-        function_scope: Option<FuncId>,
-        module_scope: ModuleId,
         call_location: Location,
     ) -> IResult<Value> {
+        // Undo the type current type bindings
+        if let Some(bindings) = self.bound_generics.last() {
+            unbind_all(bindings);
+        }
+
+        // Rebind the type bindings that existed when the closure was created
+        force_bind_all(&closure.bindings);
+
         // Set the closure's scope to that of the function it was originally evaluated in
-        let old_module = self.elaborator.replace_module(module_scope);
-        let old_function = std::mem::replace(&mut self.current_function, function_scope);
+        let old_module = self.elaborator.replace_module(closure.module_scope);
+        let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
 
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
-        let result = self.call_closure_inner(lambda, environment, arguments, call_location);
+        let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
         self.elaborator.pop_interpreter_call_stack();
+
+        // Undo the type bindings that existed when the closure was created
+        unbind_all(&closure.bindings);
+
+        // Redo the current type bindings
+        if let Some(bindings) = self.bound_generics.last() {
+            force_bind_all(bindings);
+        }
 
         self.current_function = old_function;
         let Some(old_module) = old_module else {
@@ -449,9 +462,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// an empty set of bindings to become the new top of the stack.
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, (_, kind)) in bindings {
-                var.unbind(var.id(), kind.clone());
-            }
+            unbind_all(bindings);
         }
         // Push a new bindings list for the current function
         self.bound_generics.push(HashMap::default());
@@ -464,9 +475,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, (binding, _kind)) in bindings {
-                var.force_bind(binding.clone());
-            }
+            force_bind_all(bindings);
         }
     }
 
@@ -791,7 +800,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_format_string(fragments, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
-            HirLiteral::Slice(array) => self.evaluate_slice(array, id),
+            HirLiteral::Vector(array) => self.evaluate_vector(array, id),
         }
     }
 
@@ -909,9 +918,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_slice(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_vector(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
         self.evaluate_array(array, id).map(|value| match value {
-            Value::Array(array, typ) => Value::Slice(array, typ),
+            Value::Array(array, typ) => Value::Vector(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
         })
     }
@@ -1169,14 +1178,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 Ok(result)
             }
-            Value::Closure(closure) => self.call_closure(
-                closure.lambda,
-                closure.env,
-                arguments,
-                closure.function_scope,
-                closure.module_scope,
-                location,
-            ),
+            Value::Closure(closure) => self.call_closure(*closure, arguments, location),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1256,8 +1258,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();
-        let closure =
-            Closure { lambda, env, typ, function_scope: self.current_function, module_scope };
+        let bindings = self.bound_generics.last().cloned().unwrap_or_default();
+        let closure = Closure {
+            lambda,
+            env,
+            typ,
+            function_scope: self.current_function,
+            module_scope,
+            bindings,
+        };
         Ok(Value::Closure(Box::new(closure)))
     }
 
@@ -1378,7 +1387,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let constructor = match &array_value {
                     Value::Array(..) => Value::Array,
-                    _ => Value::Slice,
+                    _ => Value::Vector,
                 };
 
                 let typ = array_value.get_type().into_owned();
@@ -1403,11 +1412,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
                 for (name, lvalue) in lvalue_fields.iter() {
-                    let Some(rvalue) = rvalue_fields.remove(name) else { continue };
+                    let Some(rvalue) = rvalue_fields.remove(name) else {
+                        // Defensive check: If we reach here, it indicates a type system bug
+                        panic!(
+                            "ICE: store_flattened encountered a struct field mismatch. \
+                            Struct field '{name}' exists in lvalue but not in rvalue. \
+                            This should have been caught by type checking.",
+                        );
+                    };
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }
             (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
+                // Defensive check: tuple lengths should match. If they do not, it indicates a type system bug
+                assert_eq!(
+                    lvalue_fields.len(),
+                    rvalue_fields.len(),
+                    "ICE: store_flattened encountered a tuple length mismatch. \
+                    This should have been caught by type checking."
+                );
+
                 for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
@@ -1692,6 +1716,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 }
 
+fn unbind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+    for (var, (_, kind)) in bindings {
+        var.unbind(var.id(), kind.clone());
+    }
+}
+
+fn force_bind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+    for (var, (binding, _kind)) in bindings {
+        var.force_bind(binding.clone());
+    }
+}
+
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
     use IntegerBitSize::*;
     use Signedness::*;
@@ -1767,7 +1803,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
-        Value::Slice(array, _) => array,
+        Value::Vector(array, _) => array,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonArrayIndexed { typ, location });

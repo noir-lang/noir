@@ -533,7 +533,7 @@ impl Elaborator<'_> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =
