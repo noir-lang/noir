@@ -279,7 +279,7 @@ pub(crate) fn get_expr(
 
 pub(crate) fn get_format_string(
     (value, location): (Value, Location),
-) -> IResult<(Vec<FormatStringFragment>, Type, u32)> {
+) -> IResult<(Rc<Vec<FormatStringFragment>>, Type, u32)> {
     match value {
         Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
         value => type_mismatch(value, "fmtstr", location),

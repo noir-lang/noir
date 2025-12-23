@@ -892,7 +892,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
                     let mut seen_names: HashSet<String> = HashSet::default();
 
-                    for fragment in fragments {
+                    for fragment in fragments.iter() {
                         if let FormatStringFragment::Value { name, value } = fragment {
                             // A name might be interpolated multiple times. In that case it will always
                             // have the same value: we just need one `let` for it.
@@ -910,7 +910,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
 
                 self.push_str("f\"");
-                for fragment in fragments {
+                for fragment in fragments.iter() {
                     match fragment {
                         FormatStringFragment::String(string) => {
                             self.push_str(&string.replace('"', "\\\""));

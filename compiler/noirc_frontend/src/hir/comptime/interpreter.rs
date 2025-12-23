@@ -844,7 +844,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         let typ = self.elaborator.interner.id_type(id);
-        Ok(Value::FormatString(new_fragments, typ, length))
+        Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.

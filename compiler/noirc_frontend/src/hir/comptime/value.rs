@@ -55,7 +55,7 @@ pub enum Value {
     U64(u64),
     U128(u128),
     String(Rc<String>),
-    FormatString(Vec<FormatStringFragment>, Type, u32 /* length */),
+    FormatString(Rc<Vec<FormatStringFragment>>, Type, u32 /* length */),
     CtString(Rc<String>),
     Function(FuncId, Type, Rc<TypeBindings>),
 
@@ -266,9 +266,11 @@ impl Value {
                 let mut new_fragments = Vec::with_capacity(fragments.len());
                 let mut has_values = false;
                 let mut seen_names: HashSet<String> = HashSet::default();
-                for fragment in fragments {
+                for fragment in fragments.iter() {
                     let new_fragment = match fragment {
-                        FormatStringFragment::String(string) => FmtStrFragment::String(string),
+                        FormatStringFragment::String(string) => {
+                            FmtStrFragment::String(string.clone())
+                        }
                         FormatStringFragment::Value { name, value } => {
                             // A name might be interpolated multiple times. In that case it will always
                             // have the same value: we just need one `let` for it.
@@ -278,7 +280,7 @@ impl Value {
 
                             has_values = true;
 
-                            let expression = value.into_expression(elaborator, location)?;
+                            let expression = value.clone().into_expression(elaborator, location)?;
                             let let_statement = LetStatement {
                                 pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
                                 r#type: None,
@@ -290,7 +292,7 @@ impl Value {
                             let statement =
                                 Statement { kind: StatementKind::Let(let_statement), location };
                             statements.push(statement);
-                            FmtStrFragment::Interpolation(name, location)
+                            FmtStrFragment::Interpolation(name.clone(), location)
                         }
                     };
                     new_fragments.push(new_fragment);
@@ -481,15 +483,16 @@ impl Value {
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
-                for fragment in fragments {
+                for fragment in fragments.iter() {
                     match fragment {
                         FormatStringFragment::String(string) => {
-                            new_fragments.push(FmtStrFragment::String(string));
+                            new_fragments.push(FmtStrFragment::String(string.clone()));
                         }
                         FormatStringFragment::Value { name, value } => {
-                            let expr_id = value.into_hir_expression(interner, location)?;
+                            let expr_id = value.clone().into_hir_expression(interner, location)?;
                             captures.push(expr_id);
-                            new_fragments.push(FmtStrFragment::Interpolation(name, location));
+                            new_fragments
+                                .push(FmtStrFragment::Interpolation(name.clone(), location));
                         }
                     }
                 }

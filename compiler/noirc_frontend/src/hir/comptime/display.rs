@@ -402,7 +402,7 @@ impl Display for ValuePrinter<'_, '_> {
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
             Value::FormatString(fragments, _, _) => {
-                for fragment in fragments {
+                for fragment in fragments.iter() {
                     match fragment {
                         FormatStringFragment::String(string) => {
                             write!(f, "{string}")?;

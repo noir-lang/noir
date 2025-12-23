@@ -1594,7 +1594,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             let typ = Type::FmtString(length_type, captures);
             if let Ok(length) = length {
                 let fragments = vec![FormatStringFragment::String("\0".repeat(length as usize))];
-                Value::FormatString(fragments, typ, length)
+                Value::FormatString(Rc::new(fragments), typ, length)
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(typ)
