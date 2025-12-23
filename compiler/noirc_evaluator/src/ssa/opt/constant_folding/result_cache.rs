@@ -47,7 +47,7 @@ impl InstructionResultCache {
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
             if let CacheResult::Cached { results, .. } = results {
-                let old_results = dfg.instruction_results(id).to_vec();
+                let old_results = dfg.instruction_results(id);
 
                 results.len() == old_results.len()
                     && old_results

@@ -6,7 +6,7 @@
 //!
 //! ## Unsigned shift-right
 //!
-//! Shifting an unsigned integer to the right by N is the same as diving by 2^N:
+//! Shifting an unsigned integer to the right by N is the same as dividing by 2^N:
 //!
 //! ```ssa
 //! // this:

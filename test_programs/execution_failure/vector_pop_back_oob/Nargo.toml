@@ -1,5 +1,5 @@
 [package]
-name = "slice_pop_back_oob"
+name = "vector_pop_back_oob"
 type = "bin"
 authors = [""]
 

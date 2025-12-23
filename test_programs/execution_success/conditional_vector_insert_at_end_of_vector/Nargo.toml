@@ -1,5 +1,5 @@
 [package]
-name = "conditional_slice_insert_at_end_of_slice"
+name = "conditional_vector_insert_at_end_of_vector"
 version = "0.1.0"
 type = "bin"
 authors = [""]

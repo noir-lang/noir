@@ -236,7 +236,7 @@ pub(super) fn evaluate_infix(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::hir::comptime::InterpreterError;
     use crate::hir::comptime::tests::{interpret, interpret_expect_error};
 

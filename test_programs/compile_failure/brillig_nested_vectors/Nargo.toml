@@ -1,5 +1,5 @@
 [package]
-name = "brillig_nested_slices"
+name = "brillig_nested_vectors"
 type = "bin"
 authors = [""]
 [dependencies]

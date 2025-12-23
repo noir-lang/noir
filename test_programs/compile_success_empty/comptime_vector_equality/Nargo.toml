@@ -1,5 +1,5 @@
 [package]
-name = "comptime_slice_equality"
+name = "comptime_vector_equality"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

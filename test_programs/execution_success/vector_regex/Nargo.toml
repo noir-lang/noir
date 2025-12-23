@@ -1,5 +1,5 @@
 [package]
-name = "slice_regex"
+name = "vector_regex"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

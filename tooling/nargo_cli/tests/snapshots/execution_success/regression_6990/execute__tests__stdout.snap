@@ -2,4 +2,5 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[vector_pop_back_simplify] Circuit output: ((10, 4), 1)
+i: {i}, j: {j}
+i: 0x32, j: 0x64
