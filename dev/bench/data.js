@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766421279646,
+  "lastUpdate": 1766496398920,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "660d3ac653221b2fc557a802688a8b862e788bd3",
-          "message": "chore: better naming in out_of_bounds checks (#10889)",
-          "timestamp": "2025-12-11T12:06:41Z",
-          "tree_id": "ba8b56232bd279984d2d7310523f3fff9357649e",
-          "url": "https://github.com/noir-lang/noir/commit/660d3ac653221b2fc557a802688a8b862e788bd3"
-        },
-        "date": 1765456166790,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257603,
-            "range": "± 301",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227173,
-            "range": "± 11708",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790296,
-            "range": "± 4162",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789564,
             "range": "± 1612",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7337a814785b8fa7810cae0a2201925b878cfa0",
+          "message": "chore: schedule algolia crawls and alert on failure (#11004)",
+          "timestamp": "2025-12-23T13:23:42Z",
+          "tree_id": "ecc406e6cb29e725b5acf6c42ef5fdb0fcda9349",
+          "url": "https://github.com/noir-lang/noir/commit/a7337a814785b8fa7810cae0a2201925b878cfa0"
+        },
+        "date": 1766496367007,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259681,
+            "range": "± 477",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231268,
+            "range": "± 3441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799495,
+            "range": "± 4512",
             "unit": "ns/iter"
           }
         ]
