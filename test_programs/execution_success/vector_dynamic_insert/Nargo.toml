@@ -1,5 +1,5 @@
 [package]
-name = "slice_dynamic_insert"
+name = "vector_dynamic_insert"
 type = "bin"
 authors = [""]
 

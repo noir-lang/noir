@@ -1,5 +1,5 @@
 [package]
-name = "slice_insert_oob"
+name = "vector_insert_oob"
 type = "bin"
 authors = [""]
 

@@ -1,5 +1,5 @@
 [package]
-name = "nested_slice_return"
+name = "nested_vector_return"
 type = "bin"
 authors = [""]
 

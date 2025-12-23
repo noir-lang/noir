@@ -1,5 +1,5 @@
 [package]
-name = "nested_slice_struct"
+name = "nested_vector_struct"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.22.0"

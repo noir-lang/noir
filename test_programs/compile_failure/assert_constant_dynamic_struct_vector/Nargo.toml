@@ -1,5 +1,5 @@
 [package]
-name = "assert_constant_dynamic_struct_slice"
+name = "assert_constant_dynamic_struct_vector"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

@@ -1,5 +1,5 @@
 [package]
-name = "nested_array_in_slice"
+name = "nested_array_in_vector"
 type = "bin"
 authors = [""]
 [dependencies]
