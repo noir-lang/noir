@@ -717,7 +717,45 @@
 <a href="#716" id="716">716</a>
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a></pre></div><pre class="rust"><code><span class="doccomment">//! Various helpers for implementing built-in functions in the comptime interpreter.
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! Various helpers for implementing built-in functions in the comptime interpreter.
 //!
 //! These functions may implement error checking for argument count, type-check an
 //! argument for a specific type, returning its value, etc.
@@ -730,8 +768,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::tokens_to_string;
-<span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::StructFields;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::unwrap_rc;
+<span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::{FormatStringFragment, StructFields};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::Lexer;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{Parser, ParserError};
@@ -998,9 +1036,9 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_format_string(
     (value, location): (Value, Location),
-) -&gt; IResult&lt;(Rc&lt;String&gt;, Type)&gt; {
+) -&gt; IResult&lt;(Rc&lt;Vec&lt;FormatStringFragment&gt;&gt;, Type, u32)&gt; {
     <span class="kw">match </span>value {
-        Value::FormatString(value, typ) =&gt; <span class="prelude-val">Ok</span>((value, typ)),
+        Value::FormatString(fragments, typ, length) =&gt; <span class="prelude-val">Ok</span>((fragments, typ, length)),
         value =&gt; type_mismatch(value, <span class="string">"fmtstr"</span>, location),
     }
 }
@@ -1435,5 +1473,43 @@
     };
     <span class="kw">let </span>tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
     Value::Quoted(Rc::new(tokens))
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fragments_to_string(
+    fragments: <span class="kw-2">&amp;</span>[FormatStringFragment],
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+) -&gt; String {
+    <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
+    <span class="kw">for </span>fragment <span class="kw">in </span>fragments {
+        <span class="kw">match </span>fragment {
+            FormatStringFragment::String(string) =&gt; {
+                result.push_str(string);
+            }
+            FormatStringFragment::Value { name: <span class="kw">_</span>, value } =&gt; {
+                <span class="kw">match </span>value {
+                    Value::Quoted(tokens) =&gt; {
+                        <span class="comment">// When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        </span><span class="kw">for </span>(index, token) <span class="kw">in </span>tokens.iter().enumerate() {
+                            <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+                                result.push(<span class="string">' '</span>);
+                            }
+                            result.push_str(<span class="kw-2">&amp;</span>token.token().display(interner).to_string());
+                        }
+                    }
+                    Value::FormatString(fragments, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                        <span class="comment">// Nested format strings might have quoted values inside them,
+                        // so we need to recurse here instead of calling `value.display`.
+                        </span><span class="kw">let </span>inner_string = fragments_to_string(fragments, interner);
+                        result.push_str(<span class="kw-2">&amp;</span>inner_string);
+                    }
+                    <span class="kw">_ </span>=&gt; {
+                        result.push_str(<span class="kw-2">&amp;</span>value.display(interner).to_string());
+                    }
+                }
+            }
+        }
+    }
+    result
 }
 </code></pre></div></section></main></body></html>

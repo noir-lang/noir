@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ComptimeError","InterpreterError","Value"],"fn":["tokens_to_string","tokens_to_string_with_indent"],"mod":["display","errors","hir_to_display_ast","interpreter","value"],"struct":["Interpreter"]};
+window.SIDEBAR_ITEMS = {"enum":["ComptimeError","FormatStringFragment","InterpreterError","Value"],"fn":["tokens_to_string","tokens_to_string_with_indent"],"mod":["display","errors","hir_to_display_ast","interpreter","value"],"struct":["Interpreter"]};

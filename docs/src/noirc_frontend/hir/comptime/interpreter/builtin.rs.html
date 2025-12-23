@@ -3260,7 +3260,19 @@
 <a href="#3259" id="3259">3259</a>
 <a href="#3260" id="3260">3260</a>
 <a href="#3261" id="3261">3261</a>
-<a href="#3262" id="3262">3262</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3262" id="3262">3262</a>
+<a href="#3263" id="3263">3263</a>
+<a href="#3264" id="3264">3264</a>
+<a href="#3265" id="3265">3265</a>
+<a href="#3266" id="3266">3266</a>
+<a href="#3267" id="3267">3267</a>
+<a href="#3268" id="3268">3268</a>
+<a href="#3269" id="3269">3269</a>
+<a href="#3270" id="3270">3270</a>
+<a href="#3271" id="3271">3271</a>
+<a href="#3272" id="3272">3272</a>
+<a href="#3273" id="3273">3273</a>
+<a href="#3274" id="3274">3274</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3299,7 +3311,8 @@
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
-            value::{ExprValue, TypedExpr},
+            interpreter::builtin::builtin_helpers::fragments_to_string,
+            value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
@@ -3389,8 +3402,8 @@
             <span class="string">"expr_resolve" </span>=&gt; expr_resolve(<span class="self">self</span>, arguments, location),
             <span class="string">"is_unconstrained" </span>=&gt; <span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">true</span>)),
             <span class="string">"field_less_than" </span>=&gt; field_less_than(arguments, location),
-            <span class="string">"fmtstr_as_ctstring" </span>=&gt; fmtstr_as_ctstring(arguments, location),
-            <span class="string">"fmtstr_quoted_contents" </span>=&gt; fmtstr_quoted_contents(arguments, location),
+            <span class="string">"fmtstr_as_ctstring" </span>=&gt; fmtstr_as_ctstring(interner, arguments, location),
+            <span class="string">"fmtstr_quoted_contents" </span>=&gt; fmtstr_quoted_contents(interner, arguments, location),
             <span class="string">"fresh_type_variable" </span>=&gt; fresh_type_variable(interner),
             <span class="string">"function_def_add_attribute" </span>=&gt; function_def_add_attribute(<span class="self">self</span>, arguments, location),
             <span class="string">"function_def_as_typed_expr" </span>=&gt; function_def_as_typed_expr(<span class="self">self</span>, arguments, location),
@@ -4854,7 +4867,8 @@
             <span class="kw">let </span>length = length_type.evaluate_to_u32(location);
             <span class="kw">let </span>typ = Type::FmtString(length_type, captures);
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(length) = length {
-                Value::FormatString(Rc::new(<span class="string">"\0"</span>.repeat(length <span class="kw">as </span>usize)), typ)
+                <span class="kw">let </span>fragments = <span class="macro">vec!</span>[FormatStringFragment::String(<span class="string">"\0"</span>.repeat(length <span class="kw">as </span>usize))];
+                Value::FormatString(Rc::new(fragments), typ, length)
             } <span class="kw">else </span>{
                 <span class="comment">// Assume we can resolve the length later
                 </span>Value::Zeroed(typ)
@@ -5752,16 +5766,26 @@
 }
 
 <span class="comment">// fn fmtstr_as_ctstring(self) -&gt; CtString
-</span><span class="kw">fn </span>fmtstr_as_ctstring(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>fmtstr_as_ctstring(
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    arguments: Vec&lt;(Value, Location)&gt;,
+    location: Location,
+) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(string, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(Value::CtString(string))
+    <span class="kw">let </span>(fragments, <span class="kw">_</span>, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>string = fragments_to_string(<span class="kw-2">&amp;</span>fragments, interner);
+    <span class="prelude-val">Ok</span>(Value::CtString(Rc::new(string)))
 }
 
 <span class="comment">// fn quoted_contents(self) -&gt; Quoted
-</span><span class="kw">fn </span>fmtstr_quoted_contents(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>fmtstr_quoted_contents(
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    arguments: Vec&lt;(Value, Location)&gt;,
+    location: Location,
+) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(string, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(fragments, <span class="kw">_</span>, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>string = fragments_to_string(<span class="kw-2">&amp;</span>fragments, interner);
     <span class="kw">let </span>tokens = lex(<span class="kw-2">&amp;</span>string, location);
     <span class="prelude-val">Ok</span>(Value::Quoted(Rc::new(tokens)))
 }

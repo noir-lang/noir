@@ -1958,16 +1958,7 @@
 <a href="#1957" id="1957">1957</a>
 <a href="#1958" id="1958">1958</a>
 <a href="#1959" id="1959">1959</a>
-<a href="#1960" id="1960">1960</a>
-<a href="#1961" id="1961">1961</a>
-<a href="#1962" id="1962">1962</a>
-<a href="#1963" id="1963">1963</a>
-<a href="#1964" id="1964">1964</a>
-<a href="#1965" id="1965">1965</a>
-<a href="#1966" id="1966">1966</a>
-<a href="#1967" id="1967">1967</a>
-<a href="#1968" id="1968">1968</a>
-<a href="#1969" id="1969">1969</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1960" id="1960">1960</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2014,6 +2005,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
+<span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::FormatStringFragment;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::ModuleId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::TypeCheckError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::TraitItem;
@@ -2052,6 +2044,8 @@
 <span class="kw">mod </span>foreign;
 <span class="kw">mod </span>infix;
 <span class="kw">mod </span>unquote;
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>builtin::builtin_helpers;
 
 <span class="doccomment">/// Maximum depth of evaluation, limiting recursion during comptime as well as
 /// expression depth. The goal is to be able to provide Noir stack traces if
@@ -2765,8 +2759,8 @@
             HirLiteral::Bool(value) =&gt; <span class="prelude-val">Ok</span>(Value::Bool(value)),
             HirLiteral::Integer(value) =&gt; <span class="self">self</span>.evaluate_integer(value, id),
             HirLiteral::Str(string) =&gt; <span class="prelude-val">Ok</span>(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(fragments, captures, _length) =&gt; {
-                <span class="self">self</span>.evaluate_format_string(fragments, captures, id)
+            HirLiteral::FmtStr(fragments, captures, length) =&gt; {
+                <span class="self">self</span>.evaluate_format_string(fragments, captures, length, id)
             }
             HirLiteral::Array(array) =&gt; <span class="self">self</span>.evaluate_array(array, id),
             HirLiteral::Vector(array) =&gt; <span class="self">self</span>.evaluate_vector(array, id),
@@ -2781,9 +2775,10 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         fragments: Vec&lt;FmtStrFragment&gt;,
         captures: Vec&lt;ExprId&gt;,
+        length: u32,
         id: ExprId,
     ) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>new_fragments = Vec::with_capacity(fragments.len());
 
         <span class="kw">let </span><span class="kw-2">mut </span>values: VecDeque&lt;<span class="kw">_</span>&gt; =
             captures.into_iter().map(|capture| <span class="self">self</span>.evaluate(capture)).collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
@@ -2791,24 +2786,11 @@
         <span class="kw">for </span>fragment <span class="kw">in </span>fragments {
             <span class="kw">match </span>fragment {
                 FmtStrFragment::String(string) =&gt; {
-                    result.push_str(<span class="kw-2">&amp;</span>string);
+                    new_fragments.push(FormatStringFragment::String(string));
                 }
-                FmtStrFragment::Interpolation(..) =&gt; {
+                FmtStrFragment::Interpolation(name, _location) =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = values.pop_front() {
-                        <span class="comment">// When interpolating a quoted value inside a format string, we don't include the
-                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
-                        </span><span class="kw">if let </span>Value::Quoted(tokens) = value {
-                            <span class="kw">for </span>(index, token) <span class="kw">in </span>tokens.iter().enumerate() {
-                                <span class="kw">if </span>index &gt; <span class="number">0 </span>{
-                                    result.push(<span class="string">' '</span>);
-                                }
-                                result.push_str(
-                                    <span class="kw-2">&amp;</span>token.token().display(<span class="self">self</span>.elaborator.interner).to_string(),
-                                );
-                            }
-                        } <span class="kw">else </span>{
-                            result.push_str(<span class="kw-2">&amp;</span>value.display(<span class="self">self</span>.elaborator.interner).to_string());
-                        }
+                        new_fragments.push(FormatStringFragment::Value { name, value });
                     } <span class="kw">else </span>{
                         <span class="comment">// If we can't find a value for this fragment it means the interpolated value was not
                         // found or it errored. In this case we error here as well.
@@ -2822,7 +2804,7 @@
         }
 
         <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id);
-        <span class="prelude-val">Ok</span>(Value::FormatString(Rc::new(result), typ))
+        <span class="prelude-val">Ok</span>(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     <span class="doccomment">/// Since integers are polymorphic, evaluating one requires the result type.

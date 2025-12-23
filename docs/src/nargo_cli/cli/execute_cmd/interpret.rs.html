@@ -384,7 +384,9 @@
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
 <a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::AcirField;
@@ -695,7 +697,7 @@
         Value::U32(value) =&gt; value.to_string(),
         Value::U64(value) =&gt; value.to_string(),
         Value::U128(value) =&gt; value.to_string(),
-        Value::String(string) | Value::FormatString(string, <span class="kw">_</span>) | Value::CtString(string) =&gt; {
+        Value::String(string) =&gt; {
             <span class="macro">format!</span>(<span class="string">"{string:?}"</span>)
         }
         Value::Tuple(values) =&gt; {
@@ -765,7 +767,9 @@
         | Value::Zeroed(<span class="kw">_</span>)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) =&gt; {
+        | Value::UnresolvedType(..)
+        | Value::FormatString(..)
+        | Value::CtString(..) =&gt; {
             <span class="macro">panic!</span>(<span class="string">"Unexpected output value: {}"</span>, value.display(<span class="kw-2">&amp;</span>context.def_interner))
         }
     }

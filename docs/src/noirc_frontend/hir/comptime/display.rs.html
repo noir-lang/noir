@@ -1010,7 +1010,20 @@
 <a href="#1009" id="1009">1009</a>
 <a href="#1010" id="1010">1010</a>
 <a href="#1011" id="1011">1011</a>
-<a href="#1012" id="1012">1012</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1026,6 +1039,7 @@
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
+    hir::comptime::value::FormatStringFragment,
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
@@ -1412,7 +1426,19 @@
             Value::U128(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
             Value::String(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
             Value::CtString(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
-            Value::FormatString(value, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
+            Value::FormatString(fragments, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                <span class="kw">for </span>fragment <span class="kw">in </span>fragments.iter() {
+                    <span class="kw">match </span>fragment {
+                        FormatStringFragment::String(string) =&gt; {
+                            <span class="macro">write!</span>(f, <span class="string">"{string}"</span>)<span class="question-mark">?</span>;
+                        }
+                        FormatStringFragment::Value { name: <span class="kw">_</span>, value } =&gt; {
+                            <span class="macro">write!</span>(f, <span class="string">"{}"</span>, value.display(<span class="self">self</span>.interner))<span class="question-mark">?</span>;
+                        }
+                    }
+                }
+                <span class="prelude-val">Ok</span>(())
+            }
             Value::Function(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(function)"</span>),
             Value::Closure(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(closure)"</span>),
             Value::Tuple(fields) =&gt; {
