@@ -1879,7 +1879,7 @@ fn internal(error: InternalError) -> InterpreterError {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::{
         interpreter::{IResult, errors::InterpreterError, value::NumericValue},
         ir::{

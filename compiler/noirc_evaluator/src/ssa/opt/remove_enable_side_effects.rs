@@ -136,7 +136,7 @@ fn remove_enable_side_effects_pre_check(function: &Function) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
