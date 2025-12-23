@@ -1,5 +1,5 @@
 [package]
-name = "brillig_slice_input"
+name = "brillig_vector_input"
 type = "bin"
 authors = [""]
 

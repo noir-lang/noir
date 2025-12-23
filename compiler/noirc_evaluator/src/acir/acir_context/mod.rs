@@ -1523,7 +1523,7 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::BTreeMap;
 
     use acvm::{

@@ -1,5 +1,5 @@
 [package]
-name = "slice_remove_failure"
+name = "vector_remove_failure"
 type = "bin"
 authors = [""]
 [dependencies]

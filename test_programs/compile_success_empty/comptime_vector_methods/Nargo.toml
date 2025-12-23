@@ -1,5 +1,5 @@
 [package]
-name = "comptime_slice_methods"
+name = "comptime_vector_methods"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"
