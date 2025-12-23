@@ -1362,7 +1362,7 @@ mod test {
     fn simplifies_instructions_following_conditional_failure() {
         // In the following SSA we have:
         // 1. v1 is a divide-by-zero which turns into an conditional-fail constraint under v0
-        // 2. v2 is kept, as it's not side-effectuful
+        // 2. v2 is kept, as it's not side-effectual
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
