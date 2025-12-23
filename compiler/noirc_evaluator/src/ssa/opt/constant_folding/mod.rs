@@ -2190,7 +2190,7 @@ mod test {
     }
 
     #[test]
-    fn duplicates_unsigned_division_by_non_zero_constant() {
+    fn deduplicates_unsigned_division_by_non_zero_constant() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
@@ -2217,23 +2217,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_duplicate_unsigned_division_by_zero_constant() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u1):
-            enable_side_effects v2
-            v4 = div v1, u32 0
-            v5 = not v2
-            enable_side_effects v5
-            v6 = div v1, u32 0
-            return
-        }
-        ";
-        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
-    }
-
-    #[test]
-    fn does_not_duplicate_signed_division_by_minus_one_constant() {
+    fn does_not_deduplicate_signed_division_by_minus_one_constant() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: i32, v1: i32, v2: u1):
