@@ -194,7 +194,7 @@ struct Context {
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
-    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 2` without
     /// laying down constraints for the addition:
     ///
     /// ```ssa
