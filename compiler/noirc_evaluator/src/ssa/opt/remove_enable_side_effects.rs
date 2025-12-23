@@ -238,7 +238,33 @@ mod test {
     }
 
     #[test]
-    fn keep_enable_side_effects_for_safe_modulo() {
+    fn keeps_enable_side_effects_for_unsafe_modulo() {
+        // This is a simplification of `test_programs/execution_success/regression_8236`
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u16; 3], v1: [u1; 1], v2: u32):
+            v4 = call f1(v0, u1 1) -> [u1; 1]
+            v6 = array_get v0, index u32 0 -> u16
+            v7 = cast v6 as u32
+            v8 = array_get v4, index u32 0 -> u1
+            v9 = not v8
+            enable_side_effects v9
+            v11 = mod v7, v2
+            v12 = array_get v0, index v11 -> u16
+            enable_side_effects u1 1
+            return v12
+        }
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0(v0: [u16; 3], v1: u1):
+            v3 = make_array [u1 0] : [u1; 1]
+            return v3
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+    }
+
+    #[test]
+    fn does_not_keep_enable_side_effects_for_safe_modulo() {
         // This is a simplification of `test_programs/execution_success/regression_8236`
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -260,11 +286,47 @@ mod test {
             return v3
         }
         "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u16; 3], v1: [u1; 1]):
+            v4 = call f1(v0, u1 1) -> [u1; 1]
+            v6 = array_get v0, index u32 0 -> u16
+            v7 = cast v6 as u32
+            v8 = array_get v4, index u32 0 -> u1
+            v9 = not v8
+            v11 = mod v7, u32 3
+            enable_side_effects v9
+            v12 = array_get v0, index v11 -> u16
+            enable_side_effects u1 1
+            return v12
+        }
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0(v0: [u16; 3], v1: u1):
+            v3 = make_array [u1 0] : [u1; 1]
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_side_effects_for_unsafe_div() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 3], v1: u1, v2: u32):
+            v3 = array_get v0, index u32 0 -> u32
+            enable_side_effects v1
+            v5 = div v3, v2
+            return
+        }
+        "#;
         assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
     }
 
     #[test]
-    fn keep_side_effects_for_safe_div() {
+    fn does_not_keep_side_effects_for_safe_div() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1):
@@ -274,7 +336,16 @@ mod test {
             return
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 3], v1: u1):
+            v3 = array_get v0, index u32 0 -> u32
+            v5 = div v3, u32 3
+            return
+        }
+        ");
     }
 
     #[test]
