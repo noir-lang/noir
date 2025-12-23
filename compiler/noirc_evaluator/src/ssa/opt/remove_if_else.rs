@@ -1121,7 +1121,7 @@ mod tests {
         let args = vec![Value::u32(5), Value::u32(10), Value::u32(20)];
         let result = ssa.interpret(args).unwrap_err();
         let InterpreterError::ConstrainEqFailed { msg, .. } = result else {
-            panic!("Expected a constrain failure on the final slice access");
+            panic!("Expected a constrain failure on the final vector access");
         };
         assert_eq!(msg, Some("Index out of bounds".to_string()));
 
