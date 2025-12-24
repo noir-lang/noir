@@ -1114,3 +1114,22 @@ fn comptime_uhashmap_of_vectors_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_11016() {
+    let src = "
+    fn main() {
+        let _s1 = comptime {
+            foo
+            ^^^ cannot find `foo` in this scope
+            ~~~ not found in this scope
+        };
+        call!(quote {});
+    }
+
+    comptime fn call(x: Quoted) -> Quoted {
+        quote { $x() }
+    }
+    ";
+    check_errors(src);
+}
