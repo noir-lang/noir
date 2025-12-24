@@ -114,9 +114,9 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
-        // Analyze loops to find potential loop-carried aliases
+        // Analyze loops to find potential loop carried aliases
         let loop_aliases = Self::analyze_loop_aliases(self);
-        // Perform mem2reg optimization with loop-carried alias information
+        // Perform mem2reg optimization with loop carried alias information
         // Non-lop alias information will be analyzed as part of mem2reg
         let mut context = PerFunctionContext::new(self, loop_aliases);
         context.mem2reg();
@@ -124,13 +124,13 @@ impl Function {
         context.update_data_bus();
     }
 
-    /// Analyzes all loops in the function to find references with potential loop-carried aliases.
+    /// Analyzes all loops in the function to find references with potential loop carried aliases.
     ///
-    /// A loop-carried alias occurs when a reference is stored into another reference
+    /// A loop carried alias occurs when a reference is stored into another reference
     /// within a loop. This creates an aliasing relationship that persists across loop iterations,
     /// making it unsafe to remove certain stores to these references.
     ///
-    /// Returns a set of ValueIds that may have loop-carried aliases.
+    /// Returns a set of values that may have loop carried aliases.
     fn analyze_loop_aliases(function: &Function) -> HashSet<ValueId> {
         let loops = Loops::find_all(function);
         let mut aliases: HashSet<ValueId> = HashSet::default();
@@ -191,8 +191,8 @@ struct PerFunctionContext<'f> {
     /// If that store has been set for removal, we can also remove this instruction.
     aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
 
-    /// Loop-carried aliases: references that may have aliases due to stores within loops.
-    /// Contains ValueIds of references that should not have their stores removed.
+    /// Loop carried aliases: references that may have aliases due to stores within loops.
+    /// Contains values of references that should not have their stores removed.
     loop_aliases: HashSet<ValueId>,
 }
 
@@ -214,7 +214,7 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    /// Check if an address has loop-carried aliases.
+    /// Check if an address has loop carried aliases.
     ///
     /// This is important for preventing incorrect store removal. If `store v3 at v2`
     /// occurs in a loop, then v2 may point to v3 in future iterations. A subsequent
@@ -594,7 +594,7 @@ impl<'f> PerFunctionContext<'f> {
                 let address_aliases = references.get_aliases_for_value(address);
                 // If there was another store to this address without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                // However, we must be conservative if there are loop-carried aliases, as loads
+                // However, we must be conservative if there are loop carried aliases, as loads
                 // through those aliases may occur in future loop iterations.
                 let has_loop_aliases = self.has_loop_carried_aliases(address);
                 if !self.aliased_references.contains_key(&address)
