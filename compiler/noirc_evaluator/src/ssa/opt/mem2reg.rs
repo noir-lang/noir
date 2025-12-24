@@ -93,6 +93,7 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
+    opt::unrolling::Loops,
     ssa_gen::Ssa,
 };
 
@@ -113,10 +114,49 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
-        let mut context = PerFunctionContext::new(self);
+        // First pass: analyze loops to find potential loop-carried aliases
+        let loop_aliases = Self::analyze_loop_aliases(self);
+        dbg!(&loop_aliases);
+        // Second pass: perform mem2reg optimization with alias information
+        let mut context = PerFunctionContext::new(self, loop_aliases);
         context.mem2reg();
         context.remove_instructions();
         context.update_data_bus();
+    }
+
+    /// Analyzes all loops in the function to find potential loop-carried aliases.
+    ///
+    /// A loop-carried alias occurs when a reference is stored into another reference
+    /// within a loop. This creates an aliasing relationship that persists across loop iterations, 
+    /// making it unsafe to remove certain stores.
+    ///
+    /// Returns a map from address ValueId to a set of ValueIds that may alias with it
+    /// due to stores within loops.
+    fn analyze_loop_aliases(function: &Function) -> HashMap<ValueId, HashSet<ValueId>> {
+        let loops = Loops::find_all(function);
+        let mut aliases: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
+
+        // For each loop, find all `store ref_value at ref_address` patterns
+        for loop_info in &loops.yet_to_unroll {
+            for block_id in &loop_info.blocks {
+                let block = &function.dfg[*block_id];
+
+                for instruction_id in block.instructions() {
+                    if let Instruction::Store { address, value } = &function.dfg[*instruction_id] {
+                        // Check if both the address and value are references
+                        // This indicates we're storing a reference into another reference
+                        if function.dfg.value_is_reference(*address)
+                            && function.dfg.value_is_reference(*value) {
+                            // Mark that `address` may alias with `value` (and vice versa)
+                            aliases.entry(*address).or_default().insert(*value);
+                            aliases.entry(*value).or_default().insert(*address);
+                        }
+                    }
+                }
+            }
+        }
+
+        aliases
     }
 }
 
@@ -150,13 +190,16 @@ struct PerFunctionContext<'f> {
     /// instruction that aliased that reference.
     /// If that store has been set for removal, we can also remove this instruction.
     aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
+
+    /// Loop-carried aliases: references that may alias due to stores within loops.
+    /// Maps each address to the set of addresses it may alias with.
+    loop_aliases: HashMap<ValueId, HashSet<ValueId>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
-    fn new(function: &'f mut Function) -> Self {
+    fn new(function: &'f mut Function, loop_aliases: HashMap<ValueId, HashSet<ValueId>>) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-
         PerFunctionContext {
             cfg,
             post_order,
@@ -167,7 +210,39 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
+            loop_aliases,
         }
+    }
+
+    /// Check if an address or the value being stored has loop-carried aliases.
+    ///
+    /// This is important for preventing incorrect store removal. If `store v2 at v1`
+    /// occurs in a loop, then v1 may point to v2 in future iterations. A subsequent
+    /// `store X at v2` should not have its previous store removed, as that store may
+    /// be read through v1 (which now aliases v2).
+    fn has_loop_carried_aliases(&self, address: ValueId, value: ValueId) -> bool {
+        // Check if the address we're storing to has loop-carried aliases
+        if self.loop_aliases.contains_key(&address) {
+            return true;
+        }
+
+        // Check if the value we're storing has loop-carried aliases
+        // This catches the case where we do `store v2 at v1` which creates
+        // an alias between v1 and v2
+        if self.loop_aliases.contains_key(&value) {
+            return true;
+        }
+
+        // Also check if the value has potential aliases that themselves have loop aliases
+        if let Some(value_aliases) = self.loop_aliases.get(&value) {
+            for alias in value_aliases {
+                if self.loop_aliases.contains_key(alias) {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     /// Apply the mem2reg pass to the given function.
@@ -533,9 +608,14 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
 
                 let address_aliases = references.get_aliases_for_value(address);
-                // If there was another store to this instruction without any (unremoved) loads or
+                // If there was another store to this address without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
+                // However, we must be conservative if there are loop-carried aliases, as loads
+                // through those aliases may occur in future loop iterations.
+                let has_loop_aliases = self.has_loop_carried_aliases(address, value);
+                if !self.aliased_references.contains_key(&address)
+                    && !address_aliases.is_unknown()
+                    && !has_loop_aliases
                 {
                     if let Some(last_store) = references.last_stores.get(&address) {
                         self.instructions_to_remove.insert(*last_store);
@@ -860,7 +940,7 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{interpreter::value::Value, opt::assert_ssa_does_not_change, Ssa},
     };
 
     #[test]
@@ -2663,5 +2743,110 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn aliases_in_a_loop() {
+      let src = "
+      acir(inline) impure fn main f0 {
+        b0():
+          v1 = call f1() -> Field
+          return v1
+      }
+      brillig(inline) impure fn foo f1 {
+        b0():
+          v0 = allocate -> &mut Field
+          store Field 3405691582 at v0
+          v4 = call f2(v0, Field 3735928559) -> Field
+          return v4
+      }
+      brillig(inline) impure fn bar f2 {
+        b0(v0: &mut Field, v1: Field):
+          v2 = allocate -> &mut &mut Field
+          store v0 at v2
+          v3 = allocate -> &mut Field
+          store v1 at v3
+          v4 = allocate -> &mut Field
+          store Field 0 at v4
+          jmp b1()
+        b1():
+          v6 = load v4 -> Field
+          v8 = eq v6, Field 2
+          jmpif v8 then: b2, else: b3
+        b2():
+          jmp b4()
+        b3():
+          v9 = load v4 -> Field
+          v11 = add v9, Field 1
+          store v11 at v4
+          store Field 3735928559 at v3
+          v13 = load v2 -> &mut Field
+          v14 = load v13 -> Field
+          v15 = load v3 -> Field
+          store v14 at v3
+          store v3 at v2
+          jmp b1()
+        b4():
+          v16 = load v3 -> Field
+          return v16
+      }
+      ";
+      let ssa = Ssa::from_str(src).unwrap();
+      let result = ssa.interpret(vec![]).unwrap();
+      assert_eq!(result, vec![Value::field(3735928559u128.into())]);
+      let ssa = ssa.mem2reg();
+      let mem2reg_result = ssa.interpret(vec![]).unwrap();
+      assert_eq!(result, mem2reg_result);
+
+      // We expect `store Field 3735928559 at v3` to remain. 
+      // If alias analysis does not account for loops, when mem2reg sees `store v14 at v3` 
+      // it will view the first store as being overwritten.
+      // However, the following instruction `store v3 at v2` makes v3 and the loaded result of v2 possibly alias one another.
+      // In the next loop iteration, `v13 = load v2` were are returning v3 (through the alias) and then loading 
+      // from the alias with `v14 = load v13`. We should only remove a last store if there are no (unremoved) loads from that address 
+      // between the last store and the current one. Thus, `store Field 3735928559 at v3` should not be removed
+      // as we load from v13 (an alias of v3) before we reach `store v14 at v3`.
+      assert_ssa_snapshot!(ssa, @r"
+      acir(inline) impure fn main f0 {
+        b0():
+          v1 = call f1() -> Field
+          return v1
+      }
+      brillig(inline) impure fn foo f1 {
+        b0():
+          v0 = allocate -> &mut Field
+          store Field 3405691582 at v0
+          v4 = call f2(v0, Field 3735928559) -> Field
+          return v4
+      }
+      brillig(inline) impure fn bar f2 {
+        b0(v0: &mut Field, v1: Field):
+          v2 = allocate -> &mut &mut Field
+          store v0 at v2
+          v3 = allocate -> &mut Field
+          store v1 at v3
+          v4 = allocate -> &mut Field
+          store Field 0 at v4
+          jmp b1()
+        b1():
+          v6 = load v4 -> Field
+          v8 = eq v6, Field 2
+          jmpif v8 then: b2, else: b3
+        b2():
+          jmp b4()
+        b3():
+          v10 = add v6, Field 1
+          store v10 at v4
+          store Field 3735928559 at v3
+          v12 = load v2 -> &mut Field
+          v13 = load v12 -> Field
+          store v13 at v3
+          store v3 at v2
+          jmp b1()
+        b4():
+          v14 = load v3 -> Field
+          return v14
+      }
+      ");
     }
 }
