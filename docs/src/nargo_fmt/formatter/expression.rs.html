@@ -2650,7 +2650,16 @@
 <a href="#2649" id="2649">2649</a>
 <a href="#2650" id="2650">2650</a>
 <a href="#2651" id="2651">2651</a>
-<a href="#2652" id="2652">2652</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2652" id="2652">2652</a>
+<a href="#2653" id="2653">2653</a>
+<a href="#2654" id="2654">2654</a>
+<a href="#2655" id="2655">2655</a>
+<a href="#2656" id="2656">2656</a>
+<a href="#2657" id="2657">2657</a>
+<a href="#2658" id="2658">2658</a>
+<a href="#2659" id="2659">2659</a>
+<a href="#2660" id="2660">2660</a>
+<a href="#2661" id="2661">2661</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -5300,6 +5309,15 @@ global y = 1;
 }
 "#</span>;
         assert_format_with_max_width(src, src, <span class="number">20</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>turbofish_with_negative_literal() {
+        <span class="kw">let </span>src = <span class="string">r#"fn main() {
+    foo::&lt;-128&gt;();
+}
+"#</span>;
+        assert_format(src, src);
     }
 }
 </code></pre></div></section></main></body></html>
