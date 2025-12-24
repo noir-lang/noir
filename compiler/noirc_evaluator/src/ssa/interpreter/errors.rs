@@ -60,8 +60,8 @@ pub enum InterpreterError {
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]
     DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
-    #[error("Tried to pop from empty slice `{slice}` in `{instruction}`")]
-    PoppedFromEmptySlice { slice: ValueId, instruction: &'static str },
+    #[error("Tried to pop from empty vector `{vector}` in `{instruction}`")]
+    PoppedFromEmptyVector { vector: ValueId, instruction: &'static str },
     #[error("Unable to convert `{field_id} = {field}` to radix {radix}")]
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
@@ -69,7 +69,9 @@ pub enum InterpreterError {
     #[error("Reached the unreachable")]
     ReachedTheUnreachable,
     #[error("Array index {index} is out of bounds for array of length {length}")]
-    IndexOutOfBounds { index: u32, length: u32 },
+    IndexOutOfBounds { index: FieldElement, length: u32 },
+    #[error("Ran out of budget after executing {steps} steps")]
+    OutOfBudget { steps: usize },
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -143,10 +145,10 @@ pub enum InternalError {
     RangeCheckToZeroBits { value_id: ValueId },
     #[error("`field_less_than` can only be called in unconstrained contexts")]
     FieldLessThanCalledInConstrainedContext,
-    #[error("Slice `{slice_id} = {slice}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}", element_types.join(", "), element_types.len())]
-    NotEnoughElementsToPopSliceOfStructs {
-        slice_id: ValueId,
-        slice: String,
+    #[error("Vector `{vector_id} = {vector}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}", element_types.join(", "), element_types.len())]
+    NotEnoughElementsToPopVectorOfStructs {
+        vector_id: ValueId,
+        vector: String,
         actual_length: usize,
         element_types: Vec<String>,
     },

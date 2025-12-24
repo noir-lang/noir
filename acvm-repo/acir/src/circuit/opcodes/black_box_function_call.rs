@@ -327,35 +327,27 @@ impl<F> BlackBoxFuncCall<F> {
 impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
-            BlackBoxFuncCall::Blake2s { inputs, .. }
-            | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            BlackBoxFuncCall::Blake2s { inputs, outputs: _ }
+            | BlackBoxFuncCall::Blake3 { inputs, outputs: _ }
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.to_vec(),
 
-            BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
-            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } => {
-                let mut all_inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(inputs.len() + iv.len() + key.len());
-                all_inputs.extend(**iv);
-                all_inputs.extend(**key);
-                all_inputs
+            BlackBoxFuncCall::Keccakf1600 { inputs, outputs: _ } => inputs.to_vec(),
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs: _ } => {
+                [inputs, iv.as_slice(), key.as_slice()].concat()
             }
-            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
-                inputs.iter().chain(hash_values.as_ref()).copied().collect()
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs: _ } => {
+                [inputs.as_slice(), hash_values.as_slice()].concat()
             }
-            BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
+            BlackBoxFuncCall::AND { lhs, rhs, output: _, num_bits: _ }
+            | BlackBoxFuncCall::XOR { lhs, rhs, output: _, num_bits: _ } => {
                 vec![*lhs, *rhs]
             }
-            BlackBoxFuncCall::RANGE { input, .. } => vec![*input],
+            BlackBoxFuncCall::RANGE { input, num_bits: _ } => vec![*input],
 
-            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, .. } => {
-                let mut inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(points.len() + scalars.len());
-                inputs.extend(points.iter().copied());
-                inputs.extend(scalars.iter().copied());
-                inputs.push(*predicate);
-                inputs
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs: _ } => {
+                [points.as_slice(), scalars.as_slice(), &[*predicate]].concat()
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, .. } => {
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs: _ } => {
                 vec![input1[0], input1[1], input1[2], input2[0], input2[1], input2[2], *predicate]
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -365,20 +357,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 hashed_message,
                 predicate,
                 output: _,
-            } => {
-                let mut inputs = Vec::with_capacity(
-                    public_key_x.len()
-                        + public_key_y.len()
-                        + signature.len()
-                        + hashed_message.len(),
-                );
-                inputs.extend(public_key_x.iter().copied());
-                inputs.extend(public_key_y.iter().copied());
-                inputs.extend(signature.iter().copied());
-                inputs.extend(hashed_message.iter().copied());
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [
+                public_key_x.as_slice(),
+                public_key_y.as_slice(),
+                signature.as_slice(),
+                hashed_message.as_slice(),
+                &[*predicate],
+            ]
+            .concat(),
             BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
                 public_key_y,
@@ -386,20 +372,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 hashed_message,
                 predicate,
                 output: _,
-            } => {
-                let mut inputs = Vec::with_capacity(
-                    public_key_x.len()
-                        + public_key_y.len()
-                        + signature.len()
-                        + hashed_message.len(),
-                );
-                inputs.extend(public_key_x.iter().copied());
-                inputs.extend(public_key_y.iter().copied());
-                inputs.extend(signature.iter().copied());
-                inputs.extend(hashed_message.iter().copied());
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [
+                public_key_x.as_slice(),
+                public_key_y.as_slice(),
+                signature.as_slice(),
+                hashed_message.as_slice(),
+                &[*predicate],
+            ]
+            .concat(),
             BlackBoxFuncCall::RecursiveAggregation {
                 verification_key: key,
                 proof,
@@ -407,15 +387,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 key_hash,
                 proof_type: _,
                 predicate,
-            } => {
-                let mut inputs = Vec::new();
-                inputs.extend(key.iter().copied());
-                inputs.extend(proof.iter().copied());
-                inputs.extend(public_inputs.iter().copied());
-                inputs.push(*key_hash);
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [key.as_slice(), proof, public_inputs, &[*key_hash], &[*predicate]].concat(),
         }
     }
 
@@ -434,32 +406,112 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
-        // INPUTS
 
-        let inputs_str = &self
-            .get_inputs_vec()
-            .iter()
-            .map(|i| i.to_string())
-            .collect::<Vec<String>>()
-            .join(", ");
-
-        write!(f, "[{inputs_str}]")?;
-        if let Some(bit_size) = self.bit_size() {
-            write!(f, ":{bit_size} bits")?;
+        match self {
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
+                let inputs = slice_to_string(inputs);
+                let iv = slice_to_string(&iv.to_vec());
+                let key = slice_to_string(&key.to_vec());
+                let outputs = slice_to_string(outputs);
+                write!(f, "inputs: {inputs}, iv: {iv}, key: {key}, outputs: {outputs}")?;
+            }
+            BlackBoxFuncCall::AND { lhs, rhs, num_bits, output }
+            | BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
+                write!(f, "lhs: {lhs}, rhs: {rhs}, output: {output}, bits: {num_bits}")?;
+            }
+            BlackBoxFuncCall::RANGE { input, num_bits } => {
+                write!(f, "input: {input}, bits: {num_bits}")?;
+            }
+            BlackBoxFuncCall::Blake2s { inputs, outputs }
+            | BlackBoxFuncCall::Blake3 { inputs, outputs } => {
+                let inputs = slice_to_string(inputs);
+                let outputs = slice_to_string(&outputs.to_vec());
+                write!(f, "inputs: {inputs}, outputs: {outputs}")?;
+            }
+            BlackBoxFuncCall::EcdsaSecp256k1 {
+                public_key_x,
+                public_key_y,
+                signature,
+                hashed_message,
+                predicate,
+                output,
+            }
+            | BlackBoxFuncCall::EcdsaSecp256r1 {
+                public_key_x,
+                public_key_y,
+                signature,
+                hashed_message,
+                predicate,
+                output,
+            } => {
+                let public_key_x = slice_to_string(&public_key_x.to_vec());
+                let public_key_y = slice_to_string(&public_key_y.to_vec());
+                let signature = slice_to_string(&signature.to_vec());
+                let hashed_message = slice_to_string(&hashed_message.to_vec());
+                write!(
+                    f,
+                    "public_key_x: {public_key_x}, public_key_y: {public_key_y}, signature: {signature}, hashed_message: {hashed_message}, predicate: {predicate}, output: {output}"
+                )?;
+            }
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
+                let points = slice_to_string(points);
+                let scalars = slice_to_string(scalars);
+                write!(
+                    f,
+                    "points: {points}, scalars: {scalars}, predicate: {predicate}, outputs: [{}, {}, {}]",
+                    outputs.0, outputs.1, outputs.2
+                )?;
+            }
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
+                let input1 = slice_to_string(&input1.to_vec());
+                let input2 = slice_to_string(&input2.to_vec());
+                write!(
+                    f,
+                    "input1: {input1}, input2: {input2}, predicate: {predicate}, outputs: [{}, {}, {}]",
+                    outputs.0, outputs.1, outputs.2
+                )?;
+            }
+            BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
+                let inputs = slice_to_string(&inputs.to_vec());
+                let outputs = slice_to_string(&outputs.to_vec());
+                write!(f, "inputs: {inputs}, outputs: {outputs}")?;
+            }
+            BlackBoxFuncCall::RecursiveAggregation {
+                verification_key,
+                proof,
+                public_inputs,
+                key_hash,
+                proof_type,
+                predicate,
+            } => {
+                let verification_key = slice_to_string(verification_key);
+                let proof = slice_to_string(proof);
+                let public_inputs = slice_to_string(public_inputs);
+                write!(
+                    f,
+                    "verification_key: {verification_key}, proof: {proof}, public_inputs: {public_inputs}, key_hash: {key_hash}, proof_type: {proof_type}, predicate: {predicate}"
+                )?;
+            }
+            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
+                let inputs = slice_to_string(inputs);
+                let outputs = slice_to_string(outputs);
+                write!(f, "inputs: {inputs}, outputs: {outputs}")?;
+            }
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
+                let inputs = slice_to_string(&inputs.to_vec());
+                let hash_values = slice_to_string(&hash_values.to_vec());
+                let outputs = slice_to_string(&outputs.to_vec());
+                write!(f, "inputs: {inputs}, hash_values: {hash_values}, outputs: {outputs}")?;
+            }
         }
-        write!(f, " ")?;
 
-        // OUTPUTS
-
-        let outputs_str = &self
-            .get_outputs_vec()
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>()
-            .join(", ");
-
-        write!(f, "[{outputs_str}]")
+        Ok(())
     }
+}
+
+fn slice_to_string<D: std::fmt::Display>(inputs: &[D]) -> String {
+    let inputs = inputs.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(", ");
+    format!("[{inputs}]")
 }
 
 impl<F: std::fmt::Display + Copy> std::fmt::Debug for BlackBoxFuncCall<F> {

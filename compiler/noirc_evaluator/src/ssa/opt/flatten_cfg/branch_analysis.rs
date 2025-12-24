@@ -283,9 +283,7 @@ impl<'cfg> Context<'cfg> {
 }
 
 #[cfg(test)]
-mod test {
-
-    use acvm::acir::circuit::ExpressionWidth;
+mod tests {
 
     use crate::{
         brillig::BrilligOptions,
@@ -293,7 +291,7 @@ mod test {
             SsaEvaluatorOptions,
             function_builder::FunctionBuilder,
             ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::{flatten_cfg::branch_analysis::find_branch_ends, inlining::MAX_INSTRUCTIONS},
+            opt::{constant_folding, flatten_cfg::branch_analysis::find_branch_ends, inlining},
             primary_passes,
             ssa_gen::Ssa,
         },
@@ -643,13 +641,13 @@ mod test {
             ssa_logging: crate::ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
-            small_function_max_instruction: MAX_INSTRUCTIONS,
+            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
+            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Vec::new(),
         };

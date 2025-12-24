@@ -10,10 +10,11 @@ use crate::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
+    hir::comptime::value::FormatStringFragment,
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
@@ -284,7 +285,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::SliceStart
+            | Token::VectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -400,7 +401,19 @@ impl Display for ValuePrinter<'_, '_> {
             Value::U128(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
-            Value::FormatString(value, _) => write!(f, "{value}"),
+            Value::FormatString(fragments, _, _) => {
+                for fragment in fragments.iter() {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            write!(f, "{string}")?;
+                        }
+                        FormatStringFragment::Value { name: _, value } => {
+                            write!(f, "{}", value.display(self.interner))?;
+                        }
+                    }
+                }
+                Ok(())
+            }
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
@@ -413,13 +426,26 @@ impl Display for ValuePrinter<'_, '_> {
                 }
             }
             Value::Struct(fields, typ) => {
-                let typename = match typ.follow_bindings() {
-                    Type::DataType(def, _) => def.borrow().name.to_string(),
-                    other => other.to_string(),
+                let data_type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def,
+                    other => unreachable!("Expected data type, found {other}"),
                 };
-                let fields = vecmap(fields, |(name, value)| {
-                    format!("{}: {}", name, value.borrow().display(self.interner))
-                });
+                let data_type = data_type.borrow();
+                let typename = data_type.name.to_string();
+
+                // Display fields in the order they are defined in the struct.
+                // Some fields might not be there if they were missing in the constructor.
+                let fields = data_type
+                    .fields_raw()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|field| {
+                        let name = field.name.as_string();
+                        fields.get(name).map(|value| {
+                            format!("{}: {}", name, value.borrow().display(self.interner))
+                        })
+                    })
+                    .collect::<Vec<_>>();
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
             Value::Enum(tag, args, typ) => {
@@ -449,7 +475,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
             }
-            Value::Slice(values, _) => {
+            Value::Vector(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "&[{}]", values.join(", "))
             }
@@ -759,7 +785,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
         Literal::Array(array_literal) => {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
-        Literal::Slice(array_literal) => {
+        Literal::Vector(array_literal) => {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
@@ -805,7 +831,7 @@ fn remove_interned_in_statement_kind(
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
             pattern: remove_interned_in_pattern(interner, let_statement.pattern),
             expression: remove_interned_in_expression(interner, let_statement.expression),
-            r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
+            r#type: remove_interned_in_option_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
         StatementKind::Expression(expr) => {
@@ -831,9 +857,10 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
-        StatementKind::Loop(block, span) => {
-            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
-        }
+        StatementKind::Loop(loop_) => StatementKind::Loop(LoopStatement {
+            body: remove_interned_in_expression(interner, loop_.body),
+            loop_keyword_location: loop_.loop_keyword_location,
+        }),
         StatementKind::While(while_) => StatementKind::While(WhileStatement {
             condition: remove_interned_in_expression(interner, while_.condition),
             body: remove_interned_in_expression(interner, while_.body),
@@ -877,6 +904,13 @@ fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue 
     }
 }
 
+fn remove_interned_in_option_unresolved_type(
+    interner: &NodeInterner,
+    typ: Option<UnresolvedType>,
+) -> Option<UnresolvedType> {
+    typ.map(|typ| remove_interned_in_unresolved_type(interner, typ))
+}
+
 fn remove_interned_in_unresolved_type(
     interner: &NodeInterner,
     typ: UnresolvedType,
@@ -896,8 +930,8 @@ fn remove_interned_in_unresolved_type_data(
             expr,
             Box::new(remove_interned_in_unresolved_type(interner, *typ)),
         ),
-        UnresolvedTypeData::Slice(typ) => {
-            UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
+        UnresolvedTypeData::Vector(typ) => {
+            UnresolvedTypeData::Vector(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
         }
         UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, *typ),
@@ -944,7 +978,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Unit
         | UnresolvedTypeData::Resolved(_)
         | UnresolvedTypeData::Expression(_)
-        | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }
 }

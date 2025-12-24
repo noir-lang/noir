@@ -16,7 +16,7 @@ pub use program::{
     DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
     program_wrap_expression,
 };
-pub use program::{expr, rewrite, scope, types, visitor};
+pub use program::{expr, rewrite, scope, types};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -59,7 +59,7 @@ pub struct Config {
     /// to avoid trivial failures due to multiplying or adding constants.
     pub avoid_overflow: bool,
     /// Try to avoid "Index out of bounds" by using modulo to limit indexing to the
-    /// range that an array or slice is expected to contain.
+    /// range that an array or vector is expected to contain.
     ///
     /// This is easy to trigger (a random `u32` will most certainly be out of the range
     /// of the arrays we generate), so by default it is "on". When it's "off", a random
@@ -81,8 +81,8 @@ pub struct Config {
     pub avoid_constrain: bool,
     /// Avoid match statements and expressions.
     pub avoid_match: bool,
-    /// Avoid using the slice type.
-    pub avoid_slices: bool,
+    /// Avoid using the vector type.
+    pub avoid_vectors: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -109,14 +109,14 @@ impl Default for Config {
             ("constrain", 4),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("break", 35),
+            ("break", 45),
             ("continue", 25),
             ("assign", 30),
             ("if", 10),
             ("match", 15),
-            ("for", 30),
-            ("loop", 30),
-            ("while", 30),
+            ("for", 40),
+            ("loop", 40),
+            ("while", 40),
             ("let", 20),
             ("call", 5),
             ("print", 15),
@@ -150,7 +150,7 @@ impl Default for Config {
             avoid_print: false,
             avoid_constrain: false,
             avoid_match: false,
-            avoid_slices: false,
+            avoid_vectors: false,
             comptime_friendly: false,
         }
     }

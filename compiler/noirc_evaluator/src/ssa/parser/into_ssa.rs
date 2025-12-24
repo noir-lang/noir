@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
@@ -7,7 +8,10 @@ use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
-    function_builder::FunctionBuilder,
+    function_builder::{
+        FunctionBuilder,
+        data_bus::{CallData, DataBus},
+    },
     ir::{
         basic_block::BasicBlockId,
         dfg::GlobalsGraph,
@@ -16,6 +20,7 @@ use crate::ssa::{
         value::ValueId,
     },
     opt::pure::FunctionPurities,
+    parser::ast::ParsedDataBus,
     ssa_gen::validate_ssa,
 };
 
@@ -203,6 +208,33 @@ impl Translator {
             self.translate_block(parsed_block)?;
         }
 
+        self.translate_function_data_bus(function.data_bus)
+    }
+
+    fn translate_function_data_bus(
+        &mut self,
+        parsed_data_bus: ParsedDataBus,
+    ) -> Result<(), SsaError> {
+        let mut call_data_vec = Vec::new();
+        for parsed_call_data in parsed_data_bus.call_data {
+            let call_data_id = parsed_call_data.call_data_id;
+            let array_id = self.translate_value(parsed_call_data.array)?;
+            let mut index_map = FxHashMap::default();
+            for (value, index) in parsed_call_data.index_map {
+                let value_id = self.translate_value(value)?;
+                index_map.insert(value_id, index);
+            }
+            let call_data = CallData { call_data_id, array_id, index_map };
+            call_data_vec.push(call_data);
+        }
+
+        let return_data = if let Some(return_data) = parsed_data_bus.return_data {
+            Some(self.translate_value(return_data)?)
+        } else {
+            None
+        };
+        let data_bus = DataBus { call_data: call_data_vec, return_data };
+        self.builder.set_data_bus(data_bus);
         Ok(())
     }
 
@@ -574,8 +606,9 @@ impl Translator {
             return Ok(var_id);
         }
 
-        // We allow calls to the built-in print function
-        if &function.name == "print" {
+        // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
+        // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+        if &function.name == "print" || function.name.contains("oracle") {
             return Ok(self.builder.import_foreign_function(&function.name));
         }
 

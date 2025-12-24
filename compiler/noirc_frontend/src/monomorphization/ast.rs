@@ -57,8 +57,8 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn is_array_or_slice_literal(&self) -> bool {
-        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    pub fn is_array_or_vector_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Vector(_)))
     }
 
     /// The return type of an expression, if it has an obvious one.
@@ -71,7 +71,7 @@ impl Expression {
         match self {
             Expression::Ident(ident) => borrowed(&ident.typ),
             Expression::Literal(literal) => match literal {
-                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Array(literal) | Literal::Vector(literal) => borrowed(&literal.typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
@@ -269,7 +269,7 @@ pub struct While {
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
@@ -462,6 +462,28 @@ impl InlineType {
             InlineType::NoPredicates => false,
         }
     }
+
+    /// Produce an `InlineType` which we can use with an unconstrained version of a function.
+    pub fn into_unconstrained(self) -> Self {
+        match self {
+            InlineType::Inline | InlineType::InlineAlways => self,
+            InlineType::Fold => {
+                // The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                Self::default()
+            }
+            InlineType::NoPredicates => {
+                // The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                // We can keep these, or try inlining more aggressively, since we don't
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                self
+            }
+        }
+    }
 }
 
 impl Display for InlineType {
@@ -505,8 +527,9 @@ pub enum Type {
     FmtString(/*len:*/ u32, Box<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Slice(Box<Type>),
+    Vector(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -523,10 +546,10 @@ impl Type {
         }
     }
 
-    /// Returns the element type of this array or slice
+    /// Returns the element type of this array or vector
     pub fn array_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            Type::Array(_, elem) | Type::Vector(elem) => Some(elem),
             _ => None,
         }
     }
@@ -671,7 +694,7 @@ impl Display for Type {
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Slice(element) => write!(f, "[{element}]"),
+            Type::Vector(element) => write!(f, "[{element}]"),
             Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
             Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }

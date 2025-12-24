@@ -19,7 +19,7 @@ use crate::{
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation, PublicInputs},
+        circuit::{AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs},
         native_types::Witness,
     },
 };
@@ -52,6 +52,7 @@ pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
 mod visit_once_deque;
+mod visit_once_priority_queue;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
@@ -87,9 +88,6 @@ pub struct SsaEvaluatorOptions {
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
 
-    /// Width of expressions to be used for ACIR
-    pub expression_width: ExpressionWidth,
-
     /// Dump the unoptimized SSA to the supplied path if it exists
     pub emit_ssa: Option<PathBuf>,
 
@@ -107,7 +105,10 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
-    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    /// Maximum number iterations to do in constant folding, as long as new values are hoisted.
+    pub constant_folding_max_iter: usize,
+
+    /// The higher the value, the more Brillig functions will be set to always be inlined.
     pub small_function_max_instruction: usize,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
@@ -159,7 +160,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Dead Instruction Elimination",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
+        SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
@@ -174,10 +175,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
+        // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
+        // introduce signed divisions.
+        SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
+        // then try to free memory before inlining, which involves copying a instructions.
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -193,10 +198,16 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
@@ -221,7 +232,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
-        SsaPass::new(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
+            "Inlining Brillig Calls",
+        ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
@@ -321,7 +339,7 @@ pub fn optimize_ssa_builder_into_acir(
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(&brillig, &options.brillig_options)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
@@ -374,7 +392,7 @@ pub fn create_program_with_minimal_passes(
     for func in &program.functions {
         assert!(
             func.unconstrained,
-            "The minimum SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
+            "The minimal SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
             func.name
         );
     }

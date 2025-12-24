@@ -77,5 +77,14 @@ fn main() {
 
         assert_eq(visibility1, quote {});
         assert_eq(visibility2, quote {});
+
+        // Test TypeDefinition::as_type_with_generics
+        let i32_type = quote [i32].as_type();
+
+        let applied = struct_def.as_type_with_generics(&[i32_type, i32_type, i32_type]);
+        let invalid = struct_def.as_type_with_generics(&[i32_type, i32_type]); // invalid generic count
+
+        assert_eq(applied.unwrap(), quote [MyType<i32, i32, i32>].as_type());
+        assert(invalid.is_none());
     }
 }

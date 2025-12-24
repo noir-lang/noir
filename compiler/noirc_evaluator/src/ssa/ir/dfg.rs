@@ -304,7 +304,10 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
+        let simplify_result =
+            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+
+        match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -315,20 +318,29 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let instructions = result.instructions();
-                if instructions.is_none() {
+                let is_simplified = match &result {
+                    SimplifyResult::SimplifiedToInstruction(i) => {
+                        // `Binary` can simplify to itself instead of None.
+                        *i != instruction
+                    }
+                    SimplifyResult::SimplifiedToInstructionMultiple(is) => {
+                        // `Constrain` can simplify to a Multiple, with a single item of itself.
+                        is.len() != 1 || is[0] != instruction
+                    }
+                    SimplifyResult::None => false,
+                    _ => unreachable!("matched specific SimplifyResult types"),
+                };
+                if !is_simplified {
                     if let Some(id) = existing_id {
                         if self[id] == instruction {
                             // Just (re)insert into the block, no need to redefine.
                             self.blocks[block].insert_instruction(id);
-                            return InsertInstructionResult::Results(
-                                id,
-                                self.instruction_results(id),
-                            );
+                            let results = self.instruction_results(id);
+                            return InsertInstructionResult::Results(id, results);
                         }
                     }
                 }
-                let mut instructions = instructions.unwrap_or(vec![instruction]);
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
                     !instructions.is_empty(),
                     "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
@@ -574,10 +586,19 @@ impl DataFlowGraph {
 
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
-    #[allow(unused)]
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
         self.results.insert(instruction, smallvec::SmallVec::new());
+    }
+
+    /// Remove instructions for which the `keep` functions returns `false`.
+    pub(crate) fn retain_instructions(&mut self, keep: impl Fn(InstructionId) -> bool) {
+        for i in 0..self.instructions.len() {
+            let id = InstructionId::new(i as u32);
+            if !keep(id) {
+                self.remove_instruction(id);
+            }
+        }
     }
 
     /// Add a parameter to the given block
@@ -632,6 +653,31 @@ impl DataFlowGraph {
             Type::Array(_, length) => Some(length),
             _ => None,
         }
+    }
+    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<u32> {
+        // For arrays we know the size statically
+        if let Some(length) = self.try_get_array_length(value) {
+            return Some(length);
+        }
+
+        // Check if the value was made by a MakeArray instruction, which can create vectors as well.
+        let (array, typ) = self.get_array_constant(value)?;
+        let elements_size = typ.element_size();
+
+        let length = if elements_size == 0 {
+            array.len()
+        } else {
+            // Compute the vector length by dividing the flattened
+            // array length by the size of each array element
+            assert_eq!(
+                array.len() % elements_size,
+                0,
+                "expected array length to be multiple of its elements size"
+            );
+            array.len() / elements_size
+        };
+
+        Some(length as u32)
     }
 
     /// If this value points to an array of constant bytes, returns a string
@@ -717,7 +763,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a (recursively) constant value
+    /// True if the given [ValueId] refers to a constant value.
+    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[argument] {
             Value::Param { .. } => false,
@@ -779,7 +826,7 @@ impl DataFlowGraph {
         self.function_purities.get(&function).copied()
     }
 
-    /// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
     pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
         if !self.runtime.is_brillig()
             || !self.brillig_arrays_offset
@@ -789,9 +836,20 @@ impl DataFlowGraph {
         }
         match self.type_of_value(array) {
             Type::Array(_, _) => ArrayOffset::Array,
-            Type::Slice(_) => ArrayOffset::Slice,
+            Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,
         }
+    }
+
+    /// Check if the results of an instruction are used in the databus to return a value..
+    ///
+    /// This only applies to ACIR, as in Brillig the databus will always be empty.
+    pub(crate) fn is_returned_in_databus(&self, instruction_id: InstructionId) -> bool {
+        let Some(return_data) = self.data_bus.return_data else {
+            return false;
+        };
+        let results = self.instruction_results(instruction_id);
+        results.contains(&return_data)
     }
 }
 

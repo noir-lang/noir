@@ -2,7 +2,7 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -18,10 +18,8 @@ workspace = true
 [dependencies]
 acir_field.workspace = true
 brillig.workspace = true
-noir_protobuf.workspace = true
 noirc_span.workspace = true
 
-color-eyre.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 flate2.workspace = true
@@ -30,7 +28,6 @@ base64.workspace = true
 num-bigint.workspace = true
 num_enum.workspace = true
 num-traits.workspace = true
-prost.workspace = true
 rmp-serde.workspace = true
 serde-big-array = "0.5.1"
 strum = { workspace = true }
@@ -38,10 +35,6 @@ strum_macros = { workspace = true }
 
 proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
-
-[build-dependencies]
-prost-build.workspace = true
-protoc-bin-vendored.workspace = true
 
 [dev-dependencies]
 serde_json = "1.0"

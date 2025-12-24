@@ -11,7 +11,7 @@
 //! [BlockId]. This module provides helpers for translating SSA array
 //! operations into ACIR memory reads and writes.
 //!
-//! ACIR generation use twos different array types for representing arrays:
+//! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
 //!   - Known at compile time.
@@ -57,21 +57,23 @@
 //! In the SSA above we see that we have an index of `11`. However, with a flat memory
 //! the true starting index of `x[3].bar.inner` is `25`.
 //!
-//! We can determine what the starting offset of the outer array object `x[3]` is by first dividing the index by the element size.
-//! In this case we have `11 / 3 = 3`. To get the flattened outer offset we will multiply `3` by the flattened size of a single element.
-//! We can see that `Foo` contains `7` elements, thus we multiply by `7`. So now we have a flattened index of `21`.
+//! To determine which field within the array we are attempting to access, we use an element type sizes array that stores
+//! the flat starting index for each SSA field. Since tuples are flattened in SSA, each tuple field gets its own entry.
+//! For an array like `[(Field, [Field; 3], [Field; 3]); 4]`, the element_type_sizes array would be:
 //!
-//! We could use the modulo of `11 % 3 = 2` to determine which object within x we are attempting to access.
-//! However, since we have a flattened structure we cannot simply add `2` to `21`. Instead we generate an array that holds the
-//! respective inner offset for accessing each element.
+//! [0, 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25]
 //!
-//! In the example above we will generate this internal type array: [0, 1, 4].
-//! The start of `bar` in `Foo` is the fourth flattened index. We then use the modulo we previously computed to access
-//! the type array and fetch `4`. Finally we can do `21 + 4 = 25` to get the true starting index of `x[3].bar.inner`.
-//! We then use the resulting type to increment the index appropriately and fetch ever element of `bar.inner`.
+//! Where:
+//! - Indices 0-2: element 0's three fields (Field at 0, [Field; 3] at 1, [Field; 3] at 4)
+//! - Indices 3-5: element 1's three fields (Field at 7, [Field; 3] at 8, [Field; 3] at 11)
+//! - Indices 6-8: element 2's three fields (Field at 14, [Field; 3] at 15, [Field; 3] at 18)
+//! - Indices 9-11: element 3's three fields (Field at 21, [Field; 3] at 22, [Field; 3] at 25)
+//!
+//! We use the SSA index directly to look up `element_type_sizes[index]` to get the flat starting offset.
+//! We then use the resulting type to increment the index appropriately and fetch every element.
 //!
 //! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
-//! The module will also attempt to not create this array when possible (e.g., we have a simple homogenous array).
+//! The module will also attempt to not create this array when possible (e.g., when we have a simple homogenous array).
 //!
 //! ### Side effects and Predication
 //!
@@ -98,7 +100,7 @@
 //!
 //! #### Writes
 //!
-//! When the predicate is not a constant one, instead of actually overwriting memory, we compute a "dummy value".
+//! When the predicate is not a constant, instead of actually overwriting memory, we compute a "dummy value".
 //! The dummy value is fetched from the same array at the requested `predicate_index`.
 //! The store value of an array write is then converted from a `store_value` to `predicate * store_value + (1 - predicate) * dummy`
 //! This ensures the memory remains unchanged when the write is disabled. In the case of a false predicate, the value stored will be itself.
@@ -107,7 +109,7 @@
 //!
 //! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
 //! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-//! When we read a value from a non-homogenous array we multiply any resulting [AcirValue::Var] by the predicate
+//! When we read a value from a non-homogenous array, we multiply any resulting [AcirValue::Var] by the predicate
 //! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
 //! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
 //!
@@ -120,7 +122,9 @@ use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
+use crate::acir::types::flat_numeric_types;
 use crate::errors::{InternalError, RuntimeError};
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, InstructionId},
@@ -130,7 +134,7 @@ use crate::ssa::ir::{
 
 use super::{
     AcirVar, Context,
-    types::{AcirDynamicArray, AcirType, AcirValue},
+    types::{AcirDynamicArray, AcirValue},
 };
 
 impl Context<'_> {
@@ -163,6 +167,8 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
+            debug_assert!(!witnesses.is_empty(), "return data cannot be empty");
+
             let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
@@ -235,7 +241,7 @@ impl Context<'_> {
         Ok(())
     }
 
-    /// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+    /// For 0-length arrays and vectors, even the disabled memory operations would cause runtime failures.
     /// Set the result to a zero value that matches the type then bypass the rest of the operation,
     /// leaving an assertion that the side effect variable must be false.
     ///
@@ -261,9 +267,7 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        let msg = self.acir_context.generate_assertion_message_payload(msg);
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        self.acir_context.assert_eq_var(self.current_side_effects_enabled_var, zero, Some(msg))?;
+        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
         Ok(true)
     }
 
@@ -320,13 +324,13 @@ impl Context<'_> {
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
         let array_size: usize = array.len();
-        let index = match index.try_to_u64() {
+        let index = match index.try_to_u32() {
             Some(index_const) => index_const as usize,
             None => {
                 let call_stack = self.acir_context.get_call_stack();
                 return Err(RuntimeError::TypeConversion {
                     from: "array index".to_string(),
-                    into: "u64".to_string(),
+                    into: "u32".to_string(),
                     call_stack,
                 });
             }
@@ -375,7 +379,7 @@ impl Context<'_> {
         if is_simple_array {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             match array_typ {
-                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
+                Type::Array(item_type, _) | Type::Vector(item_type) => item_type
                     .iter()
                     .enumerate()
                     .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
@@ -388,7 +392,7 @@ impl Context<'_> {
 
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flat the specified index
     ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
@@ -470,7 +474,7 @@ impl Context<'_> {
         dummy_value: &AcirValue,
     ) -> Result<AcirValue, RuntimeError> {
         match (store_value, dummy_value) {
-            (AcirValue::Var(store_var, _), AcirValue::Var(dummy_var, _)) => {
+            (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, _)) => {
                 let true_pred =
                     self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -479,7 +483,7 @@ impl Context<'_> {
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
-                Ok(AcirValue::Var(new_value, AcirType::field()))
+                Ok(AcirValue::Var(new_value, *typ))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
                 let mut elements = im::Vector::new();
@@ -496,7 +500,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(elements))
             }
             (
-                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }),
                 AcirValue::Array(dummy_values),
             ) => {
                 let dummy_values = dummy_values
@@ -511,7 +515,9 @@ impl Context<'_> {
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
 
-                let values = self.read_dynamic_array(*block_id, *len)?;
+                let values: Vec<_> = self
+                    .read_dynamic_array(*block_id, *len, value_types)
+                    .collect::<Result<_, _>>()?;
                 let mut elements = im::Vector::new();
                 for (val, dummy_val) in values.iter().zip(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
@@ -610,10 +616,8 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
-            if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =
-                (array_typ.first(), typ)
-            {
-                if numeric_type.bit_size() <= num.bit_size() {
+            if let Type::Numeric(numeric_type) = array_typ.first() {
+                if numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
                     // first element is compatible
                     index_side_effect = false;
                 }
@@ -622,7 +626,7 @@ impl Context<'_> {
             if index_side_effect {
                 value = AcirValue::Var(
                     self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
-                    typ.clone(),
+                    *typ,
                 );
             }
         }
@@ -644,8 +648,7 @@ impl Context<'_> {
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
 
-                let typ = AcirType::NumericType(numeric_type);
-                Ok(AcirValue::Var(read, typ))
+                Ok(AcirValue::Var(read, numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
@@ -671,8 +674,7 @@ impl Context<'_> {
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 let zero = self.acir_context.add_constant(FieldElement::zero());
-                let typ = AcirType::NumericType(numeric_type);
-                Ok(AcirValue::Var(zero, typ))
+                Ok(AcirValue::Var(zero, numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
@@ -768,12 +770,18 @@ impl Context<'_> {
                     self.array_set_value(value, block_id, var_index)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray {
+                block_id: inner_block_id,
+                len,
+                value_types,
+                ..
+            }) => {
                 let values = try_vecmap(0..*len, |i| {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                    let typ = value_types[i % value_types.len()];
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, typ))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
@@ -799,27 +807,21 @@ impl Context<'_> {
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         //
-        // A slice's size must be fetched from the SSA value that represents the slice.
-        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
-        // and may contain data for which we want to restrict access. The true slice length is tracked in a
-        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
+        // A vector's size must be fetched from the SSA value that represents the vector.
+        // However, this size is simply the capacity of a vector. The capacity is dependent upon the witness
+        // and may contain data for which we want to restrict access. The true vector length is tracked in a
+        // a separate SSA value and restrictions on vector indices should be generated elsewhere in the SSA.
         let array_typ = dfg.type_of_value(array);
         let len = self.flattened_size(array, dfg);
 
         let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
             let acir_value = self.convert_value(array, dfg);
-            Some(self.init_element_type_sizes_array(&array_typ, array, Some(&acir_value), dfg)?)
+            Some(self.init_element_type_sizes_array(&array_typ, array, Some(acir_value), dfg, 0)?)
         } else {
             None
         };
 
-        let value_types = self.convert_value(array, dfg).flat_numeric_types();
-        // Compiler sanity check
-        assert_eq!(
-            value_types.len(),
-            len,
-            "ICE: The length of the flattened type array should match the length of the dynamic array"
-        );
+        let value_types = flat_numeric_types(&array_typ);
 
         Ok(AcirValue::DynamicArray(AcirDynamicArray {
             block_id,
@@ -829,24 +831,38 @@ impl Context<'_> {
         }))
     }
 
+    /// Initializes the element types sizes array to enable indexing of non-homogenous SSA arrays
+    /// in a flat memory environment.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side "element type sizes"
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how this types sizes array is used.
     pub(super) fn init_element_type_sizes_array(
         &mut self,
         array_typ: &Type,
         array_id: ValueId,
-        supplied_acir_value: Option<&AcirValue>,
+        supplied_acir_value: Option<AcirValue>,
         dfg: &DataFlowGraph,
+        additional_capacity: usize,
     ) -> Result<BlockId, RuntimeError> {
         let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
-        // Need to look into how to optimize for slices as this could lead to different element type sizes
-        // for different slices that do not have consistent sizes
-        if self.initialized_arrays.contains(&element_type_sizes) {
+        // Need to look into how to optimize for vectors as this could lead to different element type sizes
+        // for different vectors that do not have consistent sizes.
+        // If we are initializing an element type sizes array for a growth operation (e.g., vector insert),
+        // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
+        // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
+        // that is bigger than what is needed for the supplied type/value.
+        if self.initialized_arrays.contains(&element_type_sizes) && additional_capacity == 0 {
             return Ok(element_type_sizes);
         }
 
-        if !matches!(array_typ, Type::Array(_, _) | Type::Slice(_)) {
+        if !matches!(array_typ, Type::Array(_, _) | Type::Vector(_)) {
             return Err(InternalError::Unexpected {
-                expected: "array or slice".to_owned(),
+                expected: "array or vector".to_owned(),
                 found: array_typ.to_string(),
                 call_stack: self.acir_context.get_call_stack(),
             }
@@ -862,34 +878,21 @@ impl Context<'_> {
             .into());
         }
 
-        // An instruction representing the slice means it has been processed previously during ACIR gen.
+        // An instruction representing the vector means it has been processed previously during ACIR gen.
         // Use the previously defined result of an array operation to fetch the internal type information.
-        let array_acir_value = &self.convert_value(array_id, dfg);
-        let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
+        let array_acir_value =
+            supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
+        let flattened_len = flattened_value_size(&array_acir_value);
         match array_acir_value {
-            AcirValue::Array(values) => {
-                let flat_elem_type_sizes = calculate_element_type_sizes_array(values);
-
-                // The final array should will the flattened index at each outer array index
-                let init_values = vecmap(flat_elem_type_sizes, |type_size| {
-                    let var = self.acir_context.add_constant(type_size);
-                    AcirValue::Var(var, AcirType::field())
-                });
-                let element_type_sizes_len = init_values.len();
-                self.initialize_array(
-                    element_type_sizes,
-                    element_type_sizes_len,
-                    Some(AcirValue::Array(init_values.into())),
-                )?;
-
-                Ok(element_type_sizes)
-            }
-
-            AcirValue::DynamicArray(AcirDynamicArray {
-                element_type_sizes: inner_elem_type_sizes,
-                ..
-            }) => {
-                let Some(inner_elem_type_sizes) = inner_elem_type_sizes else {
+            AcirValue::Array(_) => self.init_type_sizes_helper(
+                array_typ,
+                flattened_len,
+                additional_capacity,
+                element_type_sizes,
+            ),
+            AcirValue::DynamicArray(inner) if additional_capacity == 0 => {
+                let inner_elem_type_sizes = inner.element_type_sizes;
+                let Some(inner_elem_type_sizes) = &inner_elem_type_sizes else {
                     return Err(InternalError::General {
                         message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
                         call_stack: self.acir_context.get_call_stack(),
@@ -907,6 +910,15 @@ impl Context<'_> {
                 self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
                 Ok(*inner_elem_type_sizes)
             }
+            AcirValue::DynamicArray(inner) if additional_capacity != 0 => {
+                // Recalculate with additional capacity for growth operations
+                self.init_type_sizes_helper(
+                    array_typ,
+                    inner.len,
+                    additional_capacity,
+                    element_type_sizes,
+                )
+            }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
                 found: format!("{array_acir_value:?}"),
@@ -916,15 +928,77 @@ impl Context<'_> {
         }
     }
 
-    pub(super) fn read_array(
+    /// Helper to calculate and initialize element_type_sizes array from a flattened length
+    fn init_type_sizes_helper(
+        &mut self,
+        array_typ: &Type,
+        flattened_length: usize,
+        additional_capacity: usize,
+        element_type_sizes_block: BlockId,
+    ) -> Result<BlockId, RuntimeError> {
+        let flat_elem_type_sizes =
+            calculate_element_type_sizes_array(array_typ, flattened_length, additional_capacity);
+
+        // If there's already a block with these same sizes, reuse it. It's fine to do so
+        // because the element type sizes array is never mutated.
+        if let Some(block_id) = self.type_sizes_to_blocks.get(&flat_elem_type_sizes) {
+            return Ok(*block_id);
+        }
+
+        // The final array contains the flattened index at each outer array index
+        let init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
+            let var = self.acir_context.add_constant(type_size);
+            AcirValue::Var(var, NumericType::NativeField)
+        });
+        let element_type_sizes_len = init_values.len();
+        self.initialize_array(
+            element_type_sizes_block,
+            element_type_sizes_len,
+            Some(AcirValue::Array(init_values.into())),
+        )?;
+
+        self.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes_block);
+
+        Ok(element_type_sizes_block)
+    }
+
+    /// Read an array and reconstruct its structure based on the SSA type.
+    /// For DynamicArrays with nested arrays, this preserves the nested structure
+    /// instead of returning a flat array.
+    pub(super) fn read_array_with_type(
         &mut self,
         array: AcirValue,
+        array_typ: &Type,
     ) -> Result<im::Vector<AcirValue>, RuntimeError> {
         match array {
-            AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
+            AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
+            //Array are already structured
             AcirValue::Array(vars) => Ok(vars),
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                self.read_dynamic_array(block_id, len)
+                // For vectors/arrays, reconstruct the structure based on the element type
+                let element_types = match array_typ {
+                    Type::Vector(types) | Type::Array(types, _) => types.as_ref(),
+                    _ => unreachable!("ICE: reading array into a non array type"),
+                };
+
+                // Calculate how many elements we have (number of outer array elements)
+                let element_flat_size: usize =
+                    element_types.iter().map(|t| t.flattened_size() as usize).sum();
+                assert_ne!(element_flat_size, 0, "ICE: array elements are empty");
+                let num_elements = len / element_flat_size;
+
+                let mut result = im::Vector::new();
+                let mut var_index = self.acir_context.add_constant(FieldElement::zero());
+                // Reconstruct each element with its proper structure
+                for _ in 0..num_elements {
+                    for element_typ in element_types.iter() {
+                        let element =
+                            self.array_get_value(element_typ, block_id, &mut var_index)?;
+                        result.push_back(element);
+                    }
+                }
+
+                Ok(result)
             }
         }
     }
@@ -943,24 +1017,29 @@ impl Context<'_> {
                 let array_len = self.flattened_size(source, dfg);
                 Ok(self.initialize_array(destination, array_len, Some(array))?)
             }
-            AcirValue::DynamicArray(source) => {
-                self.copy_dynamic_array(source.block_id, destination, source.len)
-            }
+            AcirValue::DynamicArray(source) => self.copy_dynamic_array(
+                source.block_id,
+                destination,
+                source.len,
+                &source.value_types,
+            ),
         }
     }
 
-    fn read_dynamic_array(
+    pub(super) fn read_dynamic_array(
         &mut self,
         source: BlockId,
         array_len: usize,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
-        let init_values = try_vecmap(0..array_len, |i| {
+        value_types: &[NumericType],
+    ) -> impl Iterator<Item = Result<AcirValue, RuntimeError>> {
+        (0..array_len).map(move |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
-            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
-        })?;
-        Ok(init_values.into())
+            let typ = value_types[i % value_types.len()];
+
+            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, typ))
+        })
     }
 
     fn copy_dynamic_array(
@@ -968,12 +1047,22 @@ impl Context<'_> {
         source: BlockId,
         destination: BlockId,
         array_len: usize,
+        value_types: &[NumericType],
     ) -> Result<(), RuntimeError> {
-        let array = self.read_dynamic_array(source, array_len)?;
+        let array =
+            self.read_dynamic_array(source, array_len, value_types).collect::<Result<_, _>>()?;
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }
 
+    /// Convert an SSA array index into a flat ACIR array index.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how flattened indices are computed.
     pub(super) fn get_flattened_index(
         &mut self,
         array_typ: &Type,
@@ -986,7 +1075,7 @@ impl Context<'_> {
             self.acir_context.mul_var(var_index, step_size)
         } else {
             let element_type_sizes =
-                self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
+                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, 0)?;
 
             let predicate_index =
                 self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
@@ -999,7 +1088,7 @@ impl Context<'_> {
 
     pub(super) fn flattened_size(&mut self, array: ValueId, dfg: &DataFlowGraph) -> usize {
         let array_typ = dfg.type_of_value(array);
-        if !array_typ.contains_slice_element() {
+        if !array_typ.contains_vector_element() {
             array_typ.flattened_size() as usize
         } else {
             match &dfg[array] {
@@ -1009,18 +1098,18 @@ impl Context<'_> {
                     flattened_value_size(&array_acir_value)
                 }
                 _ => {
-                    unreachable!("ICE: Unexpected SSA value when computing the slice size");
+                    unreachable!("ICE: Unexpected SSA value when computing the vector size");
                 }
             }
         }
     }
 
-    /// Check if the array or slice has 0 length.
+    /// Check if the array or vector has 0 length.
     ///
     /// This is different from `flattened_size` in that a non-zero length
     /// array containing zero length arrays has zero size, but we can still
     /// access its elements.
-    fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
+    pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
         if let Type::Array(_, size) = dfg.type_of_value(array) {
             size == 0
         } else {
@@ -1032,14 +1121,14 @@ impl Context<'_> {
                         AcirValue::Array(values) => values.is_empty(),
                         AcirValue::Var(_, _) => {
                             unreachable!(
-                                "ICE: Unexpected ACIR value for array or slice: {array_acir_value:?}"
+                                "ICE: Unexpected ACIR value for array or vector: {array_acir_value:?}"
                             )
                         }
                     }
                 }
                 other => {
                     unreachable!(
-                        "ICE: Unexpected SSA value when computing the slice size: {other:?}"
+                        "ICE: Unexpected SSA value when computing the vector size: {other:?}"
                     );
                 }
             }
@@ -1112,13 +1201,49 @@ impl Context<'_> {
     }
 }
 
-fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
-    let mut flat_elem_type_sizes = Vec::new();
-    flat_elem_type_sizes.push(0);
-    for (i, value) in array.iter().enumerate() {
-        flat_elem_type_sizes.push(flattened_value_size(value) + flat_elem_type_sizes[i]);
+/// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
+///
+/// # Parameters
+///
+/// * `array_typ` - Type of the array/vector for which we are generating an element types sizes array
+/// * `flattened_length` - The total flattened size of the array data. For [AcirValue::Array],
+///   this is computed via [flattened_value_size]. For [AcirValue::DynamicArray], this is
+///   stored in the `len` field.
+/// * `additional_capacity` - Extra logical elements to allocate space for (e.g., for growth operations such as vector insert)
+///
+/// # Returns
+///
+/// A vector where each entry represents the flattened offset for a field in the composite type. dd
+pub(super) fn calculate_element_type_sizes_array(
+    array_typ: &Type,
+    flattened_length: usize,
+    additional_capacity: usize,
+) -> Vec<usize> {
+    let element_types = match array_typ {
+        Type::Array(types, _) | Type::Vector(types) => types,
+        _ => panic!("ICE: expected array or vector type"),
+    };
+    if element_types.is_empty() {
+        return vec![];
     }
 
+    let element_flattened_size: usize =
+        element_types.iter().map(|typ| typ.flattened_size() as usize).sum();
+    let non_flattened_elements = flattened_length / element_flattened_size;
+
+    // The implementation for vector insert requires one additional slot as insertions
+    // are allowed at the vector's length.
+    let boundary = 1;
+    // Capacity is the number of entries in element_type_sizes array
+    // One entry per field per logical element (+ boundary + additional)
+    let capacity = (non_flattened_elements + boundary + additional_capacity) * element_types.len();
+
+    let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
+    let mut total_size = 0;
+    for index in 0..capacity {
+        flat_elem_type_sizes.push(total_size);
+        total_size += element_types[index % element_types.len()].flattened_size() as usize;
+    }
     flat_elem_type_sizes
 }
 
@@ -1151,8 +1276,8 @@ pub(super) fn flattened_value_size(value: &AcirValue) -> usize {
 /// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
 pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     let types = match array_typ {
-        Type::Array(types, _) | Type::Slice(types) => types,
-        _ => panic!("ICE: expected array or slice type"),
+        Type::Array(types, _) | Type::Vector(types) => types,
+        _ => panic!("ICE: expected array or vector type"),
     };
 
     let mut element_sizes = types.iter().map(|typ| typ.flattened_size());

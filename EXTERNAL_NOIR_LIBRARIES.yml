@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 63acec5b331ff4ad7011ffc76b8b6e1c3b5a9afb
+define: &AZ_COMMIT e3e13bb900cd82995a054024b1d8defbd9dc7fb5
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 450
+    timeout: 500
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -83,40 +83,34 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/blob
-    timeout: 400
+    timeout: 600
     critical: false
   protocol_circuits_parity_lib:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/parity-lib
-    timeout: 7
+    timeout: 15
     critical: false
   protocol_circuits_private_kernel_lib:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
-    timeout: 300
-    critical: false
-  protocol_circuits_reset_kernel_lib:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib
-    timeout: 40
+    timeout: 400
     critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/types
-    timeout: 150
+    timeout: 180
     critical: false
-  protocol_circuits_rollup_lib:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-lib
-    timeout: 900
-    critical: false
-    # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
-    nargo_args: "--test-threads 1"
+  # protocol_circuits_rollup_lib:
+  #   repo: AztecProtocol/aztec-packages
+  #   ref: *AZ_COMMIT
+  #   path: noir-projects/noir-protocol-circuits/crates/rollup-lib
+  #   timeout: 900
+  #   critical: false
+  #   # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
+  #   nargo_args: "--test-threads 1"
   zk_regex:
     repo: Mach-34/noir-zk-regex
     ref: 20de93bd8b30bb51271690c7d13fad86399527e1

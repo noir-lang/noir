@@ -43,14 +43,11 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program);
 
     // JS Proving
-
     const prover_toml = readFileSync(resolve(`${base_relative_path}/${test_case}/Prover.toml`)).toString();
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
-    console.log(witness);
     const backend = new UltraHonkBackend(noir_program.bytecode);
     const proofData = await backend.generateProof(witness, { keccakZK: true });
-
     // JS verification
 
     const verified = await backend.verifyProof(proofData, { keccakZK: true });

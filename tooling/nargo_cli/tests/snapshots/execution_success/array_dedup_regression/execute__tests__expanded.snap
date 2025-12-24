@@ -7,8 +7,8 @@ unconstrained fn main(x: u32) {
     for i in 0_u32..5_u32 {
         let mut a2: [Field; 5] = [1_Field, 2_Field, 3_Field, 4_Field, 5_Field];
         {
-            let i_4426: u32 = x + i;
-            a2[i_4426] = 128_Field;
+            let i_4494: u32 = x + i;
+            a2[i_4494] = 128_Field;
         };
         println(a2);
         if i != 0_u32 {

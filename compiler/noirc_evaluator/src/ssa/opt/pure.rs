@@ -295,11 +295,13 @@ fn analyze_call_graph(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
     };
+
+    use test_case::test_case;
 
     #[test]
     fn classify_functions() {
@@ -874,5 +876,24 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+    }
+
+    #[test_case("ecdsa_secp256k1")]
+    #[test_case("ecdsa_secp256r1")]
+    fn marks_ecdsa_verification_as_pure_with_predicate(ecdsa_func: &str) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+            b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call {ecdsa_func}(v0, v1, v2, v3, u1 1) -> u1
+            return
+        }}
+        "#
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 }

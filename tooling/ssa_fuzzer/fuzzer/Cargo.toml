@@ -34,6 +34,8 @@ sha2.workspace = true
 p256 = "0.13.2"
 k256 = "0.13.4"
 reqwest = { version = "0.12.23", features = ["json", "blocking"] }
+sancov = { git = "https://github.com/noir-lang/sancov.git", version = "0.1.0", features = ["hash_increment"] }
+flate2.workspace = true
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"

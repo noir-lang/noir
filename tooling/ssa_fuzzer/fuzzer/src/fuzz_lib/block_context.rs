@@ -355,12 +355,8 @@ impl BlockContext {
                     /*is constant =*/ false,
                     safe_index,
                 );
-                if let Some((value, is_references)) = value {
-                    if !is_references {
-                        self.store_variable(&value);
-                    } else {
-                        panic!("References are not supported for array get with dynamic index");
-                    }
+                if let Some(value) = value {
+                    self.store_variable(&value);
                 }
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
@@ -384,22 +380,16 @@ impl BlockContext {
                     value_index,
                     safe_index,
                 );
-                if let Some((new_array, is_references)) = new_array {
-                    if is_references {
-                        panic!("References are not supported for array set with dynamic index");
-                    }
-                    let element_type = new_array.type_of_variable.unwrap_array_element_type();
-                    match element_type {
-                        Type::Numeric(_element_type) => {
-                            self.store_variable(&new_array);
-                        }
-                        _ => panic!("Expected NumericType, found {element_type:?}"),
-                    }
+                if let Some(new_array) = new_array {
+                    self.store_variable(&new_array);
                 }
             }
             Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
+                // Array index should be limited to 32 bits
+                // Otherwise it fails at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:133:40:
+                let index_32_bits = index & (u32::MAX as usize);
                 // insert constant index
-                let index_id = builder.insert_constant(index, NumericType::U32);
+                let index_id = builder.insert_constant(index_32_bits, NumericType::U32);
                 let value = self.insert_array_get(
                     builder,
                     array_index,
@@ -407,7 +397,7 @@ impl BlockContext {
                     /*is constant =*/ true,
                     safe_index,
                 );
-                if let Some((value, _is_references)) = value {
+                if let Some(value) = value {
                     self.store_variable(&value);
                 }
             }
@@ -417,8 +407,11 @@ impl BlockContext {
                 value_index,
                 safe_index,
             } => {
+                // Array index should be limited to 32 bits
+                // Otherwise it fails at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:133:40:
+                let index_32_bits = index & (u32::MAX as usize);
                 // insert constant index
-                let index_id = builder.insert_constant(index, NumericType::U32);
+                let index_id = builder.insert_constant(index_32_bits, NumericType::U32);
                 let new_array = self.insert_array_set(
                     builder,
                     array_index,
@@ -427,34 +420,8 @@ impl BlockContext {
                     value_index,
                     safe_index,
                 );
-                if let Some((new_array, is_references)) = new_array {
-                    let element_type = match new_array.type_of_variable.clone() {
-                        Type::Array(elements_type, _) => elements_type[0].clone(),
-                        _ => panic!("Expected ArrayType, found {:?}", new_array.type_of_variable),
-                    };
-                    match element_type {
-                        Type::Numeric(_element_type) => {
-                            assert!(
-                                !is_references,
-                                "Encountered numeric element in an array with references"
-                            );
-                            self.store_variable(&new_array);
-                        }
-                        Type::Reference(type_ref) => {
-                            assert!(
-                                is_references,
-                                "Encountered reference element in an array without references"
-                            );
-                            assert!(
-                                type_ref.is_numeric(),
-                                "Expected reference to a numeric type, found {type_ref:?}"
-                            );
-                            self.store_variable(&new_array);
-                        }
-                        _ => {
-                            panic!("Expected NumericType or ReferenceType, found {element_type:?}")
-                        }
-                    }
+                if let Some(new_array) = new_array {
+                    self.store_variable(&new_array);
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
@@ -769,7 +736,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * (TypedValue, is_references)
+    /// * TypedValue
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_get(
         &mut self,
@@ -778,7 +745,7 @@ impl BlockContext {
         index: TypedValue,
         index_is_constant: bool,
         safe_index: bool,
-    ) -> Option<(TypedValue, bool)> {
+    ) -> Option<TypedValue> {
         if !self.options.instruction_options.array_get_enabled
             || !self.options.instruction_options.create_array_enabled
         {
@@ -797,7 +764,7 @@ impl BlockContext {
             _ => return None,
         };
         // references are not supported for array get with dynamic index
-        if array.type_of_variable.is_reference() && !index_is_constant {
+        if array.type_of_variable.type_contains_reference() && !index_is_constant {
             return None;
         }
         // cast the index to u32
@@ -808,7 +775,7 @@ impl BlockContext {
             array.type_of_variable.unwrap_array_element_type(),
             safe_index,
         );
-        Some((value, array.type_of_variable.is_reference()))
+        Some(value)
     }
 
     /// Inserts an array set instruction
@@ -821,7 +788,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * (TypedValue referencing the new array, is_references)
+    /// * TypedValue referencing the new array
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_set(
         &mut self,
@@ -831,7 +798,7 @@ impl BlockContext {
         index_is_constant: bool,
         value_index: usize,
         safe_index: bool,
-    ) -> Option<(TypedValue, bool)> {
+    ) -> Option<TypedValue> {
         if !self.options.instruction_options.array_set_enabled {
             return None;
         }
@@ -849,7 +816,7 @@ impl BlockContext {
         };
 
         let is_array_of_references =
-            array.type_of_variable.unwrap_array_element_type().is_reference();
+            array.type_of_variable.unwrap_array_element_type().type_contains_reference();
         // get the array from the stored arrays
         // references are not supported for array set with dynamic index
         if is_array_of_references && !index_is_constant {
@@ -863,7 +830,7 @@ impl BlockContext {
         };
         let new_array =
             builder.insert_array_set(array.clone(), index.clone(), value.clone(), safe_index);
-        Some((new_array, is_array_of_references))
+        Some(new_array)
     }
 
     pub(crate) fn insert_instructions(
@@ -938,12 +905,12 @@ impl BlockContext {
                 self.store_variable(&value);
                 value
             }
-            Type::Slice(slice_type) => {
-                let values = slice_type
+            Type::Vector(vector_type) => {
+                let values = vector_type
                     .iter()
                     .map(|element_type| self.find_values_with_type(builder, element_type, None))
                     .collect::<Vec<TypedValue>>();
-                let value = builder.insert_slice(values.clone());
+                let value = builder.insert_vector(values.clone());
                 self.store_variable(&value);
                 value
             }

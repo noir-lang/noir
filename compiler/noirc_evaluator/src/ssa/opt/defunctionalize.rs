@@ -5,7 +5,7 @@
 //! by transforming functions used as values (i.e., first-class functions)
 //! into constant numbers (fields) that represent their function IDs.
 //!
-//! Defunctionalization handles higher-order functions functions by lowering function values into
+//! Defunctionalization handles higher-order functions by lowering function values into
 //! constant identifiers and replacing calls of function values with calls to a single
 //! dispatch `apply` function.
 //!
@@ -21,7 +21,7 @@
 //! fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 //!     match function_id {
 //!         0 -> function0(arg1, arg2),
-//!         1 -> function0(arg1, arg2),
+//!         1 -> function1(arg1, arg2),
 //!         ...
 //!         N -> functionN(arg1, arg2),
 //!     }
@@ -59,7 +59,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 ///     match function_id {
 ///         0 -> function0(arg1, arg2),
-///         1 -> function0(arg1, arg2),
+///         1 -> function1(arg1, arg2),
 ///         ...
 ///         N -> functionN(arg1, arg2),
 ///     }
@@ -75,7 +75,7 @@ struct ApplyFunction {
 }
 
 /// All functions used as a value that share the same signature and runtime type
-/// Maps ([Signature], [RuntimeType]) -> Vec<[FunctionId]>
+/// Maps ([Signature], Caller [RuntimeType]) -> Vec<([FunctionId], Callee [RuntimeType])>
 type Variants = BTreeMap<(Signature, RuntimeType), Vec<(FunctionId, RuntimeType)>>;
 /// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
@@ -94,6 +94,10 @@ impl Ssa {
     /// See [`defunctionalize`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn defunctionalize(mut self) -> Ssa {
+        // Check that we have removed all cases we don't handle in this pass.
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(defunctionalize_pre_check);
+
         // Find all functions used as value that share the same signature and runtime type
         let variants = find_variants(&self);
 
@@ -126,7 +130,7 @@ impl DefunctionalizationContext {
             // We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
             // the appropriate apply function beforehand.
-            self.replace_fist_class_calls_with_apply_function(function);
+            self.replace_first_class_calls_with_apply_function(function);
 
             // Replace any first-class function values with field values. This will also mutate the
             // type of some values, such as block arguments
@@ -137,7 +141,7 @@ impl DefunctionalizationContext {
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
+    fn replace_first_class_calls_with_apply_function(&mut self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -360,10 +364,19 @@ fn find_variants(ssa: &Ssa) -> Variants {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    let mut process_value = |value_id: ValueId| {
-        if let Value::Function(id) = func.dfg[value_id] {
-            functions_as_values.insert(id);
+    visit_values_other_than_call_target(func, |value| {
+        if let Value::Function(id) = value {
+            functions_as_values.insert(*id);
         }
+    });
+
+    functions_as_values
+}
+
+/// Visit all values which are *not* targets of a `Call`.
+fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value)) {
+    let mut process_value = |value_id: ValueId| {
+        f(&func.dfg[value_id]);
     };
 
     for block_id in func.reachable_blocks() {
@@ -382,8 +395,6 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
 
         block.unwrap_terminator().for_each_value(&mut process_value);
     }
-
-    functions_as_values
 }
 
 /// Finds all dynamic dispatch signatures in the given function.
@@ -496,7 +507,7 @@ fn create_apply_functions(
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -539,14 +550,17 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// The [FunctionId] of the new apply function
 ///
 /// # Panics
-/// If the `function_ids` argument is empty.
+/// If the `function_ids` argument has fewer than two elements, implying that no apply function is necessary.
 fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
-    assert!(!function_ids.is_empty());
+    debug_assert!(
+        function_ids.len() > 1,
+        "create_apply_function is expected to be called with two or more FunctionIds"
+    );
     // Clone the user-defined globals and the function purities mapping,
     // which are shared across all functions.
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
@@ -735,11 +749,11 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             }
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Slice(_) => {
+        Type::Vector(_) => {
             let array = im::Vector::new();
-            // The contents of a slice do not matter for a dummy function, we simply
+            // The contents of a vector do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
-            // Thus, we return an empty slice here.
+            // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
         Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
@@ -749,6 +763,19 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             )
         }
     }
+}
+
+/// Check pre-execution properties.
+///
+/// Panics if:
+///   * Any intrinsic or foreign function is passed as a value.
+#[cfg(debug_assertions)]
+fn defunctionalize_pre_check(function: &Function) {
+    visit_values_other_than_call_target(function, |value| match value {
+        Value::ForeignFunction(name) => panic!("foreign function as value: {name}"),
+        Value::Intrinsic(intrinsic) => panic!("intrinsic function as value: {intrinsic}"),
+        _ => (),
+    });
 }
 
 /// Check post-execution properties:
@@ -774,7 +801,7 @@ fn defunctionalize_post_check(func: &Function) {
 /// Return what type a function value type should be replaced with:
 /// * Global functions are replaced with a `Field`.
 /// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
-/// * Array and slices that contain function types are handled recursively.
+/// * Array and vectors that contain function types are handled recursively.
 ///
 /// If the type doesn't need replacement, `None` is returned.
 fn replacement_type(typ: &Type) -> Option<Type> {
@@ -787,8 +814,8 @@ fn replacement_type(typ: &Type) -> Option<Type> {
         Type::Array(items, size) => {
             replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
         }
-        Type::Slice(items) => {
-            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        Type::Vector(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Vector(Arc::new(types)))
         }
     }
 }
@@ -1093,7 +1120,7 @@ mod tests {
           acir(inline) fn main f0 {
             b0():
               call f1()
-              return f1 
+              return f1
           }
           acir(inline) fn bar f1 {
             b0():
@@ -2127,22 +2154,22 @@ mod tests {
         brillig(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b5, else: b4
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b1()
-          b4():
+            jmp b5()
+          b3():
             constrain v0 == Field 5
             call f5()
-            jmp b1()
-          b5():
+            jmp b5()
+          b4():
             call f2()
-            jmp b1()
+            jmp b5()
+          b5():
+            return
         }
         ");
     }

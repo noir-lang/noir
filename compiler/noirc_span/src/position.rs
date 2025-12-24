@@ -68,6 +68,11 @@ impl Span {
         Span::from(position..position)
     }
 
+    /// Unlike Span::empty, Span::initial always starts at index 0
+    pub const fn initial() -> Span {
+        Span(ByteSpan::initial())
+    }
+
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
         Span(self.0.merge(other.0))

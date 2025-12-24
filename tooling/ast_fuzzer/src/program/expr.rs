@@ -6,16 +6,19 @@ use nargo::errors::Location;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
-    monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId, Ident,
-        IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
+    monomorphization::{
+        ast::{
+            ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId,
+            Ident, IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
+        },
+        visitor::visit_expr,
     },
     signed_field::SignedField,
 };
 
 use crate::Config;
 
-use super::{Name, VariableId, types, visitor::visit_expr};
+use super::{Name, VariableId, types};
 
 /// Boolean literal.
 pub fn lit_bool(value: bool) -> Expression {
@@ -92,13 +95,13 @@ pub fn gen_literal(
             }
             Expression::Literal(Literal::Array(arr))
         }
-        Type::Slice(item_type) => {
+        Type::Vector(item_type) => {
             let len = u.int_in_range(0..=config.max_array_size)?;
             let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             for _ in 0..len {
                 arr.contents.push(gen_literal(u, item_type, config)?);
             }
-            Expression::Literal(Literal::Slice(arr))
+            Expression::Literal(Literal::Vector(arr))
         }
         Type::Tuple(items) => {
             let mut values = Vec::new();

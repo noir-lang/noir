@@ -9,7 +9,7 @@
 //! count. These operations are equivalent on arrays. Cloning may be applied to any value and only
 //! increments the reference counts of any arrays contained within (but not behind references or
 //! inside nested arrays). This document also focuses on arrays but all reference count operations
-//! on arrays are also performed on slices.
+//! on arrays are also performed on vectors.
 //!
 //! Arrays in brillig have copy on write semantics which relies on us incrementing their
 //! reference counts when they are shared in multiple places. Note that while Noir has references,
@@ -134,9 +134,9 @@ impl Context {
     ///
     /// # Returns
     /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
-    fn handle_reference_expression(&mut self, expr: &mut Expression) -> bool {
+    fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
-            Expression::Ident(_) => false,
+            Expression::Ident(_) => (),
             Expression::Block(exprs) => {
                 let len_minus_one = exprs.len().saturating_sub(1);
                 for expr in exprs.iter_mut().take(len_minus_one) {
@@ -144,28 +144,22 @@ impl Context {
                     self.handle_expression(expr);
                 }
                 if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr)
-                } else {
-                    true
+                    self.handle_reference_expression(expr);
                 }
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
-                self.handle_reference_expression(rhs)
+                self.handle_reference_expression(rhs);
             }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
 
             Expression::Index(index) => {
-                let is_moved = self.handle_reference_expression(&mut index.collection);
+                self.handle_reference_expression(&mut index.collection);
                 self.handle_expression(&mut index.index);
-                is_moved
             }
 
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
-            other => {
-                self.handle_expression(other);
-                true
-            }
+            other => self.handle_expression(other),
         }
     }
 
@@ -245,7 +239,7 @@ impl Context {
 
             Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
-            Literal::Array(array) | Literal::Slice(array) => {
+            Literal::Array(array) | Literal::Vector(array) => {
                 for element in array.contents.iter_mut() {
                     self.handle_expression(element);
                 }
@@ -286,11 +280,11 @@ impl Context {
         };
 
         // Don't clone the collection, cloning only the resulting element is cheaper.
-        let is_moved = self.handle_reference_expression(&mut index.collection);
+        self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
         // If the index collection is being borrowed we need to clone the result.
-        if !is_moved && contains_array_or_str_type(&index.element_type) {
+        if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
@@ -431,7 +425,7 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
         | Type::Function(..)
         | Type::Reference(..) => false,
 
-        Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
+        Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Vector(_) => true,
 
         Type::Tuple(elements) => elements.iter().any(contains_array_or_str_type),
     }

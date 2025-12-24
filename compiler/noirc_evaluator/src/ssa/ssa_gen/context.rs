@@ -222,11 +222,11 @@ impl<'a> FunctionContext<'a> {
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
-            ast::Type::Slice(elements) => {
+            ast::Type::Vector(elements) => {
                 let element_types = Self::convert_type(elements).flatten();
                 Tree::Branch(vec![
                     Tree::Leaf(f(Type::length_type())),
-                    Tree::Leaf(f(Type::Slice(Arc::new(element_types)))),
+                    Tree::Leaf(f(Type::Vector(Arc::new(element_types)))),
                 ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
@@ -262,7 +262,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
-            ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
+            ast::Type::Vector(_) => panic!("convert_non_tuple_type called on a vector: {typ}"),
             ast::Type::Reference(element, _) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
@@ -371,7 +371,7 @@ impl<'a> FunctionContext<'a> {
     /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(
         &mut self,
-        mut value: ValueId,
+        value: ValueId,
         typ: NumericType,
         location: Location,
     ) -> ValueId {
@@ -392,68 +392,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     std::cmp::Ordering::Equal => value,
                     std::cmp::Ordering::Greater => {
-                        // If target size is bigger, we do a sign extension:
-                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
-                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
-                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
-                        // Casting s-bits signed v0 to t-bits will add the following instructions:
-                        // v1 = cast v0 to 's-bits unsigned'
-                        // v2 = lt v1, 2**(s-1)
-                        // v3 = not(v1)
-                        // v4 = cast v3 to 't-bits unsigned'
-                        // v5 = v3 * (2**t - 2**s)
-                        // v6 = cast v1 to 't-bits unsigned'
-                        // return v6 + v5
-                        let value_as_unsigned = self.insert_safe_cast(
-                            value,
-                            NumericType::unsigned(*incoming_type_size),
-                            location,
-                        );
-                        let half_width = self.builder.numeric_constant(
-                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
-                            NumericType::unsigned(*incoming_type_size),
-                        );
-                        // value_sign is 1 if the value is positive, 0 otherwise
-                        let value_sign =
-                            self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
-                        let max_for_incoming_type_size = if *incoming_type_size == 128 {
-                            u128::MAX
-                        } else {
-                            2_u128.pow(*incoming_type_size) - 1
-                        };
-                        let max_for_target_type_size = if target_type_size == 128 {
-                            u128::MAX
-                        } else {
-                            2_u128.pow(target_type_size) - 1
-                        };
-                        let patch = self.builder.numeric_constant(
-                            FieldElement::from(
-                                max_for_target_type_size - max_for_incoming_type_size,
-                            ),
-                            NumericType::unsigned(target_type_size),
-                        );
-                        let mut is_negative_predicate = self.builder.insert_not(value_sign);
-                        is_negative_predicate = self.insert_safe_cast(
-                            is_negative_predicate,
-                            NumericType::unsigned(target_type_size),
-                            location,
-                        );
-                        // multiplication by a boolean cannot overflow
-                        let patch_with_sign_predicate = self.builder.insert_binary(
-                            patch,
-                            BinaryOp::Mul { unchecked: true },
-                            is_negative_predicate,
-                        );
-                        let value_as_unsigned = self.builder.insert_cast(
-                            value_as_unsigned,
-                            NumericType::unsigned(target_type_size),
-                        );
-                        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
-                        self.builder.insert_binary(
-                            patch_with_sign_predicate,
-                            BinaryOp::Add { unchecked: true },
-                            value_as_unsigned,
-                        )
+                        self.sign_extend(value, *incoming_type_size, target_type_size, location)
                     }
                 }
             }
@@ -463,45 +402,55 @@ impl<'a> FunctionContext<'a> {
             ) => {
                 // If target size is smaller, we do a truncation
                 if target_type_size < *incoming_type_size {
-                    value =
-                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size);
+                    self.builder.insert_truncate(value, target_type_size, *incoming_type_size)
+                } else {
+                    value
                 }
-                value
             }
             // When casting a signed value to u1 we can truncate then cast
             (
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: 1 },
             ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
-            // For mixed sign to unsigned or unsigned to sign;
-            // 1. we cast to the required type using the same signedness
-            // 2. then we switch the signedness
+
+            // For mixed signed to unsigned:
             (
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
             ) => {
-                if *incoming_type_size != target_type_size {
-                    value = self.insert_safe_cast(
-                        value,
-                        NumericType::signed(target_type_size),
-                        location,
-                    );
+                // when going from lower to higher bit size:
+                // 1. we sign-extend to the target bits
+                // 2. we are already in the target signedness
+                if *incoming_type_size < target_type_size {
+                    // By not the casting to a signed type with the target bit size, we avoid potentially going
+                    // through i128, which is not a type we support in the frontend, and would be strange in SSA.
+                    self.sign_extend(value, *incoming_type_size, target_type_size, location)
                 }
-                value
+                // when the target bit size is not higher than the source:
+                // 1. we cast to the required type using the same signedness
+                // 2. then we switch the signedness
+                else if *incoming_type_size != target_type_size {
+                    self.insert_safe_cast(value, NumericType::signed(target_type_size), location)
+                } else {
+                    value
+                }
             }
+
+            // For mixed unsigned to signed:
+            // 1. we cast to the required type using the same signedness
+            // 2. then we switch the signedness
             (
                 Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
                 NumericType::Signed { bit_size: target_type_size },
             ) => {
                 if *incoming_type_size != target_type_size {
-                    value = self.insert_safe_cast(
-                        value,
-                        NumericType::unsigned(target_type_size),
-                        location,
-                    );
+                    self.insert_safe_cast(value, NumericType::unsigned(target_type_size), location)
+                } else {
+                    value
                 }
-                value
             }
+
+            // Field to signed/unsigned:
             (
                 Type::Numeric(NumericType::NativeField),
                 NumericType::Unsigned { bit_size: target_type_size },
@@ -515,6 +464,70 @@ impl<'a> FunctionContext<'a> {
             _ => unreachable!("Invalid cast from {} to {}", incoming_type, typ),
         };
         self.builder.insert_cast(result, typ)
+    }
+
+    /// During casting signed values, if target size is bigger, we do a sign extension:
+    ///
+    /// When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value.
+    /// Sign extension in this case will give `2^t-v`, where `t` is the target bit size.
+    /// So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+    ///
+    /// Casting s-bits signed v0 to t-bits will add the following instructions:
+    /// ```ssa
+    /// v1 = cast v0 to 's-bits unsigned'
+    /// v2 = lt v1, 2**(s-1)
+    /// v3 = not(v1)
+    /// v4 = cast v3 to 't-bits unsigned'
+    /// v5 = v3 * (2**t - 2**s)
+    /// v6 = cast v1 to 't-bits unsigned'
+    /// return v6 + v5
+    /// ```
+    ///
+    /// Return an unsigned value that we can cast back to the signed type if we want,
+    /// or keep it as it is, if we did the sign extension as part of casting e.g. `i8` to `u64`.
+    fn sign_extend(
+        &mut self,
+        value: ValueId,
+        incoming_type_size: u32,
+        target_type_size: u32,
+        location: Location,
+    ) -> ValueId {
+        let value_as_unsigned =
+            self.insert_safe_cast(value, NumericType::unsigned(incoming_type_size), location);
+        let half_width = self.builder.numeric_constant(
+            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
+            NumericType::unsigned(incoming_type_size),
+        );
+        // value_sign is 1 if the value is positive, 0 otherwise
+        let value_sign = self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+        let max_for_incoming_type_size =
+            if incoming_type_size == 128 { u128::MAX } else { 2_u128.pow(incoming_type_size) - 1 };
+        let max_for_target_type_size =
+            if target_type_size == 128 { u128::MAX } else { 2_u128.pow(target_type_size) - 1 };
+        let patch = self.builder.numeric_constant(
+            FieldElement::from(max_for_target_type_size - max_for_incoming_type_size),
+            NumericType::unsigned(target_type_size),
+        );
+        let mut is_negative_predicate = self.builder.insert_not(value_sign);
+        is_negative_predicate = self.insert_safe_cast(
+            is_negative_predicate,
+            NumericType::unsigned(target_type_size),
+            location,
+        );
+        // multiplication by a boolean cannot overflow
+        let patch_with_sign_predicate = self.builder.insert_binary(
+            patch,
+            BinaryOp::Mul { unchecked: true },
+            is_negative_predicate,
+        );
+        let value_as_unsigned =
+            self.builder.insert_cast(value_as_unsigned, NumericType::unsigned(target_type_size));
+        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+        self.builder.insert_binary(
+            patch_with_sign_predicate,
+            BinaryOp::Add { unchecked: true },
+            value_as_unsigned,
+        )
     }
 
     /// Create a const offset of an address for an array load or store
@@ -680,8 +693,8 @@ impl<'a> FunctionContext<'a> {
     /// Compile the given `array[index]` expression as a reference.
     /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing slices rather than arrays since slices
-    /// are represented as a tuple in the form: (length, slice contents).
+    /// The optional length is for indexing vectors rather than arrays since vectors
+    /// are represented as a tuple in the form: (length, vector contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
@@ -694,16 +707,16 @@ impl<'a> FunctionContext<'a> {
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
-        // A slice is represented as a tuple (length, slice contents).
+        // A vector is represented as a tuple (length, vector contents).
         // We need to fetch the second value.
         Ok(if array_values.len() > 1 {
-            let slice_lvalue = LValue::SliceIndex {
-                old_slice: old_array,
+            let vector_lvalue = LValue::VectorIndex {
+                old_vector: old_array,
                 index,
-                slice_lvalue: array_lvalue,
+                vector_lvalue: array_lvalue,
                 location,
             };
-            (array_values[1], index, slice_lvalue, Some(array_values[0]))
+            (array_values[1], index, vector_lvalue, Some(array_values[0]))
         } else {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
@@ -782,31 +795,32 @@ impl<'a> FunctionContext<'a> {
                             self.codegen_access_check(index, len);
                         }
                     }
-                    _ => unreachable!("must have array or slice but got {array_type}"),
+                    _ => unreachable!("must have array or vector but got {array_type}"),
                 }
 
                 array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
-            LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
-                let mut slice_values = slice.into_value_list(self);
+            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } => {
+                let mut vector_values = vector.into_value_list(self);
 
-                let array_type = &self.builder.type_of_value(slice_values[1]);
+                let array_type = &self.builder.type_of_value(vector_values[1]);
 
                 // Checks for index Out-of-bounds
                 match array_type {
-                    Type::Slice(_) => {
-                        self.codegen_access_check(index, slice_values[0]);
+                    Type::Vector(_) => {
+                        self.codegen_access_check(index, vector_values[0]);
                     }
-                    _ => unreachable!("must have array or slice but got {array_type}"),
+                    _ => unreachable!("must have array or vector but got {array_type}"),
                 }
 
-                slice_values[1] =
-                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
+                vector_values[1] =
+                    self.assign_lvalue_index(new_value, vector_values[1], index, location);
 
-                // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-                let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
-                self.assign_new_value(*slice_lvalue, new_slice);
+                // The size of the vector does not change in a vector index assignment so we can reuse the same length value
+                let new_vector =
+                    Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
+                self.assign_new_value(*vector_lvalue, new_vector);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
@@ -1010,8 +1024,24 @@ impl SharedContext {
 #[derive(Debug)]
 pub(super) enum LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
-    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue>, location: Location },
-    MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
-    Dereference { reference: Values },
+    Index {
+        old_array: ValueId,
+        index: ValueId,
+        array_lvalue: Box<LValue>,
+        location: Location,
+    },
+    VectorIndex {
+        old_vector: Values,
+        index: ValueId,
+        vector_lvalue: Box<LValue>,
+        location: Location,
+    },
+    MemberAccess {
+        old_object: Values,
+        index: usize,
+        object_lvalue: Box<LValue>,
+    },
+    Dereference {
+        reference: Values,
+    },
 }

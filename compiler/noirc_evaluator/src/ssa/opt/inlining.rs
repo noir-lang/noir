@@ -3,7 +3,12 @@
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
 
-use crate::{errors::RuntimeError, ssa::visit_once_deque::VisitOnceDeque};
+use std::collections::HashSet;
+
+use crate::{
+    errors::RuntimeError,
+    ssa::{opt::inlining::inline_info::compute_bottom_up_order, visit_once_deque::VisitOnceDeque},
+};
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
@@ -79,6 +84,7 @@ impl Ssa {
             let num_functions_before = self.functions.len();
 
             let call_graph = CallGraph::from_ssa_weighted(&self);
+
             let inline_infos = compute_inline_infos(
                 &self,
                 &call_graph,
@@ -86,7 +92,12 @@ impl Ssa {
                 small_function_max_instructions,
                 aggressiveness,
             );
-            self = Self::inline_functions_inner(self, &inline_infos)?;
+
+            // Bottom-up order, starting with the "leaf" functions.
+            let bottom_up = compute_bottom_up_order(&self, &call_graph);
+            let bottom_up = vecmap(bottom_up, |(id, _)| id);
+
+            self = Self::inline_functions_inner(self, &inline_infos, &bottom_up)?;
 
             let num_functions_after = self.functions.len();
             if num_functions_after == num_functions_before {
@@ -97,28 +108,39 @@ impl Ssa {
         Ok(self)
     }
 
-    fn inline_functions_inner(mut self, inline_infos: &InlineInfos) -> Result<Ssa, RuntimeError> {
-        let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
-            let dfg = &self.functions[id].dfg;
-            info.is_inline_target(dfg).then_some(*id)
-        });
+    /// Inline entry points in the order of appearance in `inline_infos`, assuming it goes in bottom-up order.
+    fn inline_functions_inner(
+        mut self,
+        inline_infos: &InlineInfos,
+        bottom_up: &[FunctionId],
+    ) -> Result<Ssa, RuntimeError> {
+        let inline_targets = bottom_up
+            .iter()
+            .filter_map(|id| {
+                let info = inline_infos.get(id)?;
+                let dfg = &self.functions[id].dfg;
+                info.is_inline_target(dfg).then_some(*id)
+            })
+            .collect::<Vec<_>>();
 
         let should_inline_call = |callee: &Function| -> bool {
             // We defer to the inline info computation to determine whether a function should be inlined
             InlineInfo::should_inline(inline_infos, callee.id())
         };
 
-        // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
-        // instead of inlining the "leaf" functions, moving up towards the entry point.
-        let mut new_functions = std::collections::BTreeMap::new();
+        // We are going bottom up, so hopefully we can inline leaf functions into their callers and retain less memory.
+        let mut new_functions = HashSet::new();
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
             let inlined = function.inlined(&self, &should_inline_call)?;
             assert_eq!(inlined.id(), entry_point);
-            new_functions.insert(entry_point, inlined);
+            self.functions.insert(entry_point, inlined);
+            new_functions.insert(entry_point);
         }
 
-        self.functions = new_functions;
+        // Drop functions that weren't inline targets.
+        self.functions.retain(|id, _| new_functions.contains(id));
+
         Ok(self)
     }
 }
@@ -682,7 +704,7 @@ impl<'function> PerFunctionContext<'function> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         errors::RuntimeError,
@@ -1283,7 +1305,7 @@ mod test {
     fn brillig_global_constants_keep_same_value_ids() {
         let src = "
         g0 = Field 1
-    
+
         brillig(inline) fn main f0 {
           b0():
             v0 = call f1() -> Field
@@ -1310,7 +1332,7 @@ mod test {
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
-        
+
         brillig(inline) fn main f0 {
           b0():
             return Field 1

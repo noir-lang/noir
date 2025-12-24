@@ -22,12 +22,13 @@ install-binstall:
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
   fi
 
-cargo-binstall-args := if ci == "1" { "--force" } else { "" }
+cargo-binstall-args := if ci == "1" { "--force --locked" } else { "--locked" }
 
 # Installs tools necessary for working with Rust code
 install-rust-tools: install-binstall
   cargo binstall cargo-nextest@0.9.103 -y {{cargo-binstall-args}}
   cargo binstall cargo-insta@1.42.2 -y {{cargo-binstall-args}}
+  cargo binstall cargo-mutants@25.3.1 -y {{cargo-binstall-args}}
 
 # Installs tools necessary for working with Javascript code
 install-js-tools: install-binstall
@@ -110,6 +111,18 @@ fuzz-nightly: install-rust-tools
   # In the nightly tests we want to explore uncharted territory.
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
+
+cargo-mutants-args := if ci == "1" { "--in-place -vV" } else { "-j2" }
+
+mutation-test base="master": install-rust-tools
+  #!/usr/bin/env bash
+  tmpdir=$(mktemp -d)
+  trap "rm -rf $tmpdir" EXIT
+
+  git diff origin/{{base}}.. | tee $tmpdir/git.diff
+  cargo mutants --no-shuffle --test-tool=nextest -p acir_field -p acir -p acvm -p brillig -p brillig_vm -p blackbox_solver --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
+  cargo mutants --no-shuffle --test-tool=nextest -p noirc_evaluator  --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
+
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
   #!/usr/bin/env bash
@@ -156,8 +169,9 @@ build-package PACKAGE: install-js-tools
 
 # Runs test for all examples
 run-examples:
-  for file in `ls {{justfile_dir()}}/examples`; do \
-      just --justfile {{justfile()}} run-example $file; \
+  set -e; \
+  for file in `ls {{justfile_dir()}}/examples | grep -v solidity_verifier`; do \
+      just --justfile {{justfile()}} run-example $file;  \
   done
 
 # Runs test for example named `EXAMPLE`
@@ -171,3 +185,8 @@ run-example EXAMPLE:
 # Runs spellcheck on Rust source and markdown files
 spellcheck:
   yarn spellcheck
+
+stdlib_docs:
+  cd noir_stdlib && nargo doc
+  rm -rf noir_stdlib/docs
+  mv noir_stdlib/target/docs noir_stdlib/docs

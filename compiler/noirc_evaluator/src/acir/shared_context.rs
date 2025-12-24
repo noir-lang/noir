@@ -49,7 +49,7 @@ pub(super) struct SharedContext<F: AcirField> {
     /// There can be Brillig functions specified in SSA which do not act as
     /// entry points in ACIR (e.g. only called by other Brillig functions)
     /// This mapping is necessary to use the correct function pointer for a Brillig call.
-    /// This uses the brillig parameters in the map since using slices with different lengths
+    /// This uses the brillig parameters in the map since using vectors with different lengths
     /// needs to create different brillig entrypoints
     brillig_generated_func_pointers:
         BTreeMap<(FunctionId, Vec<BrilligParameter>), BrilligFunctionId>,
@@ -98,6 +98,11 @@ impl<F: AcirField> SharedContext<F> {
 
     /// Finalize this context, consuming it and returning all generated Brillig functions.
     pub(super) fn finish(self) -> Vec<GeneratedBrillig<F>> {
+        assert_eq!(
+            self.brillig_stdlib_calls_to_resolve.len(),
+            0,
+            "expected zero remaining 'brillig_stdlib_calls_to_resolve'"
+        );
         self.generated_brillig
     }
 
@@ -155,12 +160,12 @@ impl<F: AcirField> SharedContext<F> {
         self.brillig_stdlib_calls_to_resolve.entry(func_id).or_default().push(call_to_resolve);
     }
 
-    /// Get the list of unresolved stdlib call sites for a given function
-    pub(super) fn get_call_to_resolve(
-        &self,
+    /// Get and remove the list of unresolved stdlib call sites for a given function
+    pub(super) fn remove_call_to_resolve(
+        &mut self,
         func_id: FunctionId,
-    ) -> Option<&Vec<(OpcodeLocation, BrilligFunctionId)>> {
-        self.brillig_stdlib_calls_to_resolve.get(&func_id)
+    ) -> Option<Vec<(OpcodeLocation, BrilligFunctionId)>> {
+        self.brillig_stdlib_calls_to_resolve.remove(&func_id)
     }
 
     /// Remove and return the set of globals used by the given function,
@@ -285,7 +290,7 @@ mod tests {
         }
 
         // Calls to resolve should be 2 per variant
-        let calls = context.get_call_to_resolve(func_id).unwrap();
+        let calls = context.remove_call_to_resolve(func_id).unwrap();
         assert_eq!(calls.len(), variants.len() * 2);
 
         // Check that each call matches the expected stdlib function pointer

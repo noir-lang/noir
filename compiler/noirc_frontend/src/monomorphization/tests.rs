@@ -1,16 +1,8 @@
 #![cfg(test)]
 use crate::{
-    check_monomorphization_error_using_features, elaborator::UnstableFeature,
-    test_utils::get_monomorphized,
+    elaborator::UnstableFeature, test_utils::get_monomorphized,
+    tests::check_monomorphization_error_using_features,
 };
-
-// NOTE: this will fail in CI when called twice within one test: test names must be unique
-#[macro_export]
-macro_rules! check_rewrite {
-    ($src:expr, $expected:expr) => {
-        $crate::monomorphization::tests::check_rewrite($src, $expected, $crate::function_path!())
-    };
-}
 
 #[test]
 fn bounded_recursive_type_errors() {
@@ -32,7 +24,7 @@ fn bounded_recursive_type_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_monomorphization_error_using_features(src, &features);
 }
 
 #[test]
@@ -67,7 +59,7 @@ fn recursive_type_with_alias_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_monomorphization_error_using_features(src, &features);
 }
 
 #[test]
@@ -92,7 +84,37 @@ fn mutually_recursive_types_error() {
         ";
     // cSpell:enable
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_monomorphization_error_using_features(src, &features);
+}
+
+#[test]
+fn mutually_recursive_types_with_structs_error() {
+    // cSpell:disable
+    let src = "
+        fn main() {
+            let _zero = Even::Zero;
+        }
+
+        enum Even {
+            Zero,
+            ^^^^ Type `EvenSucc` is recursive
+            ~~~~ All types in Noir must have a known size at compile-time
+            Succ(EvenSucc),
+        }
+
+        pub struct EvenSucc { inner: Odd }
+
+        enum Odd {
+            One,
+            Succ(OddSucc),
+        }
+
+        pub struct OddSucc { inner: Even }
+        ";
+
+    // cSpell:enable
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features);
 }
 
 #[test]

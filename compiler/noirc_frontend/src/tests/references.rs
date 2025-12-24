@@ -1,4 +1,7 @@
-use crate::check_errors;
+use crate::{
+    elaborator::UnstableFeature,
+    tests::{assert_no_errors, check_errors, get_program_using_features},
+};
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -11,7 +14,7 @@ fn cannot_mutate_immutable_variable() {
 
     fn mutate(_: &mut [Field; 1]) {}
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -31,7 +34,35 @@ fn cannot_mutate_immutable_variable_on_member_access() {
         *foo = 1;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_field_of_mutable_reference() {
+    let src = r#"
+    struct Foo {
+        x: Field
+    }
+    
+    fn main() {
+        let mut foo = Foo { x: 5 };
+        let ref_foo = &mut foo;
+        let ref_x = &mut ref_foo.x;
+        *ref_x = 10;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn auto_dereferences_array_access() {
+    let src = r#"
+    fn main() {
+        let mut ref_array = &mut &mut &mut [0, 1, 2];
+        assert(ref_array[2] == 2);
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -47,7 +78,7 @@ fn does_not_crash_when_passing_mutable_undefined_variable() {
         *foo = 1;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -70,5 +101,82 @@ fn constrained_reference_to_unconstrained() {
         *x = y;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
+}
+
+#[test]
+fn immutable_references_with_ownership_feature() {
+    let src = r#"
+        unconstrained fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+    "#;
+
+    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn immutable_references_without_ownership_feature() {
+    let src = r#"
+        fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn calling_dereferenced_lambda_output_from_trait_impl() {
+    let src = r#"
+    trait Bar {
+      fn bar(&mut self) -> &mut Self;
+    }
+    
+    impl<T> Bar for T {
+      fn bar(&mut self) -> &mut Self {
+        self
+      }
+    }
+    
+    fn main() {
+      let mut foo = |_x: ()| { true };
+      let mut_ref_foo = &mut foo;
+      assert((*mut_ref_foo.bar())(()))
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
+    let src = r#"
+    trait Bar {
+      fn bar(&mut self) -> &mut Self;
+    }
+    
+    impl<T> Bar for T {
+      fn bar(&mut self) -> &mut Self {
+        self
+      }
+    }
+    
+    fn main() {
+      let mut foo = |_x: ()| { true };
+      let mut_ref_foo = &mut foo;
+      assert(mut_ref_foo.bar()(()))
+             ^^^^^^^^^^^^^^^^^^^^^ Expected a function, but found a(n) &mut fn(()) -> bool
+    }
+    "#;
+    check_errors(src);
 }

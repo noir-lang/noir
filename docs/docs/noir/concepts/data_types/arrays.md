@@ -17,9 +17,9 @@ An array is one way of grouping together values into one compound type. Array ty
 or explicitly specified via the syntax `[<Type>; <Size>]`:
 
 ```rust
-fn main(x : Field, y : Field) {
+fn main(x : u64, y : u64) {
     let my_arr = [x, y];
-    let your_arr: [Field; 2] = [x, y];
+    let your_arr: [u64; 2] = [x, y];
 }
 ```
 
@@ -57,11 +57,11 @@ You can instantiate a new array of a fixed size with the same value repeated for
 let array: [Field; 32] = [0; 32];
 ```
 
-Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [slice](./slices.mdx), you can just call `as_slice` on your array:
+Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [vector](./vectors.mdx), you can just call `as_vector` on your array:
 
 ```rust
 let array: [Field; 32] = [0; 32];
-let sl = array.as_slice()
+let sl = array.as_vector()
 ```
 
 You can define multidimensional arrays:
@@ -71,10 +71,10 @@ let array : [[Field; 2]; 2];
 let element = array[0][0];
 ```
 
-However, multidimensional slices are not supported. For example, the following code will error at compile time:
+However, multidimensional vectors are not supported. For example, the following code will error at compile time:
 
 ```rust
-let slice : [[Field]] = &[];
+let vector : [[Field]] = &[];
 ```
 
 ## Dynamic Indexing

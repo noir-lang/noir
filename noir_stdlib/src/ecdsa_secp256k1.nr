@@ -14,11 +14,11 @@
 ///       For more context regarding malleability you can reference BIP 0062.
 ///     - the hash of the message, as a vector of bytes
 /// - output: false for failure and true for success
-pub fn verify_signature<let N: u32>(
+pub fn verify_signature(
     public_key_x: [u8; 32],
     public_key_y: [u8; 32],
     signature: [u8; 64],
-    message_hash: [u8; N],
+    message_hash: [u8; 32],
 ) -> bool
 // docs:end:ecdsa_secp256k1
 {
@@ -26,10 +26,10 @@ pub fn verify_signature<let N: u32>(
 }
 
 #[foreign(ecdsa_secp256k1)]
-pub fn _verify_signature<let N: u32>(
+fn _verify_signature(
     public_key_x: [u8; 32],
     public_key_y: [u8; 32],
     signature: [u8; 64],
-    message_hash: [u8; N],
+    message_hash: [u8; 32],
     predicate: bool,
 ) -> bool {}

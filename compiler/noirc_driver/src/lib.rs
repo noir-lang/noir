@@ -5,7 +5,6 @@ use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
-use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -14,7 +13,7 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::opt::inlining::MAX_INSTRUCTIONS;
+use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
@@ -44,7 +43,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
-pub use stdlib::stdlib_paths_with_source;
+pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -58,18 +57,8 @@ pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
-#[derive(Args, Clone, Debug, Default)]
+#[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
-    /// Specify the backend expression width that should be targeted
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
-
-    /// Generate ACIR with the target backend expression width.
-    /// The default is to generate ACIR without a bound and split expressions after code generation.
-    /// Activating this flag can sometimes provide optimizations for certain programs.
-    #[arg(long, default_value = "false")]
-    pub bounded_codegen: bool,
-
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -109,10 +98,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub minimal_ssa: bool,
 
+    /// Display debug prints during Brillig generation.
     #[arg(long, hide = true)]
     pub show_brillig: bool,
 
-    /// Display the ACIR for compiled circuit
+    /// Display Brillig opcodes with advisories, if any.
+    #[arg(long, hide = true)]
+    pub show_brillig_opcode_advisories: bool,
+
+    /// Display the ACIR for compiled circuit, including the Brillig bytecode.
     #[arg(long)]
     pub print_acir: bool,
 
@@ -178,12 +172,17 @@ pub struct CompileOptions {
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    #[arg(long, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
+
+    /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
+    /// A value of 0 effectively disables constant folding.
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
+    pub constant_folding_max_iter: usize,
 
     /// Setting to decide the maximum weight threshold at which we designate a function
     /// as "small" and thus to always be inlined.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = MAX_INSTRUCTIONS)]
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
@@ -227,6 +226,46 @@ pub struct CompileOptions {
     pub disable_comptime_printing: bool,
 }
 
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            force_compile: false,
+            show_ssa: false,
+            show_ssa_pass: Vec::new(),
+            with_ssa_locations: false,
+            show_contract_fn: None,
+            skip_ssa_pass: Vec::new(),
+            emit_ssa: false,
+            minimal_ssa: false,
+            show_brillig: false,
+            show_brillig_opcode_advisories: false,
+            print_acir: false,
+            benchmark_codegen: false,
+            deny_warnings: false,
+            silence_warnings: false,
+            show_monomorphized: false,
+            instrument_debug: false,
+            force_brillig: false,
+            debug_comptime_in_file: None,
+            show_artifact_paths: false,
+            skip_underconstrained_check: false,
+            skip_brillig_constraints_check: false,
+            enable_brillig_debug_assertions: false,
+            count_array_copies: false,
+            enable_brillig_constraints_check_lookback: false,
+            inliner_aggressiveness: i64::MAX,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            pedantic_solving: false,
+            debug_compile_stdin: false,
+            unstable_features: Vec::new(),
+            no_unstable_features: false,
+            disable_comptime_printing: false,
+        }
+    }
+}
+
 impl CompileOptions {
     pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
         SsaEvaluatorOptions {
@@ -241,13 +280,10 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
+                show_opcode_advisories: self.show_brillig_opcode_advisories,
+                layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
-            expression_width: if self.bounded_codegen {
-                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-            } else {
-                ExpressionWidth::default()
-            },
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
             enable_brillig_constraints_check_lookback: self
@@ -255,26 +291,11 @@ impl CompileOptions {
             skip_brillig_constraints_check: !self.silence_warnings
                 && self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
+            constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
         }
-    }
-}
-
-pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
-            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
-        )),
     }
 }
 
@@ -500,7 +521,7 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        noirc_errors::println_to_stdout!("Compiled ACIR for main (non-transformed):");
+        noirc_errors::println_to_stdout!("Compiled ACIR for main:");
         noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
@@ -645,6 +666,9 @@ fn compile_contract_inner(
         }
 
         let mut options = options.clone();
+        if name == "public_dispatch" {
+            options.inliner_aggressiveness = 0;
+        }
 
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;
@@ -685,7 +709,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -839,7 +863,7 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
+        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 

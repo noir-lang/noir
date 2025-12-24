@@ -3,7 +3,7 @@ use acvm::{AcirField, FieldElement};
 use array::{mutate_vector_structure, splice_array_structure};
 use configurations::{
     BASIC_TESTCASE_SPLICE_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
-    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, BASIC_UNBALANCED_SLICE_CONFIGURATION,
+    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, BASIC_UNBALANCED_VECTOR_CONFIGURATION,
     TestCaseSpliceTypeOptions, UnbalancedSpliceOptions,
 };
 use dictionary::FullDictionary;
@@ -80,8 +80,8 @@ impl InputMutator {
     }
 
     /// Update the dictionary with values from a vector of field elements
-    pub fn update_dictionary_from_vector(&mut self, elements: &[FieldElement]) {
-        self.full_dictionary.update_from_vector(elements);
+    pub fn update_dictionary_from_slice(&mut self, elements: &[FieldElement]) {
+        self.full_dictionary.update_from_slice(elements);
     }
 
     /// Count weights of each element recursively (complex structures return a vector of weights of their most basic elements)
@@ -362,7 +362,7 @@ impl InputMutator {
         match abi_type {
             // For a single-element type pick one based on the unbalanced schedule
             AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
-                match BASIC_UNBALANCED_SLICE_CONFIGURATION.select(prng) {
+                match BASIC_UNBALANCED_VECTOR_CONFIGURATION.select(prng) {
                     UnbalancedSpliceOptions::FirstTestCase => first_input.clone(),
                     UnbalancedSpliceOptions::SecondTestCase => second_input.clone(),
                 }
@@ -370,7 +370,7 @@ impl InputMutator {
 
             // For string, with a 50% chance pick one based on the unbalanced schedule, with 50% splice with string splicing methods
             AbiType::String { length: _ } => match prng.gen_range(0..2) {
-                0 => match BASIC_UNBALANCED_SLICE_CONFIGURATION.select(prng) {
+                0 => match BASIC_UNBALANCED_VECTOR_CONFIGURATION.select(prng) {
                     UnbalancedSpliceOptions::FirstTestCase => first_input.clone(),
                     UnbalancedSpliceOptions::SecondTestCase => second_input.clone(),
                 },

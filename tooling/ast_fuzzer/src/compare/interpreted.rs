@@ -210,8 +210,12 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     msg == "attempt to divide by zero" || msg.contains("divisor of zero")
                 })
             }
-            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
-                // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+            (DivisionByZero { .. }, DivisionByZero { .. }) => {
+                // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
+                true
+            }
+            (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
+                // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
                 msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
@@ -231,11 +235,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
 impl Comparable for Value {
     fn equivalent(a: &Self, b: &Self) -> bool {
         match (a, b) {
-            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
+            (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_slice == b.is_slice
+                    && a.is_vector == b.is_vector
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -272,11 +276,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Value>, types: Vec<Type>| {
-        Value::ArrayOrSlice(ArrayValue {
+        Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_slice: false,
+            is_vector: false,
         })
     };
     match input {
@@ -295,10 +299,8 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values.push(array_value(
-            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
-            vec![Type::unsigned(8)],
-        )),
+        InputValue::String(s) => values
+            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");

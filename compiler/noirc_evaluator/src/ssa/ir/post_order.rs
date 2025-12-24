@@ -15,6 +15,7 @@ enum Visit {
     Last,
 }
 
+/// In the post-order, each block is visited after all of its successors.
 #[derive(Default, Clone)]
 pub(crate) struct PostOrder(Vec<BasicBlockId>);
 
@@ -41,7 +42,21 @@ impl PostOrder {
         self.0
     }
 
-    /// Return blocks in reverse-post-order a.k.a. forward-order.
+    /// Return blocks in reverse-post-order (RPO).
+    ///
+    /// In RPO, each block is visited before any of its successors.
+    /// Notably, this is not the same as topological sorting.
+    ///
+    /// Take this CFG for example:
+    /// ```text
+    ///      b0
+    ///      |
+    ///      b1<-+
+    ///     /  \ |
+    ///    b3   b2
+    /// ```
+    /// Intuitively we would like to see `[b0, b1, b2, b3]`,
+    /// but the actual RPO is `[b0, b1, b3, b2]`.
     pub(crate) fn into_vec_reverse(self) -> Vec<BasicBlockId> {
         let mut blocks = self.into_vec();
         blocks.reverse();

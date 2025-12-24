@@ -2,6 +2,7 @@ use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::signed_field::SignedField;
+use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
@@ -107,6 +108,20 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
+        // Don't instrument functions that are not supposed to have a body
+        if let Some((func, _)) = &func.attributes.function {
+            match func.kind {
+                FunctionAttributeKind::Foreign(_)
+                | FunctionAttributeKind::Builtin(_)
+                | FunctionAttributeKind::Oracle(_) => return,
+                FunctionAttributeKind::Test(..)
+                | FunctionAttributeKind::Fold
+                | FunctionAttributeKind::NoPredicates
+                | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::FuzzingHarness(..) => (),
+            }
+        }
+
         let func_name = func.name.to_string();
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
@@ -158,7 +173,7 @@ impl DebugInstrumenter {
                 let save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
                         ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
-                        ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         ret_expr.clone(),
                         vec![],
                     ),
@@ -277,7 +292,7 @@ impl DebugInstrumenter {
         ast::Statement {
             kind: ast::StatementKind::new_let(
                 ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.location()),
-                ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
+                None,
                 ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
@@ -308,7 +323,7 @@ impl DebugInstrumenter {
 
         let let_kind = ast::StatementKind::new_let(
             ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.location)),
-            ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
+            None,
             assign_stmt.expression.clone(),
             vec![],
         );
@@ -727,7 +742,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
         let (pattern, is_mut) = stack.pop_front().unwrap();
         match pattern {
             ast::Pattern::Identifier(id) => {
-                vars.push((id.clone(), is_mut));
+                if id.as_str() != "_" {
+                    vars.push((id.clone(), is_mut));
+                }
             }
             ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
@@ -737,7 +754,6 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             }
             ast::Pattern::Struct(_, fields, _) => {
                 stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(fields.iter().map(|(id, _)| (id.clone(), false)));
             }
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));

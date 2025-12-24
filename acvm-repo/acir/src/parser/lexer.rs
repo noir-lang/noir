@@ -64,16 +64,27 @@ impl<'a> Lexer<'a> {
             ',' => self.single_char_token(Token::Comma),
             ':' => self.single_char_token(Token::Colon),
             ';' => self.single_char_token(Token::Semicolon),
-            'w' if self.peek_char().is_some_and(|char| char.is_ascii_digit()) => {
+            '+' => self.single_char_token(Token::Plus),
+            '-' if self.peek_char().is_none_or(|char| !char.is_ascii_digit()) => {
+                self.single_char_token(Token::Minus)
+            }
+            '*' => self.single_char_token(Token::Star),
+            '=' => self.single_char_token(Token::Equal),
+            'b' | 'w' if self.peek_char().is_some_and(|char| char.is_ascii_digit()) => {
                 let start = self.position;
 
-                // Witness token format is 'w' followed by digits
+                // Witness token format is 'w' followed by digits.
+                // Block token format is 'b' followed by digits.
                 let digits = self.eat_while(None, |ch| ch.is_ascii_digit());
                 let end = self.position;
 
                 // Parse digits into u32
                 match digits.parse::<u32>() {
-                    Ok(value) => Ok(Token::Witness(value).into_span(start, end)),
+                    Ok(value) => {
+                        let token =
+                            if ch == 'w' { Token::Witness(value) } else { Token::Block(value) };
+                        Ok(token.into_span(start, end))
+                    }
                     Err(_) => Err(LexerError::InvalidIntegerLiteral {
                         span: Span::inclusive(start, end),
                         found: digits,

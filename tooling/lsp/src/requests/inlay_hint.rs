@@ -12,8 +12,7 @@ use noirc_frontend::{
     self, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
-        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
-        UnresolvedTypeData, Visitor,
+        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl, Visitor,
     },
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
@@ -362,7 +361,7 @@ impl Visitor for InlayHintCollector<'_> {
 
     fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
         // Only show inlay hints for let variables that don't have an explicit type annotation
-        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+        if let_statement.r#type.is_none() {
             let_statement.pattern.accept(self);
         };
 
@@ -410,7 +409,8 @@ impl Visitor for InlayHintCollector<'_> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (pattern, typ) in &lambda.parameters {
-            if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+            // Only show inlay hints for parameters that don't have an explicit type annotation
+            if typ.is_none() {
                 pattern.accept(self);
             }
         }
@@ -451,7 +451,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             push_type_parts(size, parts, files);
             parts.push(string_part("]"));
         }
-        Type::Slice(typ) => {
+        Type::Vector(typ) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("]"));

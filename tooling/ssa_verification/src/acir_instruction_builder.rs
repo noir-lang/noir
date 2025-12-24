@@ -1,7 +1,7 @@
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{Circuit, ExpressionWidth, Program as AcirProgram},
+        circuit::{Circuit, Program as AcirProgram},
         native_types::Witness,
     },
 };
@@ -11,7 +11,10 @@ use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
-use noirc_evaluator::ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{
+    opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+    ssa_gen::Ssa,
+};
 
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::{
@@ -235,12 +238,12 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
         emit_ssa: { None },
         skip_underconstrained_check: true,
         skip_brillig_constraints_check: true,
         inliner_aggressiveness: 0,
-        small_function_max_instruction: MAX_INSTRUCTIONS,
+        constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: None,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,

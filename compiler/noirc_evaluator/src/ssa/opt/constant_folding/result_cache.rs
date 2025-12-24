@@ -46,8 +46,8 @@ impl InstructionResultCache {
             // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
-            if let CacheResult::Cached(results) = results {
-                let old_results = dfg.instruction_results(id).to_vec();
+            if let CacheResult::Cached { results, .. } = results {
+                let old_results = dfg.instruction_results(id);
 
                 results.len() == old_results.len()
                     && old_results
@@ -62,12 +62,18 @@ impl InstructionResultCache {
 
     pub(super) fn cache(
         &mut self,
+        dom: &mut DominatorTree,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
         results: Vec<ValueId>,
     ) {
-        self.0.entry(instruction).or_default().entry(predicate).or_default().cache(block, results);
+        self.0
+            .entry(instruction)
+            .or_default()
+            .entry(predicate)
+            .or_default()
+            .cache(block, dom, results);
     }
 
     pub(super) fn remove(
@@ -97,7 +103,7 @@ impl InstructionResultCache {
                 return;
             };
 
-            // We only care about arrays and slices. (`Store` can act on non-array values as well)
+            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
             if !dfg.type_of_value(*value).is_array() {
                 return;
             };
@@ -124,7 +130,7 @@ impl InstructionResultCache {
 
         let mut remove_if_array = |value| go(dfg, self, value);
 
-        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        // Should we consider calls to vector_push_back and similar to be mutating operations as well?
         match instruction {
             Store { value, .. } | ArraySet { array: value, .. } => {
                 // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
@@ -151,14 +157,19 @@ impl InstructionResultCache {
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(super) struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
-        if self.result.is_none() {
+    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
+        let overwrite = match self.result {
+            None => true,
+            Some((origin, _)) => origin != block && dom.dominates(block, origin),
+        };
+
+        if overwrite {
             self.result = Some((block, results));
         }
     }
@@ -175,13 +186,13 @@ impl ResultCache {
         dom: &mut DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin_block, results)| {
-            if dom.dominates(*origin_block, block) {
-                Some(CacheResult::Cached(results))
+        self.result.as_ref().and_then(|(origin, results)| {
+            if dom.dominates(*origin, block) {
+                Some(CacheResult::Cached { results })
             } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin_block, block);
-                Some(CacheResult::NeedToHoistToCommonBlock(dominator))
+                let dominator = dom.common_dominator(*origin, block);
+                Some(CacheResult::NeedToHoistToCommonBlock { dominator })
             } else {
                 None
             }
@@ -191,6 +202,18 @@ impl ResultCache {
 
 #[derive(Debug)]
 pub(super) enum CacheResult<'a> {
-    Cached(&'a [ValueId]),
-    NeedToHoistToCommonBlock(BasicBlockId),
+    /// The result of an earlier instruction can be readily reused, because it was found
+    /// in a block that dominates the one where the current instruction is. We can drop
+    /// the current instruction and redefine its results in terms of the existing values.
+    Cached {
+        /// The value IDs we can reuse.
+        results: &'a [ValueId],
+    },
+    /// We found an identical instruction in a non-dominating block, so we cannot directly
+    /// reuse its results, because they are not visible in the current block. However, we
+    /// can hoist the instruction into the common dominator, and deduplicate later.
+    NeedToHoistToCommonBlock {
+        /// The common dominator where we can hoist the current instruction.
+        dominator: BasicBlockId,
+    },
 }

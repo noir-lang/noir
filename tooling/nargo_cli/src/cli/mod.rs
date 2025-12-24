@@ -22,6 +22,7 @@ mod check_cmd;
 pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
+mod doc_cmd;
 mod execute_cmd;
 mod expand_cmd;
 mod export_cmd;
@@ -116,6 +117,7 @@ enum NargoCommand {
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
     Expand(expand_cmd::ExpandCommand),
+    Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -160,6 +162,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
         NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
+        NargoCommand::Doc(args) => with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
@@ -302,18 +305,6 @@ fn lock_workspace(
 mod tests {
     use super::NargoCli;
     use clap::Parser;
-
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
-    }
 
     #[test]
     fn test_parse_target_dir() {

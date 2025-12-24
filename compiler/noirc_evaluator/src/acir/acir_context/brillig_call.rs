@@ -17,16 +17,17 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         predicate: AcirVar,
         brillig_stdlib_func: BrilligStdlibFunc,
-        stdlib_func_bytecode: &GeneratedBrillig<F>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let stdlib_func_bytecode = &self.brillig_stdlib.get_code(brillig_stdlib_func).clone();
+        let safe_return_values = false;
         self.brillig_call(
             predicate,
             stdlib_func_bytecode,
             inputs,
             outputs,
-            false,
+            safe_return_values,
             PLACEHOLDER_BRILLIG_INDEX,
             Some(brillig_stdlib_func),
         )
@@ -49,9 +50,9 @@ impl<F: AcirField> AcirContext<F> {
             // We can then immediately zero out all of its outputs as this is the value which would be written
             // if we waited until runtime to resolve this call.
             let outputs_var = vecmap(outputs, |output| match output {
-                AcirType::NumericType(_) => {
+                AcirType::NumericType(numeric_type) => {
                     let var = self.add_constant(F::zero());
-                    AcirValue::Var(var, output.clone())
+                    AcirValue::Var(var, numeric_type)
                 }
                 AcirType::Array(element_types, size) => {
                     self.zeroed_array_output(&element_types, size)
@@ -84,12 +85,12 @@ impl<F: AcirField> AcirContext<F> {
 
         let mut brillig_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
-            AcirType::NumericType(_) => {
+            AcirType::NumericType(numeric_type) => {
                 let var = self.add_variable();
                 let witness_index =
                     self.var_to_witness(var).expect("variable has just been created as witness");
                 brillig_outputs.push(BrilligOutputs::Simple(witness_index));
-                AcirValue::Var(var, output.clone())
+                AcirValue::Var(var, numeric_type)
             }
             AcirType::Array(element_types, size) => {
                 let (acir_value, witnesses) = self.brillig_array_output(&element_types, size);
@@ -113,14 +114,17 @@ impl<F: AcirField> AcirContext<F> {
         ) -> Result<(), RuntimeError> {
             let one = context.add_constant(G::one());
             match value {
-                AcirValue::Var(var, typ) => {
-                    let numeric_type = match typ {
-                        AcirType::NumericType(numeric_type) => numeric_type,
-                        _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
-                    };
+                AcirValue::Var(var, numeric_type) => {
                     // Predicate is one so that the constrain is always applied, because
                     // values returned from Brillig will be 0 under a false predicate.
-                    context.range_constrain_var(*var, numeric_type, None, one)?;
+                    if !numeric_type.is_field() {
+                        context.range_constrain_var(
+                            *var,
+                            numeric_type.bit_size::<G>(),
+                            None,
+                            one,
+                        )?;
+                    }
                 }
                 AcirValue::Array(values) => {
                     for value in values {
@@ -158,13 +162,14 @@ impl<F: AcirField> AcirContext<F> {
                     self.brillig_array_input(var_expressions, var)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(i);
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
+                    let value_typ = value_types[i % value_types.len()];
+                    let value_read = AcirValue::Var(value_read_var, value_typ);
 
                     self.brillig_array_input(var_expressions, value_read)?;
                 }
@@ -184,9 +189,9 @@ impl<F: AcirField> AcirContext<F> {
                             self.zeroed_array_output(nested_element_types, *nested_size);
                         array_values.push_back(nested_acir_value);
                     }
-                    AcirType::NumericType(_) => {
+                    AcirType::NumericType(numeric_type) => {
                         let var = self.add_constant(F::zero());
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                        array_values.push_back(AcirValue::Var(var, *numeric_type));
                     }
                 }
             }
@@ -212,9 +217,9 @@ impl<F: AcirField> AcirContext<F> {
                         witnesses.append(&mut nested_witnesses);
                         array_values.push_back(nested_acir_value);
                     }
-                    AcirType::NumericType(_) => {
+                    AcirType::NumericType(numeric_type) => {
                         let var = self.add_variable();
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                        array_values.push_back(AcirValue::Var(var, *numeric_type));
                         witnesses.push(
                             self.var_to_witness(var)
                                 .expect("variable has just been created as witness"),

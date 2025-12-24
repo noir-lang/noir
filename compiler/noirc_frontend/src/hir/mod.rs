@@ -1,6 +1,7 @@
 pub mod comptime;
 pub mod def_collector;
 pub mod def_map;
+pub mod printer;
 pub mod resolution;
 pub mod scope;
 pub mod type_check;
@@ -14,7 +15,7 @@ use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
-use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
+use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, TypeVariable};
 use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
@@ -241,7 +242,7 @@ impl Context<'_, '_> {
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
         errors: &mut Vec<CompilationError>,
-    ) -> Generics {
+    ) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();

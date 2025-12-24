@@ -18,7 +18,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: taiki-e/install-action@just
 
@@ -47,7 +47,7 @@ jobs:
         run: rm target/doc/.lock
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rustdoc
           path: target/doc
@@ -57,9 +57,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build
     permissions:
-      contents: read
+      contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: gh-pages
 
@@ -67,7 +67,7 @@ jobs:
         run: rm -rf ./docs
 
       - name: Download rustdoc output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: rustdoc
           path: ./docs

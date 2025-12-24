@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build list of libraries
         id: get_critical_libraries
@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # Errors if installation would result in modifications to yarn.lock
       - name: Install
@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -74,7 +74,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./target/release/nargo
@@ -88,7 +88,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -105,7 +105,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noir-execute
           path: ./target/release/noir-execute
@@ -119,7 +119,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -136,7 +136,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noir-ssa
           path: ./target/release/noir-ssa
@@ -150,7 +150,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -170,7 +170,7 @@ jobs:
         run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noirc_abi_wasm
           path: |
@@ -186,7 +186,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -209,7 +209,7 @@ jobs:
         run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noir_wasm
           path: |
@@ -225,7 +225,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -247,7 +247,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: acvm-js
           path: |
@@ -265,10 +265,10 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
@@ -289,10 +289,10 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
@@ -318,10 +318,10 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download wasm package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -350,19 +350,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download wasm package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -390,10 +390,10 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download wasm package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noir_wasm
           path: ./compiler/wasm
@@ -428,19 +428,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
       - name: Download acvm_js package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -469,7 +469,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install `bb`
         run: |
@@ -481,19 +481,19 @@ jobs:
         uses: ./.github/actions/download-nargo
 
       - name: Download acvm_js package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download noir_wasm package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noir_wasm
           path: ./compiler/wasm
 
       - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -524,22 +524,22 @@ jobs:
 
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@v5
+  #       uses: actions/checkout@v6
 
   #     - name: Download acvm_js package artifact
-  #       uses: actions/download-artifact@v4
+  #       uses: actions/download-artifact@v7
   #       with:
   #         name: acvm-js
   #         path: ./acvm-repo/acvm_js
 
   #     - name: Download noir_wasm package artifact
-  #       uses: actions/download-artifact@v4
+  #       uses: actions/download-artifact@v7
   #       with:
   #         name: noir_wasm
   #         path: ./compiler/wasm
 
   #     - name: Download noirc_abi package artifact
-  #       uses: actions/download-artifact@v4
+  #       uses: actions/download-artifact@v7
   #       with:
   #         name: noirc_abi_wasm
   #         path: ./tooling/noirc_abi_wasm
@@ -566,17 +566,24 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute, build-noir-ssa, build-acvm-js, build-noirc-abi]
+    needs:
+      [
+        build-nargo,
+        build-noir-execute,
+        build-noir-ssa,
+        build-acvm-js,
+        build-noirc-abi,
+      ]
     timeout-minutes: 30
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1.4.0
+        uses: foundry-rs/foundry-toolchain@v1.6.0
         with:
           version: v1.3.3
 
@@ -604,13 +611,13 @@ jobs:
         uses: ./.github/actions/download-noir-ssa
 
       - name: Download acvm_js package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -647,10 +654,10 @@ jobs:
           echo "timeout: ${{ matrix.timeout }}"
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -688,7 +695,7 @@ jobs:
 
       - name: Upload test report
         if: ${{ matrix.timeout > 20 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.test_report_name.outputs.test_report_name }}
           path: ${{ steps.test_report_name.outputs.test_report_name }}.json
@@ -715,12 +722,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: noir-repo
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: AztecProtocol/aztec-packages
           path: test-repo
@@ -753,10 +760,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download matrix test reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: test_report_*
           path: ./reports
@@ -771,7 +778,7 @@ jobs:
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Test Suite Duration"
           tool: "customSmallerIsBetter"
@@ -786,6 +793,31 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
+  test-nargo-doc:
+    needs: [build-nargo]
+    name: Nargo doc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: nargo doc on stdlib
+        working-directory: ./noir_stdlib
+        run: |
+          nargo doc
+          rm -rf ./docs
+          mv ./target/docs .
+          if ! git diff --exit-code; then
+            echo "nargo doc produced changes on noir_stdlib. Please run `just stdlib_docs`, then commit and push any changes."
+            exit 1
+          fi
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -804,19 +836,20 @@ jobs:
       - test-noir-codegen
       - test-integration-node
       #- test-integration-browser
+      - test-nargo-doc
       - test-examples
       - compile-noir-contracts
     permissions:
       contents: read
 
     steps:
-        - name: Report overall success
-          run: |
-            if [[ $FAIL == true ]]; then
-                exit 1
-            else
-                exit 0
-            fi
-          env:
-            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+      - name: Report overall success
+        run: |
+          if [[ $FAIL == true ]]; then
+              exit 1
+          else
+              exit 0
+          fi
+        env:
+          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

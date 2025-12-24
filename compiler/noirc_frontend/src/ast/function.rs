@@ -4,6 +4,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{FunctionReturnType, Ident, Param},
+    hir::def_map::MAIN_FUNCTION,
     token::{Attributes, FunctionAttributeKind, SecondaryAttribute},
 };
 
@@ -75,6 +76,24 @@ impl NoirFunction {
     }
     pub fn location(&self) -> Location {
         self.def.location
+    }
+    /// Both the `#[fold]` and `#[no_predicates]` alter a function's inline type and code generation in similar ways.
+    /// In certain cases such as type checking (for which the following flag will be used) both attributes
+    /// indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+    pub(crate) fn has_inline_attribute(&self) -> bool {
+        let attributes = self.attributes();
+        attributes.is_no_predicates() || attributes.is_foldable()
+    }
+    pub(crate) fn is_entry_point(&self, in_contract: bool, is_crate_root: bool) -> bool {
+        if in_contract {
+            self.attributes().is_contract_entry_point()
+        } else {
+            is_crate_root && self.name() == MAIN_FUNCTION
+        }
+    }
+    pub(crate) fn is_test_or_fuzz(&self) -> bool {
+        let attributes = self.attributes();
+        attributes.is_test_function() || attributes.is_fuzzing_harness()
     }
 }
 

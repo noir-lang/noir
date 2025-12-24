@@ -9,13 +9,13 @@
 //! Conditions:
 //!   - Precondition: Flatten CFG has been performed which should result in the function having only
 //!     one basic block.
-//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or vectors.
 //!     Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
 //!
 //! Relevance to other passes:
-//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an
+//!   - Flattening inserts `Instruction::IfElse` to merge array or vector values from an
 //!     if-expression's "then" and "else" branches. `Instruction::IfElse` with numeric values are
 //!     directly handled during flattening, [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify],
 //!     and will cause a panic in the `remove_if_else` pass.
@@ -36,10 +36,10 @@
 //! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
 //! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
 //! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
-//! `Instruction::IfElse` only for arrays and slices. The remove-if-else pass is used for array and slices
-//! in order to track their lengths, depending on existing slice intrinsics which modify slices,
+//! `Instruction::IfElse` only for arrays and vectors. The remove-if-else pass is used for array and vectors
+//! in order to track their lengths, depending on existing vector intrinsics which modify vectors,
 //! or the array set instructions.
-//! The `Instruction::IfElse` is removed using a `ValueMerger` which operates recursively for nested arrays/slices.
+//! The `Instruction::IfElse` is removed using a `ValueMerger` which operates recursively for nested arrays/vectors.
 //!
 //! For example, this code:
 //! ```noir
@@ -93,18 +93,20 @@
 //! The elements at index 0 are replaced by their known value, instead of doing an additional array get.
 //! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
 //!
-//! For slices the logic is similar except that slice lengths need to be tracked in order to know
-//! the length of the merged slice resulting in a `make_array` instruction. This length will be the
-//! maximum length of the two input slices. Note that the actual length of the merged slice should
+//! For vectors the logic is similar except that vector lengths need to be tracked in order to know
+//! the length of the merged vector resulting in a `make_array` instruction. This length will be the
+//! maximum length of the two input vectors. Note that the actual length of the merged vector should
 //! have been merged during flattening.
 
 use std::collections::hash_map::Entry;
 
+use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -157,20 +159,20 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
-    /// Keeps track of each size a slice is known to be.
+    /// Keeps track of each size a vector is known to be.
     ///
-    /// This is passed to the `ValueMerger` because when merging two slices
-    /// we need to know their sizes to create the merged slice.
+    /// This is passed to the `ValueMerger` because when merging two vectors
+    /// we need to know their sizes to create the merged vector.
     ///
     /// Note: as this pass operates on a single block, which is an entry block,
-    /// and because slices are disallowed in entry blocks, all slice lengths
+    /// and because vectors are disallowed in entry blocks, all vector lengths
     /// should be known at this point.
-    slice_sizes: HashMap<ValueId, u32>,
+    vector_sizes: HashMap<ValueId, u32>,
 }
 
 impl Context {
     /// Process each instruction in the entry block of the (fully flattened) function.
-    /// Merge any `IfElse` instruction using a `ValueMerger` and track slice sizes
+    /// Merge any `IfElse` instruction using a `ValueMerger` and track vector sizes
     /// through intrinsic calls and array set instructions.
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
@@ -190,9 +192,27 @@ impl Context {
                     self.ensure_capacity(context.dfg, then_value);
                     self.ensure_capacity(context.dfg, else_value);
 
+                    // Because the ValueMerger might produce some `array_get` instructions, we
+                    // need those to always execute as otherwise they'll produce incorrect
+                    // merged arrays. For this, we set the side effects var to `true` for the merge.
+                    let old_side_effects = context.enable_side_effects;
+                    let old_side_effects_is_not_one = context
+                        .dfg
+                        .get_numeric_constant(old_side_effects)
+                        .is_none_or(|value| !value.is_one());
+
+                    if old_side_effects_is_not_one {
+                        let one =
+                            context.dfg.make_constant(FieldElement::one(), NumericType::bool());
+                        let _ = context.insert_instruction(
+                            Instruction::EnableSideEffectsIf { condition: one },
+                            None,
+                        );
+                    }
+
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &self.slice_sizes, call_stack);
+                        ValueMerger::new(context.dfg, block, &self.vector_sizes, call_stack);
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -201,6 +221,13 @@ impl Context {
                         else_value,
                     )?;
 
+                    if old_side_effects_is_not_one {
+                        let _ = context.insert_instruction(
+                            Instruction::EnableSideEffectsIf { condition: old_side_effects },
+                            None,
+                        );
+                    }
+
                     let [result] = context.dfg.instruction_result(instruction_id);
 
                     context.remove_current_instruction();
@@ -208,11 +235,18 @@ impl Context {
                     context.replace_value(result, value);
                 }
                 Instruction::Call { func, arguments } => {
-                    // Track slice sizes through intrinsic calls
+                    // Track vector sizes through intrinsic calls
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
+                        self.vector_constant_size_override(context.dfg, intrinsic, arguments);
+
+                        match self.vector_capacity_change(
+                            context.dfg,
+                            intrinsic,
+                            arguments,
+                            results,
+                        ) {
                             SizeChange::None => (),
                             SizeChange::SetTo { old, new } => {
                                 self.set_capacity(context.dfg, old, new, |c| c);
@@ -221,14 +255,14 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
+                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                                 // would otherwise underflow.
                                 self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
                             }
                         }
                     }
                 }
-                // Track slice sizes through array set instructions
+                // Track vector sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
                     let [result] = context.dfg.instruction_result(instruction_id);
                     self.set_capacity(context.dfg, *array, result, |c| c);
@@ -239,7 +273,7 @@ impl Context {
         })
     }
 
-    /// Set the capacity of the new slice based on the capacity of the old array/slice.
+    /// Set the capacity of the new vector based on the capacity of the old array/vector.
     fn set_capacity(
         &mut self,
         dfg: &DataFlowGraph,
@@ -247,131 +281,173 @@ impl Context {
         new: ValueId,
         f: impl Fn(u32) -> u32,
     ) {
-        // No need to store the capacity of arrays, only slices.
-        if !matches!(dfg.type_of_value(new), Type::Slice(_)) {
+        // No need to store the capacity of arrays, only vectors.
+        if !matches!(dfg.type_of_value(new), Type::Vector(_)) {
             return;
         }
         let capacity = self.get_or_find_capacity(dfg, old);
-        self.slice_sizes.insert(new, f(capacity));
+        self.vector_sizes.insert(new, f(capacity));
     }
 
-    /// Make sure the slice capacity is recorded.
-    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, slice: ValueId) {
-        self.set_capacity(dfg, slice, slice, |c| c);
+    /// Make sure the vector capacity is recorded.
+    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, vector: ValueId) {
+        self.set_capacity(dfg, vector, vector, |c| c);
     }
 
-    /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
+    /// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
-        match self.slice_sizes.entry(value) {
+        match self.vector_sizes.entry(value) {
             Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
-                // For arrays we know the size statically, and we don't need to store it.
-                if let Type::Array(_, length) = dfg.type_of_value(value) {
-                    return length;
+                if let Some(length) = dfg.try_get_vector_capacity(value) {
+                    return *entry.insert(length);
                 }
-                // Check if the item was made by a MakeArray instruction, which can create slices as well.
-                if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_size();
-                    return *entry.insert(length as u32);
-                }
-                // For non-constant slices we can't tell the size, which would mean we can't merge it.
+                // For non-constant vectors we can't tell the size, which would mean we can't merge it.
                 let dbg_value = &dfg[value];
-                unreachable!("ICE: No size for slice {value} = {dbg_value:?}")
+                unreachable!("ICE: No size for vector {value} = {dbg_value:?}")
             }
+        }
+    }
+
+    /// If we have already determined a constant for the vector length, we can override the backing capacity
+    /// of the vector contents. There is no need to use the backing capacity if we have already determined the actual length of the vector.
+    /// In these situations, using the capacity over the vector length would require laying down more instructions to handle the extra padding
+    /// while preventing downstream passes or runtimes from implementing optimizations using the vector length.
+    fn vector_constant_size_override(
+        &mut self,
+        dfg: &DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+    ) {
+        match intrinsic {
+            Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorRemove
+            | Intrinsic::VectorPopFront => {
+                if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
+                    self.vector_sizes
+                        .insert(arguments[1], const_len.try_to_u32().expect("Type should be u32"));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Find the change to a vector's capacity an instruction would have
+    fn vector_capacity_change(
+        &self,
+        dfg: &DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+        results: &[ValueId],
+    ) -> SizeChange {
+        match intrinsic {
+            Intrinsic::VectorPushBack | Intrinsic::VectorPushFront | Intrinsic::VectorInsert => {
+                // All of these return `Self` (the vector), we are expecting: len, vector = ...
+                assert_eq!(results.len(), 2);
+                let old = arguments[1];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                SizeChange::Inc { old, new }
+            }
+
+            Intrinsic::VectorPopBack | Intrinsic::VectorRemove => {
+                // fn pop_back(self) -> (Self, T)
+                // fn remove(self, index: u32) -> (Self, T)
+                //
+                // These functions return the vector as the result `(len, vector, ...item)`,
+                // so the vector is the second result.
+                let old = arguments[1];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::VectorPopFront => {
+                // fn pop_front(self) -> (T, Self)
+                //
+                // These functions return the vector as the result `(...item, len, vector)`,
+                // so the vector is the last result.
+                let old = arguments[1];
+                let new = results[results.len() - 1];
+                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::AsVector => {
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(results.len(), 2);
+                let old = arguments[0];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
+                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                SizeChange::SetTo { old, new }
+            }
+
+            Intrinsic::Hint(Hint::BlackBox) => {
+                assert_eq!(arguments.len(), results.len());
+                let arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                let results_types =
+                    results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                assert_eq!(arguments_types, results_types);
+                let old =
+                    *arguments.last().expect("expected at least one argument to Hint::BlackBox");
+                if self.vector_sizes.contains_key(&old) {
+                    if arguments.len() != 1 {
+                        assert!(arguments.len() == 2);
+                        assert!(matches!(arguments_types[0], Type::Numeric(_)));
+                    }
+                    assert!(matches!(arguments_types.last().unwrap(), Type::Vector(_)));
+                    let new = *results.last().unwrap();
+                    SizeChange::SetTo { old, new }
+                } else {
+                    SizeChange::None
+                }
+            }
+
+            // These cases don't affect vector capacities
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::StrAsBytes
+            | Intrinsic::BlackBox(_)
+            | Intrinsic::AsWitness
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::VectorRefCount
+            | Intrinsic::FieldLessThan => SizeChange::None,
         }
     }
 }
 
 enum SizeChange {
     None,
-    /// Make the size of the new slice equal to the old array.
+    /// Make the size of the new vector equal to the old array.
     SetTo {
         old: ValueId,
         new: ValueId,
     },
-    /// Make the size of the new slice equal to old+1.
+    /// Make the size of the new vector equal to old+1.
     Inc {
         old: ValueId,
         new: ValueId,
     },
-    /// Make the size of the new slice equal to old-1.
+    /// Make the size of the new vector equal to old-1.
     Dec {
         old: ValueId,
         new: ValueId,
     },
-}
-
-/// Find the change to a slice's capacity an instruction would have
-fn slice_capacity_change(
-    dfg: &DataFlowGraph,
-    intrinsic: Intrinsic,
-    arguments: &[ValueId],
-    results: &[ValueId],
-) -> SizeChange {
-    match intrinsic {
-        Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
-            // All of these return `Self` (the slice), we are expecting: len, slice = ...
-            assert_eq!(results.len(), 2);
-            let old = arguments[1];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Inc { old, new }
-        }
-
-        Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
-            // fn pop_back(self) -> (Self, T)
-            // fn remove(self, index: u32) -> (Self, T)
-            //
-            // These functions return the slice as the result `(len, slice, ...item)`,
-            // so the slice is the second result.
-            let old = arguments[1];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::SlicePopFront => {
-            // fn pop_front(self) -> (T, Self)
-            //
-            // These functions return the slice as the result `(...item, len, slice)`,
-            // so the slice is the last result.
-            let old = arguments[1];
-            let new = results[results.len() - 1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::AsSlice => {
-            assert_eq!(arguments.len(), 1);
-            assert_eq!(results.len(), 2);
-            let old = arguments[0];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::SetTo { old, new }
-        }
-
-        // These cases don't affect slice capacities
-        Intrinsic::AssertConstant
-        | Intrinsic::StaticAssert
-        | Intrinsic::ApplyRangeConstraint
-        | Intrinsic::ArrayLen
-        | Intrinsic::ArrayAsStrUnchecked
-        | Intrinsic::StrAsBytes
-        | Intrinsic::BlackBox(_)
-        | Intrinsic::Hint(Hint::BlackBox)
-        | Intrinsic::AsWitness
-        | Intrinsic::IsUnconstrained
-        | Intrinsic::DerivePedersenGenerators
-        | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_)
-        | Intrinsic::ArrayRefCount
-        | Intrinsic::SliceRefCount
-        | Intrinsic::FieldLessThan => SizeChange::None,
-    }
 }
 
 #[cfg(debug_assertions)]
@@ -379,7 +455,7 @@ fn remove_if_else_pre_check(func: &Function) {
     // This pass should only run post-flattening.
     super::flatten_cfg::flatten_cfg_post_check(func);
 
-    // We expect to only encounter `IfElse` instructions on array and slice types.
+    // We expect to only encounter `IfElse` instructions on array and vector types.
     for block_id in func.reachable_blocks() {
         let instruction_ids = func.dfg[block_id].instructions();
 
@@ -387,7 +463,10 @@ fn remove_if_else_pre_check(func: &Function) {
             if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
                 assert!(
                     func.dfg.instruction_results(*instruction_id).iter().all(|value| {
-                        matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_))
+                        matches!(
+                            func.dfg.type_of_value(*value),
+                            Type::Array(_, _) | Type::Vector(_)
+                        )
                     }),
                     "IfElse instruction returns unexpected type"
                 );
@@ -428,7 +507,13 @@ fn remove_if_else_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            interpreter::{errors::InterpreterError, value::Value},
+            ssa_gen::Ssa,
+        },
+    };
 
     #[test]
     fn merge_basic_arrays() {
@@ -478,21 +563,23 @@ mod tests {
             v5 = array_set v1, index u32 0, value u32 2
             v8 = array_set v5, index u32 1, value u32 3
             v9 = not v0
-            v10 = array_get v1, index u32 0 -> u32
-            v11 = cast v0 as u32
-            v12 = cast v9 as u32
-            v13 = unchecked_mul v11, u32 2
-            v14 = unchecked_mul v12, v10
-            v15 = unchecked_add v13, v14
-            v16 = array_get v1, index u32 1 -> u32
-            v17 = cast v0 as u32
-            v18 = cast v9 as u32
-            v19 = unchecked_mul v17, u32 3
-            v20 = unchecked_mul v18, v16
-            v21 = unchecked_add v19, v20
-            v22 = make_array [v15, v21] : [u32; 2]
             enable_side_effects u1 1
-            v24 = add v15, v21
+            v11 = array_get v1, index u32 0 -> u32
+            v12 = cast v0 as u32
+            v13 = cast v9 as u32
+            v14 = unchecked_mul v12, u32 2
+            v15 = unchecked_mul v13, v11
+            v16 = unchecked_add v14, v15
+            v17 = array_get v1, index u32 1 -> u32
+            v18 = cast v0 as u32
+            v19 = cast v9 as u32
+            v20 = unchecked_mul v18, u32 3
+            v21 = unchecked_mul v19, v17
+            v22 = unchecked_add v20, v21
+            v23 = make_array [v16, v22] : [u32; 2]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24 = add v16, v22
             v26 = eq v24, u32 5
             constrain v24 == u32 5
             return
@@ -545,22 +632,24 @@ mod tests {
             enable_side_effects v0
             v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
-            v7 = array_get v1, index u32 0 -> u32
-            v8 = cast v0 as u32
-            v9 = cast v6 as u32
-            v10 = unchecked_mul v8, u32 2
-            v11 = unchecked_mul v9, v7
-            v12 = unchecked_add v10, v11
-            v14 = array_get v5, index u32 1 -> u32
-            v15 = array_get v1, index u32 1 -> u32
-            v16 = cast v0 as u32
-            v17 = cast v6 as u32
-            v18 = unchecked_mul v16, v14
-            v19 = unchecked_mul v17, v15
-            v20 = unchecked_add v18, v19
-            v21 = make_array [v12, v20] : [u32; 2]
             enable_side_effects u1 1
-            v23 = add v12, v20
+            v8 = array_get v1, index u32 0 -> u32
+            v9 = cast v0 as u32
+            v10 = cast v6 as u32
+            v11 = unchecked_mul v9, u32 2
+            v12 = unchecked_mul v10, v8
+            v13 = unchecked_add v11, v12
+            v15 = array_get v1, index u32 1 -> u32
+            v16 = array_get v1, index u32 1 -> u32
+            v17 = cast v0 as u32
+            v18 = cast v6 as u32
+            v19 = unchecked_mul v17, v15
+            v20 = unchecked_mul v18, v16
+            v21 = unchecked_add v19, v20
+            v22 = make_array [v13, v21] : [u32; 2]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v23 = add v13, v21
             v25 = eq v23, u32 3
             constrain v23 == u32 3
             return
@@ -569,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_slice_push_back() {
+    fn merge_vector_with_vector_push_back() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -578,12 +667,12 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+            v7, v8 = call vector_push_back(v6, v3, v2) -> (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
+            v15, v16 = call vector_push_back(v10, v12, v2) -> (u32, [Field])
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -593,7 +682,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Merge slices v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
+        // Merge vectors v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -602,22 +691,24 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v8, v9 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+            v8, v9 = call vector_push_back(v6, v3, v2) -> (u32, [Field])
             v10 = not v0
             v11 = cast v0 as u32
-            v13 = array_get v9, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v14 = array_get v9, index u32 0 -> Field
+            v15 = make_array [v14] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v17 = eq v11, u32 1
             v18 = not v17
             v19 = add v11, u32 1
-            v20 = make_array [v13, v2] : [Field]
+            v20 = make_array [v14, v2] : [Field]
             v21 = array_set v20, index v11, value v2
             v22 = array_get v21, index u32 0 -> Field
             v23 = cast v18 as Field
             v24 = cast v17 as Field
             v25 = mul v23, v22
-            v26 = mul v24, v13
+            v26 = mul v24, v14
             v27 = add v25, v26
             v28 = array_get v21, index u32 1 -> Field
             v29 = cast v18 as Field
@@ -633,7 +724,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_slice_push_front() {
+    fn merge_vector_with_vector_push_front() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -642,12 +733,12 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v7, v8 = call vector_push_front(v6, v3, v2) -> (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v15, v16 = call vector_push_front(v10, v12, v2) -> (u32, [Field])
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -666,14 +757,16 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v8, v9 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v8, v9 = call vector_push_front(v6, v3, v2) -> (u32, [Field])
             v10 = not v0
             v11 = cast v0 as u32
-            v13 = array_get v9, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v14 = array_get v9, index u32 0 -> Field
+            v15 = make_array [v14] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v17 = add v11, u32 1
-            v18 = make_array [v2, v13] : [Field]
+            v18 = make_array [v2, v14] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -681,24 +774,24 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_as_slice_and_slice_push_front() {
-        // Same as the previous test, but using `as_slice` to prove that slice length tracking
+    fn merge_vector_with_as_vector_and_vector_push_front() {
+        // Same as the previous test, but using `as_vector` to prove that vector length tracking
         // is working correctly.
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v102 = make_array [] : [Field; 0]
-            v103, v3 = call as_slice(v102) -> (u32, [Field])
+            v103, v3 = call as_vector(v102) -> (u32, [Field])
             v4 = allocate -> &mut u32
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v7, v8 = call vector_push_front(v6, v3, v2) -> (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v15, v16 = call vector_push_front(v10, v12, v2) -> (u32, [Field])
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -713,19 +806,21 @@ mod tests {
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field; 0]
-            v5, v6 = call as_slice(v3) -> (u32, [Field])
+            v5, v6 = call as_vector(v3) -> (u32, [Field])
             v7 = allocate -> &mut u32
             v8 = allocate -> &mut [Field]
             enable_side_effects v0
             v9 = cast v0 as u32
-            v11, v12 = call slice_push_front(v9, v6, v2) -> (u32, [Field])
+            v11, v12 = call vector_push_front(v9, v6, v2) -> (u32, [Field])
             v13 = not v0
             v14 = cast v0 as u32
-            v16 = array_get v12, index u32 0 -> Field
-            v17 = make_array [v16] : [Field]
+            enable_side_effects u1 1
+            v17 = array_get v12, index u32 0 -> Field
+            v18 = make_array [v17] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v20 = add v14, u32 1
-            v21 = make_array [v2, v16] : [Field]
+            v21 = make_array [v2, v17] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -733,7 +828,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_slice_insert() {
+    fn merge_vector_with_vector_insert() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -742,12 +837,12 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v7, v8 = call vector_insert(v6, v3, u32 0, v2) -> (u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16 = call slice_insert(v10, v12, u32 0, v2) -> (u32, [Field])
+            v15, v16 = call vector_insert(v10, v12, u32 0, v2) -> (u32, [Field])
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -766,14 +861,16 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v9, v10 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v9, v10 = call vector_insert(v6, v3, u32 0, v2) -> (u32, [Field])
             v11 = not v0
             v12 = cast v0 as u32
-            v13 = array_get v10, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v14 = array_get v10, index u32 0 -> Field
+            v15 = make_array [v14] : [Field]
+            enable_side_effects v0
             enable_side_effects u1 1
             v17 = add v12, u32 1
-            v18 = make_array [v2, v13] : [Field]
+            v18 = make_array [v2, v14] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -781,7 +878,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_slice_pop_back() {
+    fn merge_vector_with_vector_pop_back() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -790,12 +887,12 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8, v100 = call slice_pop_back(v6, v3) -> (u32, [Field], Field)
+            v7, v8, v100 = call vector_pop_back(v6, v3) -> (u32, [Field], Field)
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16, v101 = call slice_pop_back(v10, v12) -> (u32, [Field], Field)
+            v15, v16, v101 = call vector_pop_back(v10, v12) -> (u32, [Field], Field)
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -805,8 +902,8 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
-        // with the other slice, where `v21` merges the two values.
+        // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
+        // with the other vector, where `v21` merges the two values.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -815,18 +912,20 @@ mod tests {
             v7 = allocate -> &mut [Field]
             enable_side_effects v0
             v8 = cast v0 as u32
-            v10, v11, v12 = call slice_pop_back(v8, v5) -> (u32, [Field], Field)
+            v10, v11, v12 = call vector_pop_back(v8, v5) -> (u32, [Field], Field)
             v13 = not v0
             v14 = cast v0 as u32
-            v16 = array_get v11, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v13 as Field
-            v19 = mul v17, v16
-            v20 = mul v18, Field 2
-            v21 = add v19, v20
-            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_pop_back(v14, v22) -> (u32, [Field], Field)
+            v17 = array_get v11, index u32 0 -> Field
+            v18 = cast v0 as Field
+            v19 = cast v13 as Field
+            v20 = mul v18, v17
+            v21 = mul v19, Field 2
+            v22 = add v20, v21
+            v23 = make_array [v22, Field 3] : [Field]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24, v25, v26 = call vector_pop_back(v14, v23) -> (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -> Field
             constrain v27 == Field 1
             return
@@ -835,7 +934,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_slice_pop_front() {
+    fn merge_vector_with_vector_pop_front() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -844,12 +943,12 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v100, v7, v8 = call slice_pop_front(v6, v3) -> (Field, u32, [Field])
+            v100, v7, v8 = call vector_pop_front(v6, v3) -> (Field, u32, [Field])
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v101, v15, v16 = call slice_pop_front(v10, v12) -> (Field, u32, [Field])
+            v101, v15, v16 = call vector_pop_front(v10, v12) -> (Field, u32, [Field])
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -859,7 +958,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // where for v21 it's the merged value.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
@@ -869,18 +968,20 @@ mod tests {
             v7 = allocate -> &mut [Field]
             enable_side_effects v0
             v8 = cast v0 as u32
-            v10, v11, v12 = call slice_pop_front(v8, v5) -> (Field, u32, [Field])
+            v10, v11, v12 = call vector_pop_front(v8, v5) -> (Field, u32, [Field])
             v13 = not v0
             v14 = cast v0 as u32
-            v16 = array_get v12, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v13 as Field
-            v19 = mul v17, v16
-            v20 = mul v18, Field 2
-            v21 = add v19, v20
-            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_pop_front(v14, v22) -> (Field, u32, [Field])
+            v17 = array_get v12, index u32 0 -> Field
+            v18 = cast v0 as Field
+            v19 = cast v13 as Field
+            v20 = mul v18, v17
+            v21 = mul v19, Field 2
+            v22 = add v20, v21
+            v23 = make_array [v22, Field 3] : [Field]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24, v25, v26 = call vector_pop_front(v14, v23) -> (Field, u32, [Field])
             v27 = array_get v26, index u32 0 -> Field
             constrain v27 == Field 1
             return
@@ -889,7 +990,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_slice_with_slice_remove() {
+    fn merge_vector_with_vector_remove() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -898,12 +999,12 @@ mod tests {
             v5 = allocate -> &mut [Field]
             enable_side_effects v0
             v6 = cast v0 as u32
-            v7, v8, v100 = call slice_remove(v6, v3, u32 0) -> (u32, [Field], Field)
+            v7, v8, v100 = call vector_remove(v6, v3, u32 0) -> (u32, [Field], Field)
             v9 = not v0
             v10 = cast v0 as u32
             v12 = if v0 then v8 else (if v9) v3
             enable_side_effects u1 1
-            v15, v16, v101 = call slice_remove(v10, v12, u32 0) -> (u32, [Field], Field)
+            v15, v16, v101 = call vector_remove(v10, v12, u32 0) -> (u32, [Field], Field)
             v17 = array_get v16, index u32 0 -> Field
             constrain v17 == Field 1
             return
@@ -913,7 +1014,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // where for v21 it's the merged value.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
@@ -923,22 +1024,135 @@ mod tests {
             v7 = allocate -> &mut [Field]
             enable_side_effects v0
             v8 = cast v0 as u32
-            v11, v12, v13 = call slice_remove(v8, v5, u32 0) -> (u32, [Field], Field)
+            v11, v12, v13 = call vector_remove(v8, v5, u32 0) -> (u32, [Field], Field)
             v14 = not v0
             v15 = cast v0 as u32
-            v16 = array_get v12, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v14 as Field
-            v19 = mul v17, v16
-            v20 = mul v18, Field 2
-            v21 = add v19, v20
-            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v24, v25, v26 = call slice_remove(v15, v22, u32 0) -> (u32, [Field], Field)
+            v17 = array_get v12, index u32 0 -> Field
+            v18 = cast v0 as Field
+            v19 = cast v14 as Field
+            v20 = mul v18, v17
+            v21 = mul v19, Field 2
+            v22 = add v20, v21
+            v23 = make_array [v22, Field 3] : [Field]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v24, v25, v26 = call vector_remove(v15, v23, u32 0) -> (u32, [Field], Field)
             v27 = array_get v25, index u32 0 -> Field
             constrain v27 == Field 1
             return
         }
         ");
+    }
+
+    #[test]
+    fn can_handle_vector_with_zero_size_elements() {
+        let src = "
+        acir(inline) impure fn main f0 {
+            b0(v0: u32):
+                v3 = make_array [] : [()]
+                v4 = make_array [] : [()]
+                v6 = eq v0, u32 4
+                jmpif v6 then: b1, else: b2
+            b1():
+                jmp b3(u32 1, v3)
+            b2():
+                jmp b3(u32 2, v4)
+            b3(v1: u32, v2: [()]):
+                return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.flatten_cfg().remove_if_else().unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [()]
+            v2 = make_array [] : [()]
+            v4 = eq v0, u32 4
+            enable_side_effects v4
+            v5 = not v4
+            enable_side_effects u1 1
+            v7 = cast v4 as u32
+            v8 = cast v5 as u32
+            v10 = unchecked_mul v8, u32 2
+            v11 = unchecked_add v7, v10
+            v12 = make_array [] : [()]
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_vector_with_capacity_larger_than_length() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v5 = allocate -> &mut u32
+            v6 = allocate -> &mut [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            v19 = if v8 then v13 else (if v14) v4
+            enable_side_effects u1 1
+            v21 = lt v2, v18
+            constrain v21 == u1 1, "Index out of bounds"
+            v22 = unchecked_mul v2, u32 2
+            v23 = array_get v19, index v22 -> u32
+            v25 = unchecked_add v22, u32 1
+            v26 = array_get v19, index v25 -> u32
+            return v23, v26, v18
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_if_else().unwrap();
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(0)];
+        let result = ssa.interpret(args).unwrap();
+        assert_eq!(result, vec![Value::u32(10), Value::u32(4), Value::u32(1)]);
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(20)];
+        let result = ssa.interpret(args).unwrap_err();
+        let InterpreterError::ConstrainEqFailed { msg, .. } = result else {
+            panic!("Expected a constrain failure on the final vector access");
+        };
+        assert_eq!(msg, Some("Index out of bounds".to_string()));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v5 = allocate -> &mut u32
+            v6 = allocate -> &mut [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            enable_side_effects u1 1
+            v20 = array_get v13, index u32 0 -> u32
+            v22 = array_get v13, index u32 1 -> u32
+            v23 = make_array [v20, v22] : [(u32, u32)]
+            enable_side_effects v8
+            enable_side_effects u1 1
+            v24 = lt v2, v18
+            constrain v24 == u1 1, "Index out of bounds"
+            v25 = unchecked_mul v2, u32 2
+            v26 = array_get v23, index v25 -> u32
+            v27 = unchecked_add v25, u32 1
+            v28 = array_get v23, index v27 -> u32
+            return v26, v28, v18
+        }
+        "#);
     }
 }

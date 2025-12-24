@@ -8,6 +8,7 @@ use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
+    function_builder::data_bus::DataBus,
     ir::{
         instruction::ArrayOffset,
         types::{NumericType, Type},
@@ -93,10 +94,34 @@ fn display_function(
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     }
 
+    display_databus(&function.dfg.data_bus, &function.dfg, f)?;
+
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, files, f)?;
     }
     write!(f, "}}")
+}
+
+fn display_databus(data_bus: &DataBus, dfg: &DataFlowGraph, f: &mut Formatter) -> Result {
+    for call_data in &data_bus.call_data {
+        write!(
+            f,
+            "  call_data({}): array: {}, indices: [",
+            call_data.call_data_id,
+            value(dfg, call_data.array_id),
+        )?;
+        for (i, (value_id, index)) in call_data.index_map.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", value(dfg, *value_id), index)?;
+        }
+        writeln!(f, "]")?;
+    }
+    if let Some(return_data) = data_bus.return_data {
+        writeln!(f, "  return_data: {}", value(dfg, return_data))?;
+    }
+    Ok(())
 }
 
 /// Display a single block. This will not display the block's successors.
@@ -392,16 +417,16 @@ fn display_instruction_inner(
             // It could happen that the byte array is a random byte sequence that happens to be printable
             // (it didn't come from a string literal) but this still reduces the noise in the output
             // and actually represents the same value.
-            let (element_types, is_slice) = match typ {
+            let (element_types, is_vector) = match typ {
                 Type::Array(types, _) => (types, false),
-                Type::Slice(types) => (types, true),
-                _ => panic!("Expected array or slice type for MakeArray"),
+                Type::Vector(types) => (types, true),
+                _ => panic!("Expected array or vector type for MakeArray"),
             };
             if element_types.len() == 1
                 && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
             {
                 if let Some(string) = try_byte_array_to_string(elements, dfg) {
-                    if is_slice {
+                    if is_vector {
                         return write!(f, "make_array &b{string:?}");
                     } else {
                         return write!(f, "make_array b{string:?}");
@@ -431,7 +456,7 @@ fn display_instruction_inner(
 fn display_array_offset(offset: &ArrayOffset) -> String {
     match offset {
         ArrayOffset::None => String::new(),
-        ArrayOffset::Array | ArrayOffset::Slice => format!(" minus {}", offset.to_u32()),
+        ArrayOffset::Array | ArrayOffset::Vector => format!(" minus {}", offset.to_u32()),
     }
 }
 

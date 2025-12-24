@@ -529,7 +529,7 @@ impl<
         }
         let abi_change_detected = elements_for_dictionary.is_some();
         if let Some(elements_for_dictionary) = elements_for_dictionary {
-            self.mutator.update_dictionary_from_vector(&elements_for_dictionary);
+            self.mutator.update_dictionary_from_slice(&elements_for_dictionary);
         }
 
         let minimized_corpus = if self.minimize_corpus {

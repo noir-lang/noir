@@ -6,7 +6,7 @@
 //!
 //! ## Unsigned shift-right
 //!
-//! Shifting an unsigned integer to the right by N is the same as diving by 2^N:
+//! Shifting an unsigned integer to the right by N is the same as dividing by 2^N:
 //!
 //! ```ssa
 //! // this:
@@ -171,7 +171,7 @@ impl Context<'_, '_, '_> {
             max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
             FieldElement::max_num_bits(),
         );
-        if max_bit <= typ.bit_size() {
+        if max_bit <= typ.bit_size::<FieldElement>() {
             // If the result is guaranteed to fit in the target type we can simply multiply
             let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
@@ -183,13 +183,13 @@ impl Context<'_, '_, '_> {
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
             // Unchecked mul as this is a wrapping operation that we later truncate
             let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow);
-            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_truncate(result, typ.bit_size::<FieldElement>(), max_bit);
             self.insert_cast(result, typ)
         } else {
             // Otherwise, the result might not fit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
             // then shift by `rhs - half_of_rhs` and truncate again.
-            assert!(typ.bit_size() <= 128);
+            assert!(typ.bit_size::<FieldElement>() <= 128);
 
             let two = self.numeric_constant(FieldElement::from(2_u32), typ);
 
@@ -209,9 +209,9 @@ impl Context<'_, '_, '_> {
             //        = lhs * 2^(rhs_divided_by_two + rhs_remainder) = lhs * 2^rhs
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
             let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow1);
-            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_truncate(result, typ.bit_size::<FieldElement>(), max_bit);
             let result = self.insert_binary(result, BinaryOp::Mul { unchecked: true }, pow2);
-            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_truncate(result, typ.bit_size::<FieldElement>(), max_bit);
             self.insert_cast(result, typ)
         }
     }
@@ -252,10 +252,15 @@ impl Context<'_, '_, '_> {
             }
             NumericType::Signed { bit_size } => {
                 // Get the sign of the operand; positive signed operand will just do a division as well
-                let zero =
-                    self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+                let unsigned_typ = NumericType::unsigned(bit_size);
+                let lhs_as_unsigned = self.insert_cast(lhs, unsigned_typ);
+
                 // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
-                let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
+                // To compute this we check if the value, as a Field, is greater or equal than the maximum
+                // value that is considered positive, that is, 2^(bit_size-1)-1: 2^(bit_size-1)-1 < lhs_as_field
+                let max_positive = (1_u128 << (bit_size - 1)) - 1;
+                let max_positive = self.numeric_constant(max_positive, unsigned_typ);
+                let lhs_sign = self.insert_binary(max_positive, BinaryOp::Lt, lhs_as_unsigned);
                 let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
                 let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
                 // For negative numbers, we prepare for the division using a wrapping addition of a + 1. Unchecked add as these are fields.
@@ -595,58 +600,57 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: u32, v1: u8):
                 v2 = cast v1 as u32
-                v3 = cast v1 as u32
-                v5 = lt v3, u32 32
-                constrain v5 == u1 1, "attempt to bit-shift with overflow"
-                v7 = cast v1 as Field
-                v9 = call to_le_bits(v7) -> [u1; 5]
-                v11 = array_get v9, index u32 4 -> u1
-                v12 = not v11
+                v4 = lt v2, u32 32
+                constrain v4 == u1 1, "attempt to bit-shift with overflow"
+                v6 = cast v1 as Field
+                v8 = call to_le_bits(v6) -> [u1; 5]
+                v10 = array_get v8, index u32 4 -> u1
+                v11 = not v10
+                v12 = cast v10 as Field
                 v13 = cast v11 as Field
-                v14 = cast v12 as Field
-                v16 = mul Field 2, v13
-                v17 = add v14, v16
-                v19 = array_get v9, index u32 3 -> u1
-                v20 = not v19
+                v15 = mul Field 2, v12
+                v16 = add v13, v15
+                v18 = array_get v8, index u32 3 -> u1
+                v19 = not v18
+                v20 = cast v18 as Field
                 v21 = cast v19 as Field
-                v22 = cast v20 as Field
-                v23 = mul v17, v17
-                v24 = mul v23, v22
-                v25 = mul v23, Field 2
-                v26 = mul v25, v21
-                v27 = add v24, v26
-                v29 = array_get v9, index u32 2 -> u1
-                v30 = not v29
+                v22 = mul v16, v16
+                v23 = mul v22, v21
+                v24 = mul v22, Field 2
+                v25 = mul v24, v20
+                v26 = add v23, v25
+                v28 = array_get v8, index u32 2 -> u1
+                v29 = not v28
+                v30 = cast v28 as Field
                 v31 = cast v29 as Field
-                v32 = cast v30 as Field
-                v33 = mul v27, v27
-                v34 = mul v33, v32
-                v35 = mul v33, Field 2
-                v36 = mul v35, v31
-                v37 = add v34, v36
-                v39 = array_get v9, index u32 1 -> u1
-                v40 = not v39
+                v32 = mul v26, v26
+                v33 = mul v32, v31
+                v34 = mul v32, Field 2
+                v35 = mul v34, v30
+                v36 = add v33, v35
+                v38 = array_get v8, index u32 1 -> u1
+                v39 = not v38
+                v40 = cast v38 as Field
                 v41 = cast v39 as Field
-                v42 = cast v40 as Field
-                v43 = mul v37, v37
-                v44 = mul v43, v42
-                v45 = mul v43, Field 2
-                v46 = mul v45, v41
-                v47 = add v44, v46
-                v49 = array_get v9, index u32 0 -> u1
-                v50 = not v49
+                v42 = mul v36, v36
+                v43 = mul v42, v41
+                v44 = mul v42, Field 2
+                v45 = mul v44, v40
+                v46 = add v43, v45
+                v48 = array_get v8, index u32 0 -> u1
+                v49 = not v48
+                v50 = cast v48 as Field
                 v51 = cast v49 as Field
-                v52 = cast v50 as Field
-                v53 = mul v47, v47
-                v54 = mul v53, v52
-                v55 = mul v53, Field 2
-                v56 = mul v55, v51
-                v57 = add v54, v56
-                v58 = cast v0 as Field
-                v59 = mul v58, v57
-                v60 = truncate v59 to 32 bits, max_bit_size: 64
-                v61 = cast v60 as u32
-                return v61
+                v52 = mul v46, v46
+                v53 = mul v52, v51
+                v54 = mul v52, Field 2
+                v55 = mul v54, v50
+                v56 = add v53, v55
+                v57 = cast v0 as Field
+                v58 = mul v57, v56
+                v59 = truncate v58 to 32 bits, max_bit_size: 64
+                v60 = cast v59 as u32
+                return v60
             }
             "#);
         }
@@ -675,22 +679,21 @@ mod tests {
                 v2 = cast v1 as u8
                 v3 = cast v2 as u32
                 v4 = cast v3 as u64
-                v5 = cast v3 as u64
-                v7 = lt v5, u64 64
-                constrain v7 == u1 1, "attempt to bit-shift with overflow"
-                v9 = cast v3 as Field
-                v11 = call to_le_bits(v9) -> [u1; 1]
-                v13 = array_get v11, index u32 0 -> u1
-                v14 = not v13
+                v6 = lt v4, u64 64
+                constrain v6 == u1 1, "attempt to bit-shift with overflow"
+                v8 = cast v1 as Field
+                v10 = call to_le_bits(v8) -> [u1; 1]
+                v12 = array_get v10, index u32 0 -> u1
+                v13 = not v12
+                v14 = cast v12 as Field
                 v15 = cast v13 as Field
-                v16 = cast v14 as Field
-                v18 = mul Field 2, v15
-                v19 = add v16, v18
-                v20 = cast v0 as Field
-                v21 = mul v20, v19
-                v22 = truncate v21 to 64 bits, max_bit_size: 65
-                v23 = cast v22 as u64
-                return v23
+                v17 = mul Field 2, v14
+                v18 = add v15, v17
+                v19 = cast v0 as Field
+                v20 = mul v19, v18
+                v21 = truncate v20 to 64 bits, max_bit_size: 65
+                v22 = cast v21 as u64
+                return v22
             }
             "#);
         }
@@ -916,17 +919,18 @@ mod tests {
             assert_ssa_snapshot!(ssa, @r"
             acir(inline) fn main f0 {
               b0(v0: i32):
-                v2 = lt v0, i32 0
-                v3 = cast v2 as Field
-                v4 = cast v0 as Field
-                v5 = add v3, v4
-                v6 = truncate v5 to 32 bits, max_bit_size: 33
-                v7 = cast v6 as i32
-                v9 = div v7, i32 4
-                v10 = cast v2 as i32
-                v11 = unchecked_sub v9, v10
-                v12 = truncate v11 to 32 bits, max_bit_size: 33
-                return v12
+                v1 = cast v0 as u32
+                v3 = lt u32 2147483647, v1
+                v4 = cast v3 as Field
+                v5 = cast v0 as Field
+                v6 = add v4, v5
+                v7 = truncate v6 to 32 bits, max_bit_size: 33
+                v8 = cast v7 as i32
+                v10 = div v8, i32 4
+                v11 = cast v3 as i32
+                v12 = unchecked_sub v10, v11
+                v13 = truncate v12 to 32 bits, max_bit_size: 33
+                return v13
             }
             ");
         }
@@ -994,17 +998,18 @@ mod tests {
                 v55 = mul v54, v50
                 v56 = add v53, v55
                 v57 = cast v56 as i32
-                v59 = lt v0, i32 0
-                v60 = cast v59 as Field
-                v61 = cast v0 as Field
-                v62 = add v60, v61
-                v63 = truncate v62 to 32 bits, max_bit_size: 33
-                v64 = cast v63 as i32
-                v65 = div v64, v57
-                v66 = cast v59 as i32
-                v67 = unchecked_sub v65, v66
-                v68 = truncate v67 to 32 bits, max_bit_size: 33
-                return v68
+                v58 = cast v0 as u32
+                v60 = lt u32 2147483647, v58
+                v61 = cast v60 as Field
+                v62 = cast v0 as Field
+                v63 = add v61, v62
+                v64 = truncate v63 to 32 bits, max_bit_size: 33
+                v65 = cast v64 as i32
+                v66 = div v65, v57
+                v67 = cast v60 as i32
+                v68 = unchecked_sub v66, v67
+                v69 = truncate v68 to 32 bits, max_bit_size: 33
+                return v69
             }
             "#);
         }

@@ -24,15 +24,15 @@ You can print the output of both statements in your Noir code by using the `narg
 
 It is recommended to use `nargo execute` if you want to debug failing constraints with `println` or `print` statements. This is due to every input in a test being a constant rather than a witness, so we issue an error during compilation while we only print during execution (which comes after compilation). Neither `println`, nor `print` are callable for failed constraints caught at compile time.
 
-Both `print` and `println` are generic functions which can work on integers, fields, strings, and even structs or expressions. Note however, that slices are currently unsupported. For example:
+Both `print` and `println` are generic functions which can work on integers, fields, strings, and even structs or expressions. Note however, that vectors are currently unsupported. For example:
 
 ```rust
 struct Person {
-    age: Field,
-    height: Field,
+    age: u32,
+    height: u32,
 }
 
-fn main(age: Field, height: Field) {
+fn main(age: u32, height: u32) {
     let person = Person {
         age: age,
         height: height,

@@ -2,45 +2,30 @@ use nargo_fmt::ImportsGranularity;
 use noirc_driver::CrateId;
 use noirc_frontend::{
     graph::CrateGraph,
-    hir::def_map::{DefMaps, ModuleId},
+    hir::{def_map::DefMaps, printer::display_crate},
     node_interner::NodeInterner,
     parse_program_with_dummy_file,
 };
 
-use crate::{items::ItemBuilder, printer::ItemPrinter};
-
-mod items;
-mod printer;
-
 /// Returns the expanded code for the given crate.
+/// This method calls out to the frontend's HIR display functionality and either formats it or adds a warning if there are syntax errors.
 pub fn get_expanded_crate(
     crate_id: CrateId,
     crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
 ) -> String {
-    let root_module_id = def_maps[&crate_id].root();
-    let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
-
-    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
-    let item = builder.build_module(module_id);
-
-    let dependencies = &crate_graph[crate_id].dependencies;
-
-    let mut string = String::new();
-    let mut printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, &mut string);
-    printer.show_item(item);
-
-    let (parsed_module, errors) = parse_program_with_dummy_file(&string);
+    let mut expanded_source = display_crate(crate_id, crate_graph, def_maps, interner);
+    let (parsed_module, errors) = parse_program_with_dummy_file(&expanded_source);
     if errors.is_empty() {
         let config = nargo_fmt::Config {
             reorder_imports: true,
             imports_granularity: ImportsGranularity::Crate,
             ..Default::default()
         };
-        nargo_fmt::format(&string, parsed_module, &config)
+        nargo_fmt::format(&expanded_source, parsed_module, &config)
     } else {
-        string.push_str("\n\n// Warning: the generated code has syntax errors");
-        string
+        expanded_source.push_str("\n\n// Warning: the generated code has syntax errors");
+        expanded_source
     }
 }

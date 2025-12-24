@@ -37,6 +37,5 @@ pub(crate) fn prepare_and_compile_snippet(
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, root_crate_id) = prepare_snippet(source);
     let options = CompileOptions { force_brillig, ..Default::default() };
-    // TODO: Run nargo::ops::transform_program?
     compile_main(&mut context, root_crate_id, &options, None)
 }

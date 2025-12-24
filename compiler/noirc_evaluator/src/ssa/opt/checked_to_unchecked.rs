@@ -138,6 +138,11 @@ fn get_max_num_bits(
                     // When multiplying two values, if their bitsize is 1 then the result's bitsize will be 1 too
                     1
                 }
+                Instruction::Truncate { value, bit_size, .. } => {
+                    let value_bit_size =
+                        value_bit_size.min(get_max_num_bits(dfg, value, value_max_num_bits));
+                    value_bit_size.min(bit_size)
+                }
                 _ => value_bit_size,
             }
         }
@@ -356,6 +361,30 @@ mod tests {
             v5 = unchecked_mul v3, v4
             v6 = unchecked_mul v2, v5
             return v6
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_adding_two_u32_truncated_to_16_bits() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = truncate v0 to 16 bits, max_bit_size: 33
+            v3 = truncate v1 to 16 bits, max_bit_size: 33
+            v4 = add v2, v3
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = truncate v0 to 16 bits, max_bit_size: 33
+            v3 = truncate v1 to 16 bits, max_bit_size: 33
+            v4 = unchecked_add v2, v3
+            return v4
         }
         ");
     }

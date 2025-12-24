@@ -4,18 +4,16 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acir_field",
  "base64",
  "bincode",
  "brillig",
- "color-eyre",
  "criterion",
  "flate2",
  "insta",
- "noir_protobuf",
  "noirc_span",
  "num-bigint",
  "num-traits",
@@ -23,9 +21,6 @@ dependencies = [
  "pprof",
  "proptest",
  "proptest-derive",
- "prost",
- "prost-build",
- "protoc-bin-vendored",
  "regex",
  "rmp-serde",
  "rmpv",
@@ -43,7 +38,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254 0.5.0",
@@ -59,14 +54,12 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
  "ark-bls12-381",
- "ark-bn254 0.4.0",
  "ark-bn254 0.5.0",
- "ark-ff 0.4.2",
  "ark-ff 0.5.0",
  "bn254_blackbox_solver",
  "brillig_vm",
@@ -80,22 +73,23 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tracing",
- "zkhash",
 ]
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "blake2",
  "blake3",
+ "criterion",
  "k256",
  "keccak",
  "libaes",
  "log",
  "num-prime",
  "p256",
+ "pprof",
  "proptest",
  "sha2",
  "thiserror 1.0.69",
@@ -122,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -815,12 +809,14 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-bn254 0.4.0",
  "ark-bn254 0.5.0",
  "ark-ec 0.5.0",
+ "ark-ff 0.4.2",
  "ark-ff 0.5.0",
  "ark-grumpkin",
  "ark-std 0.5.0",
@@ -829,6 +825,8 @@ dependencies = [
  "lazy_static",
  "num-bigint",
  "pprof",
+ "proptest",
+ "zkhash",
 ]
 
 [[package]]
@@ -842,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir_field",
  "proptest",
@@ -852,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1871,7 +1869,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2736,7 +2734,7 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 
 [[package]]
 name = "itertools"
@@ -2752,15 +2750,6 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -3153,6 +3142,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "markdown"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb"
+dependencies = [
+ "unicode-id",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3240,14 +3238,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "multimap"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
-
-[[package]]
 name = "nargo"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "brillig",
@@ -3276,7 +3268,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "ark-bn254 0.5.0",
@@ -3302,6 +3294,7 @@ dependencies = [
  "lazy_static",
  "light-poseidon",
  "nargo",
+ "nargo_doc",
  "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
@@ -3321,7 +3314,6 @@ dependencies = [
  "paste",
  "pprof",
  "predicates 2.1.5",
- "prettytable-rs",
  "proptest",
  "rayon",
  "regex",
@@ -3347,20 +3339,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "nargo_expand"
-version = "1.0.0-beta.13"
+name = "nargo_doc"
+version = "1.0.0-beta.17"
 dependencies = [
- "fm",
- "nargo",
- "nargo_fmt",
+ "insta",
+ "iter-extended",
+ "markdown",
  "noirc_driver",
  "noirc_errors",
+ "noirc_frontend",
+ "regex",
+ "serde",
+]
+
+[[package]]
+name = "nargo_expand"
+version = "1.0.0-beta.17"
+dependencies = [
+ "nargo_fmt",
+ "noirc_driver",
  "noirc_frontend",
 ]
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "noirc_errors",
  "noirc_frontend",
@@ -3372,7 +3375,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fuzz_target"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "afl",
  "nargo",
@@ -3382,7 +3385,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "dirs",
  "fm",
@@ -3466,7 +3469,7 @@ dependencies = [
 
 [[package]]
 name = "noir_artifact_cli"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acvm",
@@ -3491,7 +3494,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acvm",
@@ -3521,7 +3524,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer_fuzz"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "arbitrary",
@@ -3539,7 +3542,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3562,7 +3565,7 @@ dependencies = [
 
 [[package]]
 name = "noir_greybox_fuzzer"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "build-data",
@@ -3582,7 +3585,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "clap",
@@ -3597,7 +3600,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3605,8 +3608,10 @@ dependencies = [
  "convert_case",
  "fm",
  "fuzzy-matcher",
+ "insta",
  "iter-extended",
  "nargo",
+ "nargo_doc",
  "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
@@ -3627,7 +3632,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3654,16 +3659,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_protobuf"
-version = "1.0.0-beta.13"
-dependencies = [
- "color-eyre",
- "prost",
-]
-
-[[package]]
 name = "noir_ssa_cli"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "base64",
  "clap",
@@ -3685,7 +3682,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_executor"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "base64",
@@ -3701,7 +3698,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "libfuzzer-sys",
@@ -3718,9 +3715,8 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
- "acvm",
  "build-data",
  "console_error_panic_hook",
  "fm",
@@ -3743,7 +3739,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3762,7 +3758,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "build-data",
@@ -3779,11 +3775,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -3798,7 +3794,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acir",
  "acvm",
@@ -3813,7 +3809,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "build-data",
@@ -3832,7 +3828,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "base64",
@@ -3849,9 +3845,10 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
+ "arbtest",
  "bn254_blackbox_solver",
  "cfg-if",
  "chrono",
@@ -3866,7 +3863,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "petgraph 0.8.2",
+ "petgraph",
  "proptest",
  "rayon",
  "rustc-hash",
@@ -3885,7 +3882,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "base64",
@@ -3900,7 +3897,7 @@ dependencies = [
  "noirc_printable_type",
  "num-bigint",
  "num-traits",
- "petgraph 0.8.2",
+ "petgraph",
  "proptest",
  "proptest-derive",
  "rangemap",
@@ -3917,7 +3914,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3928,7 +3925,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "codespan",
  "serde",
@@ -4300,16 +4297,6 @@ dependencies = [
 
 [[package]]
 name = "petgraph"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3672b37090dbd86368a4145bc067582552b29c27377cad4e0a306c97f9bd7772"
-dependencies = [
- "fixedbitset",
- "indexmap 2.11.0",
-]
-
-[[package]]
-name = "petgraph"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54acf3a685220b533e437e264e4d932cfbdc4cc7ec0cd232ed73c08d03b8a7ca"
@@ -4544,16 +4531,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "prettyplease"
-version = "0.2.37"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
-dependencies = [
- "proc-macro2",
- "syn 2.0.106",
-]
-
-[[package]]
 name = "prettytable-rs"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4630,122 +4607,6 @@ dependencies = [
  "quote",
  "syn 2.0.106",
 ]
-
-[[package]]
-name = "prost"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
-dependencies = [
- "bytes",
- "prost-derive",
-]
-
-[[package]]
-name = "prost-build"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
-dependencies = [
- "heck 0.5.0",
- "itertools 0.14.0",
- "log",
- "multimap",
- "once_cell",
- "petgraph 0.7.1",
- "prettyplease",
- "prost",
- "prost-types",
- "regex",
- "syn 2.0.106",
- "tempfile",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
-dependencies = [
- "anyhow",
- "itertools 0.14.0",
- "proc-macro2",
- "quote",
- "syn 2.0.106",
-]
-
-[[package]]
-name = "prost-types"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
-dependencies = [
- "prost",
-]
-
-[[package]]
-name = "protoc-bin-vendored"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1c381df33c98266b5f08186583660090a4ffa0889e76c7e9a5e175f645a67fa"
-dependencies = [
- "protoc-bin-vendored-linux-aarch_64",
- "protoc-bin-vendored-linux-ppcle_64",
- "protoc-bin-vendored-linux-s390_64",
- "protoc-bin-vendored-linux-x86_32",
- "protoc-bin-vendored-linux-x86_64",
- "protoc-bin-vendored-macos-aarch_64",
- "protoc-bin-vendored-macos-x86_64",
- "protoc-bin-vendored-win32",
-]
-
-[[package]]
-name = "protoc-bin-vendored-linux-aarch_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c350df4d49b5b9e3ca79f7e646fde2377b199e13cfa87320308397e1f37e1a4c"
-
-[[package]]
-name = "protoc-bin-vendored-linux-ppcle_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a55a63e6c7244f19b5c6393f025017eb5d793fd5467823a099740a7a4222440c"
-
-[[package]]
-name = "protoc-bin-vendored-linux-s390_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dba5565db4288e935d5330a07c264a4ee8e4a5b4a4e6f4e83fad824cc32f3b0"
-
-[[package]]
-name = "protoc-bin-vendored-linux-x86_32"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8854774b24ee28b7868cd71dccaae8e02a2365e67a4a87a6cd11ee6cdbdf9cf5"
-
-[[package]]
-name = "protoc-bin-vendored-linux-x86_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b38b07546580df720fa464ce124c4b03630a6fb83e05c336fea2a241df7e5d78"
-
-[[package]]
-name = "protoc-bin-vendored-macos-aarch_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89278a9926ce312e51f1d999fee8825d324d603213344a9a706daa009f1d8092"
-
-[[package]]
-name = "protoc-bin-vendored-macos-x86_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81745feda7ccfb9471d7a4de888f0652e806d5795b61480605d4943176299756"
-
-[[package]]
-name = "protoc-bin-vendored-win32"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95067976aca6421a523e491fce939a3e65249bac4b977adee0ee9771568e8aa3"
 
 [[package]]
 name = "quick-error"
@@ -5408,6 +5269,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sancov"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/sancov.git#44c006ddc2f2cb35825d334353acd6d03194e041"
+dependencies = [
+ "rustc-hash",
+ "sancov-sys",
+]
+
+[[package]]
+name = "sancov-sys"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/sancov.git#44c006ddc2f2cb35825d334353acd6d03194e041"
+
+[[package]]
 name = "schannel"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5864,6 +5739,7 @@ dependencies = [
  "base64",
  "bincode",
  "env_logger",
+ "flate2",
  "k256",
  "lazy_static",
  "libfuzzer-sys",
@@ -5877,6 +5753,7 @@ dependencies = [
  "rand 0.8.5",
  "redis",
  "reqwest",
+ "sancov",
  "serde",
  "serde_json",
  "sha1",
@@ -5887,7 +5764,7 @@ dependencies = [
 
 [[package]]
 name = "ssa_verification"
-version = "1.0.0-beta.13"
+version = "1.0.0-beta.17"
 dependencies = [
  "acvm",
  "clap",
@@ -6575,6 +6452,12 @@ name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94"
+
+[[package]]
+name = "unicode-id"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70ba288e709927c043cbe476718d37be306be53fb1fafecd0dbe36d072be2580"
 
 [[package]]
 name = "unicode-ident"

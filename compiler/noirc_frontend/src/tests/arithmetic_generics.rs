@@ -2,12 +2,12 @@
 
 use core::panic;
 
-use crate::assert_no_errors;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::signed_field::SignedField;
 use crate::test_utils::get_monomorphized;
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -24,7 +24,7 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
             };
         }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn checked_casts_do_not_prevent_canonicalization() {
 
     fn main() { }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn global_numeric_generic_larger_than_u32() {
         let _ = foo::<A>();
     }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
 }
 
 #[test]
@@ -187,5 +187,92 @@ fn global_arithmetic_generic_larger_than_u32() {
         let _ = foo::<A>().size();
     }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
+}
+
+#[test]
+fn arithmetic_generics_rounding_pass() {
+    let src = r#"
+        fn main() {
+            // 3/2*2 = 2
+            round::<3, 2>([1, 2]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail() {
+    let src = r#"
+        fn main() {
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            round::<3, 2>([1, 2, 3]);
+                          ^^^^^^^^^ Expected type [Field; 2], found type [Field; 3]
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail_on_struct() {
+    let src = r#"
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32, let M: u32>(_x: W<N>, _y: W<M>) -> W<N / M * M> {
+            W {}
+        }
+
+        fn main() {
+            let w_2: W<2> = W {};
+            let w_3: W<3> = W {};
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            let _: W<3> = foo(w_3, w_2);
+                          ^^^^^^^^^^^^^ Expected type W<3>, found type W<2>
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_1() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<18>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_2() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<2 * 9>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_3() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        global N: u32 = 9;
+
+        fn main(_x: Foo<N * 2>) {}
+    "#;
+    assert_no_errors(src);
 }

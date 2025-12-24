@@ -167,7 +167,9 @@ pub enum TypeCheckError {
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
-    UnusedResultError { expr_type: Type, expr_location: Location },
+    UnusedResultWarning { expr_type: Type, expr_location: Location },
+    #[error("Unused expression result of type {expr_type}")]
+    UnusedResultError { expr_type: Type, expr_location: Location, message: Option<String> },
     #[error("Expected type {expected_typ:?} is not the same as {actual_typ:?}")]
     TraitMethodParameterTypeMismatch {
         method_name: String,
@@ -198,8 +200,10 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
     )]
     UnconstrainedReferenceToConstrained { location: Location },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { location: Location },
+    #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedVectorReturnToConstrained { location: Location },
+    #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedFunctionReturnToConstrained { location: Location },
     #[error(
         "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
@@ -232,7 +236,7 @@ pub enum TypeCheckError {
     UnspecifiedType { location: Location },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, location: Location },
-    #[error("Type annotations required before indexing this array or slice")]
+    #[error("Type annotations required before indexing this array or vector")]
     TypeAnnotationsNeededForIndex { location: Location },
     #[error("Unnecessary `unsafe` block")]
     UnnecessaryUnsafeBlock { location: Location },
@@ -320,6 +324,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
             | TypeCheckError::MultipleMatchingImpls { location, .. }
             | TypeCheckError::CallDeprecated { location, .. }
+            | TypeCheckError::UnusedResultWarning { expr_location: location, .. }
             | TypeCheckError::UnusedResultError { expr_location: location, .. }
             | TypeCheckError::TraitMethodParameterTypeMismatch {
                 parameter_location: location,
@@ -329,7 +334,8 @@ impl TypeCheckError {
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
@@ -521,7 +527,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
@@ -606,7 +613,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                         return diagnostic
                     },
-                    Source::ArrayIndex => format!("Indexing arrays and slices must be done with `{expected}`, not `{actual}`"),
+                    Source::ArrayIndex => format!("Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), *location)
@@ -619,9 +626,17 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic.deprecated = true;
                 diagnostic
             }
-            TypeCheckError::UnusedResultError { expr_type, expr_location } => {
+            TypeCheckError::UnusedResultWarning { expr_type, expr_location } => {
                 let msg = format!("Unused expression result of type {expr_type}");
                 Diagnostic::simple_warning(msg, String::new(), *expr_location)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_location, message } => {
+                let unused_message = format!("Unused expression result of type {expr_type} which must be used");
+                let (primary, secondary) = match message {
+                    Some(message) => (message.clone(), unused_message),
+                    None => (unused_message, format!("`{expr_type}` was declared with `#[must_use]`")),
+                };
+                Diagnostic::simple_error(primary, secondary, *expr_location)
             }
             TypeCheckError::NoMatchingImplFound(error) => error.into(),
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, location } => {
@@ -637,7 +652,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     diagnostic.add_secondary("This type has an invalid entry point type inside it".to_string(), *location);
                 }
 
-                diagnostic.add_note("Note: slices, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
                 add_invalid_type_to_diagnostic(invalid_type, *location, &mut diagnostic);
                 diagnostic
             },
@@ -696,35 +711,35 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, location } => {
                 Diagnostic::simple_error(
-                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
+                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"),
                     format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
                     *location,
                 )
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } => {
                 Diagnostic::simple_error(
-                    "Type annotations required before indexing this array or slice".into(), 
-                    "Type annotations needed before this point, can't decide if this is an array or slice".into(),
+                    "Type annotations required before indexing this array or vector".into(),
+                    "Type annotations needed before this point, can't decide if this is an array or vector".into(),
                     *location,
                 )
             },
             TypeCheckError::UnnecessaryUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "".into(),
                     *location,
                 )
             },
             TypeCheckError::NestedUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "Because it's nested inside another `unsafe` block".into(),
                     *location,
                 )
             },
             TypeCheckError::UnreachableCase { location } => {
                 Diagnostic::simple_warning(
-                    "Unreachable match case".into(), 
+                    "Unreachable match case".into(),
                     "This pattern is redundant with one or more prior patterns".into(),
                     *location,
                 )
@@ -777,8 +792,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } => {
                 let message = "Type annotation needed".into();
-                let array_or_slice = if *is_array { "array" } else { "slice" };
-                let secondary = format!("Could not determine the type of the {array_or_slice}");
+                let array_or_vector = if *is_array { "array" } else { "vector" };
+                let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
         }
@@ -846,9 +861,9 @@ fn add_invalid_type_to_diagnostic(
                     location,
                 );
             }
-            Type::Slice(..) => {
+            Type::Vector(..) => {
                 diagnostic.add_secondary(
-                    format!("Slice is not a valid entry point type. Found: {typ}"),
+                    format!("Vector is not a valid entry point type. Found: {typ}"),
                     location,
                 );
             }

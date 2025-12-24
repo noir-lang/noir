@@ -1,0 +1,22 @@
+[package]
+name = "nargo_doc"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+iter-extended.workspace = true
+serde.workspace = true
+noirc_driver.workspace = true
+noirc_frontend.workspace = true
+noirc_errors.workspace = true
+markdown = "1.0.0"
+regex.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

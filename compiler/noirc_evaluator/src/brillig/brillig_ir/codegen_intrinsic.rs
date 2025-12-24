@@ -35,12 +35,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // If we are truncating a value down to a natively supported integer, we can just use the cast instruction
         if IntegerBitSize::try_from(bit_size).is_ok() {
             // We cast back and forth to ensure that the value is truncated.
-            let intermediate_register = SingleAddrVariable::new(self.allocate_register(), bit_size);
+            let intermediate_register = self.allocate_single_addr(bit_size);
 
-            self.cast_instruction(intermediate_register, value_to_truncate);
-            self.cast_instruction(destination_of_truncated_value, intermediate_register);
+            self.cast_instruction(*intermediate_register, value_to_truncate);
+            self.cast_instruction(destination_of_truncated_value, *intermediate_register);
 
-            self.deallocate_single_addr(intermediate_register);
             return;
         }
 
@@ -54,23 +53,24 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.binary_instruction(
             value_to_truncate,
-            modulus_var,
+            *modulus_var,
             destination_of_truncated_value,
             BrilligBinaryOp::Modulo,
         );
-
-        self.deallocate_single_addr(modulus_var);
     }
 
-    /// Issues a to_radix instruction. This instruction will write the modulus of the source register
-    /// And the radix register limb_count times to the target vector.
+    /// Issues a `to_radix` instruction. This instruction will write the modulus of the `source_field` register
+    /// and the `radix` register `target_array`, with the number of limbs given by the size of `target_array`.
+    ///
+    /// If `output_bits` is true, it generates bit limbs, otherwise it generates byte limbs.
+    /// If `little_endian` is true, then the `target_array` will contain the results in Little Endian order.
     pub(crate) fn codegen_to_radix(
         &mut self,
         source_field: SingleAddrVariable,
         target_array: BrilligArray,
         radix: SingleAddrVariable,
         little_endian: bool,
-        output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
+        output_bits: bool,
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
         assert!(radix.bit_size == 32);
@@ -84,18 +84,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
             radix: radix.address,
-            output_pointer: pointer,
+            output_pointer: *pointer,
             num_limbs: num_limbs.address,
             output_bits: bits_register.address,
         });
 
         if little_endian {
-            let items_len = self.make_usize_constant_instruction(target_array.size.into());
-            self.codegen_array_reverse(pointer, items_len.address);
-            self.deallocate_single_addr(items_len);
+            self.codegen_array_reverse(*pointer, num_limbs.address);
         }
-        self.deallocate_register(pointer);
-        self.deallocate_single_addr(bits_register);
-        self.deallocate_single_addr(num_limbs);
     }
 }

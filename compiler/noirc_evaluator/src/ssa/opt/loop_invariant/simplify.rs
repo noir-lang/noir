@@ -36,7 +36,7 @@ impl LoopInvariantContext<'_> {
 
                 if left {
                     // If the induction variable is on the LHS, we're dividing with a constant.
-                    if !value.is_zero() {
+                    if !value.is_zero() && !value.is_minus_one() {
                         return true;
                     }
                 } else {

@@ -74,8 +74,8 @@ impl Location {
         Self { span, file }
     }
 
-    pub fn dummy() -> Self {
-        Self { span: Span::default(), file: FileId::dummy() }
+    pub const fn dummy() -> Self {
+        Self { span: Span::initial(), file: FileId::dummy() }
     }
 
     pub fn contains(&self, other: &Location) -> bool {

@@ -15,9 +15,9 @@ pub(crate) enum BrilligParameter {
     SingleAddr(u32),
     /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
-    /// A slice parameter or return value. Holds the type of a slice item.
-    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
-    Slice(Vec<BrilligParameter>, usize),
+    /// A vector parameter or return value. Holds the type of a vector item.
+    /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
+    Vector(Vec<BrilligParameter>, usize),
 }
 
 /// The result of compiling and linking brillig artifacts.
@@ -31,6 +31,17 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for GeneratedBrillig<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}", self.name)?;
+        let width = self.byte_code.len().to_string().len();
+        for (index, opcode) in self.byte_code.iter().enumerate() {
+            writeln!(f, "{index:>width$}: {opcode}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
@@ -41,7 +52,7 @@ pub struct BrilligArtifact<F> {
     /// resolved.
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
     /// A map of labels to their position in byte code.
-    labels: HashMap<Label, OpcodeLocation>,
+    pub(crate) labels: HashMap<Label, OpcodeLocation>,
     /// Set of labels which are external to the bytecode.
     ///
     /// This will most commonly contain the labels of functions
@@ -63,6 +74,17 @@ pub struct BrilligArtifact<F> {
     /// which opcodes originate from reusable procedures.s
     /// The range is inclusive for both start and end opcode locations.
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
+}
+
+impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}", self.name)?;
+        let width = self.byte_code.len().to_string().len();
+        for (index, opcode) in self.byte_code.iter().enumerate() {
+            writeln!(f, "{index:>width$}: {opcode}")?;
+        }
+        Ok(())
+    }
 }
 
 /// A pointer to a location in the opcode.
@@ -111,7 +133,7 @@ pub(crate) struct Label {
 }
 
 impl Label {
-    pub(crate) fn add_section(&self, section: usize) -> Self {
+    pub(crate) fn with_section(&self, section: usize) -> Self {
         Label { label_type: self.label_type.clone(), section: Some(section) }
     }
 
@@ -284,7 +306,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Returns the index of the next opcode.
     ///
     /// This is useful for labelling regions of code
-    /// before you have generated the opcodes for the region.
+    /// before we start generating the opcodes for the region.
     pub(crate) fn index_of_next_opcode(&self) -> OpcodeLocation {
         self.byte_code.len()
     }

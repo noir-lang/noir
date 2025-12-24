@@ -60,7 +60,7 @@ impl Function {
 
             // First perform any simplifications on the current block, this ensures that we add the proper successors
             // to the stack.
-            simplify_current_block(self, block, &mut cfg);
+            simplify_current_block(self, block, &mut cfg, &mut values_to_replace);
 
             if visited.insert(block) {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
@@ -72,16 +72,7 @@ impl Function {
                     predecessors.next().expect("Already checked length of predecessors");
                 drop(predecessors);
 
-                // If the block has only 1 predecessor, we can safely remove its block parameters
-                remove_block_parameters(self, block, predecessor, &mut values_to_replace);
-
-                // Note: this function relies on `remove_block_parameters` being called first.
-                // Otherwise the inlined block will refer to parameters that no longer exist.
-                //
-                // If successful, `block` will be empty and unreachable after this call, so any
-                // optimizations performed after this point on the same block should check if
-                // the inlining here was successful before continuing.
-                try_inline_into_predecessor(self, &mut cfg, block, predecessor);
+                try_inline_successor(self, &mut cfg, predecessor, &mut values_to_replace);
             } else {
                 drop(predecessors);
 
@@ -110,16 +101,16 @@ fn simplify_current_block(
     function: &mut Function,
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
+    values_to_replace: &mut ValueMapping,
 ) {
     // These functions return `true` if they successfully simplified the CFG for the current block.
-    let mut simplified = false;
+    let mut simplified = true;
 
-    simplified |= check_for_negated_jmpif_condition(function, block, cfg);
-    simplified |= check_for_constant_jmpif(function, block, cfg);
-    simplified |= check_for_converging_jmpif(function, block, cfg);
-
-    if simplified {
-        simplify_current_block(function, block, cfg);
+    while simplified {
+        simplified = check_for_negated_jmpif_condition(function, block, cfg)
+            | check_for_constant_jmpif(function, block, cfg)
+            | check_for_converging_jmpif(function, block, cfg)
+            | try_inline_successor(function, cfg, block, values_to_replace);
     }
 }
 
@@ -395,6 +386,40 @@ fn remove_block_parameters(
 ///
 /// This will only occur if the predecessor's only successor is the given block.
 /// It is also expected that the given block's only predecessor is the given one.
+fn try_inline_successor(
+    function: &mut Function,
+    cfg: &mut ControlFlowGraph,
+    block: BasicBlockId,
+    values_to_replace: &mut ValueMapping,
+) -> bool {
+    if let Some(TerminatorInstruction::Jmp { destination, .. }) = function.dfg[block].terminator() {
+        let destination = *destination;
+        let predecessors = cfg.predecessors(destination);
+        if predecessors.len() == 1 {
+            drop(predecessors);
+
+            // If the block has only 1 predecessor, we can safely remove its block parameters
+            remove_block_parameters(function, destination, block, values_to_replace);
+
+            // Note: this function relies on `remove_block_parameters` being called first.
+            // Otherwise the inlined block will refer to parameters that no longer exist.
+            //
+            // If successful, `block` will be empty and unreachable after this call, so any
+            // optimizations performed after this point on the same block should check if
+            // the inlining here was successful before continuing.
+            try_inline_into_predecessor(function, cfg, destination, block)
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Try to inline a block into its predecessor, returning true if successful.
+///
+/// This will only occur if the predecessor's only successor is the given block.
+/// It is also expected that the given block's only predecessor is the given one.
 fn try_inline_into_predecessor(
     function: &mut Function,
     cfg: &mut ControlFlowGraph,
@@ -415,7 +440,7 @@ fn try_inline_into_predecessor(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
@@ -647,11 +672,11 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b1, else: b2
           b1():
-            return u32 2
+            jmp b1()
           b2():
-            jmp b2()
+            return u32 2
         }
         ");
     }
@@ -912,6 +937,30 @@ mod test {
         brillig(inline) fn test f0 {
           b0():
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn double_jmp_with_args_blocks() {
+        let src = "
+        brillig(inline) fn test f0 {
+          b0(v0: Field):
+            jmp b1(v0, Field 2)
+          b1(v1: Field, v2: Field):
+            jmp b2(v1)
+          b2(v3: Field):
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn test f0 {
+          b0(v0: Field):
+            return v0
         }
         ");
     }

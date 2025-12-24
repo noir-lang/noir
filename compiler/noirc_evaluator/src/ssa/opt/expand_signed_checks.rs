@@ -1,3 +1,9 @@
+/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+/// into unchecked operations followed by explicit overflow checks.
+///
+/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+/// operations, while also allowing further optimizations to be done during subsequent
+/// SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
@@ -29,7 +35,7 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions, decomposing any checked signed arithmetic to have explicit
     /// overflow checks.
-    pub(crate) fn expand_signed_checks(&mut self) {
+    fn expand_signed_checks(&mut self) {
         // TODO: consider whether we can implement this more efficiently in brillig.
 
         self.simple_optimization(|context| {
@@ -499,8 +505,7 @@ mod tests {
             v12 = eq v11, v8
             v13 = unchecked_mul v12, v10
             constrain v13 == v10, "attempt to add with overflow"
-            v14 = cast v3 as i32
-            return v14
+            return v3
         }
         "#);
     }
@@ -532,8 +537,7 @@ mod tests {
             v13 = eq v12, v8
             v14 = unchecked_mul v13, v11
             constrain v14 == v11, "attempt to subtract with overflow"
-            v15 = cast v3 as i32
-            return v15
+            return v3
         }
         "#);
     }

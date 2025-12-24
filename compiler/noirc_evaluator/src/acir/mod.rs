@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    circuit::{AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId},
+    circuit::{AssertionPayload, brillig::BrilligFunctionId},
     native_types::Witness,
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -54,7 +54,7 @@ pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
 struct Context<'a> {
-    /// Maps SSA values to `AcirVar`.
+    /// Maps SSA values to `AcirVar`'s.
     ///
     /// This is needed so that we only create a single
     /// AcirVar per SSA value. Before creating an `AcirVar`
@@ -77,12 +77,12 @@ struct Context<'a> {
     /// if there is already a MemoryInit opcode.
     initialized_arrays: HashSet<BlockId>,
 
-    /// Maps SSA values to BlockId
+    /// Maps SSA values to BlockId's
     /// A BlockId is an ACIR structure which identifies a memory block
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
-    /// Maps SSA values to a BlockId used internally for computing the accurate flattened
+    /// Maps SSA values to BlockId's used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
     ///
@@ -90,6 +90,10 @@ struct Context<'a> {
     /// Each memory blocks corresponds to a different SSA value
     /// which utilizes this internal memory for ACIR generation.
     element_type_sizes_blocks: HashMap<Id<Value>, BlockId>,
+
+    /// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
+    /// non-homogenous arrays end up having the same type sizes layout.
+    type_sizes_to_blocks: HashMap<Vec<usize>, BlockId>,
 
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
@@ -109,13 +113,11 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
-        expression_width: ExpressionWidth,
         brillig: &'a Brillig,
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
@@ -125,6 +127,7 @@ impl<'a> Context<'a> {
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
             element_type_sizes_blocks: HashMap::default(),
+            type_sizes_to_blocks: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -138,7 +141,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
-        self.acir_context.set_call_stack_helper(self.brillig.call_stacks.to_owned());
+        self.acir_context.set_call_stack_helper(self.brillig.call_stacks().clone());
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -176,7 +179,9 @@ impl<'a> Context<'a> {
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
-        let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+        self.acir_context.acir_ir.input_witnesses =
+            self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+
         let num_return_witnesses =
             self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
 
@@ -233,10 +238,12 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // TODO: This is a naive method of assigning the return values to their witnesses as
+        // This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
         //
-        // We should search through the program and relabel these witnesses so we can remove this constraint.
+        // But an attempt at searching through the program and relabeling these witnesses so we could remove
+        // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
+        // but "the opcode count doesn't even change in real circuits."
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
@@ -250,7 +257,6 @@ impl<'a> Context<'a> {
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(
-            input_witness,
             // Don't embed databus return witnesses into the circuit.
             if self.data_bus.return_data.is_some() { Vec::new() } else { return_witnesses },
             warnings,
@@ -269,7 +275,7 @@ impl<'a> Context<'a> {
         })?;
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
-        let witness_inputs = self.acir_context.extract_witness(&inputs);
+        self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
@@ -280,12 +286,13 @@ impl<'a> Context<'a> {
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
+        let unsafe_return_values = true;
         let output_values = self.acir_context.brillig_call(
             self.current_side_effects_enabled_var,
             &code,
             inputs,
             outputs,
-            true,
+            unsafe_return_values,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             BrilligFunctionId(0),
             None,
@@ -303,7 +310,7 @@ impl<'a> Context<'a> {
             .map(|(value, _)| self.acir_context.var_to_witness(value))
             .collect::<Result<_, _>>()?;
 
-        let generated_acir = self.acir_context.finish(witness_inputs, return_witnesses, Vec::new());
+        let generated_acir = self.acir_context.finish(return_witnesses, Vec::new());
 
         assert_eq!(
             generated_acir.opcodes().len(),
@@ -363,8 +370,7 @@ impl<'a> Context<'a> {
     ) -> Result<AcirValue, RuntimeError> {
         match param_type {
             Type::Numeric(numeric_type) => {
-                let typ = AcirType::new(*numeric_type);
-                Ok(AcirValue::Var(make_var(self, *numeric_type)?, typ))
+                Ok(AcirValue::Var(make_var(self, *numeric_type)?, *numeric_type))
             }
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
@@ -391,10 +397,17 @@ impl<'a> Context<'a> {
         numeric_type: &NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
-        let one = self.acir_context.add_constant(FieldElement::one());
-        if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
-            // The predicate is one so that this constraint is is always applied.
-            self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
+
+        if !numeric_type.is_field() {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            // The predicate is one so that this constraint is is always applied to Signed/Unsigned NumericTypes
+
+            self.acir_context.range_constrain_var(
+                acir_var,
+                numeric_type.bit_size::<FieldElement>(),
+                None,
+                one,
+            )?;
         }
         Ok(acir_var)
     }
@@ -409,105 +422,30 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
-        // Disable the side effects if the binary instruction does not require them
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let predicate = if instruction.requires_acir_gen_predicate(dfg) {
-            self.current_side_effects_enabled_var
-        } else {
-            one
-        };
 
         match instruction {
             Instruction::Binary(binary) => {
+                // Disable the side effects if the binary instruction does not require them
+                let predicate = if instruction.requires_acir_gen_predicate(dfg) {
+                    self.current_side_effects_enabled_var
+                } else {
+                    self.acir_context.add_constant(FieldElement::one())
+                };
                 let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
-
-                let assert_payload = if let Some(error) = assert_message {
-                    match error {
-                        ConstrainError::StaticString(string) => Some(
-                            self.acir_context.generate_assertion_message_payload(string.clone()),
-                        ),
-                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *is_string_type,
-                                values,
-                                dfg,
-                            ) {
-                                Some(
-                                    self.acir_context
-                                        .generate_assertion_message_payload(constant_string),
-                                )
-                            } else {
-                                let acir_vars: Vec<_> = values
-                                    .iter()
-                                    .map(|value| self.convert_value(*value, dfg))
-                                    .collect();
-
-                                let expressions_or_memory =
-                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
-
-                                Some(AssertionPayload {
-                                    error_selector: error_selector.as_u64(),
-                                    payload: expressions_or_memory,
-                                })
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
+                let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
                 self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
             Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
-
-                let assert_payload = if let Some(error) = assert_message {
-                    match error {
-                        ConstrainError::StaticString(string) => Some(
-                            self.acir_context.generate_assertion_message_payload(string.clone()),
-                        ),
-                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *is_string_type,
-                                values,
-                                dfg,
-                            ) {
-                                Some(
-                                    self.acir_context
-                                        .generate_assertion_message_payload(constant_string),
-                                )
-                            } else {
-                                let acir_vars: Vec<_> = values
-                                    .iter()
-                                    .map(|value| self.convert_value(*value, dfg))
-                                    .collect();
-
-                                let expressions_or_memory =
-                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
-
-                                Some(AssertionPayload {
-                                    error_selector: error_selector.as_u64(),
-                                    payload: expressions_or_memory,
-                                })
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
-                self.acir_context.assert_neq_var(
-                    lhs,
-                    rhs,
-                    self.current_side_effects_enabled_var,
-                    assert_payload,
-                )?;
+                let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
+                let predicate = self.current_side_effects_enabled_var;
+                self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
@@ -554,11 +492,12 @@ impl<'a> Context<'a> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let acir_var = self.convert_numeric_value(*value, dfg)?;
+                let one = self.acir_context.add_constant(FieldElement::one());
                 // Predicate is one because the predicate has already been
                 // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
                     acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    *max_bit_size,
                     assert_message.clone(),
                     one,
                 )?;
@@ -577,6 +516,40 @@ impl<'a> Context<'a> {
 
         self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
+    }
+
+    /// Converts an optional constrain error message into an ACIR assertion payload
+    fn convert_constrain_error(
+        &mut self,
+        dfg: &DataFlowGraph,
+        assert_message: &Option<ConstrainError>,
+    ) -> Result<Option<AssertionPayload<FieldElement>>, RuntimeError> {
+        let Some(error) = assert_message else {
+            return Ok(None);
+        };
+
+        let assert_payload = match error {
+            ConstrainError::StaticString(string) => {
+                self.acir_context.generate_assertion_message_payload(string.clone())
+            }
+            ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                if let Some(constant_string) =
+                    try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                {
+                    self.acir_context.generate_assertion_message_payload(constant_string)
+                } else {
+                    let acir_values: Vec<_> =
+                        vecmap(values, |value| self.convert_value(*value, dfg));
+
+                    let expressions_or_memory =
+                        self.acir_context.values_to_expressions_or_memory(&acir_values)?;
+
+                    let error_selector = error_selector.as_u64();
+                    AssertionPayload { error_selector, payload: expressions_or_memory }
+                }
+            }
+        };
+        Ok(Some(assert_payload))
     }
 
     /// Remember the result of an instruction returning a single value
@@ -598,7 +571,7 @@ impl<'a> Context<'a> {
         result: AcirVar,
     ) {
         let [result_id] = dfg.instruction_result(instruction);
-        let typ = dfg.type_of_value(result_id).into();
+        let typ = dfg.type_of_value(result_id).unwrap_numeric();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
     }
 
@@ -672,10 +645,15 @@ impl<'a> Context<'a> {
     /// because instructions results are converted when the corresponding instruction is
     /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
     ///
-    /// It is not safe to call this function on value ids that represent addresses. Instructions
+    /// It is not safe to call this function on value ids that represent pointers. Instructions
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
+        assert!(
+            !matches!(dfg.type_of_value(value_id), Type::Reference(_)),
+            "convert_value: did not expect a Reference type"
+        );
+
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();
@@ -683,16 +661,17 @@ impl<'a> Context<'a> {
 
         let acir_value = match value {
             Value::NumericConstant { constant, typ } => {
-                let typ = AcirType::from(Type::Numeric(*typ));
-                AcirValue::Var(self.acir_context.add_constant(*constant), typ)
+                AcirValue::Var(self.acir_context.add_constant(*constant), *typ)
             }
-            Value::Intrinsic(..) => todo!(),
+            Value::Intrinsic(..) => {
+                unreachable!("ICE: Intrinsics should be resolved via separate logic")
+            }
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
                 // of a function in ACIR is useless.
                 let id = self.acir_context.add_constant(function_id.to_u32());
-                AcirValue::Var(id, AcirType::field())
+                AcirValue::Var(id, NumericType::NativeField)
             }
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
@@ -737,9 +716,9 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
-        let binary_type = self.type_of_binary_operation(binary, dfg);
+        let num_type = self.type_of_binary_operation(binary, dfg).unwrap_numeric();
 
-        if binary_type.is_signed()
+        if num_type.is_signed()
             && matches!(
                 binary.operator,
                 BinaryOp::Add { unchecked: false }
@@ -750,29 +729,33 @@ impl<'a> Context<'a> {
             panic!("Checked signed operations should all be removed before ACIRgen")
         }
 
-        let binary_type = AcirType::from(binary_type);
-        let bit_count = binary_type.bit_size::<FieldElement>();
-        let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
             BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul { .. } => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.clone(), predicate),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, num_type, predicate),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => match binary_type {
-                AcirType::NumericType(NumericType::Signed { .. }) => {
-                    self.acir_context.less_than_signed(lhs, rhs, bit_count)
+            BinaryOp::Lt => match num_type {
+                NumericType::Unsigned { bit_size } => {
+                    self.acir_context.less_than_var(lhs, rhs, bit_size)
                 }
-                _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
+                _ => {
+                    panic!("ICE: unexpected binary type for Lt operation: {num_type:?}")
+                }
             },
-            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
-            BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
-            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod => {
-                self.acir_context.modulo_var(lhs, rhs, binary_type.clone(), bit_count, predicate)
-            }
+            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, num_type),
+            BinaryOp::And => self.acir_context.and_var(lhs, rhs, num_type),
+            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, num_type),
+            BinaryOp::Mod => match num_type {
+                NumericType::Unsigned { bit_size } => {
+                    self.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
+                }
+                _ => {
+                    panic!("ICE: unexpected binary type for Mod operation: {num_type:?}")
+                }
+            },
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(
                 "ICE - bit shift operators do not exist in ACIR and should have been replaced"
             ),
@@ -801,28 +784,13 @@ impl<'a> Context<'a> {
             _ => return Ok(result),
         };
 
-        self.acir_context.range_constrain_var(
-            result,
-            &NumericType::Unsigned { bit_size },
-            Some(msg.to_string()),
-            predicate,
-        )
+        self.acir_context.range_constrain_var(result, bit_size, Some(msg.to_string()), predicate)
     }
 
     /// Operands in a binary operation are checked to have the same type.
     ///
     /// In Noir, binary operands should have the same type due to the language
     /// semantics.
-    ///
-    /// There are some edge cases to consider:
-    /// - Constants are not explicitly type casted, so we need to check for this and
-    ///   return the type of the other operand, if we have a constant.
-    /// - 0 is not seen as `Field 0` but instead as `Unit 0`
-    ///
-    /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
-    /// TODO nothing and a 0.
-    ///
-    /// TODO: This constant coercion should ideally be done in the type checker.
     fn type_of_binary_operation(&self, binary: &Binary, dfg: &DataFlowGraph) -> Type {
         let lhs_type = dfg.type_of_value(binary.lhs);
         let rhs_type = dfg.type_of_value(binary.rhs);
@@ -839,13 +807,9 @@ impl<'a> Context<'a> {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+            (_, Type::Vector(..)) | (Type::Vector(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            // If either side is a Field constant then, we coerce into the type
-            // of the other operand
-            (Type::Numeric(NumericType::NativeField), typ)
-            | (typ, Type::Numeric(NumericType::NativeField)) => typ,
             // If either side is a numeric type, then we expect their types to be
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -884,6 +848,13 @@ impl<'a> Context<'a> {
                     // for FieldElements. Furthermore, adding a power of two
                     // would be incorrect for a FieldElement (cf. #8519).
                     if max_bit_size < FieldElement::max_num_bits() {
+                        // When max_bit_size is max_num_bits() - 1, adding
+                        // 2**max_bit_size to an element of max_bit_size bits
+                        // gives an element of max_num_bits() bits which may overflow
+                        assert!(
+                            max_bit_size != FieldElement::max_num_bits() - 1,
+                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
+                        );
                         let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
                         let integer_modulus = self.acir_context.add_constant(integer_modulus);
                         var = self.acir_context.add_var(var, integer_modulus)?;
@@ -901,6 +872,36 @@ impl<'a> Context<'a> {
         };
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
+    }
+
+    /// Fetch a flat list of [AcirVar].
+    ///
+    /// Flattens an [AcirValue] into a vector of `AcirVar`.
+    ///
+    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
+    fn flatten(&mut self, value: &AcirValue) -> Result<Vec<AcirVar>, RuntimeError> {
+        Ok(match value {
+            AcirValue::Var(var, _) => vec![*var],
+            AcirValue::Array(array) => {
+                let mut result = Vec::new();
+                for elem in array {
+                    result.extend(self.flatten(elem)?);
+                }
+                result
+            }
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
+                let elements = self.read_dynamic_array(*block_id, *len, value_types);
+                let mut result = Vec::new();
+
+                for value in elements {
+                    match value? {
+                        AcirValue::Var(var, _typ) => result.push(var),
+                        _ => unreachable!("ICE: Dynamic memory should already be flat"),
+                    }
+                }
+                result
+            }
+        })
     }
 }
 

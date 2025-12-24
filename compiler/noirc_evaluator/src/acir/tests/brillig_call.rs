@@ -41,30 +41,29 @@ fn multiple_brillig_calls_one_bytecode() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w7
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w3]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4]
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w5]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w6]
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w2]
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w3]
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w4]
+    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w5]
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w6]
+    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w7]
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @32836
-     7: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: sp[1] = @68
+     7: sp[2] = @69
      8: call 14
      9: call 15
-    10: @32838 = sp[1]
-    11: sp[2] = const u32 32838
+    10: @70 = sp[1]
+    11: sp[2] = const u32 70
     12: sp[3] = const u32 1
     13: stop &[sp[2]; sp[3]]
     14: return
@@ -76,25 +75,25 @@ fn multiple_brillig_calls_one_bytecode() {
     20: sp[5] = const u32 0
     21: trap &[@1; sp[5]]
     22: return
-    23: @32772 = const u32 30720
-    24: @32771 = u32 lt @0, @32772
-    25: jump if @32771 to 28
+    23: @4 = const u32 30791
+    24: @3 = u32 lt @0, @4
+    25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
     27: trap &[@1; @2]
     28: return
-    unconstrained func 1
+    unconstrained func 1: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @32836
-     7: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: sp[1] = @68
+     7: sp[2] = @69
      8: call 14
      9: call 15
-    10: @32838 = sp[1]
-    11: sp[2] = const u32 32838
+    10: @70 = sp[1]
+    11: sp[2] = const u32 70
     12: sp[3] = const u32 1
     13: stop &[sp[2]; sp[3]]
     14: return
@@ -106,9 +105,9 @@ fn multiple_brillig_calls_one_bytecode() {
     20: sp[5] = const u32 0
     21: trap &[@1; sp[5]]
     22: return
-    23: @32772 = const u32 30720
-    24: @32771 = u32 lt @0, @32772
-    25: jump if @32771 to 28
+    23: @4 = const u32 30791
+    24: @3 = u32 lt @0, @4
+    25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
     27: trap &[@1; @2]
     28: return
@@ -129,6 +128,7 @@ fn multiple_brillig_stdlib_calls() {
         return
     }";
     let (program, debug) = ssa_to_acir_program_with_debug_info(src);
+
     // We expect two brillig functions:
     //   - Quotient (shared between both divisions)
     //   - Inversion, caused by division-by-zero check (shared between both divisions)
@@ -145,32 +145,31 @@ fn multiple_brillig_stdlib_calls() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w10
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w1, w3) -1 ]
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:32 bits []
-    BLACKBOX::RANGE [w5]:32 bits []
-    EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
-    BLACKBOX::RANGE [w6]:32 bits []
-    EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
-    EXPR [ (-1, w2) (1, w4) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w7]
-    EXPR [ (1, w2, w7) -1 ]
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w8, w9]
-    BLACKBOX::RANGE [w9]:32 bits []
-    EXPR [ (1, w2) (-1, w9) (-1, w10) -1 ]
-    BLACKBOX::RANGE [w10]:32 bits []
-    EXPR [ (-1, w2, w8) (1, w1) (-1, w9) 0 ]
-    EXPR [ (1, w8) -1 ]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w2, bits: 32
+    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    ASSERT 0 = w1*w3 - 1
+    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
+    BLACKBOX::RANGE input: w4, bits: 32
+    BLACKBOX::RANGE input: w5, bits: 32
+    ASSERT w6 = w1 - w5 - 1
+    BLACKBOX::RANGE input: w6, bits: 32
+    ASSERT w5 = -w1*w4 + w0
+    ASSERT w4 = w2
+    BRILLIG CALL func: 0, inputs: [w2], outputs: [w7]
+    ASSERT 0 = w2*w7 - 1
+    BRILLIG CALL func: 1, inputs: [w1, w2], outputs: [w8, w9]
+    BLACKBOX::RANGE input: w9, bits: 32
+    ASSERT w10 = w2 - w9 - 1
+    BLACKBOX::RANGE input: w10, bits: 32
+    ASSERT w9 = -w2*w8 + w1
+    ASSERT w8 = 1
 
-    unconstrained func 0
+    unconstrained func 0: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -180,7 +179,7 @@ fn multiple_brillig_stdlib_calls() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 1
+    unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -233,50 +232,49 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     // Brillig stdlib IDs are expected to always come at the end of the Brillig functions list.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w12
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w1, w3) -1 ]
-    BRILLIG CALL func 2: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:32 bits []
-    BLACKBOX::RANGE [w5]:32 bits []
-    EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
-    BLACKBOX::RANGE [w6]:32 bits []
-    EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
-    EXPR [ (-1, w2) (1, w4) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
-    BLACKBOX::RANGE [w7]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
-    BLACKBOX::RANGE [w8]:32 bits []
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w9]
-    EXPR [ (1, w2, w9) -1 ]
-    BRILLIG CALL func 2: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w10, w11]
-    BLACKBOX::RANGE [w11]:32 bits []
-    EXPR [ (1, w2) (-1, w11) (-1, w12) -1 ]
-    BLACKBOX::RANGE [w12]:32 bits []
-    EXPR [ (-1, w2, w10) (1, w1) (-1, w11) 0 ]
-    EXPR [ (1, w10) -1 ]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w2, bits: 32
+    BRILLIG CALL func: 1, inputs: [w1], outputs: [w3]
+    ASSERT 0 = w1*w3 - 1
+    BRILLIG CALL func: 2, inputs: [w0, w1], outputs: [w4, w5]
+    BLACKBOX::RANGE input: w4, bits: 32
+    BLACKBOX::RANGE input: w5, bits: 32
+    ASSERT w6 = w1 - w5 - 1
+    BLACKBOX::RANGE input: w6, bits: 32
+    ASSERT w5 = -w1*w4 + w0
+    ASSERT w4 = w2
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w7]
+    BLACKBOX::RANGE input: w7, bits: 32
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w8]
+    BLACKBOX::RANGE input: w8, bits: 32
+    BRILLIG CALL func: 1, inputs: [w2], outputs: [w9]
+    ASSERT 0 = w2*w9 - 1
+    BRILLIG CALL func: 2, inputs: [w1, w2], outputs: [w10, w11]
+    BLACKBOX::RANGE input: w11, bits: 32
+    ASSERT w12 = w2 - w11 - 1
+    BLACKBOX::RANGE input: w12, bits: 32
+    ASSERT w11 = -w2*w10 + w1
+    ASSERT w10 = 1
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: @32836 = cast @32836 to u32
-     7: @32837 = cast @32837 to u32
-     8: sp[1] = @32836
-     9: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: @68 = cast @68 to u32
+     7: @69 = cast @69 to u32
+     8: sp[1] = @68
+     9: sp[2] = @69
     10: call 16
     11: call 17
-    12: @32838 = sp[1]
-    13: sp[2] = const u32 32838
+    12: @70 = sp[1]
+    13: sp[2] = const u32 70
     14: sp[3] = const u32 1
     15: stop &[sp[2]; sp[3]]
     16: return
@@ -288,13 +286,13 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     22: sp[5] = const u32 0
     23: trap &[@1; sp[5]]
     24: return
-    25: @32772 = const u32 30720
-    26: @32771 = u32 lt @0, @32772
-    27: jump if @32771 to 30
+    25: @4 = const u32 30791
+    26: @3 = u32 lt @0, @4
+    27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
     29: trap &[@1; @2]
     30: return
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -304,7 +302,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 2
+    unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -364,69 +362,66 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     assert_eq!(foo_debug.brillig_locations.len(), 0);
 
     // TODO(https://github.com/noir-lang/noir/issues/9877): Update this snapshot once the linked issue is fixed.
-    // `CALL func 2` in `func 0` is incorrect.
+    // `CALL func: 2` in `func 0` is incorrect.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w13
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w1, w3) -1 ]
-    BRILLIG CALL func 2: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:32 bits []
-    BLACKBOX::RANGE [w5]:32 bits []
-    EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
-    BLACKBOX::RANGE [w6]:32 bits []
-    EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
-    EXPR [ (-1, w2) (1, w4) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
-    BLACKBOX::RANGE [w7]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
-    BLACKBOX::RANGE [w8]:32 bits []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w0, w1], outputs: [w9]
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w10]
-    EXPR [ (1, w2, w10) -1 ]
-    BRILLIG CALL func 2: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w11, w12]
-    BLACKBOX::RANGE [w12]:32 bits []
-    EXPR [ (1, w2) (-1, w12) (-1, w13) -1 ]
-    BLACKBOX::RANGE [w13]:32 bits []
-    EXPR [ (-1, w2, w11) (1, w1) (-1, w12) 0 ]
-    EXPR [ (1, w11) -1 ]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w2, bits: 32
+    BRILLIG CALL func: 1, inputs: [w1], outputs: [w3]
+    ASSERT 0 = w1*w3 - 1
+    BRILLIG CALL func: 2, inputs: [w0, w1], outputs: [w4, w5]
+    BLACKBOX::RANGE input: w4, bits: 32
+    BLACKBOX::RANGE input: w5, bits: 32
+    ASSERT w6 = w1 - w5 - 1
+    BLACKBOX::RANGE input: w6, bits: 32
+    ASSERT w5 = -w1*w4 + w0
+    ASSERT w4 = w2
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w7]
+    BLACKBOX::RANGE input: w7, bits: 32
+    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w8]
+    BLACKBOX::RANGE input: w8, bits: 32
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w9]
+    BRILLIG CALL func: 1, inputs: [w2], outputs: [w10]
+    ASSERT 0 = w2*w10 - 1
+    BRILLIG CALL func: 2, inputs: [w1, w2], outputs: [w11, w12]
+    BLACKBOX::RANGE input: w12, bits: 32
+    ASSERT w13 = w2 - w12 - 1
+    BLACKBOX::RANGE input: w13, bits: 32
+    ASSERT w12 = -w2*w11 + w1
+    ASSERT w11 = 1
 
     func 1
-    current witness: w5
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    EXPR [ (1, w0) (-1, w1) (-1, w3) 0 ]
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w3) 0 ]], outputs: [w4]
-    EXPR [ (1, w3, w4) (1, w5) -1 ]
-    EXPR [ (1, w3, w5) 0 ]
-    EXPR [ (1, w5) 0 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w3 = w0 - w1
+    BRILLIG CALL func: 1, inputs: [w3], outputs: [w4]
+    ASSERT w5 = -w3*w4 + 1
+    ASSERT 0 = w3*w5
+    ASSERT w5 = 0
+    ASSERT w2 = w0
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: @32836 = cast @32836 to u32
-     7: @32837 = cast @32837 to u32
-     8: sp[1] = @32836
-     9: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: @68 = cast @68 to u32
+     7: @69 = cast @69 to u32
+     8: sp[1] = @68
+     9: sp[2] = @69
     10: call 16
     11: call 17
-    12: @32838 = sp[1]
-    13: sp[2] = const u32 32838
+    12: @70 = sp[1]
+    13: sp[2] = const u32 70
     14: sp[3] = const u32 1
     15: stop &[sp[2]; sp[3]]
     16: return
@@ -438,13 +433,13 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     22: sp[5] = const u32 0
     23: trap &[@1; sp[5]]
     24: return
-    25: @32772 = const u32 30720
-    26: @32771 = u32 lt @0, @32772
-    27: jump if @32771 to 30
+    25: @4 = const u32 30791
+    26: @3 = u32 lt @0, @4
+    27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
     29: trap &[@1; @2]
     30: return
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -454,7 +449,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 2
+    unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]

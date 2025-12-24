@@ -7,6 +7,7 @@ use crate::{
     hir_def::{
         expr::{HirExpression, HirIdent},
         function::{FuncMeta, HirFunction},
+        stmt::{HirLetStatement, HirStatement},
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, Node, ReferenceId, TraitId,
@@ -50,18 +51,6 @@ impl NodeInterner {
     /// See ModCollector for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
-    }
-
-    /// Push a function with the default modifiers and [`ModuleId`] for testing
-    #[cfg(test)]
-    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
-        let id = self.push_fn(HirFunction::empty());
-        let mut modifiers = FunctionModifiers::new();
-        modifiers.name = name;
-        let module = ModuleId::dummy_id();
-        let location = Location::dummy();
-        self.push_function_definition(id, modifiers, module, location);
-        id
     }
 
     pub fn push_function(
@@ -121,13 +110,26 @@ impl NodeInterner {
         self.function_modules[&func]
     }
 
-    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
-    pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
+    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
+    /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
+    /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
+    ///
+    /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
+    pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
             match self.try_definition(id).map(|def| &def.kind) {
                 Some(DefinitionKind::Function(func_id)) => Some(*func_id),
                 Some(DefinitionKind::Local(Some(expr_id))) => {
                     self.lookup_function_from_expr(expr_id)
+                }
+                Some(DefinitionKind::Global(global_id)) => {
+                    let info = self.get_global(*global_id);
+                    let HirStatement::Let(HirLetStatement { expression, .. }) =
+                        self.statement(&info.let_statement)
+                    else {
+                        unreachable!("global refers to a let statement");
+                    };
+                    self.lookup_function_from_expr(&expression)
                 }
                 _ => None,
             }

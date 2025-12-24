@@ -73,7 +73,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_array_or_slice_type() {
+        if let Some(typ) = self.parse_array_or_vector_type() {
             return Some(typ);
         }
 
@@ -125,8 +125,8 @@ impl Parser<'_> {
                 self.expected_token(Token::Keyword(Keyword::Fn));
                 return Some(UnresolvedTypeData::Function(
                     Vec::new(),
-                    Box::new(self.unspecified_type_at_previous_token_end()),
-                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    Box::new(self.error_type_at_previous_token_end()),
+                    Box::new(self.error_type_at_previous_token_end()),
                     unconstrained,
                 ));
             }
@@ -147,8 +147,8 @@ impl Parser<'_> {
 
             return Some(UnresolvedTypeData::Function(
                 Vec::new(),
-                Box::new(self.unspecified_type_at_previous_token_end()),
-                Box::new(self.unspecified_type_at_previous_token_end()),
+                Box::new(self.error_type_at_previous_token_end()),
+                Box::new(self.error_type_at_previous_token_end()),
                 unconstrained,
             ));
         }
@@ -233,8 +233,8 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a slice start if this is an array or slice type
-        if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
+        // The `&` may be lexed as a vector start if this is an array or vector type
+        if self.eat(Token::Ampersand) || self.eat(Token::VectorStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -246,7 +246,7 @@ impl Parser<'_> {
         None
     }
 
-    fn parse_array_or_slice_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_array_or_vector_type(&mut self) -> Option<UnresolvedTypeData> {
         if !self.eat_left_bracket() {
             return None;
         }
@@ -262,12 +262,12 @@ impl Parser<'_> {
                 Err(error) => {
                     self.errors.push(error);
                     self.eat_or_error(Token::RightBracket);
-                    Some(UnresolvedTypeData::Slice(Box::new(typ)))
+                    Some(UnresolvedTypeData::Vector(Box::new(typ)))
                 }
             }
         } else {
             self.eat_or_error(Token::RightBracket);
-            Some(UnresolvedTypeData::Slice(Box::new(typ)))
+            Some(UnresolvedTypeData::Vector(Box::new(typ)))
         }
     }
 
@@ -303,16 +303,12 @@ impl Parser<'_> {
     }
 
     /// OptionalTypeAnnotation = ( ':' Type )?
-    pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
-        if self.eat_colon() {
-            self.parse_type_or_error()
-        } else {
-            self.unspecified_type_at_previous_token_end()
-        }
+    pub(super) fn parse_optional_type_annotation(&mut self) -> Option<UnresolvedType> {
+        if self.eat_colon() { Some(self.parse_type_or_error()) } else { None }
     }
 
-    pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_location(self.location_at_previous_token_end())
+    fn error_type_at_previous_token_end(&mut self) -> UnresolvedType {
+        UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
     }
 }
 
@@ -455,15 +451,15 @@ mod tests {
     }
 
     #[test]
-    fn parses_slice_type() {
+    fn parses_vector_type() {
         let src = "[Field]";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
+        let UnresolvedTypeData::Vector(typ) = typ.typ else { panic!("Expected a vector type") };
         assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
-    fn errors_if_missing_right_bracket_after_slice_type() {
+    fn errors_if_missing_right_bracket_after_vector_type() {
         let src = "
         [Field 
               ^

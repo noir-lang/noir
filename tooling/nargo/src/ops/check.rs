@@ -6,8 +6,7 @@ use noirc_errors::CustomDiagnostic;
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn check_program(compiled_program: &CompiledProgram) -> Result<(), ErrorsAndWarnings> {
     for (i, circuit) in compiled_program.program.functions.iter().enumerate() {
-        let mut simulator = CircuitSimulator::default();
-        if let Some(opcode) = simulator.check_circuit(circuit) {
+        if let Some(opcode) = CircuitSimulator::check_circuit(circuit) {
             let diag = if let Some(call_stack) =
                 compiled_program.debug[i].acir_locations.get(&AcirOpcodeLocation::new(opcode))
             {
