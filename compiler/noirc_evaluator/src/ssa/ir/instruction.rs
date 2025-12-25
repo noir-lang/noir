@@ -450,7 +450,7 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
+            Instruction::Binary(binary) => binary.has_side_effects(dfg),
 
             Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
@@ -528,53 +528,7 @@ impl Instruction {
             MakeArray { .. } | Noop => false,
 
             // Some binary math can overflow or underflow.
-            Binary(binary) => match binary.operator {
-                BinaryOp::Add { unchecked: false }
-                | BinaryOp::Sub { unchecked: false }
-                | BinaryOp::Mul { unchecked: false } => {
-                    let typ = dfg.type_of_value(binary.lhs);
-                    !matches!(typ, Type::Numeric(NumericType::NativeField))
-                }
-                BinaryOp::Div | BinaryOp::Mod => {
-                    // If we don't know rhs at compile time, it might be zero or -1
-                    let Some(rhs) = dfg.get_numeric_constant(binary.rhs) else {
-                        return true;
-                    };
-
-                    // Div or mod by zero is a side effect (failure)
-                    if rhs.is_zero() {
-                        return true;
-                    }
-
-                    // For signed types, division or modulo by -1 can overflow.
-                    let typ = dfg.type_of_value(binary.rhs).unwrap_numeric();
-                    let NumericType::Signed { bit_size } = typ else {
-                        return false;
-                    };
-
-                    let minus_one = IntegerConstant::Signed { value: -1, bit_size };
-                    if IntegerConstant::from_numeric_constant(rhs, typ) == Some(minus_one) {
-                        return true;
-                    }
-
-                    false
-                }
-                BinaryOp::Shl | BinaryOp::Shr => {
-                    // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
-                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| {
-                        let typ = dfg.type_of_value(binary.lhs);
-                        c >= typ.bit_size().into()
-                    })
-                }
-                BinaryOp::Add { unchecked: true }
-                | BinaryOp::Sub { unchecked: true }
-                | BinaryOp::Mul { unchecked: true }
-                | BinaryOp::Eq
-                | BinaryOp::Lt
-                | BinaryOp::And
-                | BinaryOp::Or
-                | BinaryOp::Xor => false,
-            },
+            Binary(binary) => binary.has_side_effects(dfg),
 
             // These don't have side effects
             Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
@@ -864,20 +818,37 @@ impl ArrayOffset {
 }
 
 impl Binary {
-    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
         match self.operator {
             BinaryOp::Add { unchecked: false }
             | BinaryOp::Sub { unchecked: false }
             | BinaryOp::Mul { unchecked: false } => {
-                match dfg.type_of_value(self.rhs).unwrap_numeric() {
-                    NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
+                let typ = dfg.type_of_value(self.lhs);
+                !matches!(typ, Type::Numeric(NumericType::NativeField))
+            }
+            BinaryOp::Div | BinaryOp::Mod => {
+                // If we don't know rhs at compile time, it might be zero or -1
+                let Some(rhs) = dfg.get_numeric_constant(self.rhs) else {
+                    return true;
+                };
+
+                // Div or mod by zero is a side effect (failure)
+                if rhs.is_zero() {
+                    return true;
                 }
+
+                // For signed types, division or modulo by -1 can overflow.
+                let typ = dfg.type_of_value(self.rhs).unwrap_numeric();
+                let NumericType::Signed { bit_size } = typ else {
+                    return false;
+                };
+
+                let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                if IntegerConstant::from_numeric_constant(rhs, typ) == Some(minus_one) {
+                    return true;
+                }
+
+                false
             }
             BinaryOp::Shl | BinaryOp::Shr => {
                 // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
@@ -886,7 +857,6 @@ impl Binary {
                     c >= typ.bit_size().into()
                 })
             }
-            BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }
