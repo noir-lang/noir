@@ -6,6 +6,7 @@ use crate::brillig::brillig_ir::brillig_variable::SingleAddrVariable;
 use crate::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::instruction::{BinaryOp, InstructionId, binary::Binary};
+use crate::ssa::ir::printer::try_to_extract_string_from_error_payload;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, instruction::ConstrainError, value::ValueId};
 use iter_extended::vecmap;
@@ -320,18 +321,26 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         };
 
         match assert_message {
-            Some(ConstrainError::Dynamic(selector, _, values)) => {
-                let payload_values = vecmap(values, |value| self.convert_ssa_value(*value, dfg));
-                let payload_as_params = vecmap(values, |value| {
-                    let value_type = dfg.type_of_value(*value);
-                    FunctionContext::ssa_type_to_parameter(&value_type)
-                });
-                self.brillig_context.codegen_constrain_with_error_data(
-                    *condition,
-                    payload_values,
-                    payload_as_params,
-                    Some(*selector),
-                );
+            Some(ConstrainError::Dynamic(selector, is_string_type, values)) => {
+                if let Some(constant_string) =
+                    try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                {
+                    self.brillig_context.codegen_constrain(*condition, Some(constant_string));
+                } else {
+                    let payload_values =
+                        vecmap(values, |value| self.convert_ssa_value(*value, dfg));
+                    let payload_as_params = vecmap(values, |value| {
+                        let value_type = dfg.type_of_value(*value);
+                        FunctionContext::ssa_type_to_parameter(&value_type)
+                    });
+
+                    self.brillig_context.codegen_constrain_with_error_data(
+                        *condition,
+                        payload_values,
+                        payload_as_params,
+                        Some(*selector),
+                    );
+                }
             }
             Some(ConstrainError::StaticString(message)) => {
                 self.brillig_context.codegen_constrain(*condition, Some(message.clone()));

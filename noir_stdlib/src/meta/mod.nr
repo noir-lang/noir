@@ -303,8 +303,8 @@ mod tests {
         let _: Bar = Bar { x: 1, y: [2, 3] };
         let _: MyStruct = MyStruct { my_field: 1 };
         let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
-        let _ = derive_do_nothing(crate::panic::panic(f""));
-        let _ = derive_do_nothing_alt(crate::panic::panic(f""));
+        let _ = derive_do_nothing(crate::panic::panic(""));
+        let _ = derive_do_nothing_alt(crate::panic::panic(""));
         if false {
             remove_unused_warnings();
         }
