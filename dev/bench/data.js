@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766596252603,
+  "lastUpdate": 1766751528526,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b65b8b0d4ca30c8141ca52eecf89fdd9c2153546",
-          "message": "chore: restrict calling `.offset` on relative memory addresses (#10900)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-12-12T13:57:12Z",
-          "tree_id": "a67dfb39cbc53f65e686fcb713a918f01523aacd",
-          "url": "https://github.com/noir-lang/noir/commit/b65b8b0d4ca30c8141ca52eecf89fdd9c2153546"
-        },
-        "date": 1765549141967,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252645,
-            "range": "± 295",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231726,
-            "range": "± 1768",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2272651,
-            "range": "± 7470",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2262677,
             "range": "± 17381",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "13fa9456112c2bbd2a4e8683c946dfb4779f2d68",
+          "message": "chore(ci): Fail circuit sizes job on noir-gates-diff error (#11012)",
+          "timestamp": "2025-12-26T11:57:37Z",
+          "tree_id": "5d07c9b37d9824353bad7ecd3f3241ac96eba4b5",
+          "url": "https://github.com/noir-lang/noir/commit/13fa9456112c2bbd2a4e8683c946dfb4779f2d68"
+        },
+        "date": 1766751495977,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255568,
+            "range": "± 784",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225051,
+            "range": "± 3033",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792736,
+            "range": "± 4748",
             "unit": "ns/iter"
           }
         ]
