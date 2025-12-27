@@ -1114,3 +1114,26 @@ fn comptime_uhashmap_of_vectors_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unify_comptime_block_expression_with_target_type() {
+    let src = r#"
+    fn main() {
+        let _: u8 = comptime { 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unify_comptime_block_statement_with_target_type() {
+    let src = r#"
+    fn main() {
+    }
+
+    pub fn foo() -> u8 {
+        comptime { 1 }
+    }
+    "#;
+    assert_no_errors(src);
+}

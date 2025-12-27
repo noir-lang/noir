@@ -1,6 +1,0 @@
-[package]
-name = "comptime_return_minus_one_as_i32"
-type = "bin"
-authors = [""]
-
-[dependencies]

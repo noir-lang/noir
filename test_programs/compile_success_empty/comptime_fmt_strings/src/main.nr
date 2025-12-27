@@ -1,6 +1,6 @@
 fn main() {
-    // format strings are lowered as normal strings
-    let (s1, s2): (str<39>, str<4>) = comptime {
+    // We need `as_quoted_str!()` to go from a `fmtstr` to a `str`
+    let (s1, s2) = comptime {
         let x: u32 = 4;
         let y: u32 = 5;
 
