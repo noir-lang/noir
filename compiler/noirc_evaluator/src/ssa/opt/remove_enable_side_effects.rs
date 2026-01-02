@@ -136,7 +136,7 @@ fn remove_enable_side_effects_pre_check(function: &Function) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
@@ -208,13 +208,13 @@ mod test {
     fn keeps_enable_side_effects_for_instructions_that_have_side_effects() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: [u16; 3], v1: u32, v2: u32):
-            enable_side_effects v1
-            v3 = array_get v0, index v1 -> u16
-            enable_side_effects v1
+          b0(v0: [u16; 3], v1: u32, v2: u1, v3: u1):
+            enable_side_effects v2
             v4 = array_get v0, index v1 -> u16
             enable_side_effects v2
             v5 = array_get v0, index v1 -> u16
+            enable_side_effects v3
+            v6 = array_get v0, index v1 -> u16
             enable_side_effects u1 1
             v7 = array_get v0, index v1 -> u16
             return
@@ -224,16 +224,17 @@ mod test {
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: [u16; 3], v1: u32, v2: u32):
-            enable_side_effects v1
-            v3 = array_get v0, index v1 -> u16
-            v4 = array_get v0, index v1 -> u16
+          b0(v0: [u16; 3], v1: u32, v2: u1, v3: u1):
             enable_side_effects v2
+            v4 = array_get v0, index v1 -> u16
             v5 = array_get v0, index v1 -> u16
+            enable_side_effects v3
+            v6 = array_get v0, index v1 -> u16
             enable_side_effects u1 1
-            v7 = array_get v0, index v1 -> u16
+            v8 = array_get v0, index v1 -> u16
             return
-        }");
+        }
+        ");
     }
 
     #[test]

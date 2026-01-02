@@ -267,6 +267,10 @@ impl<'f> Validator<'f> {
                     );
                 }
             }
+            Instruction::EnableSideEffectsIf { condition } => {
+                let condition_type = dfg.type_of_value(*condition);
+                assert_u1(&condition_type, "enable_side_effects condition");
+            }
             _ => (),
         }
     }
@@ -1981,5 +1985,18 @@ mod tests {
         let ssa = builder.finish();
 
         Validator::new(&ssa.functions[&main_id], &ssa).run();
+    }
+
+    #[test]
+    #[should_panic(expected = "enable_side_effects condition must be u1, not u32")]
+    fn enable_side_effects_with_non_bool() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u32):
+            enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 }

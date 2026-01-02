@@ -1,5 +1,5 @@
 [package]
-name = "static_assert_dynamic_slice"
+name = "static_assert_dynamic_vector"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

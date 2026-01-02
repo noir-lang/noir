@@ -673,6 +673,48 @@ fn comptime_trait_default_method_using_missing_associated_constant() {
     check_errors(src);
 }
 
+/// This test matches `comptime_trait_default_method_using_missing_associated_constant` except that we are attempting
+/// to access an associated constant with type errors rather than a trait method
+#[test]
+fn comptime_fetch_missing_associated_constant() {
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo { }
+         ^^^^^^^ `MyTrait` is missing the associated type `N`
+    fn main() {
+        comptime {
+            let _ = <Foo as MyTrait>::N;
+                     ^^^^^^^^^^^^^^ No matching impl found for `Foo: MyTrait<N = _>`
+                     ~~~~~~~~~~~~~~ No impl for `Foo: MyTrait<N = _>`
+                     ^^^^^^^^^^^^^^ No impl found due to prior type error
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn comptime_fetch_valid_associated_constant() {
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 10;
+    }
+    fn main() {
+        comptime {
+            let _ = <Foo as MyTrait>::N;
+        }
+    }
+    ";
+    check_errors(src);
+}
+
 #[test]
 fn regression_10829_0() {
     let src = "
@@ -936,6 +978,65 @@ fn call_to_quoted_function_from_invalid_comptime_block() {
         let _result = helper(); // Potential error: `helper` not found
                       ^^^^^^ cannot find `helper` in this scope
                       ~~~~~~ not found in this scope
+    }
+    ";
+    check_errors(src);
+}
+
+/// Regression for issue #10855 (https://github.com/noir-lang/noir/issues/10855)
+#[test]
+fn access_non_existent_struct_field() {
+    // We expect a single error. If we were to run the interpreter we would have duplicated errors.
+    let src = "
+    struct Foo {
+        x: Field,
+        y: Field,
+    }
+    fn main() {
+        comptime {
+            let mut f: Foo = Foo { x: 1, y: 2 };
+            assert_eq(f.undefined, 999);
+                        ^^^^^^^^^ Type Foo has no member named undefined
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn mismatched_tuple_size_assignment() {
+    let src = "
+    fn main() {
+        comptime {
+            let mut a = (false,);
+            let _b = &mut a.0;
+            a = (true, false);
+                ^^^^^^^^^^^^^ Cannot assign an expression of type (bool, bool) to a value of type (bool,)
+            assert_eq(a.0, false);
+            assert_eq(a.0, true);
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn mismatched_struct_pattern_assignment() {
+    let src = "
+    struct Foo {
+        x: Field,
+    }
+
+    struct Bar {
+        y: Field,
+    }
+
+    fn main() {
+        comptime {
+            let mut a = Foo { x: 1 };
+            a = Bar { y: 2 };
+                ^^^^^^^^^^^^ Cannot assign an expression of type Bar to a value of type Foo
+        }
     }
     ";
     check_errors(src);

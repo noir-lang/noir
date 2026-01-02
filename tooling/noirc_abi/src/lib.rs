@@ -495,7 +495,7 @@ pub fn display_abi_error<F: AcirField>(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use proptest::prelude::*;
 
     use crate::arbitrary::arb_abi_and_input_map;

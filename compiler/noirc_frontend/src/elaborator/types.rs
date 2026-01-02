@@ -477,7 +477,7 @@ impl Elaborator<'_> {
         // requires exclusive access to `self`
         let location = path.location;
         self.use_unstable_feature(UnstableFeature::TraitAsType, location);
-        let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
+        let trait_as_type_info = self.lookup_trait_or_error(path).map(|trait_| trait_.id);
 
         if let Some(id) = trait_as_type_info {
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitAsType);
@@ -664,13 +664,13 @@ impl Elaborator<'_> {
 
                 let reference_location = path.location;
                 self.interner.add_global_reference(id, reference_location);
-                let kind = self
-                    .interner
-                    .get_global_let_statement(id)
-                    .map(|let_statement| Kind::numeric(let_statement.r#type))
+                let opt_global_let_statement = self.interner.get_global_let_statement(id);
+                let kind = opt_global_let_statement
+                    .as_ref()
+                    .map(|let_statement| Kind::numeric(let_statement.r#type.clone()))
                     .unwrap_or(Kind::u32());
 
-                let Some(stmt) = self.interner.get_global_let_statement(id) else {
+                let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
                         return self.lookup_generic_or_global_type(path, mode);
                     } else {
@@ -1078,11 +1078,13 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         // If we can find a method on the type, this is definitely not a trait method
-        if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
+        let check_self_param = false;
+        if self.interner.lookup_direct_method(&typ, method_name, check_self_param).is_some() {
             return None;
         }
 
-        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+        let has_self_arg = false;
+        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
 
         if trait_methods.is_empty() {
             return None;
@@ -1091,7 +1093,6 @@ impl Elaborator<'_> {
         let (hir_method_reference, error) =
             self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
         let hir_method_reference = hir_method_reference?;
-        let func_id = hir_method_reference.func_id(self.interner)?;
         match hir_method_reference {
             HirMethodReference::FuncId(func_id) => {
                 // It could happen that we find a single function (one in a trait impl)
@@ -1113,6 +1114,7 @@ impl Elaborator<'_> {
                 constraint.typ = typ.clone();
 
                 let trait_method = TraitItem { definition, constraint, assumed: false };
+                let func_id = hir_method_reference.func_id(self.interner)?;
                 let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
 
                 let mut errors = path_resolution.errors;
@@ -1742,13 +1744,38 @@ impl Elaborator<'_> {
         expr_id: ExprId,
         trait_method_id: TraitItemId,
         object_type: &Type,
+        return_type: &Type,
         location: Location,
     ) {
         let method_type = self.interner.definition_type(trait_method_id.item_id);
         let (method_type, mut bindings) = method_type.instantiate(self.interner);
 
         match method_type {
-            Type::Function(args, _, _, _) => {
+            Type::Function(args, ret, env, _unconstrained) => {
+                assert!(
+                    !args.is_empty(),
+                    "type_check_operator_method ICE: expected operator method to have at least one argument type"
+                );
+
+                self.unify(&env, &Type::Unit, || TypeCheckError::TypeMismatch {
+                    expected_typ: Type::Unit.to_string(),
+                    expr_typ: env.to_string(),
+                    expr_location: location,
+                });
+
+                let mut bindings = TypeBindings::default();
+                let unifies = ret.try_unify(return_type, &mut bindings).is_ok();
+                if !unifies {
+                    // // TODO(https://github.com/noir-lang/noir/issues/10537): the following comment
+                    // // on unifying 'object_type' with 'expected_object_type' is out of date because
+                    // // attempting to unify the return type of 'method_type' with 'result_type' is
+                    // // failing sometimes, e.g. the following 'panic!' message is being reached when running
+                    // // 'cargo run check' in the 'noir_stdlib':
+                    // // type_check_operator_method: ret: Ordering, return_type: bool, args: ['6832, '6832], object_type: T'67, definition_name: "cmp"
+                    // let definition_name = &self.interner.definition(trait_method_id.item_id).name;
+                    // panic!("type_check_operator_method: ret: {ret:?}, return_type: {return_type:?}, args: {args:?}, object_type: {object_type:?}, definition_name: {definition_name:?}");
+                }
+
                 // We can cheat a bit and match against only the object type here since no operator
                 // overload uses other generic parameters or return types aside from the object type.
                 let expected_object_type = &args[0];
@@ -1910,8 +1937,8 @@ impl Elaborator<'_> {
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
-            // TODO: We should allow method calls on `impl Trait`s eventually.
-            //       For now it is fine since they are only allowed on return types.
+            // TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
+            // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
                 self.push_err(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
@@ -1926,6 +1953,7 @@ impl Elaborator<'_> {
                 location,
                 object_location,
             ),
+            // `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
             // References to another type should resolve to methods of their element type.
             // This may be a data type or a primitive type.
             Type::Reference(element, _mutable) => self.lookup_method(
@@ -2083,12 +2111,12 @@ impl Elaborator<'_> {
                     let trait_ = self.interner.get_trait(trait_id);
                     self.fully_qualified_trait_path(trait_)
                 });
-                let method = None;
+                let method_not_found = None;
                 let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), location),
                     traits,
                 };
-                return (method, Some(error));
+                return (method_not_found, Some(error));
             }
         }
 
@@ -2097,12 +2125,12 @@ impl Elaborator<'_> {
                 let trait_ = self.interner.get_trait(trait_id);
                 self.fully_qualified_trait_path(trait_)
             });
-            let method = None;
+            let method_not_found = None;
             let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), location),
                 traits,
             };
-            return (method, Some(error));
+            return (method_not_found, Some(error));
         }
 
         let trait_id = traits_in_scope[0].0;
@@ -2129,11 +2157,12 @@ impl Elaborator<'_> {
         let trait_ = self.interner.get_trait(trait_id);
         let trait_generics = trait_.get_trait_generics(location);
         let definition = trait_.find_method(method_name, self.interner).unwrap();
+        let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
             definition,
             trait_id,
             trait_generics,
-            assumed: false,
+            assumed,
         })
     }
 
@@ -2170,11 +2199,12 @@ impl Elaborator<'_> {
                 );
                 if matches.len() == 1 {
                     let method = matches.remove(0);
+                    let assumed = true;
                     // If it is, it's an assumed trait
                     // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
                     // might return a method on a parent trait.
                     return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                        assumed: true,
+                        assumed,
                         ..method
                     }));
                 }
@@ -2268,11 +2298,12 @@ impl Elaborator<'_> {
 
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
             let trait_generics = trait_bound.trait_generics.clone();
+            let assumed = false;
             let trait_method = HirTraitMethodReference {
                 definition: trait_method,
                 trait_id: the_trait.id,
                 trait_generics,
-                assumed: false,
+                assumed,
             };
             matches.push(trait_method);
         }
@@ -2427,7 +2458,7 @@ impl Elaborator<'_> {
         let (expr_location, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
 
-        let func_location = self.interner.expr_location(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_location = self.interner.expr_location(&body_id); // TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             self.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             if self

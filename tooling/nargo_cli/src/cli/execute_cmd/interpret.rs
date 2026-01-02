@@ -309,7 +309,7 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         Value::U32(value) => value.to_string(),
         Value::U64(value) => value.to_string(),
         Value::U128(value) => value.to_string(),
-        Value::String(string) | Value::FormatString(string, _) | Value::CtString(string) => {
+        Value::String(string) => {
             format!("{string:?}")
         }
         Value::Tuple(values) => {
@@ -379,7 +379,9 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         | Value::Zeroed(_)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) => {
+        | Value::UnresolvedType(..)
+        | Value::FormatString(..)
+        | Value::CtString(..) => {
             panic!("Unexpected output value: {}", value.display(&context.def_interner))
         }
     }

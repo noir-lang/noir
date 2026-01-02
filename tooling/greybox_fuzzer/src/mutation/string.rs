@@ -12,7 +12,7 @@ use super::configurations::{
 use super::dictionary::IntDictionary;
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 use std::cmp::min;
 
@@ -56,12 +56,12 @@ impl<'a> StringMutator<'a> {
     /// Perform one of value-changing mutations (substitution by a dictionary or random value)
     fn perform_value_mutation(&mut self, input: &[u8]) -> Vec<u8> {
         let mut result = input.to_vec();
-        let position = self.prng.gen_range(0..input.len());
+        let position = self.prng.random_range(0..input.len());
         result[position] = match self.value_mutation_configuration.select(self.prng) {
             ByteValueMutationOptions::DictionaryByte => {
                 self.dictionary.choose(self.prng).unwrap().to_i128() as u8 & MAX_ASCII
             }
-            ByteValueMutationOptions::RandomByte => self.prng.gen_range(MIN_ASCII..=MAX_ASCII),
+            ByteValueMutationOptions::RandomByte => self.prng.random_range(MIN_ASCII..=MAX_ASCII),
         };
         result
     }
@@ -105,15 +105,16 @@ impl<'a> StringMutator<'a> {
         let buffer_length = buffer.len();
 
         // We need to leave at least the last byte for the second chunk
-        let first_chunk_position = self.prng.gen_range(0..(buffer_length - 1));
+        let first_chunk_position = self.prng.random_range(0..(buffer_length - 1));
 
         // The second chunk starts after the first
-        let second_chunk_position = self.prng.gen_range((first_chunk_position + 1)..buffer_length);
+        let second_chunk_position =
+            self.prng.random_range((first_chunk_position + 1)..buffer_length);
 
         let first_chunk_end =
-            self.prng.gen_range((first_chunk_position + 1)..=second_chunk_position);
+            self.prng.random_range((first_chunk_position + 1)..=second_chunk_position);
 
-        let second_chunk_end = self.prng.gen_range((second_chunk_position + 1)..=buffer_length);
+        let second_chunk_end = self.prng.random_range((second_chunk_position + 1)..=buffer_length);
 
         // Leave the start in place
         result.extend_from_slice(&buffer[0..first_chunk_position]);
@@ -141,18 +142,18 @@ impl<'a> StringMutator<'a> {
         let maximum_chunk_length = buffer_length / 2;
 
         // Get a random position for the chunk
-        let chunk_position = self.prng.gen_range(0..=buffer_length - 1);
+        let chunk_position = self.prng.random_range(0..=buffer_length - 1);
 
         // Pick size
         let chunk_size =
-            self.prng.gen_range(1..=min(buffer_length - chunk_position, maximum_chunk_length));
+            self.prng.random_range(1..=min(buffer_length - chunk_position, maximum_chunk_length));
 
         // Find an insertion position with enough space
-        let insertion_position = self.prng.gen_range(0..(buffer_length - chunk_size));
+        let insertion_position = self.prng.random_range(0..(buffer_length - chunk_size));
 
         // Determine how many times to repeat
         let maximum_insertion_count = (buffer_length - insertion_position) / chunk_size;
-        let insertion_count = self.prng.gen_range(0..=maximum_insertion_count);
+        let insertion_count = self.prng.random_range(0..=maximum_insertion_count);
         for i in 0..insertion_count {
             result.splice(
                 (insertion_position + i * chunk_size)..(insertion_position + (i + 1) * chunk_size),
@@ -168,13 +169,13 @@ impl<'a> StringMutator<'a> {
         let buffer_length = input_buffer.len();
 
         // Find an insertion position with enough space
-        let insertion_position = self.prng.gen_range(0..buffer_length);
+        let insertion_position = self.prng.random_range(0..buffer_length);
 
         // Pick count
-        let insertion_count = self.prng.gen_range(1..=(buffer_length - insertion_position));
+        let insertion_count = self.prng.random_range(1..=(buffer_length - insertion_position));
 
         // Pick value
-        let value = self.prng.gen_range(MIN_ASCII..=MAX_ASCII);
+        let value = self.prng.random_range(MIN_ASCII..=MAX_ASCII);
         for item in result.iter_mut().skip(insertion_position).take(insertion_count) {
             *item = value;
         }
@@ -191,7 +192,7 @@ impl<'a> StringMutator<'a> {
         let buffer_length = first_buffer.len();
         while index != buffer_length {
             // Pick the length of the sequence from 1 to maximum available
-            let sequence_length = self.prng.gen_range(1..=(buffer_length - index));
+            let sequence_length = self.prng.random_range(1..=(buffer_length - index));
 
             // If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
@@ -217,9 +218,9 @@ impl<'a> StringMutator<'a> {
         result.resize(buffer_length, 0);
         while index != buffer_length {
             // Pick the length of the sequence from 1 to maximum available
-            let sequence_length = self.prng.gen_range(1..=(buffer_length - index));
+            let sequence_length = self.prng.random_range(1..=(buffer_length - index));
 
-            let source_position = self.prng.gen_range(0..=(buffer_length - sequence_length));
+            let source_position = self.prng.random_range(0..=(buffer_length - sequence_length));
             // If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
             match BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION.select(self.prng) {

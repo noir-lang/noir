@@ -23,7 +23,7 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
     }
 
     pub(crate) fn select(&self, rng: &mut StdRng) -> T {
-        let mut selector = rng.gen_range(0..self.total_weight);
+        let mut selector = rng.random_range(0..self.total_weight);
         for (option, weight) in &self.options_with_weights {
             if selector < *weight {
                 return *option;

@@ -1,5 +1,5 @@
 [package]
-name = "array_to_slice"
+name = "array_to_vector"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.24.0"

@@ -399,7 +399,7 @@ impl VariableLiveness {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use noirc_frontend::monomorphization::ast::InlineType;
     use rustc_hash::FxHashSet;
 

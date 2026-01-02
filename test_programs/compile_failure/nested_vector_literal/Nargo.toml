@@ -1,5 +1,5 @@
 [package]
-name = "nested_slice_literal"
+name = "nested_vector_literal"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.22.0"
