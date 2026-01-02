@@ -137,6 +137,24 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
 }
 
 #[test]
+fn cannot_return_function_from_unconstrained_to_constrained() {
+    let src = r#"
+    fn main() {
+        // safety:
+        unsafe {
+            let _func = make_func();
+                        ^^^^^^^^^^^ Functions cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_func() -> fn() -> () {
+        || {}
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
     let src = r#"
     fn main() {
@@ -271,6 +289,17 @@ fn deny_fold_attribute_on_unconstrained() {
         unconstrained pub fn foo(x: Field, y: Field) {
             assert(x != y);
         }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_no_predicates_attribute_on_entry_point() {
+    let src = r#"
+        #[no_predicates]
+        ^^^^^^^^^^^^^^^^ #[no_predicates] attribute is not allowed on entry point function main
+        ~~~~~~~~~~~~~~~~ #[no_predicates] attribute not allowed on entry points
+        fn main() {}
     "#;
     check_errors(src);
 }

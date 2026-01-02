@@ -71,12 +71,13 @@ impl MemoryAddress {
         !self.is_relative()
     }
 
-    /// Offset the address by `amount`, while preserving its type.
+    /// Offset a `Direct` address by `amount`.
+    ///
+    /// Panics if called on a `Relative` address.
     pub fn offset(&self, amount: usize) -> Self {
-        match self {
-            MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
-            MemoryAddress::Relative(offset) => MemoryAddress::Relative(offset + amount),
-        }
+        // We disallow offsetting relatively addresses as this is not expected to be meaningful.
+        let address = self.unwrap_direct();
+        MemoryAddress::Direct(address + amount)
     }
 }
 
@@ -100,7 +101,7 @@ pub enum HeapValueType {
     Array { value_types: Vec<HeapValueType>, size: usize },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
-    /// slice, and a reference count.
+    /// vector, and a reference count.
     Vector { value_types: Vec<HeapValueType> },
 }
 
@@ -421,6 +422,10 @@ pub enum BrilligOpcode<F> {
         /// who the caller is.
         function: String,
         /// Destination addresses (may be single values or memory pointers).
+        ///
+        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
+        /// the current free memory pointer, and store the heap address into the destination.
         destinations: Vec<ValueOrArray>,
         /// Destination value types.
         destination_value_types: Vec<HeapValueType>,

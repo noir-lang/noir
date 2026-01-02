@@ -7,8 +7,10 @@ use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::QuotedType;
+use crate::ast::DocComment;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
     UnresolvedTypeExpression,
@@ -24,7 +26,7 @@ use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
-use crate::Generics;
+use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
 use crate::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
@@ -282,7 +284,7 @@ pub struct NodeInterner {
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
-    pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
+    pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
 
     /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// This is used to offer importing the item via one of these exports if
@@ -292,7 +294,15 @@ pub struct NodeInterner {
     /// Contains the docs comments of primitive types.
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
-    pub primitive_docs: HashMap<String, Vec<String>>,
+    pub primitive_docs: HashMap<String, Vec<DocComment>>,
+
+    /// Tracks expressions that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored expressions.
+    pub(crate) exprs_with_errors: HashSet<ExprId>,
+
+    /// Tracks statements that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored statements.
+    pub(crate) stmts_with_errors: HashSet<StmtId>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -487,6 +497,8 @@ impl Default for NodeInterner {
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
             primitive_docs: HashMap::default(),
+            exprs_with_errors: HashSet::default(),
+            stmts_with_errors: HashSet::default(),
         }
     }
 }
@@ -536,8 +548,8 @@ impl NodeInterner {
         &mut self,
         type_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
-        generics: Generics,
-        associated_types: Generics,
+        generics: ResolvedGenerics,
+        associated_types: ResolvedGenerics,
         associated_constant_ids: HashMap<String, DefinitionId>,
     ) {
         let new_trait = Trait {
@@ -568,7 +580,7 @@ impl NodeInterner {
         name: Ident,
         span: Span,
         attributes: Vec<SecondaryAttribute>,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
@@ -586,7 +598,7 @@ impl NodeInterner {
     pub fn push_type_alias(
         &mut self,
         typ: &UnresolvedTypeAlias,
-        generics: Generics,
+        generics: ResolvedGenerics,
     ) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
@@ -638,7 +650,7 @@ impl NodeInterner {
         &mut self,
         type_id: TypeAliasId,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
@@ -1025,7 +1037,7 @@ impl NodeInterner {
             .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
-    /// Looks up a methods that apply to the given type but are defined in traits.
+    /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
@@ -1429,13 +1441,13 @@ impl NodeInterner {
         bindings
     }
 
-    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<String>) {
+    pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<DocComment>) {
         if !doc_comments.is_empty() {
             self.doc_comments.insert(id, doc_comments);
         }
     }
 
-    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
+    pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<DocComment>> {
         self.doc_comments.get(&id)
     }
 
@@ -1467,7 +1479,7 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
-    Slice,
+    Vector,
     Bool,
     String,
     FmtString,
@@ -1485,7 +1497,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Slice(_) => Some(Slice),
+        Type::Vector(_) => Some(Vector),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(var) => {
             if var.is_integer() || var.is_integer_or_field() {

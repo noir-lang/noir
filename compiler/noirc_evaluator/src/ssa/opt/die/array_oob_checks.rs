@@ -114,15 +114,15 @@ impl Context {
                 let array_length =
                     function.dfg.make_constant(u128::from(array_length).into(), length_type);
 
-                let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
+                let is_index_in_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     None,
                     call_stack,
                 );
-                let is_index_out_of_bounds = is_index_out_of_bounds.first();
+                let is_index_in_bounds = is_index_in_bounds.first();
                 let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
-                (is_index_out_of_bounds, true_const)
+                (is_index_in_bounds, true_const)
             };
 
             let (lhs, rhs) = apply_side_effects(
@@ -165,7 +165,7 @@ pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruc
     use Instruction::*;
     match instruction {
         ArrayGet { array, index } | ArraySet { array, index, .. } => {
-            // We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
+            // We only care about arrays here as vectors are expected to have explicit checks laid down in the initial SSA.
             function.dfg.try_get_array_length(*array).is_some()
                 && !function.dfg.is_safe_index(*index, *array)
         }
@@ -197,7 +197,7 @@ fn handle_array_get_group(
     instructions: &[InstructionId],
 ) {
     if function.dfg.try_get_array_length(*array).is_none() {
-        // Nothing to do for slices
+        // Nothing to do for vectors
         return;
     };
 

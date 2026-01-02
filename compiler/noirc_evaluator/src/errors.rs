@@ -13,7 +13,7 @@ use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::types::NumericType;
+use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
 use serde::{Deserialize, Serialize};
 
 pub type RtResult<T> = Result<T, RuntimeError>;
@@ -58,12 +58,12 @@ pub enum RuntimeError {
     StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
-    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
-    NestedSlice { call_stack: CallStack },
+    #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
+    NestedVector { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
+    #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedVectorReturnToConstrained { call_stack: CallStack },
     #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
@@ -93,6 +93,8 @@ pub enum RuntimeError {
         constrained: String,
         unconstrained: String,
     },
+    #[error("SSA validation failed: {message}")]
+    SsaValidationError { message: String, call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -198,16 +200,17 @@ impl RuntimeError {
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
-            | RuntimeError::NestedSlice { call_stack, .. }
+            | RuntimeError::NestedVector { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedVectorReturnToConstrained { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }
             | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack }
             | RuntimeError::RecursionLimit { call_stack, .. }
-            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. } => call_stack,
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
+            | RuntimeError::SsaValidationError { call_stack, .. } => call_stack,
         }
     }
 }
@@ -231,15 +234,38 @@ impl RuntimeError {
                     Location::dummy(),
                 )
             }
+            RuntimeError::SsaValidationError { message, call_stack} => {
+                // At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
+                let location =
+                    call_stack.last().cloned().unwrap_or_else(Location::dummy);
+
+                let mut diagnostic = CustomDiagnostic::simple_error(
+                    format!("SSA validation error: {message}"),
+                    String::new(),
+                    location,
+                );
+
+                if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
+                    diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                }
+
+                if call_stack.is_empty() {
+                    // Clear it otherwise it points to the top of the file.
+                    diagnostic.secondaries.clear();
+                }
+
+                diagnostic
+            }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();
+                // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().expect("Expected RuntimeError to have a location");
+                    self.call_stack().last().cloned().unwrap_or_else(Location::dummy);
 
                 CustomDiagnostic::simple_error(
                     primary_message,
-                    "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    *location,
+                    "If attempting to fetch the length of a vector, try converting to an array. Vectors only use dynamic lengths.".to_string(),
+                    location,
                 )
             }
             _ => {

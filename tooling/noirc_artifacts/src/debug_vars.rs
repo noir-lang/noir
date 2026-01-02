@@ -92,10 +92,10 @@ impl<F: AcirField> DebugVars<F> {
         for index in indexes.iter() {
             (cursor, cursor_type) = match (cursor, cursor_type) {
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableValue::Vec { array_elements, is_vector },
                     PrintableType::Array { length, typ },
                 ) => {
-                    assert!(!*is_slice, "slice has array type");
+                    assert!(!*is_vector, "vector has array type");
                     if *index >= *length {
                         panic!("unexpected field index past array length")
                     }
@@ -105,10 +105,10 @@ impl<F: AcirField> DebugVars<F> {
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
-                    PrintableType::Slice { typ },
+                    PrintableValue::Vec { array_elements, is_vector },
+                    PrintableType::Vector { typ },
                 ) => {
-                    assert!(*is_slice, "slice doesn't have slice type");
+                    assert!(*is_vector, "vector doesn't have vector type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
                 (
@@ -122,10 +122,10 @@ impl<F: AcirField> DebugVars<F> {
                     (field_map.get_mut(key).unwrap(), typ)
                 }
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableValue::Vec { array_elements, is_vector },
                     PrintableType::Tuple { types },
                 ) => {
-                    assert!(!*is_slice, "slice has tuple type");
+                    assert!(!*is_vector, "vector has tuple type");
                     if *index >= types.len() as u32 {
                         panic!(
                             "unexpected field index ({index}) past tuple length ({})",

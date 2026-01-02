@@ -30,7 +30,7 @@ impl HirStatement {
         let kind = match self {
             HirStatement::Let(let_stmt) => {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
-                let r#type = interner.id_type(let_stmt.expression).to_display_ast();
+                let r#type = Some(interner.id_type(let_stmt.expression).to_display_ast());
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
@@ -93,9 +93,9 @@ impl HirExpression {
                 let array = array.to_display_ast(interner, location);
                 ExpressionKind::Literal(Literal::Array(array))
             }
-            HirExpression::Literal(HirLiteral::Slice(array)) => {
+            HirExpression::Literal(HirLiteral::Vector(array)) => {
                 let array = array.to_display_ast(interner, location);
-                ExpressionKind::Literal(Literal::Slice(array))
+                ExpressionKind::Literal(Literal::Vector(array))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => {
                 ExpressionKind::Literal(Literal::Bool(*value))
@@ -181,11 +181,17 @@ impl HirExpression {
             }
             HirExpression::Lambda(lambda) => {
                 let parameters = vecmap(lambda.parameters.clone(), |(pattern, typ)| {
-                    (pattern.to_display_ast(interner), typ.to_display_ast())
+                    (pattern.to_display_ast(interner), Some(typ.to_display_ast()))
                 });
-                let return_type = lambda.return_type.to_display_ast();
+                let return_type = Some(lambda.return_type.to_display_ast());
                 let body = lambda.body.to_display_ast(interner);
-                ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
+                let unconstrained = lambda.unconstrained;
+                ExpressionKind::Lambda(Box::new(Lambda {
+                    parameters,
+                    return_type,
+                    body,
+                    unconstrained,
+                }))
             }
             HirExpression::Error => ExpressionKind::Error,
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
@@ -384,9 +390,9 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::Slice(element)
+                UnresolvedTypeData::Vector(element)
             }
             Type::Integer(sign, bit_size) => {
                 UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())

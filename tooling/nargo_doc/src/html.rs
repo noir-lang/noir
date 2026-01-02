@@ -8,6 +8,7 @@ use noirc_frontend::ast::ItemVisibility;
 use crate::{
     html::{
         all_items::AllItems,
+        colorize::colorize_markdown_code_blocks,
         has_class::HasClass,
         has_uri::HasUri,
         id_to_info::{ItemInfo, compute_id_to_info},
@@ -15,13 +16,15 @@ use crate::{
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Id, Impl, Item,
-        Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait, TraitBound,
-        TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
+        Comments, Crate, Function, FunctionParam, Generic, Global, Impl, Item, ItemId,
+        ItemProperties, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport,
+        Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+        Workspace,
     },
 };
 
 mod all_items;
+mod colorize;
 mod has_class;
 mod has_uri;
 mod id_to_info;
@@ -46,9 +49,9 @@ struct HTMLCreator {
     current_path: Vec<String>,
     current_crate_version: Option<String>,
     workspace_name: String,
-    id_to_info: HashMap<Id, ItemInfo>,
+    id_to_info: HashMap<ItemId, ItemInfo>,
     /// Maps a trait ID to all its implementations across all crates.
-    all_trait_impls: HashMap<Id, HashSet<TraitImpl>>,
+    all_trait_impls: HashMap<ItemId, HashSet<TraitImpl>>,
     self_type: Option<Type>,
 }
 
@@ -86,6 +89,7 @@ impl HTMLCreator {
 
     fn process_workspace(&mut self, workspace: &Workspace) {
         self.create_styles();
+        self.create_js();
         self.create_all_items(workspace);
         self.create_index(workspace);
 
@@ -104,9 +108,15 @@ impl HTMLCreator {
         self.push_file(PathBuf::from("styles.css"));
     }
 
+    fn create_js(&mut self) {
+        let contents = include_str!("nargo_doc.js");
+        self.output.push_str(contents);
+        self.push_file(PathBuf::from("nargo_doc.js"));
+    }
+
     fn create_all_items(&mut self, workspace: &Workspace) {
         let all_items = all_items::compute_all_items(workspace);
-        self.html_start(&format!("All items in {}", workspace.name));
+        self.html_start(&format!("All items in {}", workspace.name), &workspace.name);
         self.sidebar_start();
         self.render_all_items_sidebar(&all_items);
         self.sidebar_end();
@@ -176,7 +186,11 @@ impl HTMLCreator {
             .collect::<Vec<_>>();
         let redirect =
             if crates.len() == 1 { Some(format!("{}/index.html", crates[0].name)) } else { None };
-        self.html_start_with_redirect(&format!("{} documentation", workspace.name), redirect);
+        self.html_start_with_redirect(
+            &format!("{} documentation", workspace.name),
+            &workspace.name,
+            redirect,
+        );
 
         // This sidebar is empty because there's not much we can list here.
         // It's here so that every page has a sidebar.
@@ -195,13 +209,13 @@ impl HTMLCreator {
         self.current_path.push(krate.name.clone());
         self.current_crate_version = krate.version.clone();
 
-        self.html_start(&format!("Crate {}", krate.name));
+        self.html_start(&format!("Crate {}", krate.name), &krate.name);
         self.sidebar_start();
         self.render_crate_sidebar(workspace, krate);
         self.sidebar_end();
         self.main_start(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
-        self.render_comments(&krate.root_module.comments, 1);
+        self.render_comments(krate.root_module.comments.as_ref(), 1);
         self.render_items(&krate.root_module.items, false, 0);
         self.main_end();
         self.html_end();
@@ -333,7 +347,7 @@ impl HTMLCreator {
         }
     }
 
-    fn render_list<T: HasNameAndComments + HasUri + HasClass>(
+    fn render_list<T: ItemProperties + HasUri + HasClass>(
         &mut self,
         title: &str,
         anchor: &str,
@@ -366,11 +380,22 @@ impl HTMLCreator {
                 item.name(),
             ));
             if !sidebar {
+                if item.is_deprecated() {
+                    self.output.push_str("\n<span class=\"deprecated\">Deprecated</span>\n");
+                }
                 self.output.push_str("</div>");
                 self.output.push_str("<div class=\"item-description\">");
-                if let Some(comments) = item.comments() {
-                    let summary = markdown_summary(comments);
-                    self.output.push_str(&summary);
+                if let Some((comments, links)) = item.comments() {
+                    let comments = self.process_comments_links(links, comments.clone());
+                    let comments = colorize_markdown_code_blocks(comments);
+
+                    let summary = markdown_summary(&comments);
+
+                    let markdown = markdown_utils::to_html(&summary);
+                    let markdown = markdown.trim_start_matches("<p>");
+                    let summary = markdown.trim().trim_end_matches("</p>").trim();
+
+                    self.output.push_str(summary);
                 }
             }
             self.output.push_str("</div>");
@@ -386,10 +411,6 @@ impl HTMLCreator {
         self.output.push_str("<ul class=\"item-list\">\n");
 
         for reexport in reexports {
-            if !self.id_to_info.contains_key(&reexport.id) {
-                println!("{} {} {}", reexport.id, reexport.name, reexport.item_name);
-            }
-
             let info = &self.id_to_info[&reexport.id];
             let path = info.path.join("::");
             let path = if path.is_empty() { String::new() } else { format!("{path}::") };
@@ -444,13 +465,13 @@ impl HTMLCreator {
 
         let kind = if module.is_contract { "Contract" } else { "Module" };
 
-        self.html_start(&format!("{kind} {}", module.name));
+        self.html_start(&format!("{kind} {}", module.name), &module.name);
         self.sidebar_start();
         self.render_module_sidebar(parent_module, module);
         self.sidebar_end();
         self.main_start(false);
         self.h1(&format!("{kind} <span id=\"mod\" class=\"module\">{}</span>", module.name));
-        self.render_comments(&module.comments, 1);
+        self.render_comments(module.comments.as_ref(), 1);
         self.render_items(&module.items, false, 0);
         self.main_end();
         self.html_end();
@@ -512,7 +533,7 @@ impl HTMLCreator {
     }
 
     fn create_struct(&mut self, parent_module: &Module, struct_: &Struct) {
-        self.html_start(&format!("Struct {}", struct_.name));
+        self.html_start(&format!("Struct {}", struct_.name), &struct_.name);
         self.sidebar_start();
         self.render_struct_sidebar(struct_);
         self.render_module_contents_sidebar(parent_module, 0);
@@ -520,7 +541,7 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Struct <span id=\"struct\" class=\"struct\">{}</span>", struct_.name));
         self.render_struct_code(struct_);
-        self.render_comments(&struct_.comments, 1);
+        self.render_comments(struct_.comments.as_ref(), 1);
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
 
@@ -547,7 +568,10 @@ impl HTMLCreator {
             self.output.push_str("<ul class=\"sidebar-list\">\n");
             for field in fields {
                 self.output.push_str("<li>");
-                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", field.name, field.name));
+                self.output.push_str(&format!(
+                    "<a href=\"#structfield.{}\">{}</a>", // cSpell:disable-line
+                    field.name, field.name
+                ));
                 self.output.push_str("</li>\n");
             }
             self.output.push_str("</ul>\n");
@@ -571,7 +595,7 @@ impl HTMLCreator {
     }
 
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
-        self.html_start(&format!("Trait {}", trait_.name));
+        self.html_start(&format!("Trait {}", trait_.name), &trait_.name);
         self.sidebar_start();
         self.render_trait_sidebar(trait_);
         self.render_module_contents_sidebar(parent_module, 0);
@@ -579,7 +603,7 @@ impl HTMLCreator {
         self.main_start(true);
         self.h1(&format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
-        self.render_comments(&trait_.comments, 1);
+        self.render_comments(trait_.comments.as_ref(), 1);
         self.render_trait_methods("Required methods", &trait_.required_methods);
         self.render_trait_methods("Provided methods", &trait_.provided_methods);
 
@@ -661,50 +685,51 @@ impl HTMLCreator {
     }
 
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
-        self.html_start(&format!("Type alias {}", alias.name));
+        self.html_start(&format!("Type alias {}", alias.name), &alias.name);
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start(true);
         self.h1(&format!("Type alias <span class=\"type\">{}</span>", alias.name));
         self.render_type_alias_code(alias);
-        self.render_comments(&alias.comments, 1);
+        self.render_comments(alias.comments.as_ref(), 1);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(alias.uri()));
     }
 
     fn create_function(&mut self, parent_module: &Module, function: &Function) {
-        self.html_start(&format!("Function {}", function.name));
+        self.html_start(&format!("Function {}", function.name), &function.name);
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start(true);
         self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
         let as_header = false;
+        let link = false;
         let output_id = false;
-        self.render_function(function, 1, as_header, output_id);
+        self.render_function(function, 1, as_header, link, output_id);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(function.uri()));
     }
 
     fn create_global(&mut self, parent_module: &Module, global: &Global) {
-        self.html_start(&format!("Global {}", global.name));
+        self.html_start(&format!("Global {}", global.name), &global.name);
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start(true);
         self.h1(&format!("Global <span class=\"global\">{}</span>", global.name));
         self.render_global_code(global);
-        self.render_comments(&global.comments, 1);
+        self.render_comments(global.comments.as_ref(), 1);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(global.uri()));
     }
 
     fn create_primitive_type(&mut self, parent_module: &Module, primitive: &PrimitiveType) {
-        self.html_start(&format!("Primitive type {}", primitive.kind));
+        self.html_start(&format!("Primitive type {}", primitive.kind), &primitive.kind.to_string());
         self.sidebar_start();
         self.render_primitive_sidebar(primitive);
         self.render_module_contents_sidebar(parent_module, 0);
@@ -714,7 +739,7 @@ impl HTMLCreator {
             "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
             primitive.kind
         ));
-        self.render_comments(&primitive.comments, 1);
+        self.render_comments(primitive.comments.as_ref(), 1);
         self.render_impls(&primitive.impls);
 
         let mut trait_impls = primitive.trait_impls.clone();
@@ -783,7 +808,7 @@ impl HTMLCreator {
 
         for field in fields {
             self.output.push_str(&format!(
-                "<div id=\"{}\" class=\"struct-field\"><code class=\"code-header\">",
+                "<div id=\"structfield.{}\" class=\"struct-field\"><code class=\"code-header\">", // cSpell:disable-line
                 field.name
             ));
             self.output.push_str(&field.name);
@@ -791,7 +816,7 @@ impl HTMLCreator {
             self.render_type(&field.r#type);
             self.output.push_str("</code></div>\n");
             self.output.push_str("<div class=\"padded-description\">");
-            self.render_comments(&field.comments, 3);
+            self.render_comments(field.comments.as_ref(), 3);
             self.output.push_str("</div>");
         }
     }
@@ -818,7 +843,8 @@ impl HTMLCreator {
         let output_id = true;
 
         self.self_type = Some(impl_.r#type.clone());
-        self.render_methods(&impl_.methods, 3, output_id);
+        let link = true;
+        self.render_methods(&impl_.methods, 3, output_id, link);
         self.self_type = None;
     }
 
@@ -840,7 +866,7 @@ impl HTMLCreator {
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
-        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name);
+        self.render_id_reference(&trait_impl.trait_id, &trait_impl.trait_name);
         self.render_generic_types(&trait_impl.trait_generics);
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
@@ -851,7 +877,8 @@ impl HTMLCreator {
         if show_methods {
             self.self_type = Some(trait_impl.r#type.clone());
             let output_id = false;
-            self.render_methods(&trait_impl.methods, 3, output_id);
+            let link = false;
+            self.render_methods(&trait_impl.methods, 3, output_id, link);
             self.self_type = None;
         }
     }
@@ -957,7 +984,8 @@ impl HTMLCreator {
 
         self.h2(title);
         let output_id = true;
-        self.render_methods(methods, 2, output_id);
+        let link = true;
+        self.render_methods(methods, 2, output_id, link);
     }
 
     fn render_type_alias_code(&mut self, alias: &TypeAlias) {
@@ -992,10 +1020,11 @@ impl HTMLCreator {
         methods: &[Function],
         current_heading_level: usize,
         output_id: bool,
+        link: bool,
     ) {
         self.output.push_str("<div class=\"padded-methods\">");
         for method in methods {
-            self.render_function(method, current_heading_level, true, output_id);
+            self.render_function(method, current_heading_level, true, link, output_id);
         }
         self.output.push_str("</div>");
     }
@@ -1005,21 +1034,42 @@ impl HTMLCreator {
         function: &Function,
         current_heading_level: usize,
         as_header: bool,
+        link: bool,
         output_id: bool,
     ) {
-        self.render_function_signature(function, as_header, output_id);
+        self.render_function_signature(function, as_header, link, output_id);
+
+        let pad = as_header && (function.is_deprecated() || function.comments.is_some());
+        if pad {
+            self.output.push_str("<div class=\"padded-description\">");
+        }
+
+        if let Some(deprecated) = &function.deprecated {
+            self.output.push_str("<div class=\"deprecated\">\n");
+            self.output.push_str("<span class=\"emoji\">👎</span>\nDeprecated");
+            if let Some(msg) = deprecated {
+                self.output.push_str(": ");
+                self.output.push_str(msg);
+            }
+            self.output.push_str("\n</div>\n");
+        }
+
         if function.comments.is_some() {
-            if as_header {
-                self.output.push_str("<div class=\"padded-description\">");
-            }
-            self.render_comments(&function.comments, current_heading_level);
-            if as_header {
-                self.output.push_str("</div>");
-            }
+            self.render_comments(function.comments.as_ref(), current_heading_level);
+        }
+
+        if pad {
+            self.output.push_str("</div>");
         }
     }
 
-    fn render_function_signature(&mut self, function: &Function, as_header: bool, output_id: bool) {
+    fn render_function_signature(
+        &mut self,
+        function: &Function,
+        as_header: bool,
+        link: bool,
+        output_id: bool,
+    ) {
         if as_header {
             if output_id {
                 self.output
@@ -1032,7 +1082,6 @@ impl HTMLCreator {
             self.output.push_str("<code>");
         }
         let color_name = as_header;
-        let link = false;
         let indent = 0;
         self.render_function_signature_inner(function, color_name, link, indent);
         self.output.push_str("</code>");
@@ -1155,13 +1204,13 @@ impl HTMLCreator {
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
-        self.render_id_reference(bound.trait_id, &bound.trait_name);
+        self.render_id_reference(&bound.trait_id, &bound.trait_name);
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: Id, name: &str) {
+    fn render_id_reference(&mut self, id: &ItemId, name: &str) {
         if let Some(ItemInfo { path: _, uri, class, visibility: ItemVisibility::Public }) =
-            self.id_to_info.get(&id)
+            self.id_to_info.get(id)
         {
             let nesting = self.current_path.len();
             self.output.push_str(&format!(
@@ -1200,7 +1249,7 @@ impl HTMLCreator {
                 self.render_type(length);
                 self.output.push(']');
             }
-            Type::Slice { element } => {
+            Type::Vector { element } => {
                 self.output.push('[');
                 self.render_type(element);
                 self.output.push(']');
@@ -1254,11 +1303,11 @@ impl HTMLCreator {
                 self.render_type(r#type);
             }
             Type::Struct { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(id, name);
                 self.render_generic_types(generics);
             }
             Type::TypeAlias { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(id, name);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -1299,7 +1348,7 @@ impl HTMLCreator {
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id_reference(*trait_id, trait_name);
+                self.render_id_reference(trait_id, trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -1354,16 +1403,68 @@ impl HTMLCreator {
     /// Markdown headers that are less or equal than `current_heading_level` will be rendered
     /// as smaller headers (i.e., `###` becomes `####` if `current_heading_level` is 3)
     /// to ensure proper nesting.
-    fn render_comments(&mut self, comments: &Option<String>, current_heading_level: usize) {
-        let Some(comments) = comments else {
+    fn render_comments(&mut self, comments: Option<&Comments>, current_heading_level: usize) {
+        let Some((comments, links)) = comments else {
             return;
         };
 
         let comments = fix_markdown(comments, current_heading_level);
-        let html = markdown::to_html(&comments);
+        let comments = self.process_comments_links(links, comments);
+        let comments = colorize_markdown_code_blocks(comments);
+
+        let html = markdown_utils::to_html(&comments);
         self.output.push_str("<div class=\"comments\">\n");
         self.output.push_str(&html);
         self.output.push_str("</div>\n");
+    }
+
+    /// Replace links in the given comments with proper HTML links to pages and anchors
+    /// related to target items.
+    fn process_comments_links(&self, links: &Links, comments: String) -> String {
+        if links.is_empty() {
+            return comments;
+        }
+
+        let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
+        for link in links.iter().rev() {
+            let target = &link.target;
+            let name = &link.name;
+            let id = target.id();
+            let anchor = target
+                .name()
+                .map(|name| {
+                    if matches!(target, LinkTarget::StructMember(..)) {
+                        format!("#structfield.{name}") // cSpell:disable
+                    } else {
+                        format!("#{name}")
+                    }
+                })
+                .unwrap_or_default();
+            let mut line = lines[link.line].to_string();
+            if let Some(id) = id {
+                if let Some(ItemInfo {
+                    path: _,
+                    uri,
+                    class: _,
+                    visibility: ItemVisibility::Public,
+                }) = self.id_to_info.get(id)
+                {
+                    let nesting = "../".repeat(self.current_path.len());
+                    let replacement = format!("[{name}]({nesting}{uri}{anchor})");
+                    line.replace_range(link.start..link.end, &replacement);
+                }
+            }
+            if let Some(primitive_type) = target.primitive_type() {
+                let nesting = "../".repeat(self.current_path.len());
+                let uri = primitive_type.uri();
+                let replacement = format!("[{name}]({nesting}std/{uri}{anchor})");
+                line.replace_range(link.start..link.end, &replacement);
+            }
+
+            lines[link.line] = line;
+        }
+
+        lines.join("\n")
     }
 
     fn render_breadcrumbs(&mut self, last_is_link: bool) {
@@ -1400,11 +1501,16 @@ impl HTMLCreator {
             .unwrap_or_else(|| trait_.trait_impls.clone())
     }
 
-    fn html_start(&mut self, title: &str) {
-        self.html_start_with_redirect(title, None);
+    fn html_start(&mut self, title: &str, short_title: &str) {
+        self.html_start_with_redirect(title, short_title, None);
     }
 
-    fn html_start_with_redirect(&mut self, title: &str, redirect: Option<String>) {
+    fn html_start_with_redirect(
+        &mut self,
+        title: &str,
+        short_title: &str,
+        redirect: Option<String>,
+    ) {
         self.output.push_str("<!DOCTYPE html>\n");
         self.output.push_str("<html>\n");
         self.output.push_str("<head>\n");
@@ -1420,12 +1526,22 @@ impl HTMLCreator {
             "<link rel=\"stylesheet\" href=\"{}styles.css\">\n",
             "../".repeat(nesting)
         ));
+        self.output.push_str(&format!(
+            "<script defer src=\"{}nargo_doc.js\"></script>\n",
+            "../".repeat(nesting)
+        ));
         self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
+        self.output.push_str("<div id=\"sidebar-toggle\">\n");
+        self.output.push_str("<button id=\"sidebar-toggle-button\"></button>\n");
+        self.output.push_str(&format!("<div id=\"sidebar-toggle-title\">{short_title}</div>\n"));
+        self.output.push_str("</div>\n");
+        self.output.push_str("<span id=\"main-contents\">\n");
     }
 
     fn html_end(&mut self) {
+        self.output.push_str("</span>\n");
         self.output.push_str("</body>\n");
         self.output.push_str("</html>\n");
     }
@@ -1717,7 +1833,7 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
                 type_to_string(length, self_type)
             )
         }
-        Type::Slice { element } => format!("[{}]", type_to_string(element, self_type)),
+        Type::Vector { element } => format!("[{}]", type_to_string(element, self_type)),
         Type::String { length } => format!("str&lt;{}&gt;", type_to_string(length, self_type)),
         Type::FmtString { length, element } => {
             format!(
@@ -1830,6 +1946,6 @@ fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
     }
 }
 
-fn escape_html(input: &str) -> String {
+pub(super) fn escape_html(input: &str) -> String {
     input.replace('<', "&lt;").replace('>', "&gt;")
 }

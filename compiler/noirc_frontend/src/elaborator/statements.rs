@@ -5,10 +5,10 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
-        LoopStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
-    elaborator::PathResolutionTarget,
+    elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
@@ -22,7 +22,6 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
-    shared::Signedness,
 };
 
 use super::{Elaborator, Loop};
@@ -72,6 +71,21 @@ impl Elaborator<'_> {
         statement: Statement,
         target_type: Option<&Type>,
     ) -> (StmtId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
+
+        if has_errors {
+            self.interner.stmts_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    fn elaborate_statement_inner(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
         let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
@@ -93,8 +107,13 @@ impl Elaborator<'_> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirLetStatement, Type) {
-        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
-        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+        let no_type = let_stmt.r#type.is_none();
+        let wildcard_allowed = if global_id.is_some() {
+            WildcardAllowed::No(WildcardDisallowedContext::Global)
+        } else {
+            WildcardAllowed::Yes
+        };
+        let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
@@ -102,7 +121,7 @@ impl Elaborator<'_> {
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
-        if type_contains_unspecified && global_id.is_some() {
+        if global_id.is_some() && (no_type || annotated_type.contains_type_variable()) {
             let expected_type = annotated_type.clone();
             let error = ResolverError::UnspecifiedGlobalType {
                 pattern_location,
@@ -137,8 +156,14 @@ impl Elaborator<'_> {
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
-        let pattern =
-            self.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition, warn_if_unused);
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let pattern = self.elaborate_pattern(
+            let_stmt.pattern,
+            r#type.clone(),
+            definition,
+            warn_if_unused,
+            &mut parameter_names_in_list,
+        );
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
@@ -468,7 +493,7 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (mut index, index_type) = self.elaborate_expression(index);
 
-                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                let expected = Type::u32();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
                     expected: expected.clone(),
                     actual: index_type.clone(),
@@ -507,7 +532,7 @@ impl Elaborator<'_> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =
@@ -605,8 +630,11 @@ impl Elaborator<'_> {
         let location = statement.location;
         let (hir_statement, _typ) =
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
+
+        // Run the interpreter - it will check if execution has been halted
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
+
         let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);

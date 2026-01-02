@@ -1,8 +1,11 @@
 use crate::elaborator::UnstableFeature;
-use crate::{hir::def_collector::dc_crate::CompilationError, parser::ParserErrorReason};
 
-use crate::tests::{
-    assert_no_errors, check_errors, check_errors_using_features, get_program_using_features,
+use crate::{
+    parser::ParserErrorReason,
+    tests::{
+        CompilationError, assert_no_errors, check_errors, check_errors_using_features,
+        get_program_using_features,
+    },
 };
 
 #[test]
@@ -37,26 +40,17 @@ fn errors_on_unspecified_unstable_enum() {
 
 #[test]
 fn errors_on_unspecified_unstable_match() {
-    // TODO: update this test. Right now it's hard to test because the span happens in the entire
-    // `match` node but ideally it would be nice if it only happened in the `match` keyword.
-    // Enums are experimental - this will need to be updated when they are stabilized
     let src = r#"
     fn main() {
         match 3 {
+        ^^^^^ This requires the unstable feature 'enums' which is not enabled
+        ~~~~~ Pass -Zenums to nargo to enable this feature at your own risk.
             _ => (),
         }
     }
     "#;
-
     let no_features = &[];
-    let errors = get_program_using_features(src, no_features).2;
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ParseError(error) = &errors[0] else {
-        panic!("Expected a ParseError experimental feature error");
-    };
-
-    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
+    check_errors_using_features(src, no_features);
 }
 
 #[test]
@@ -383,4 +377,70 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
     "#;
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_on_comptime_enum() {
+    let src = r#"
+    comptime enum Foo {
+        Bar,
+    }
+    fn main() { }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    let errors = get_program_using_features(src, &features).2;
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ParseError(error) = &errors[0] else {
+        panic!("Expected a ParseError experimental feature error: {errors:?}");
+    };
+
+    assert!(matches!(error.reason(), Some(ParserErrorReason::ComptimeNotApplicable)));
+}
+
+#[test]
+fn impl_on_enum() {
+    let src = r#"
+    enum Foo { Bar }
+
+    impl Foo {
+        fn foo(self) -> Self { self }
+    }
+
+    fn main() {
+        let _ = Foo::Bar.foo();
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn impl_eq_for_enum() {
+    let src = r#"
+    enum Foo { Bar }
+
+    trait Eq {
+        fn eq(self, other: Self) -> bool;
+    }
+
+    impl Eq for Foo {
+        fn eq(self, other: Foo) -> bool {
+            match (self, other) {
+                (Foo::Bar, Foo::Bar) => true,
+            }
+        }
+    }
+
+    fn main() {
+        assert(Foo::Bar.eq(Foo::Bar));
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty());
 }

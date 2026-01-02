@@ -19,7 +19,7 @@ use crate::{
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation, PublicInputs},
+        circuit::{AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs},
         native_types::Witness,
     },
 };
@@ -87,9 +87,6 @@ pub struct SsaEvaluatorOptions {
 
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
-
-    /// Width of expressions to be used for ACIR
-    pub expression_width: ExpressionWidth,
 
     /// Dump the unoptimized SSA to the supplied path if it exists
     pub emit_ssa: Option<PathBuf>,
@@ -164,7 +161,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Dead Instruction Elimination",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
+        SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
@@ -349,7 +346,7 @@ pub fn optimize_ssa_builder_into_acir(
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(&brillig, &options.brillig_options)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))

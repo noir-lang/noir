@@ -1,10 +1,12 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::graph::{CrateGraph, CrateId};
+use crate::hir::comptime::FormatStringFragment;
 use crate::hir::printer::items::ItemBuilder;
+use crate::hir::resolution::visibility::module_def_id_visibility;
 use crate::node_interner::TraitImplId;
 use crate::{
-    DataType, Generics, Kind, NamedGeneric, Type,
+    DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
     ast::{Ident, ItemVisibility},
     graph::Dependency,
     hir::{
@@ -176,7 +178,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             return;
         };
 
-        for comment in doc_comments {
+        for located_comment in doc_comments {
+            let comment = &located_comment.contents;
             if comment.contains('\n') {
                 let ends_with_newline = comment.ends_with('\n');
 
@@ -685,7 +688,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('>');
     }
 
-    fn show_generics(&mut self, generics: &Generics) {
+    fn show_generics(&mut self, generics: &ResolvedGenerics) {
         if generics.is_empty() {
             return;
         }
@@ -879,11 +882,51 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::U64(value) => self.push_str(&value.to_string()),
             Value::U128(value) => self.push_str(&value.to_string()),
             Value::String(string) => self.push_str(&format!("{string:?}")),
-            Value::FormatString(string, _typ) => {
-                // Note: at this point the format string was already expanded so we can't recover the original
-                // interpolation and this will result in a compile-error. But... the expanded code is meant
-                // to be browsed, not compiled.
-                self.push_str(&format!("f{string:?}"));
+            Value::FormatString(fragments, _typ, _) => {
+                let has_values = fragments
+                    .iter()
+                    .any(|fragment| matches!(fragment, FormatStringFragment::Value { .. }));
+
+                if has_values {
+                    self.push_str("{\n");
+
+                    let mut seen_names: HashSet<String> = HashSet::default();
+
+                    for fragment in fragments.iter() {
+                        if let FormatStringFragment::Value { name, value } = fragment {
+                            // A name might be interpolated multiple times. In that case it will always
+                            // have the same value: we just need one `let` for it.
+                            if !seen_names.insert(name.to_string()) {
+                                continue;
+                            }
+
+                            self.push_str("let ");
+                            self.push_str(name);
+                            self.push_str(" = ");
+                            self.show_value(value);
+                            self.push_str(";\n");
+                        }
+                    }
+                }
+
+                self.push_str("f\"");
+                for fragment in fragments.iter() {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            self.push_str(&string.replace('"', "\\\""));
+                        }
+                        FormatStringFragment::Value { name, value: _ } => {
+                            self.push('{');
+                            self.push_str(name);
+                            self.push('}');
+                        }
+                    }
+                }
+                self.push_str("\"");
+
+                if has_values {
+                    self.push_str(" }");
+                }
             }
             Value::CtString(string) => {
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
@@ -965,7 +1008,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
                 self.push(']');
             }
-            Value::Slice(values, _) => {
+            Value::Vector(values, _) => {
                 self.push_str("&[");
                 for (index, value) in values.iter().enumerate() {
                     if index != 0 {
@@ -1282,32 +1325,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     }
 
     fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
-        match module_def_id {
-            ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(module_id);
-                attributes.map_or(ItemVisibility::Private, |a| a.visibility)
-            }
-            ModuleDefId::FunctionId(func_id) => {
-                self.interner.function_modifiers(&func_id).visibility
-            }
-            ModuleDefId::TypeId(type_id) => {
-                let data_type = self.interner.get_type(type_id);
-                data_type.borrow().visibility
-            }
-            ModuleDefId::TypeAliasId(type_alias_id) => {
-                let type_alias = self.interner.get_type_alias(type_alias_id);
-                type_alias.borrow().visibility
-            }
-            ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
-            ModuleDefId::TraitId(trait_id) => {
-                let trait_ = self.interner.get_trait(trait_id);
-                trait_.visibility
-            }
-            ModuleDefId::GlobalId(global_id) => {
-                let global_info = self.interner.get_global(global_id);
-                global_info.visibility
-            }
-        }
+        module_def_id_visibility(module_def_id, self.interner)
     }
 
     fn show_separated_by_comma<Item, F>(&mut self, items: &[Item], f: F)

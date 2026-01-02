@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub bool {
+    foo(false)
+}
+
+unconstrained fn foo(mut a: bool) -> bool {
+    if !a {
+        true
+    } else {
+        let mut i: Field = 0_Field;
+        loop {
+            if i == 1_Field {
+                break;
+            } else {
+                i = i + 1_Field;
+                let b: [Field; 1] = {
+                    a = !a < ((a as Field) == (a as Field));
+                    assert(
+                        ((a as Field) * (a as Field)) == if foo(false) { 1_Field } else { 1_Field },
+                    );
+                    println(a);
+                    if foo(false) {
+                        [a as Field]
+                    } else {
+                        [a as Field]
+                    }
+                };
+                assert((a as Field) != b[0_u32]);
+            }
+        }
+        false
+    }
+}

@@ -25,12 +25,15 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Slices need some parts of the stdlib that we can't just append to the source
+        // Vectors need some parts of the stdlib that we can't just append to the source
         // the way it is currently done to support prints, because they are low level extensions.
-        avoid_slices: true,
+        avoid_vectors: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
+        // Leaving it at 1 for CI
+        min_functions: 0,
+        max_functions: 1,
         ..default_config(u)?
     };
 

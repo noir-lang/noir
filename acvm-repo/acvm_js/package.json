@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "1.0.0-beta.15",
+  "version": "1.0.0-beta.17",
   "publishConfig": {
     "access": "public"
   },
@@ -41,11 +41,11 @@
     "@web/dev-server-esbuild": "^1.0.4",
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
-    "chai": "^4.4.1",
-    "eslint": "^9.28.0",
-    "eslint-plugin-prettier": "^5.4.1",
-    "mocha": "^11.5.0",
-    "prettier": "3.5.3",
+    "chai": "^6.2.2",
+    "eslint": "^9.39.2",
+    "eslint-plugin-prettier": "^5.5.4",
+    "mocha": "^11.7.5",
+    "prettier": "3.7.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }

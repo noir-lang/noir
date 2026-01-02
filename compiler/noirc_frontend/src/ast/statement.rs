@@ -10,7 +10,6 @@ use super::{
     GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
-use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::graph::CrateId;
 use crate::node_interner::{
@@ -33,6 +32,12 @@ pub const WILDCARD_TYPE: &str = "_";
 pub struct Statement {
     pub kind: StatementKind,
     pub location: Location,
+}
+
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
 }
 
 /// Ast node for statements in noir. Statements are always within a block { }
@@ -164,7 +169,7 @@ impl StatementKind {
 impl StatementKind {
     pub fn new_let(
         pattern: Pattern,
-        r#type: UnresolvedType,
+        r#type: Option<UnresolvedType>,
         expression: Expression,
         attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
@@ -318,7 +323,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
-    /// This path is a Crate or Dep path which always points to the given crate
+    /// This path is a Crate or Dep path which always points to the given crate.
+    /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
     Resolved(CrateId),
 }
 
@@ -496,10 +502,6 @@ impl Path {
         self.segments.first().map(|segment| &segment.ident)
     }
 
-    pub(crate) fn is_wildcard(&self) -> bool {
-        if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
     }
@@ -557,7 +559,7 @@ impl Display for PathSegment {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
     pub pattern: Pattern,
-    pub r#type: UnresolvedType,
+    pub r#type: Option<UnresolvedType>,
     pub expression: Expression,
     pub attributes: Vec<SecondaryAttribute>,
 
@@ -813,7 +815,7 @@ impl ForRange {
                 let let_array = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(array_ident.clone()),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         array,
                         vec![],
                     ),
@@ -850,7 +852,7 @@ impl ForRange {
                 let let_elem = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         Expression::new(loop_element, array_location),
                         vec![],
                     ),
@@ -934,10 +936,10 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
-            write!(f, "let {} = {}", self.pattern, self.expression)
+        if let Some(typ) = &self.r#type {
+            write!(f, "let {}: {} = {}", self.pattern, typ, self.expression)
         } else {
-            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+            write!(f, "let {} = {}", self.pattern, self.expression)
         }
     }
 }

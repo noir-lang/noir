@@ -232,7 +232,7 @@ fn location_to_callsite_label<'files>(
             .unwrap_or("invalid_path".to_string());
     let source = files.source(location.file).expect("should have a file source");
 
-    let code_slice = source
+    let code_vector = source
         .as_ref()
         .chars()
         .skip(location.span.start() as usize)
@@ -240,12 +240,12 @@ fn location_to_callsite_label<'files>(
         .collect::<String>();
 
     // ";" is used for frame separation, and is not allowed by inferno
-    // Check code slice for ";" and replace it with 'GREEK QUESTION MARK' (U+037E)
-    let code_slice = code_slice.replace(';', "\u{037E}");
+    // Check code vector for ";" and replace it with 'GREEK QUESTION MARK' (U+037E)
+    let code_vector = code_vector.replace(';', "\u{037E}");
 
     let (line, column) = line_and_column_from_span(source.as_ref(), &location.span);
 
-    format!("{filename}:{line}:{column}::{code_slice}")
+    format!("{filename}:{line}:{column}::{code_vector}")
 }
 
 fn add_locations_to_folded_stack_items(

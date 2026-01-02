@@ -732,7 +732,7 @@ impl Parser<'_> {
     ///     | fmtstr
     ///     | QuoteExpression
     ///     | ArrayExpression
-    ///     | SliceExpression
+    ///     | VectorExpression
     ///     | BlockExpression
     ///     | ConstrainExpression
     ///
@@ -775,10 +775,10 @@ impl Parser<'_> {
             };
         }
 
-        if let Some(literal_or_error) = self.parse_slice_literal() {
+        if let Some(literal_or_error) = self.parse_vector_literal() {
             return match literal_or_error {
                 ArrayLiteralOrError::ArrayLiteral(literal) => {
-                    Some(ExpressionKind::Literal(Literal::Slice(literal)))
+                    Some(ExpressionKind::Literal(Literal::Vector(literal)))
                 }
                 ArrayLiteralOrError::Error => Some(ExpressionKind::Error),
             };
@@ -862,9 +862,9 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// SliceExpression = '&' ArrayLiteral
-    fn parse_slice_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::SliceStart) && self.next_is(Token::LeftBracket)) {
+    /// VectorExpression = '&' ArrayLiteral
+    fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
+        if !(self.at(Token::VectorStart) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -1045,7 +1045,7 @@ mod tests {
     use crate::{
         ast::{
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
-            StatementKind, UnaryOp, UnresolvedTypeData,
+            StatementKind, UnaryOp,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -1415,12 +1415,12 @@ mod tests {
     }
 
     #[test]
-    fn parses_empty_slice_expression() {
+    fn parses_empty_vector_expression() {
         let src = "&[]";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
+        let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
-            panic!("Expected slice literal");
+            panic!("Expected vector literal");
         };
         assert!(exprs.is_empty());
     }
@@ -2031,7 +2031,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::Unspecified));
+        assert!(lambda.return_type.is_none());
     }
 
     #[test]
@@ -2045,11 +2045,11 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "x");
-        assert!(matches!(typ.typ, UnresolvedTypeData::Unspecified));
+        assert!(typ.is_none());
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
     }
 
     #[test]
@@ -2061,7 +2061,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert_eq!(lambda.return_type.typ.to_string(), "Field");
+        assert_eq!(lambda.return_type.unwrap().to_string(), "Field");
     }
 
     #[test]

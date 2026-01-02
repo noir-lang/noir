@@ -5,8 +5,8 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 //!
-//! The brillig ir provides instructions and codegens.
-//! The instructions are low level operations that are printed via debug_show.
+//! The brillig IR provides instructions and codegens.
+//! The instructions are low level operations that are printed via `debug_show`.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
 pub mod artifact;
@@ -37,7 +37,7 @@ use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stac
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    brillig_vm::STACK_POINTER_ADDRESS,
+    brillig_vm::{FREE_MEMORY_POINTER_ADDRESS, STACK_POINTER_ADDRESS},
 };
 use debug_show::DebugShow;
 
@@ -71,7 +71,7 @@ impl ReservedRegisters {
     /// This represents the heap, and we make sure during entry point generation that it is initialized
     /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::direct(1)
+        FREE_MEMORY_POINTER_ADDRESS
     }
 
     /// This register stores a 1_usize constant.
@@ -143,6 +143,20 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
             );
         }
         self.globals_memory_size = new_size;
+    }
+
+    /// Returns the artifact, discarding the rest of the context.
+    pub(crate) fn into_artifact(self) -> BrilligArtifact<F> {
+        self.obj
+    }
+
+    /// Returns the artifact.
+    pub(crate) fn artifact(&self) -> &BrilligArtifact<F> {
+        &self.obj
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.obj.name
     }
 }
 
@@ -310,15 +324,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.push_opcode(opcode);
     }
 
-    /// Returns the artifact
-    pub(crate) fn artifact(self) -> BrilligArtifact<F> {
-        self.obj
-    }
-
-    pub(crate) fn name(&self) -> &str {
-        &self.obj.name
-    }
-
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
@@ -334,7 +339,7 @@ pub(crate) mod tests {
         ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VM, VMStatus};
+    use acvm::brillig_vm::{VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::BrilligOptions;
@@ -407,7 +412,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: context.count_arrays_copied,
             ..Default::default()
         };
-        let artifact = context.artifact();
+        let artifact = context.into_artifact();
         let (mut entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
@@ -457,34 +462,44 @@ pub(crate) mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
+
+        // Enable debug trace so we can see what the bytecode is if the test fails.
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
-            ..Default::default()
+            show_opcode_advisories: false,
+            layout: Default::default(),
         };
         let mut context = BrilligContext::new("test", &options);
-        let r_stack = ReservedRegisters::free_memory_pointer();
-        // Start stack pointer at 0
-        context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
+
+        // Allocate variables
         let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        let r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + 1);
-        let r_output_size = MemoryAddress::direct(ReservedRegisters::len() + 2);
-        let r_equality = MemoryAddress::direct(ReservedRegisters::len() + 3);
+        let r_output_ptr = r_input_size.offset(1);
+        let r_output_size = r_input_size.offset(2);
+        let r_equality = r_input_size.offset(3);
+
+        let r_free = ReservedRegisters::free_memory_pointer();
+        // Set the free memory pointer after the variables allocated above.
+        let r_free_value = ReservedRegisters::len() + 4;
+        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
+
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
-        // copy our stack frame to r_array_ptr
-        context.mov_instruction(r_array_ptr, r_stack);
+        // The output pointer points at the heap.
+        context.usize_const_instruction(
+            r_output_ptr,
+            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+        );
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
             &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+            &[ValueOrArray::HeapVector(HeapVector { pointer: r_output_ptr, size: r_output_size })],
             &[HeapValueType::Vector {
                 value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             }],
         );
-        // push stack frame by r_returned_size
-        context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
+
         // check r_input_size == r_output_size
         context.memory_op_instruction(
             r_input_size,
@@ -500,22 +515,18 @@ pub(crate) mod tests {
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         });
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
-        context.push_opcode(BrilligOpcode::Trap {
-            revert_data: HeapVector {
-                pointer: MemoryAddress::direct(0),
-                size: MemoryAddress::direct(0),
-            },
-        });
+        // If we got the expected number of items, jump to the STOP, otherwise fall through to TRAP.
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
+        let empty_data =
+            HeapVector { pointer: MemoryAddress::direct(0), size: MemoryAddress::direct(0) };
+        context.push_opcode(BrilligOpcode::Trap { revert_data: empty_data });
+        context.stop_instruction(empty_data);
 
-        context.stop_instruction(HeapVector {
-            pointer: MemoryAddress::direct(0),
-            size: MemoryAddress::direct(0),
-        });
-
-        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.into_artifact().finish().byte_code;
 
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+
+        // Run the VM up to the foreign call. Assert the expected call parameters.
         let status = vm.process_opcodes();
         assert_eq!(
             status,
@@ -524,12 +535,13 @@ pub(crate) mod tests {
                 inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
             }
         );
-
+        // Create the response.
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
         let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
         vm.resolve_foreign_call(response);
 
+        // The equality check should succeed
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
     }

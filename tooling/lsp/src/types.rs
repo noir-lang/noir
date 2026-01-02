@@ -1,8 +1,8 @@
 use async_lsp::lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
-    SignatureHelpOptions, TextDocumentIdentifier, TypeDefinitionProviderCapability,
-    WorkspaceSymbolOptions,
+    SemanticTokensOptions, SemanticTokensRegistrationOptions, SignatureHelpOptions,
+    TextDocumentIdentifier, TypeDefinitionProviderCapability, WorkspaceSymbolOptions,
 };
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
@@ -185,6 +185,11 @@ pub(crate) struct ServerCapabilities {
     /// The server provides folding range support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) folding_range_provider: Option<bool>,
+
+    /// The server provides semantic token support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) semantic_tokens_provider:
+        Option<OneOf<SemanticTokensOptions, SemanticTokensRegistrationOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]

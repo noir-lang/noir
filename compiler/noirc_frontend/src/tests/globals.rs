@@ -4,7 +4,6 @@ use crate::tests::{assert_no_errors, check_errors};
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
@@ -32,6 +31,7 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                ^^^^^^^^^ Globals must have a specified type
                            ~ Inferred type is `Field`
         global STR_LEN: _ = 2;
+                        ^ The placeholder `_` is not allowed in global definitions
                ^^^^^^^ Globals must have a specified type
                             ~ Inferred type is `Field`
         global FMT_STR_LEN = 2;
@@ -57,26 +57,34 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 fn do_not_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
+                                  ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^ Globals must have a specified type
                                        ~~~~~~ Inferred type is `[Field; 3]`
         pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
+                                          ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^ Globals must have a specified type
                                                    ~~~~~~~ Inferred type is `[[Field; 0]; 3]`
         pub global STR: str<_> = "hi";
+                            ^ The placeholder `_` is not allowed in global definitions
                    ^^^ Globals must have a specified type
                                  ~~~~ Inferred type is `str<2>`
-                 
         pub global NESTED_STR: [str<_>] = &["hi"];
+                                    ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^ Globals must have a specified type
                                           ~~~~~~~ Inferred type is `[str<2>]`
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
+                                   ^ The placeholder `_` is not allowed in global definitions
+                                      ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^ Globals must have a specified type
                                            ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
+                                              ^ The placeholder `_` is not allowed in global definitions
+                                                            ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             (&["hi"], [[]; 3]);
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
+        pub global FOO: [i32; 3] = [1, 2, 3];
     "#;
     check_errors(src);
 }
@@ -128,19 +136,6 @@ fn disallows_references_in_globals() {
     let src = r#"
     pub global mutable: &mut Field = &mut 0;
                ^^^^^^^ References are not allowed in globals
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn errors_on_cyclic_globals() {
-    let src = r#"
-    pub comptime global A: u32 = B;
-                                 ^ Failed to resolve this global
-                        ^ Dependency cycle found
-                        ~ 'A' recursively depends on itself: A -> B -> A
-    pub comptime global B: u32 = A;
-                                 ^ Failed to resolve this global
     "#;
     check_errors(src);
 }

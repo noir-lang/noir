@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../../styles.css">
+<script defer src="../../../nargo_doc.js"></script>
 <title>Struct HashMap documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">HashMap</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
@@ -54,21 +60,19 @@ Note that due to hash collisions, the actual maximum number of elements stored b
 hashmap is likely lower than <code>MaxLen</code>. This is true even with cryptographic hash functions since
 every hash value will be performed modulo <code>MaxLen</code>.</p>
 <p>Example:</p>
-<pre><code class="language-noir">// Create a mapping from Fields to u32s with a maximum length of 12
-// using a poseidon2 hasher
-use std::hash::poseidon2::Poseidon2Hasher;
-let mut map: HashMap&lt;Field, u32, 12, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+<pre><code><span class="comment">// Create a mapping from Fields to u32s with a maximum length of 12</span>
+<span class="comment">// using a poseidon2 hasher</span>
+<span class="kw">use</span> std::hash::poseidon2::Poseidon2Hasher;
+<span class="kw">let</span> <span class="kw">mut</span> map: HashMap&lt;Field, u32, <span class="number">12</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
 
-map.insert(1, 2);
-map.insert(3, 4);
+map.insert(<span class="number">1</span>, <span class="number">2</span>);
+map.insert(<span class="number">3</span>, <span class="number">4</span>);
 
-let two = map.get(1).unwrap();
-</code></pre>
-</div>
+<span class="kw">let</span> two = map.get(<span class="number">1</span>).unwrap();</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;</code></h3>
 
-<div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <span class="fn">with_hasher</span>(_build_hasher: B) -> Self
+<div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <a href="#with_hasher"><span class="fn">with_hasher</span></a>(_build_hasher: B) -> Self
 <div class="where-clause">where
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
@@ -76,105 +80,91 @@ let two = map.get(1).unwrap();
 <p>Creates a hashmap with an existing <code>BuildHasher</code>. This can be used to ensure multiple
 hashmaps are created with the same hasher instance.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let my_hasher: BuildHasherDefault&lt;Poseidon2Hasher&gt; = Default::default();
-let hashmap: HashMap&lt;u8, u32, 10, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::with_hasher(my_hasher);
-assert(hashmap.is_empty());
-</code></pre>
-</div>
-</div><code id="clear" class="code-header">pub fn <span class="fn">clear</span>(&mut self)</code>
+<pre><code><span class="kw">let</span> my_hasher: BuildHasherDefault&lt;Poseidon2Hasher&gt; = Default::default();
+<span class="kw">let</span> hashmap: HashMap&lt;u8, u32, <span class="number">10</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::with_hasher(my_hasher);
+<span class="kw">assert</span>(hashmap.is_empty());</code></pre></div>
+</div><code id="clear" class="code-header">pub fn <a href="#clear"><span class="fn">clear</span></a>(&mut self)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Clears the hashmap, removing all key-value pairs from it.</p>
 <p>Example:</p>
-<pre><code class="language-noir">assert(!map.is_empty());
+<pre><code><span class="kw">assert</span>(!map.is_empty());
 map.clear();
-assert(map.is_empty());
-</code></pre>
-</div>
-</div><code id="contains_key" class="code-header">pub fn <span class="fn">contains_key</span>(self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
+<span class="kw">assert</span>(map.is_empty());</code></pre></div>
+</div><code id="contains_key" class="code-header">pub fn <a href="#contains_key"><span class="fn">contains_key</span></a>(self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if the hashmap contains the given key. Unlike <code>get</code>, this will not also return
+<p>Returns <code>true</code> if the hashmap contains the given key. Unlike <a href="../../../std/collections/map/struct.HashMap.html#get"><code>get</code></a>, this will not also return
 the value associated with the key.</p>
 <p>Example:</p>
-<pre><code class="language-noir">if map.contains_key(7) {
-    let value = map.get(7);
-    assert(value.is_some());
-} else {
-    println(&quot;No value for key 7!&quot;);
-}
-</code></pre>
-</div>
-</div><code id="is_empty" class="code-header">pub fn <span class="fn">is_empty</span>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<pre><code><span class="kw">if</span> map.contains_key(<span class="number">7</span>) {
+    <span class="kw">let</span> value = map.get(<span class="number">7</span>);
+    <span class="kw">assert</span>(value.is_some());
+} <span class="kw">else</span> {
+    println(<span class="string">"No value for key 7!"</span>);
+}</code></pre></div>
+</div><code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if the length of the hash map is empty.</p>
 <p>Example:</p>
-<pre><code class="language-noir">assert(map.is_empty());
+<pre><code><span class="kw">assert</span>(map.is_empty());
 
-map.insert(1, 2);
-assert(!map.is_empty());
+map.insert(<span class="number">1</span>, <span class="number">2</span>);
+<span class="kw">assert</span>(!map.is_empty());
 
-map.remove(1);
-assert(map.is_empty());
-</code></pre>
-</div>
-</div><code id="entries" class="code-header">pub fn <span class="fn">entries</span>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;(K, V), N&gt;</code>
+map.remove(<span class="number">1</span>);
+<span class="kw">assert</span>(map.is_empty());</code></pre></div>
+</div><code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;(K, V), N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of each key-value pair present in the hashmap.</p>
 <p>The length of the returned vector is always equal to the length of the hashmap.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let entries = map.entries();
+<pre><code><span class="kw">let</span> entries = map.entries();
 
-// The length of a hashmap may not be compile-time known, so we
-// need to loop over its capacity instead
-for i in 0..map.capacity() {
-    if i &lt; entries.len() {
-        let (key, value) = entries.get(i);
-        println(f&quot;{key} -&gt; {value}&quot;);
+<span class="comment">// The length of a hashmap may not be compile-time known, so we</span>
+<span class="comment">// need to loop over its capacity instead</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..map.capacity() {
+    <span class="kw">if</span> i &lt; entries.len() {
+        <span class="kw">let</span> (key, value) = entries.get(i);
+        println(<span class="string">f"</span><span class="interpolation">{key}</span><span class="string"> -&gt; </span><span class="interpolation">{value}</span><span class="string">"</span>);
     }
-}
-</code></pre>
-</div>
-</div><code id="keys" class="code-header">pub fn <span class="fn">keys</span>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;K, N&gt;</code>
+}</code></pre></div>
+</div><code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;K, N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of each key present in the hashmap.</p>
 <p>The length of the returned vector is always equal to the length of the hashmap.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let keys = map.keys();
+<pre><code><span class="kw">let</span> keys = map.keys();
 
-for i in 0..keys.max_len() {
-    if i &lt; keys.len() {
-        let key = keys.get_unchecked(i);
-        let value = map.get(key).unwrap_unchecked();
-        println(f&quot;{key} -&gt; {value}&quot;);
+<span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..keys.max_len() {
+    <span class="kw">if</span> i &lt; keys.len() {
+        <span class="kw">let</span> key = keys.get_unchecked(i);
+        <span class="kw">let</span> value = map.get(key).unwrap_unchecked();
+        println(<span class="string">f"</span><span class="interpolation">{key}</span><span class="string"> -&gt; </span><span class="interpolation">{value}</span><span class="string">"</span>);
     }
-}
-</code></pre>
-</div>
-</div><code id="values" class="code-header">pub fn <span class="fn">values</span>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;V, N&gt;</code>
+}</code></pre></div>
+</div><code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(self) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;V, N&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of each value present in the hashmap.</p>
 <p>The length of the returned vector is always equal to the length of the hashmap.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let values = map.values();
+<pre><code><span class="kw">let</span> values = map.values();
 
-for i in 0..values.max_len() {
-    if i &lt; values.len() {
-        let value = values.get_unchecked(i);
-        println(f&quot;Found value {value}&quot;);
+<span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..values.max_len() {
+    <span class="kw">if</span> i &lt; values.len() {
+        <span class="kw">let</span> value = values.get_unchecked(i);
+        println(<span class="string">f"</span><span class="string">Found value </span><span class="interpolation">{value}</span><span class="string">"</span>);
     }
-}
-</code></pre>
-</div>
-</div><code id="iter_mut" class="code-header">pub fn <span class="fn">iter_mut</span>(&mut self, f: fn(K, V) -> (K, V))
+}</code></pre></div>
+</div><code id="iter_mut" class="code-header">pub fn <a href="#iter_mut"><span class="fn">iter_mut</span></a>(&mut self, f: fn(K, V) -> (K, V))
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -184,16 +174,14 @@ for i in 0..values.max_len() {
 <p>Iterates through each key-value pair of the HashMap, setting each key-value pair to the
 result returned from the given function.</p>
 <p>Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
-through. If this is not desired, use <code>iter_values_mut</code> if only values need to be mutated,
-or <code>entries</code> if neither keys nor values need to be mutated.</p>
+through. If this is not desired, use <a href="../../../std/collections/map/struct.HashMap.html#iter_values_mut"><code>iter_values_mut</code></a> if only values need to be mutated,
+or <a href="../../../std/collections/map/struct.HashMap.html#entries"><code>entries</code></a> if neither keys nor values need to be mutated.</p>
 <p>The iteration order is left unspecified. As a result, if two keys are mutated to become
 equal, which of the two values that will be present for the key in the resulting map is also unspecified.</p>
 <p>Example:</p>
-<pre><code class="language-noir">// Add 1 to each key in the map, and double the value associated with that key.
-map.iter_mut(|k, v| (k + 1, v * 2));
-</code></pre>
-</div>
-</div><code id="iter_keys_mut" class="code-header">pub fn <span class="fn">iter_keys_mut</span>(&mut self, f: fn(K) -> K)
+<pre><code><span class="comment">// Add 1 to each key in the map, and double the value associated with that key.</span>
+map.iter_mut(|k, v| (k + <span class="number">1</span>, v * <span class="number">2</span>));</code></pre></div>
+</div><code id="iter_keys_mut" class="code-header">pub fn <a href="#iter_keys_mut"><span class="fn">iter_keys_mut</span></a>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -204,56 +192,48 @@ map.iter_mut(|k, v| (k + 1, v * 2));
 the given function.</p>
 <p>Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
 through. If only iteration is desired and the keys are not intended to be mutated,
-prefer using <code>entries</code> instead.</p>
+prefer using <a href="../../../std/collections/map/struct.HashMap.html#entries"><code>entries</code></a> instead.</p>
 <p>The iteration order is left unspecified. As a result, if two keys are mutated to become
 equal, which of the two values that will be present for the key in the resulting map is also unspecified.</p>
 <p>Example:</p>
-<pre><code class="language-noir">// Double each key, leaving the value associated with that key untouched
-map.iter_keys_mut(|k| k * 2);
-</code></pre>
-</div>
-</div><code id="iter_values_mut" class="code-header">pub fn <span class="fn">iter_values_mut</span>(&mut self, f: fn(V) -> V)</code>
+<pre><code><span class="comment">// Double each key, leaving the value associated with that key untouched</span>
+map.iter_keys_mut(|k| k * <span class="number">2</span>);</code></pre></div>
+</div><code id="iter_values_mut" class="code-header">pub fn <a href="#iter_values_mut"><span class="fn">iter_values_mut</span></a>(&mut self, f: fn(V) -> V)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Iterates through the HashMap, applying the given function to each value and mutating the
-value to equal the result. This function is more efficient than <code>iter_mut</code> and <code>iter_keys_mut</code>
+value to equal the result. This function is more efficient than <a href="../../../std/collections/map/struct.HashMap.html#iter_mut"><code>iter_mut</code></a> and <a href="../../../std/collections/map/struct.HashMap.html#iter_keys_mut"><code>iter_keys_mut</code></a>
 because the keys are untouched and the underlying hashmap thus does not need to be reordered.</p>
 <p>Example:</p>
-<pre><code class="language-noir">// Halve each value
-map.iter_values_mut(|v| v / 2);
-</code></pre>
-</div>
-</div><code id="retain" class="code-header">pub fn <span class="fn">retain</span>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
+<pre><code><span class="comment">// Halve each value</span>
+map.iter_values_mut(|v| v / <span class="number">2</span>);</code></pre></div>
+</div><code id="retain" class="code-header">pub fn <a href="#retain"><span class="fn">retain</span></a>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retains only the key-value pairs for which the given function returns true.
 Any key-value pairs for which the function returns false will be removed from the map.</p>
 <p>Example:</p>
-<pre><code class="language-noir">map.retain(|k, v| (k != 0) &amp; (v != 0));
-</code></pre>
-</div>
-</div><code id="len" class="code-header">pub fn <span class="fn">len</span>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+<pre><code>map.retain(|k, v| (k != <span class="number">0</span>) & (v != <span class="number">0</span>));</code></pre></div>
+</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the current length of this hash map.</p>
 <p>Example:</p>
-<pre><code class="language-noir">// This is equivalent to checking map.is_empty()
-assert(map.len() == 0);
+<pre><code><span class="comment">// This is equivalent to checking map.is_empty()</span>
+<span class="kw">assert</span>(map.len() == <span class="number">0</span>);
 
-map.insert(1, 2);
-map.insert(3, 4);
-map.insert(5, 6);
-assert(map.len() == 3);
+map.insert(<span class="number">1</span>, <span class="number">2</span>);
+map.insert(<span class="number">3</span>, <span class="number">4</span>);
+map.insert(<span class="number">5</span>, <span class="number">6</span>);
+<span class="kw">assert</span>(map.len() == <span class="number">3</span>);
 
-// 3 was already present as a key in the hash map, so the length is unchanged
-map.insert(3, 7);
-assert(map.len() == 3);
+<span class="comment">// 3 was already present as a key in the hash map, so the length is unchanged</span>
+map.insert(<span class="number">3</span>, <span class="number">7</span>);
+<span class="kw">assert</span>(map.len() == <span class="number">3</span>);
 
-map.remove(1);
-assert(map.len() == 2);
-</code></pre>
-</div>
-</div><code id="capacity" class="code-header">pub fn <span class="fn">capacity</span>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+map.remove(<span class="number">1</span>);
+<span class="kw">assert</span>(map.len() == <span class="number">2</span>);</code></pre></div>
+</div><code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the maximum capacity of this hashmap. This is always equal to the capacity
@@ -264,12 +244,10 @@ is also the maximum possible element count that can be inserted into the hashmap
 Due to hash collisions (modulo the hashmap length), it is likely the actual maximum
 element count will be lower than the full capacity.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let empty_map: HashMap&lt;Field, Field, 42, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
-assert(empty_map.len() == 0);
-assert(empty_map.capacity() == 42);
-</code></pre>
-</div>
-</div><code id="get" class="code-header">pub fn <span class="fn">get</span>(self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
+<pre><code><span class="kw">let</span> empty_map: HashMap&lt;Field, Field, <span class="number">42</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+<span class="kw">assert</span>(empty_map.len() == <span class="number">0</span>);
+<span class="kw">assert</span>(empty_map.capacity() == <span class="number">42</span>);</code></pre></div>
+</div><code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -278,16 +256,14 @@ assert(empty_map.capacity() == 42);
 <div class="padded-description"><div class="comments">
 <p>Retrieves a value from the hashmap, returning <code>Option::none()</code> if it was not found.</p>
 <p>Example:</p>
-<pre><code class="language-noir">fn get_example(map: HashMap&lt;Field, Field, 5, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt;) {
-    let x = map.get(12);
+<pre><code><span class="kw">fn</span> get_example(map: HashMap&lt;Field, Field, <span class="number">5</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt;) {
+    <span class="kw">let</span> x = map.get(<span class="number">12</span>);
 
-    if x.is_some() {
-        assert(x.unwrap() == 42);
+    <span class="kw">if</span> x.is_some() {
+        <span class="kw">assert</span>(x.unwrap() == <span class="number">42</span>);
     }
-}
-</code></pre>
-</div>
-</div><code id="insert" class="code-header">pub fn <span class="fn">insert</span>(&mut self, key: K, value: V)
+}</code></pre></div>
+</div><code id="insert" class="code-header">pub fn <a href="#insert"><span class="fn">insert</span></a>(&mut self, key: K, value: V)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -297,12 +273,10 @@ assert(empty_map.capacity() == 42);
 <p>Inserts a new key-value pair into the map. If the key was already in the map, its
 previous value will be overridden with the newly provided one.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let mut map: HashMap&lt;Field, Field, 5, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
-map.insert(12, 42);
-assert(map.len() == 1);
-</code></pre>
-</div>
-</div><code id="remove" class="code-header">pub fn <span class="fn">remove</span>(&mut self, key: K)
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> map: HashMap&lt;Field, Field, <span class="number">5</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+map.insert(<span class="number">12</span>, <span class="number">42</span>);
+<span class="kw">assert</span>(map.len() == <span class="number">1</span>);</code></pre></div>
+</div><code id="remove" class="code-header">pub fn <a href="#remove"><span class="fn">remove</span></a>(&mut self, key: K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -312,18 +286,16 @@ assert(map.len() == 1);
 <p>Removes the given key-value pair from the map. If the key was not already present
 in the map, this does nothing.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let mut map: HashMap&lt;Field, Field, 5, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
-map.insert(12, 42);
-assert(!map.is_empty());
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> map: HashMap&lt;Field, Field, <span class="number">5</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+map.insert(<span class="number">12</span>, <span class="number">42</span>);
+<span class="kw">assert</span>(!map.is_empty());
 
-map.remove(12);
-assert(map.is_empty());
+map.remove(<span class="number">12</span>);
+<span class="kw">assert</span>(map.is_empty());
 
-// If a key was not present in the map, remove does nothing
-map.remove(12);
-assert(map.is_empty());
-</code></pre>
-</div>
+<span class="comment">// If a key was not present in the map, remove does nothing</span>
+map.remove(<span class="number">12</span>);
+<span class="kw">assert</span>(map.is_empty());</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Default-for-HashMap<K, V, N, B>"><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;
 <div class="where-clause">where
@@ -335,10 +307,8 @@ assert(map.is_empty());
 <div class="padded-description"><div class="comments">
 <p>Constructs an empty HashMap.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let hashmap: HashMap&lt;u8, u32, 10, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
-assert(hashmap.is_empty());
-</code></pre>
-</div>
+<pre><code><span class="kw">let</span> hashmap: HashMap&lt;u8, u32, <span class="number">10</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+<span class="kw">assert</span>(hashmap.is_empty());</code></pre></div>
 </div></div><h3 id="impl-Eq-for-HashMap<K, V, N, B>"><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
@@ -351,18 +321,17 @@ assert(hashmap.is_empty());
 <div class="padded-description"><div class="comments">
 <p>Checks if two HashMaps are equal.</p>
 <p>Example:</p>
-<pre><code class="language-noir">let mut map1: HashMap&lt;Field, u64, 4, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
-let mut map2: HashMap&lt;Field, u64, 4, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> map1: HashMap&lt;Field, u64, <span class="number">4</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
+<span class="kw">let</span> <span class="kw">mut</span> map2: HashMap&lt;Field, u64, <span class="number">4</span>, BuildHasherDefault&lt;Poseidon2Hasher&gt;&gt; = HashMap::default();
 
-map1.insert(1, 2);
-map1.insert(3, 4);
+map1.insert(<span class="number">1</span>, <span class="number">2</span>);
+map1.insert(<span class="number">3</span>, <span class="number">4</span>);
 
-map2.insert(3, 4);
-map2.insert(1, 2);
+map2.insert(<span class="number">3</span>, <span class="number">4</span>);
+map2.insert(<span class="number">1</span>, <span class="number">2</span>);
 
-assert(map1 == map2);
-</code></pre>
-</div>
+<span class="kw">assert</span>(map1 == map2);</code></pre></div>
 </div></div></main>
+</span>
 </body>
 </html>

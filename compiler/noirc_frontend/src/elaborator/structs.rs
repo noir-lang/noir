@@ -7,6 +7,7 @@ use iter_extended::vecmap;
 use crate::{
     StructField,
     ast::NoirStruct,
+    elaborator::{WildcardDisallowedContext, types::WildcardAllowed},
     hir::{def_collector::dc_crate::UnresolvedStruct, resolution::errors::ResolverError},
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
@@ -20,7 +21,7 @@ impl Elaborator<'_> {
     /// - Resolves the types of all struct fields
     /// - Validates visibility constraints (public structs cannot expose private types)
     /// - Registers LSP definition locations for IDE support
-    /// - Checks for disallowed nested slice types
+    /// - Checks for disallowed nested vector types
     ///
     /// Structs must already be interned from the earlier definition collection phase.
     /// This method fills in the field information for each struct.
@@ -64,7 +65,7 @@ impl Elaborator<'_> {
             });
         }
 
-        self.check_for_nested_slices(&struct_ids);
+        self.check_for_nested_vectors(&struct_ids);
     }
 
     /// Resolves the field types for a single struct definition.
@@ -81,33 +82,37 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            this.current_item = Some(DependencyId::Struct(struct_id));
+            let previous_item =
+                std::mem::replace(&mut this.current_item, Some(DependencyId::Struct(struct_id)));
 
             this.resolving_ids.insert(struct_id);
 
             let struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
+                let visibility = field.item.visibility;
                 let name = field.item.name.clone();
                 let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
-                let visibility = field.item.visibility;
                 StructField { visibility, name, typ }
             });
 
             this.resolving_ids.remove(&struct_id);
 
+            this.current_item = previous_item;
+
             fields
         })
     }
 
-    /// Checks all resolved structs for nested slice types, which are not allowed.
+    /// Checks all resolved structs for nested vector types, which are not allowed.
     ///
     /// This check must happen after all struct fields are resolved to ensure we have
     /// complete type information. We only check structs without generics here, as
-    /// generic structs are validated after monomorphization during SSA codegen.
-    fn check_for_nested_slices(&mut self, struct_ids: &[TypeId]) {
+    /// generic structs are validated during monomorphization and after monomorphization
+    /// during SSA codegen.
+    fn check_for_nested_vectors(&mut self, struct_ids: &[TypeId]) {
         for id in struct_ids {
             let struct_type = self.interner.get_type(*id);
 
@@ -116,9 +121,9 @@ impl Elaborator<'_> {
             if struct_type.borrow().generics.is_empty() {
                 let fields = struct_type.borrow().get_fields(&[]).unwrap();
                 for (_, field_type, _) in fields.iter() {
-                    if field_type.is_nested_slice() {
+                    if field_type.is_nested_vector() {
                         let location = struct_type.borrow().location;
-                        self.push_err(ResolverError::NestedSlices { location });
+                        self.push_err(ResolverError::NestedVectors { location });
                     }
                 }
             }

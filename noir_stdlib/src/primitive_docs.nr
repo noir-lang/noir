@@ -2,7 +2,7 @@
 /// and the non-negative compile-time constant size, `N`.
 ///
 /// There are two syntactic forms for creating an array:
-/// * A list with each element, i.e., `[x, y, z]`.
+/// * A vector with each element, i.e., `[x, y, z]`.
 /// * A repeat expression `[expr; N]` where `N` is how many times to repeat `expr` in the array.
 #['nargo_doc_primitive array]
 mod primitive_array {}
@@ -68,20 +68,20 @@ mod primitive_Field {}
 
 /// A a compile-time, dynamically-sized string type.
 ///
-/// Compared to `str<N>` and `fmtstr<N, T>`,
+/// Compared to [`str`]`<N>` and [`fmtstr`]`<N, T>`,
 /// `CtString` is useful because its size does not need to be specified in its type. This
 /// can be used for formatting items at compile-time or general string handling in `comptime`
 /// code.
 ///
-/// Since `fmtstr`s can be converted into `CtString`s, you can make use of their formatting
-/// abilities in CtStrings by formatting in `fmtstr`s then converting the result to a CtString
+/// Since [`fmtstr`]s can be converted into `CtString`s, you can make use of their formatting
+/// abilities in CtStrings by formatting in [`fmtstr`]s then converting the result to a CtString
 /// afterward.
 #['nargo_doc_primitive CtString]
 mod primitive_CtString {}
 
 /// A compile-time, quoted, syntactically valid expression.
 ///
-/// An `Expr` can be obtained using `Quoted::as_expr`:
+/// An `Expr` can be obtained using [`Quoted::as_expr`]:
 ///
 /// ```
 /// fn main() {
@@ -138,7 +138,7 @@ mod primitive_FunctionDefinition {}
 /// }
 /// ```
 ///
-/// It can also be obtained using `Quoted::as_module`:
+/// It can also be obtained using [`Quoted::as_module`]:
 ///
 /// ```
 /// mod foo {}
@@ -160,11 +160,11 @@ mod primitive_Quoted {}
 
 /// A dynamically-sized view into a contiguous sequence, `[T]`.
 ///
-/// There are two syntactic forms for creating a slice:
-/// * A list with each element, i.e., `&[x, y, z]`.
-/// * A repeat expression `&[expr; N]` where `N` is how many times to repeat `expr` in the slice.
-#['nargo_doc_primitive slice]
-mod primitive_slice {}
+/// There are two syntactic forms for creating a vector:
+/// * A vector with each element, i.e., `&[x, y, z]`.
+/// * A repeat expression `&[expr; N]` where `N` is how many times to repeat `expr` in the vector.
+#['nargo_doc_primitive vector]
+mod primitive_vector {}
 
 /// The string type.
 ///
@@ -177,7 +177,7 @@ mod primitive_str {}
 /// This is similar syntactically to just the trait itself, but can also contain generic arguments.
 /// E.g. `Eq`, `Default`, `BuildHasher<Poseidon2Hasher>`.
 ///
-/// A `TraitConstraint` can be obtained using `Quoted::as_trait_constraint`:
+/// A `TraitConstraint` can be obtained using [`Quoted::as_trait_constraint`]:
 ///
 /// ```
 /// fn main() {
@@ -211,7 +211,7 @@ mod primitive_TraitImpl {}
 
 /// A compile-time type which represents a type in the source program.
 ///
-/// It can be obtained using `Quoted::as_type()`:
+/// It can be obtained using [`Quoted::as_type]`:
 ///
 /// ```
 /// fn main() {
@@ -241,7 +241,7 @@ mod primitive_TypeDefinition {}
 
 /// A compile-time type which represents a resolved and type-checked expression.
 ///
-/// A `TypedExpr` can be obtained using `Expr::resolve`:
+/// A `TypedExpr` can be obtained using [`Expr::resolve`]:
 ///
 /// ```
 /// fn main() {

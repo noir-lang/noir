@@ -519,6 +519,10 @@ impl Loop {
                 //    jmpif v2 then: b2, else: b3
                 Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
             }
+            Instruction::Cast(_, _) => {
+                // A cast of a constant would already be simplified
+                None
+            }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
@@ -749,7 +753,7 @@ impl Loop {
     ///   store v12 at v2               // store updated `sum`
     ///   v13 = load v4 -> u32          // load length of `arr`
     ///   v14 = load v6 -> [u32]        // load storage of `arr`
-    ///   v16, v17 = call slice_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
+    ///   v16, v17 = call vector_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
     ///   v19 = add v1, u32 1           // increase `arr`
     ///   jmp b1(v19)                   // back-edge of the loop
     /// b2():                           // after the loop
@@ -1969,8 +1973,6 @@ mod tests {
             v3 = eq v0, u128 {0}
             jmpif v3 then: b3, else: b2
           b2():
-            v2 = make_array b""
-            call print(u1 1, v0, v2, u1 0)
             v6 = unchecked_add v0, u128 1
             jmp b1(v6)
           b3():

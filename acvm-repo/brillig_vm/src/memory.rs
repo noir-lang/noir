@@ -14,6 +14,14 @@ pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 /// It gets manipulated by opcodes laid down for calls by codegen.
 pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
 
+/// The _free memory pointer_ is always in slot 1.
+///
+/// We added it here to be able to implement a workaround for wrapping around
+/// the free memory, ie. to detect "out of memory" events, but the AVM is not,
+/// and does not want to be aware of the _free memory pointer_, so we cannot,
+/// in general, build much functionality in the VM around it.
+pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
+
 /// Offset constants for arrays and vectors:
 /// * Arrays are `[ref-count, ...items]`
 /// * Vectors are `[ref-count, size, capacity, ...items]`
@@ -411,13 +419,18 @@ impl<F: AcirField> Memory<F> {
         MemoryAddress::direct(self.read(ptr).to_usize())
     }
 
-    /// Read a contiguous slice of memory starting at `address`, up to `len` slots.
+    /// Sets `ptr` to point at `address`.
+    pub fn write_ref(&mut self, ptr: MemoryAddress, address: MemoryAddress) {
+        self.write(ptr, MemoryValue::from(address.to_usize()));
+    }
+
+    /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
     pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
-        // Allows to read a slice of uninitialized memory if the length is zero.
+        // Allows to read a vector of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
-        // but that's not possible if we want to return a slice instead of owned data.
+        // but that's not possible if we want to return a vector instead of owned data.
         if len == 0 {
             return &[];
         }
@@ -589,7 +602,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
-    fn read_slice_from_non_existent_memory() {
+    fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);
     }

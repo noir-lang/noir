@@ -58,8 +58,10 @@ pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
     #[serde(default)] // For backwards compatibility
     pub function_name: String,
-    /// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
-    /// will take on this value. (The value is cached here as an optimization.)
+    /// The current highest witness index in the circuit.
+    ///
+    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
+    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
     pub current_witness_index: u32,
     /// The circuit opcodes representing the relationship between witness values.
     ///
@@ -249,10 +251,6 @@ impl std::fmt::Display for BrilligOpcodeLocation {
 }
 
 impl<F: AcirField> Circuit<F> {
-    pub fn num_vars(&self) -> u32 {
-        self.current_witness_index + 1
-    }
-
     /// Returns all witnesses which are required to execute the circuit successfully.
     pub fn circuit_arguments(&self) -> BTreeSet<Witness> {
         self.private_parameters.union(&self.public_parameters.0).cloned().collect()
@@ -565,16 +563,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_program_proto_roundtrip() {
-            run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = proto_serialize(&program);
-                let de = proto_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_program_bincode_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
                 let bz = bincode_serialize(&program)?;
@@ -605,16 +593,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_stack_proto_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = proto_serialize(&witness);
-                let de = proto_deserialize(&bz)?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_witness_stack_bincode_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
                 let bz = bincode_serialize(&witness)?;
@@ -639,16 +617,6 @@ mod tests {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
                 let bz = witness.serialize()?;
                 let de = WitnessStack::deserialize(bz.as_slice())?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
-        fn prop_witness_map_proto_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = proto_serialize(&witness);
-                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

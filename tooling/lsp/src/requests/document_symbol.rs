@@ -321,12 +321,14 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
-    fn visit_trait_item_constant(&mut self, name: &Ident, typ: &UnresolvedType) -> bool {
+    fn visit_trait_item_constant(&mut self, name: &Ident, typ: Option<&UnresolvedType>) -> bool {
         if name.is_empty() {
             return false;
         }
 
-        self.collect_in_constant(name, typ, None);
+        if let Some(typ) = typ {
+            self.collect_in_constant(name, typ, None);
+        }
         false
     }
 
@@ -381,21 +383,25 @@ impl Visitor for DocumentSymbolCollector<'_> {
     fn visit_trait_impl_item_constant(
         &mut self,
         name: &Ident,
-        typ: &UnresolvedType,
+        typ: Option<&UnresolvedType>,
         default_value: &Expression,
         _span: Span,
     ) -> bool {
-        self.collect_in_constant(name, typ, Some(default_value));
+        if let Some(typ) = typ {
+            self.collect_in_constant(name, typ, Some(default_value));
+        }
         false
     }
 
     fn visit_trait_impl_item_type(
         &mut self,
         name: &Ident,
-        alias: &UnresolvedType,
+        alias: Option<&UnresolvedType>,
         _span: Span,
     ) -> bool {
-        self.collect_in_type(name, Some(alias));
+        if let Some(alias) = alias {
+            self.collect_in_type(name, Some(alias));
+        }
         false
     }
 

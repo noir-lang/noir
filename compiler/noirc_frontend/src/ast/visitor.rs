@@ -86,7 +86,7 @@ pub trait Visitor {
     fn visit_trait_impl_item_constant(
         &mut self,
         _name: &Ident,
-        _typ: &UnresolvedType,
+        _typ: Option<&UnresolvedType>,
         _expression: &Expression,
         _span: Span,
     ) -> bool {
@@ -96,7 +96,7 @@ pub trait Visitor {
     fn visit_trait_impl_item_type(
         &mut self,
         _name: &Ident,
-        _alias: &UnresolvedType,
+        _alias: Option<&UnresolvedType>,
         _span: Span,
     ) -> bool {
         true
@@ -122,7 +122,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_trait_item_constant(&mut self, _name: &Ident, _typ: &UnresolvedType) -> bool {
+    fn visit_trait_item_constant(&mut self, _name: &Ident, _typ: Option<&UnresolvedType>) -> bool {
         true
     }
 
@@ -166,7 +166,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_literal_slice(&mut self, _: &ArrayLiteral, _: Span) -> bool {
+    fn visit_literal_vector(&mut self, _: &ArrayLiteral, _: Span) -> bool {
         true
     }
 
@@ -383,7 +383,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_slice_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+    fn visit_vector_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
         true
     }
 
@@ -686,14 +686,23 @@ impl TraitImplItemKind {
                 }
             }
             TraitImplItemKind::Constant(name, unresolved_type, expression) => {
-                if visitor.visit_trait_impl_item_constant(name, unresolved_type, expression, span) {
-                    unresolved_type.accept(visitor);
+                if visitor.visit_trait_impl_item_constant(
+                    name,
+                    unresolved_type.as_ref(),
+                    expression,
+                    span,
+                ) {
+                    if let Some(unresolved_type) = unresolved_type {
+                        unresolved_type.accept(visitor);
+                    }
                     expression.accept(visitor);
                 }
             }
             TraitImplItemKind::Type { name, alias } => {
-                if visitor.visit_trait_impl_item_type(name, alias, span) {
-                    alias.accept(visitor);
+                if visitor.visit_trait_impl_item_type(name, alias.as_ref(), span) {
+                    if let Some(alias) = alias {
+                        alias.accept(visitor);
+                    }
                 }
             }
         }
@@ -788,8 +797,10 @@ impl TraitItem {
                 }
             }
             TraitItem::Constant { name, typ } => {
-                if visitor.visit_trait_item_constant(name, typ) {
-                    typ.accept(visitor);
+                if visitor.visit_trait_item_constant(name, typ.as_ref()) {
+                    if let Some(typ) = typ {
+                        typ.accept(visitor);
+                    }
                 }
             }
             TraitItem::Type { name, bounds } => {
@@ -989,8 +1000,8 @@ impl Literal {
                     array_literal.accept(span, visitor);
                 }
             }
-            Literal::Slice(array_literal) => {
-                if visitor.visit_literal_slice(array_literal, span) {
+            Literal::Vector(array_literal) => {
+                if visitor.visit_literal_vector(array_literal, span) {
                     array_literal.accept(span, visitor);
                 }
             }
@@ -1167,7 +1178,9 @@ impl Lambda {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         for (_, unresolved_type) in &self.parameters {
-            unresolved_type.accept(visitor);
+            if let Some(typ) = unresolved_type {
+                typ.accept(visitor);
+            }
         }
 
         self.body.accept(visitor);
@@ -1259,7 +1272,9 @@ impl LetStatement {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.pattern.accept(visitor);
-        self.r#type.accept(visitor);
+        if let Some(typ) = &self.r#type {
+            typ.accept(visitor);
+        }
         self.expression.accept(visitor);
     }
 }
@@ -1410,8 +1425,8 @@ impl UnresolvedType {
                     unresolved_type.accept(visitor);
                 }
             }
-            UnresolvedTypeData::Slice(unresolved_type) => {
-                if visitor.visit_slice_type(unresolved_type, self.location.span) {
+            UnresolvedTypeData::Vector(unresolved_type) => {
+                if visitor.visit_vector_type(unresolved_type, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }
@@ -1459,7 +1474,6 @@ impl UnresolvedType {
                     expr.accept(visitor);
                 }
             }
-            UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
                 visitor.visit_resolved_type(*id, self.location);

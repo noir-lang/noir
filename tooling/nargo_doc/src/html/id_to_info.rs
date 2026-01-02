@@ -4,7 +4,7 @@ use noirc_frontend::ast::ItemVisibility;
 
 use crate::{
     html::{HasClass, has_uri::HasUri},
-    items::{Id, Item, Workspace},
+    items::{Item, ItemId, Workspace},
 };
 
 pub(super) struct ItemInfo {
@@ -18,7 +18,7 @@ pub(super) struct ItemInfo {
 }
 
 /// Computes an ItemInfo for every item in the workspace, indexed by its Id.
-pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<Id, ItemInfo> {
+pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<ItemId, ItemInfo> {
     let mut id_to_info = HashMap::new();
     let mut path = Vec::new();
 
@@ -27,7 +27,7 @@ pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<Id, ItemInfo>
         let uri = krate.uri();
         let class = module.class();
         let visibility = ItemVisibility::Public;
-        id_to_info.insert(module.id, ItemInfo { path: Vec::new(), uri, class, visibility });
+        id_to_info.insert(module.id.clone(), ItemInfo { path: Vec::new(), uri, class, visibility });
 
         path.push(krate.name.to_string());
 
@@ -44,14 +44,15 @@ pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<Id, ItemInfo>
 fn compute_id_to_info_in_item(
     item: &Item,
     visibility: ItemVisibility,
-    id_to_info: &mut HashMap<Id, ItemInfo>,
+    id_to_info: &mut HashMap<ItemId, ItemInfo>,
     path: &mut Vec<String>,
 ) {
     match item {
         Item::Module(module) => {
             let uri = format!("{}/{}", path.join("/"), module.uri());
             let class = module.class();
-            id_to_info.insert(module.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info
+                .insert(module.id.clone(), ItemInfo { path: path.clone(), uri, class, visibility });
 
             path.push(module.name.clone());
             for (item_visibility, item) in &module.items {
@@ -63,28 +64,38 @@ fn compute_id_to_info_in_item(
         Item::Struct(struct_) => {
             let uri = format!("{}/{}", path.join("/"), struct_.uri());
             let class = struct_.class();
-            id_to_info.insert(struct_.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info.insert(
+                struct_.id.clone(),
+                ItemInfo { path: path.clone(), uri, class, visibility },
+            );
         }
         Item::Trait(trait_) => {
             let uri = format!("{}/{}", path.join("/"), trait_.uri());
             let class = trait_.class();
-            id_to_info.insert(trait_.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info
+                .insert(trait_.id.clone(), ItemInfo { path: path.clone(), uri, class, visibility });
         }
         Item::TypeAlias(type_alias) => {
             let uri = format!("{}/{}", path.join("/"), type_alias.uri());
             let class = type_alias.class();
-            id_to_info
-                .insert(type_alias.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info.insert(
+                type_alias.id.clone(),
+                ItemInfo { path: path.clone(), uri, class, visibility },
+            );
         }
         Item::Function(function) => {
             let uri = format!("{}/{}", path.join("/"), function.uri());
             let class = function.class();
-            id_to_info.insert(function.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info.insert(
+                function.id.clone(),
+                ItemInfo { path: path.clone(), uri, class, visibility },
+            );
         }
         Item::Global(global) => {
             let uri = format!("{}/{}", path.join("/"), global.uri());
             let class = global.class();
-            id_to_info.insert(global.id, ItemInfo { path: path.clone(), uri, class, visibility });
+            id_to_info
+                .insert(global.id.clone(), ItemInfo { path: path.clone(), uri, class, visibility });
         }
         Item::PrimitiveType(_) | Item::Reexport(_) => {}
     }

@@ -44,6 +44,9 @@ fn main() -> Result<(), String> {
     generate_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -104,7 +107,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
     ("reference_counts_inliner_0", 0),
     ("reference_counts_inliner_min", i64::MIN),
     ("reference_counts_inliner_max", i64::MAX),
-    ("reference_counts_slices_inliner_0", 0),
+    ("reference_counts_vectors_inliner_0", 0),
 ];
 
 /// Some tests are expected to have warnings
@@ -131,13 +134,33 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     "reference_counts_inliner_max",
 ];
 
+/// `nargo execute --force-comptime` ignored tests because of bugs or because some
+/// programs don't behave the same way in comptime (for example: reference counting).
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
+    // These check reference counts, which aren't tracked in comptime code
+    "reference_counts_inliner_0",
+    "reference_counts_inliner_max",
+    "reference_counts_inliner_min",
+    "reference_counts_vectors_inliner_0",
+    // Enums are currently unsupported in comptime code
+    "regression_7323",
+];
+
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+/// We usually check that the stdout of `nargo execute --force-comptime` matches
+/// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
+/// this can be solved.
+/// There are two Noir types that show out differently in comptime: functions and references.
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
+    ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
+
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
-    "array_to_slice_constant_length",
+    "array_to_vector_constant_length",
     "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
@@ -214,7 +237,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 17] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
@@ -231,6 +254,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
     "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
     "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
     "noirc_frontend_tests_traits_trait_bound_on_implementing_type",
+    "function_registry",
+    "regression_10887", // expands into global struct with private fields
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
@@ -351,7 +376,6 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
 
     #[allow(unused_mut)]
     let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
-
     {test_content}
 }}
 "#
@@ -490,6 +514,83 @@ fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
             "execution_panic(nargo);",
             &MatrixConfig::default(),
         );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
+        let check_stdout =
+            !IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS.contains(&test_name.as_str());
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+            #[test]
+            {should_panic}
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_execute_comptime(test_program_dir, {check_stdout});
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+          use super::*;
+      "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        let should_panic =
+            if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+                "#[should_panic]"
+            } else {
+                ""
+            };
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+              #[test]
+              {should_panic}
+              fn test_{test_name}() {{
+                  let test_program_dir = PathBuf::from("{test_dir}");
+                  nargo_execute_comptime_expect_failure(test_program_dir);
+              }}
+              "#
+        )
+        .unwrap();
     }
     writeln!(test_file, "}}").unwrap();
 }
