@@ -9,7 +9,8 @@ use crate::ssa::{
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::{Instruction, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -342,11 +343,119 @@ pub(crate) fn compute_bottom_up_order(
 fn compute_function_own_weight(func: &Function) -> usize {
     let mut weight = 0;
     for block_id in func.reachable_blocks() {
-        weight += func.dfg[block_id].instructions().len() + 1; // We add one for the terminator
+        for instruction in func.dfg[block_id].instructions() {
+            weight += brillig_cost(*instruction, &func.dfg);
+        }
+        // TODO: We add one for the terminator. This can be improved as Jmp and Return must move their arguments
+        weight += 1;
     }
     // We use an approximation of the average increase in instruction ratio from SSA to Brillig
     // In order to get the actual weight we'd need to codegen this function to brillig.
     weight
+}
+
+/// Computes a cost estimate of a basic block
+/// WARNING: these are estimates of the runtime cost of each instruction,
+/// These numbers can be improved.
+fn brillig_cost(instruction: InstructionId, dfg: &DataFlowGraph) -> usize {
+    match &dfg[instruction] {
+        Instruction::Binary(binary) => {
+            // TODO: various operations have different costs for unsigned/signed
+            match binary.operator {
+                BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } => {
+                    if unchecked {
+                        3
+                    } else {
+                        7
+                    }
+                }
+                BinaryOp::Mul { unchecked } => {
+                    if unchecked {
+                        3
+                    } else {
+                        8
+                    }
+                }
+                // TODO: signed div/mod have different costs
+                BinaryOp::Div => 1,
+                BinaryOp::Mod => 3,
+                BinaryOp::Eq => 1,
+                // TODO: unsigned and signed lt have different costs
+                BinaryOp::Lt => 5,
+                BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => 1,
+                // TODO: signed shl/shr have different costs
+                BinaryOp::Shl | BinaryOp::Shr => 1,
+            }
+        }
+        // A Cast can be either simplified, or lead to a truncate
+        Instruction::Cast(_, _) => 3,
+        Instruction::Not(_) => 1,
+        Instruction::Truncate { .. } => 7,
+
+        Instruction::Constrain(..) => {
+            // TODO: could put estimate cost for static or dynamic message. Just checking static at the moment
+            4
+        }
+
+        // TODO: Only implemented in ACIR, probably just error here but right we compute costs of all functions
+        Instruction::ConstrainNotEqual(..) => 1,
+
+        // TODO: look into how common this is in Brillig, just return one for now
+        Instruction::RangeCheck { .. } => 1,
+
+        Instruction::Call { func, arguments } => {
+            match dfg[*func] {
+                Value::Function(_) => {
+                    let results = dfg.instruction_results(instruction);
+                    5 + arguments.len() + results.len()
+                }
+                Value::ForeignFunction(_) => {
+                    // TODO: we should differentiate inputs/outputs with array and vector allocations
+                    1
+                }
+                Value::Intrinsic(intrinsic) => {
+                    match intrinsic {
+                        Intrinsic::ArrayLen => 1,
+                        Intrinsic::AsSlice => {
+                            10 // mem copy
+                            + 8 // vector and array pointer init
+                            + 2 // size registers
+                        }
+                        Intrinsic::BlackBox(_) => {
+                            // TODO: we could differentiate inputs/outputs with array and vector inputs (we add one to the pointer)
+                            1
+                        }
+                        Intrinsic::FieldLessThan => 1,
+                        _ => 1,
+                    }
+                }
+
+                Value::Instruction { .. }
+                | Value::Param { .. }
+                | Value::NumericConstant { .. }
+                | Value::Global(_) => {
+                    unreachable!("unsupported function call type {:?}", dfg[*func])
+                }
+            }
+        }
+
+        Instruction::Allocate | Instruction::Load { .. } | Instruction::Store { .. } => 1,
+
+        Instruction::ArraySet { .. } => {
+            // NOTE: Assumes that the RC is one
+            7
+        }
+        Instruction::ArrayGet { .. } => 1,
+        // if less than 10 elements, it is translated into a store for each element
+        // if more than 10, it is a loop, so 20 should be a good estimate, worst case being 10 stores and ~10 index increments
+        Instruction::MakeArray { .. } => 20,
+
+        Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => 3,
+
+        Instruction::EnableSideEffectsIf { .. } | Instruction::Noop => 0,
+        // TODO: this is only true for non array values
+        Instruction::IfElse { .. } => 1,
+    }
 }
 
 /// Compute interface cost of a function based on the number of inputs and outputs.
