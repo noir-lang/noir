@@ -113,6 +113,8 @@ jobs:
     runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we need apply changes to the sticky comment.
     if: ${{ always() && needs.release-please.outputs.release-pr }}
+    permissions:
+      pull-requests: write
 
     needs:
       - release-please
