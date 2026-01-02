@@ -2665,7 +2665,176 @@
 <a href="#2664" id="2664">2664</a>
 <a href="#2665" id="2665">2665</a>
 <a href="#2666" id="2666">2666</a>
-<a href="#2667" id="2667">2667</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2667" id="2667">2667</a>
+<a href="#2668" id="2668">2668</a>
+<a href="#2669" id="2669">2669</a>
+<a href="#2670" id="2670">2670</a>
+<a href="#2671" id="2671">2671</a>
+<a href="#2672" id="2672">2672</a>
+<a href="#2673" id="2673">2673</a>
+<a href="#2674" id="2674">2674</a>
+<a href="#2675" id="2675">2675</a>
+<a href="#2676" id="2676">2676</a>
+<a href="#2677" id="2677">2677</a>
+<a href="#2678" id="2678">2678</a>
+<a href="#2679" id="2679">2679</a>
+<a href="#2680" id="2680">2680</a>
+<a href="#2681" id="2681">2681</a>
+<a href="#2682" id="2682">2682</a>
+<a href="#2683" id="2683">2683</a>
+<a href="#2684" id="2684">2684</a>
+<a href="#2685" id="2685">2685</a>
+<a href="#2686" id="2686">2686</a>
+<a href="#2687" id="2687">2687</a>
+<a href="#2688" id="2688">2688</a>
+<a href="#2689" id="2689">2689</a>
+<a href="#2690" id="2690">2690</a>
+<a href="#2691" id="2691">2691</a>
+<a href="#2692" id="2692">2692</a>
+<a href="#2693" id="2693">2693</a>
+<a href="#2694" id="2694">2694</a>
+<a href="#2695" id="2695">2695</a>
+<a href="#2696" id="2696">2696</a>
+<a href="#2697" id="2697">2697</a>
+<a href="#2698" id="2698">2698</a>
+<a href="#2699" id="2699">2699</a>
+<a href="#2700" id="2700">2700</a>
+<a href="#2701" id="2701">2701</a>
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a>
+<a href="#2710" id="2710">2710</a>
+<a href="#2711" id="2711">2711</a>
+<a href="#2712" id="2712">2712</a>
+<a href="#2713" id="2713">2713</a>
+<a href="#2714" id="2714">2714</a>
+<a href="#2715" id="2715">2715</a>
+<a href="#2716" id="2716">2716</a>
+<a href="#2717" id="2717">2717</a>
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a>
+<a href="#2740" id="2740">2740</a>
+<a href="#2741" id="2741">2741</a>
+<a href="#2742" id="2742">2742</a>
+<a href="#2743" id="2743">2743</a>
+<a href="#2744" id="2744">2744</a>
+<a href="#2745" id="2745">2745</a>
+<a href="#2746" id="2746">2746</a>
+<a href="#2747" id="2747">2747</a>
+<a href="#2748" id="2748">2748</a>
+<a href="#2749" id="2749">2749</a>
+<a href="#2750" id="2750">2750</a>
+<a href="#2751" id="2751">2751</a>
+<a href="#2752" id="2752">2752</a>
+<a href="#2753" id="2753">2753</a>
+<a href="#2754" id="2754">2754</a>
+<a href="#2755" id="2755">2755</a>
+<a href="#2756" id="2756">2756</a>
+<a href="#2757" id="2757">2757</a>
+<a href="#2758" id="2758">2758</a>
+<a href="#2759" id="2759">2759</a>
+<a href="#2760" id="2760">2760</a>
+<a href="#2761" id="2761">2761</a>
+<a href="#2762" id="2762">2762</a>
+<a href="#2763" id="2763">2763</a>
+<a href="#2764" id="2764">2764</a>
+<a href="#2765" id="2765">2765</a>
+<a href="#2766" id="2766">2766</a>
+<a href="#2767" id="2767">2767</a>
+<a href="#2768" id="2768">2768</a>
+<a href="#2769" id="2769">2769</a>
+<a href="#2770" id="2770">2770</a>
+<a href="#2771" id="2771">2771</a>
+<a href="#2772" id="2772">2772</a>
+<a href="#2773" id="2773">2773</a>
+<a href="#2774" id="2774">2774</a>
+<a href="#2775" id="2775">2775</a>
+<a href="#2776" id="2776">2776</a>
+<a href="#2777" id="2777">2777</a>
+<a href="#2778" id="2778">2778</a>
+<a href="#2779" id="2779">2779</a>
+<a href="#2780" id="2780">2780</a>
+<a href="#2781" id="2781">2781</a>
+<a href="#2782" id="2782">2782</a>
+<a href="#2783" id="2783">2783</a>
+<a href="#2784" id="2784">2784</a>
+<a href="#2785" id="2785">2785</a>
+<a href="#2786" id="2786">2786</a>
+<a href="#2787" id="2787">2787</a>
+<a href="#2788" id="2788">2788</a>
+<a href="#2789" id="2789">2789</a>
+<a href="#2790" id="2790">2790</a>
+<a href="#2791" id="2791">2791</a>
+<a href="#2792" id="2792">2792</a>
+<a href="#2793" id="2793">2793</a>
+<a href="#2794" id="2794">2794</a>
+<a href="#2795" id="2795">2795</a>
+<a href="#2796" id="2796">2796</a>
+<a href="#2797" id="2797">2797</a>
+<a href="#2798" id="2798">2798</a>
+<a href="#2799" id="2799">2799</a>
+<a href="#2800" id="2800">2800</a>
+<a href="#2801" id="2801">2801</a>
+<a href="#2802" id="2802">2802</a>
+<a href="#2803" id="2803">2803</a>
+<a href="#2804" id="2804">2804</a>
+<a href="#2805" id="2805">2805</a>
+<a href="#2806" id="2806">2806</a>
+<a href="#2807" id="2807">2807</a>
+<a href="#2808" id="2808">2808</a>
+<a href="#2809" id="2809">2809</a>
+<a href="#2810" id="2810">2810</a>
+<a href="#2811" id="2811">2811</a>
+<a href="#2812" id="2812">2812</a>
+<a href="#2813" id="2813">2813</a>
+<a href="#2814" id="2814">2814</a>
+<a href="#2815" id="2815">2815</a>
+<a href="#2816" id="2816">2816</a>
+<a href="#2817" id="2817">2817</a>
+<a href="#2818" id="2818">2818</a>
+<a href="#2819" id="2819">2819</a>
+<a href="#2820" id="2820">2820</a>
+<a href="#2821" id="2821">2821</a>
+<a href="#2822" id="2822">2822</a>
+<a href="#2823" id="2823">2823</a>
+<a href="#2824" id="2824">2824</a>
+<a href="#2825" id="2825">2825</a>
+<a href="#2826" id="2826">2826</a>
+<a href="#2827" id="2827">2827</a>
+<a href="#2828" id="2828">2828</a>
+<a href="#2829" id="2829">2829</a>
+<a href="#2830" id="2830">2830</a>
+<a href="#2831" id="2831">2831</a>
+<a href="#2832" id="2832">2832</a>
+<a href="#2833" id="2833">2833</a>
+<a href="#2834" id="2834">2834</a>
+<a href="#2835" id="2835">2835</a>
+<a href="#2836" id="2836">2836</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2760,6 +2929,7 @@
         types::Type,
         value::{Value, ValueId},
     },
+    opt::unrolling::Loops,
     ssa_gen::Ssa,
 };
 
@@ -2780,10 +2950,49 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mem2reg(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="self">self</span>);
+        <span class="comment">// Analyze loops to find potential loop carried aliases
+        </span><span class="kw">let </span>loop_aliases = <span class="self">Self</span>::analyze_loop_aliases(<span class="self">self</span>);
+        <span class="comment">// Perform mem2reg optimization with loop carried alias information
+        // Non-lop alias information will be analyzed as part of mem2reg
+        </span><span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="self">self</span>, loop_aliases);
         context.mem2reg();
         context.remove_instructions();
         context.update_data_bus();
+    }
+
+    <span class="doccomment">/// Analyzes all loops in the function to find references with potential loop carried aliases.
+    ///
+    /// A loop carried alias occurs when a reference is stored into another reference
+    /// within a loop. This creates an aliasing relationship that persists across loop iterations,
+    /// making it unsafe to remove certain stores to these references.
+    ///
+    /// Returns a set of values that may have loop carried aliases.
+    </span><span class="kw">fn </span>analyze_loop_aliases(function: <span class="kw-2">&amp;</span>Function) -&gt; HashSet&lt;ValueId&gt; {
+        <span class="kw">let </span>loops = Loops::find_all(function);
+        <span class="kw">let </span><span class="kw-2">mut </span>aliases: HashSet&lt;ValueId&gt; = HashSet::default();
+
+        <span class="comment">// For each loop, find all `store ref_value at ref_address` patterns
+        </span><span class="kw">for </span>loop_info <span class="kw">in </span><span class="kw-2">&amp;</span>loops.yet_to_unroll {
+            <span class="kw">for </span>block_id <span class="kw">in </span><span class="kw-2">&amp;</span>loop_info.blocks {
+                <span class="kw">let </span>block = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>block_id];
+
+                <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
+                    <span class="kw">if let </span>Instruction::Store { address, value } = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction_id] {
+                        <span class="comment">// Check if both the address and value are references
+                        // This indicates we're storing a reference into another reference
+                        </span><span class="kw">if </span>function.dfg.value_is_reference(<span class="kw-2">*</span>address)
+                            &amp;&amp; function.dfg.value_is_reference(<span class="kw-2">*</span>value)
+                        {
+                            <span class="comment">// Mark both the address and value as potentially aliased
+                            </span>aliases.insert(<span class="kw-2">*</span>address);
+                            aliases.insert(<span class="kw-2">*</span>value);
+                        }
+                    }
+                }
+            }
+        }
+
+        aliases
     }
 }
 
@@ -2817,13 +3026,16 @@
     /// instruction that aliased that reference.
     /// If that store has been set for removal, we can also remove this instruction.
     </span>aliased_references: HashMap&lt;ValueId, HashSet&lt;InstructionId&gt;&gt;,
+
+    <span class="doccomment">/// Loop carried aliases: references that may have aliases due to stores within loops.
+    /// Contains values of references that should not have their stores removed.
+    </span>loop_aliases: HashSet&lt;ValueId&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'f</span>&gt; PerFunctionContext&lt;<span class="lifetime">'f</span>&gt; {
-    <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span><span class="kw-2">mut </span>Function) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span><span class="kw-2">mut </span>Function, loop_aliases: HashSet&lt;ValueId&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
         <span class="kw">let </span>post_order = PostOrder::with_cfg(<span class="kw-2">&amp;</span>cfg);
-
         PerFunctionContext {
             cfg,
             post_order,
@@ -2834,7 +3046,23 @@
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
+            loop_aliases,
         }
+    }
+
+    <span class="doccomment">/// Check if an address has loop carried aliases.
+    ///
+    /// This is important for preventing incorrect store removal. If `store v3 at v2`
+    /// occurs in a loop, then v2 may point to v3 in future iterations. A subsequent
+    /// `store X at v3` should not have its previous store removed, as that store may
+    /// be read through v2 (which now aliases v3) in a future loop iteration.
+    ///
+    /// We only check the address, not the value being stored. The decision of
+    /// whether to remove a previous store to `address` depends solely on whether
+    /// `address` might be accessed through an alias, not on whether the value being
+    /// stored has aliases.
+    </span><span class="kw">fn </span>has_loop_carried_aliases(<span class="kw-2">&amp;</span><span class="self">self</span>, address: ValueId) -&gt; bool {
+        <span class="self">self</span>.loop_aliases.contains(<span class="kw-2">&amp;</span>address)
     }
 
     <span class="doccomment">/// Apply the mem2reg pass to the given function.
@@ -3200,9 +3428,14 @@
                 <span class="kw">let </span>value = <span class="kw-2">*</span>value;
 
                 <span class="kw">let </span>address_aliases = references.get_aliases_for_value(address);
-                <span class="comment">// If there was another store to this instruction without any (unremoved) loads or
+                <span class="comment">// If there was another store to this address without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                </span><span class="kw">if </span>!<span class="self">self</span>.aliased_references.contains_key(<span class="kw-2">&amp;</span>address) &amp;&amp; !address_aliases.is_unknown()
+                // However, we must be conservative if there are loop carried aliases, as loads
+                // through those aliases may occur in future loop iterations.
+                </span><span class="kw">let </span>has_loop_aliases = <span class="self">self</span>.has_loop_carried_aliases(address);
+                <span class="kw">if </span>!<span class="self">self</span>.aliased_references.contains_key(<span class="kw-2">&amp;</span>address)
+                    &amp;&amp; !address_aliases.is_unknown()
+                    &amp;&amp; !has_loop_aliases
                 {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(last_store) = references.last_stores.get(<span class="kw-2">&amp;</span>address) {
                         <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>last_store);
@@ -3527,7 +3760,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{Ssa, interpreter::value::Value, opt::assert_ssa_does_not_change},
     };
 
     <span class="attr">#[test]
@@ -5330,6 +5563,111 @@
         }
         "</span>;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>aliases_in_a_loop() {
+        <span class="kw">let </span>src = <span class="string">"
+      acir(inline) impure fn main f0 {
+        b0():
+          v1 = call f1() -&gt; Field
+          return v1
+      }
+      brillig(inline) impure fn foo f1 {
+        b0():
+          v0 = allocate -&gt; &amp;mut Field
+          store Field 3405691582 at v0
+          v4 = call f2(v0, Field 3735928559) -&gt; Field
+          return v4
+      }
+      brillig(inline) impure fn bar f2 {
+        b0(v0: &amp;mut Field, v1: Field):
+          v2 = allocate -&gt; &amp;mut &amp;mut Field
+          store v0 at v2
+          v3 = allocate -&gt; &amp;mut Field
+          store v1 at v3
+          v4 = allocate -&gt; &amp;mut Field
+          store Field 0 at v4
+          jmp b1()
+        b1():
+          v6 = load v4 -&gt; Field
+          v8 = eq v6, Field 2
+          jmpif v8 then: b2, else: b3
+        b2():
+          jmp b4()
+        b3():
+          v9 = load v4 -&gt; Field
+          v11 = add v9, Field 1
+          store v11 at v4
+          store Field 3735928559 at v3
+          v13 = load v2 -&gt; &amp;mut Field
+          v14 = load v13 -&gt; Field
+          v15 = load v3 -&gt; Field
+          store v14 at v3
+          store v3 at v2
+          jmp b1()
+        b4():
+          v16 = load v3 -&gt; Field
+          return v16
+      }
+      "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[]).unwrap();
+        <span class="macro">assert_eq!</span>(result, <span class="macro">vec!</span>[Value::field(<span class="number">3735928559u128</span>.into())]);
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="kw">let </span>mem2reg_result = ssa.interpret(<span class="macro">vec!</span>[]).unwrap();
+        <span class="macro">assert_eq!</span>(result, mem2reg_result);
+
+        <span class="comment">// We expect `store Field 3735928559 at v3` to remain.
+        // If alias analysis does not account for loops, when mem2reg sees `store v14 at v3`
+        // it will view the first store as being overwritten.
+        // However, the following instruction `store v3 at v2` makes v3 and the loaded result of v2 possibly alias one another.
+        // In the next loop iteration, `v13 = load v2` were are returning v3 (through the alias) and then loading
+        // from the alias with `v14 = load v13`. We should only remove a last store if there are no (unremoved) loads from that address
+        // between the last store and the current one. Thus, `store Field 3735928559 at v3` should not be removed
+        // as we load from v13 (an alias of v3) before we reach `store v14 at v3`.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+      acir(inline) impure fn main f0 {
+        b0():
+          v1 = call f1() -&gt; Field
+          return v1
+      }
+      brillig(inline) impure fn foo f1 {
+        b0():
+          v0 = allocate -&gt; &amp;mut Field
+          store Field 3405691582 at v0
+          v4 = call f2(v0, Field 3735928559) -&gt; Field
+          return v4
+      }
+      brillig(inline) impure fn bar f2 {
+        b0(v0: &amp;mut Field, v1: Field):
+          v2 = allocate -&gt; &amp;mut &amp;mut Field
+          store v0 at v2
+          v3 = allocate -&gt; &amp;mut Field
+          store v1 at v3
+          v4 = allocate -&gt; &amp;mut Field
+          store Field 0 at v4
+          jmp b1()
+        b1():
+          v6 = load v4 -&gt; Field
+          v8 = eq v6, Field 2
+          jmpif v8 then: b2, else: b3
+        b2():
+          jmp b4()
+        b3():
+          v10 = add v6, Field 1
+          store v10 at v4
+          store Field 3735928559 at v3
+          v12 = load v2 -&gt; &amp;mut Field
+          v13 = load v12 -&gt; Field
+          store v13 at v3
+          store v3 at v2
+          jmp b1()
+        b4():
+          v14 = load v3 -&gt; Field
+          return v14
+      }
+      "</span>);
     }
 }
 </code></pre></div></section></main></body></html>
