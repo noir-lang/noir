@@ -17,6 +17,7 @@ use acvm::acir::{
     native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
+use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
@@ -26,7 +27,7 @@ use std::borrow::Cow;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use crate::{
     ErrorType,
-    errors::{InternalBug, InternalError, RuntimeError, SsaReport},
+    errors::{InternalError, RuntimeError},
 };
 
 mod black_box;

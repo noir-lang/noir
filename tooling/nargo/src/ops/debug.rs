@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use fm::FileManager;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompileOptions, CompiledProgram, CrateId, compile_no_check, file_manager_with_stdlib,
-    link_to_debug_crate,
+    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,

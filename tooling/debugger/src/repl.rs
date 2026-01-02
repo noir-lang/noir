@@ -3,12 +3,12 @@ use crate::context::{
     DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
     RunParams,
 };
-use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 
 use easy_repl::{CommandStatus, Repl, command};
+use noirc_artifacts::program::CompiledProgram;
 use std::cell::RefCell;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;

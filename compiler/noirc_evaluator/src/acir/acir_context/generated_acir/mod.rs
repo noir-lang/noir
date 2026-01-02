@@ -17,18 +17,16 @@ use acvm::acir::{
     },
     native_types::{Expression, Witness},
 };
+use noirc_artifacts::{debug::ProcedureDebugId, ssa::SsaReport};
 
 use crate::{
     ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
-    errors::{InternalError, RuntimeError, SsaReport},
+    errors::{InternalError, RuntimeError},
 };
 
 use iter_extended::vecmap;
-use noirc_errors::{
-    call_stack::{CallStack, CallStackHelper, CallStackId},
-    debug_info::ProcedureDebugId,
-};
+use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 
 mod brillig_directive;
