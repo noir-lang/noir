@@ -1971,7 +1971,7 @@
     </span><span class="kw">pub fn </span>fuzz(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; FuzzTestResult {
         <span class="self">self</span>.metrics.set_num_threads(<span class="self">self</span>.num_threads);
         <span class="comment">// Generate a seed for the campaign
-        </span><span class="kw">let </span>seed = thread_rng().r#gen::&lt;u64&gt;();
+        </span><span class="kw">let </span>seed = rand::rng().random::&lt;u64&gt;();
 
         <span class="comment">// Init a fast PRNG used throughout the campaign
         </span><span class="kw">let </span><span class="kw-2">mut </span>prng = XorShiftRng::seed_from_u64(seed);

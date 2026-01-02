@@ -259,7 +259,7 @@
                 <span class="kw">use </span>rand::Rng;
 
                 base.add_layer(<span class="self">self</span>.resolver_url.map(|resolver_url| {
-                    <span class="kw">let </span>id = rand::thread_rng().r#gen();
+                    <span class="kw">let </span>id = rand::rng().random::&lt;u64&gt;();
                     RPCForeignCallExecutor::new(
                         <span class="kw-2">&amp;</span>resolver_url,
                         id,

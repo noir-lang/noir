@@ -297,7 +297,8 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::mutation::configurations::{
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::mutation::configurations::{
     BASIC_SPLICE_MUTATION_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
     TopLevelMutationOptions,
 };
@@ -311,7 +312,7 @@
 <span class="kw">use </span><span class="kw">super</span>::dictionary::IntDictionary;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_abi::input_parser::InputValue;
-<span class="kw">use </span>rand::{Rng, seq::SliceRandom};
+<span class="kw">use </span>rand::{Rng, seq::IndexedRandom};
 <span class="kw">use </span>rand_xorshift::XorShiftRng;
 <span class="kw">use </span>std::cmp::min;
 
@@ -355,12 +356,12 @@
     <span class="doccomment">/// Perform one of value-changing mutations (substitution by a dictionary or random value)
     </span><span class="kw">fn </span>perform_value_mutation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>[u8]) -&gt; Vec&lt;u8&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>result = input.to_vec();
-        <span class="kw">let </span>position = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..input.len());
+        <span class="kw">let </span>position = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..input.len());
         result[position] = <span class="kw">match </span><span class="self">self</span>.value_mutation_configuration.select(<span class="self">self</span>.prng) {
             ByteValueMutationOptions::DictionaryByte =&gt; {
                 <span class="self">self</span>.dictionary.choose(<span class="self">self</span>.prng).unwrap().to_i128() <span class="kw">as </span>u8 &amp; MAX_ASCII
             }
-            ByteValueMutationOptions::RandomByte =&gt; <span class="self">self</span>.prng.gen_range(MIN_ASCII..=MAX_ASCII),
+            ByteValueMutationOptions::RandomByte =&gt; <span class="self">self</span>.prng.random_range(MIN_ASCII..=MAX_ASCII),
         };
         result
     }
@@ -404,15 +405,16 @@
         <span class="kw">let </span>buffer_length = buffer.len();
 
         <span class="comment">// We need to leave at least the last byte for the second chunk
-        </span><span class="kw">let </span>first_chunk_position = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..(buffer_length - <span class="number">1</span>));
+        </span><span class="kw">let </span>first_chunk_position = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..(buffer_length - <span class="number">1</span>));
 
         <span class="comment">// The second chunk starts after the first
-        </span><span class="kw">let </span>second_chunk_position = <span class="self">self</span>.prng.gen_range((first_chunk_position + <span class="number">1</span>)..buffer_length);
+        </span><span class="kw">let </span>second_chunk_position =
+            <span class="self">self</span>.prng.random_range((first_chunk_position + <span class="number">1</span>)..buffer_length);
 
         <span class="kw">let </span>first_chunk_end =
-            <span class="self">self</span>.prng.gen_range((first_chunk_position + <span class="number">1</span>)..=second_chunk_position);
+            <span class="self">self</span>.prng.random_range((first_chunk_position + <span class="number">1</span>)..=second_chunk_position);
 
-        <span class="kw">let </span>second_chunk_end = <span class="self">self</span>.prng.gen_range((second_chunk_position + <span class="number">1</span>)..=buffer_length);
+        <span class="kw">let </span>second_chunk_end = <span class="self">self</span>.prng.random_range((second_chunk_position + <span class="number">1</span>)..=buffer_length);
 
         <span class="comment">// Leave the start in place
         </span>result.extend_from_slice(<span class="kw-2">&amp;</span>buffer[<span class="number">0</span>..first_chunk_position]);
@@ -440,18 +442,18 @@
         </span><span class="kw">let </span>maximum_chunk_length = buffer_length / <span class="number">2</span>;
 
         <span class="comment">// Get a random position for the chunk
-        </span><span class="kw">let </span>chunk_position = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..=buffer_length - <span class="number">1</span>);
+        </span><span class="kw">let </span>chunk_position = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..=buffer_length - <span class="number">1</span>);
 
         <span class="comment">// Pick size
         </span><span class="kw">let </span>chunk_size =
-            <span class="self">self</span>.prng.gen_range(<span class="number">1</span>..=min(buffer_length - chunk_position, maximum_chunk_length));
+            <span class="self">self</span>.prng.random_range(<span class="number">1</span>..=min(buffer_length - chunk_position, maximum_chunk_length));
 
         <span class="comment">// Find an insertion position with enough space
-        </span><span class="kw">let </span>insertion_position = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..(buffer_length - chunk_size));
+        </span><span class="kw">let </span>insertion_position = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..(buffer_length - chunk_size));
 
         <span class="comment">// Determine how many times to repeat
         </span><span class="kw">let </span>maximum_insertion_count = (buffer_length - insertion_position) / chunk_size;
-        <span class="kw">let </span>insertion_count = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..=maximum_insertion_count);
+        <span class="kw">let </span>insertion_count = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..=maximum_insertion_count);
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..insertion_count {
             result.splice(
                 (insertion_position + i * chunk_size)..(insertion_position + (i + <span class="number">1</span>) * chunk_size),
@@ -467,13 +469,13 @@
         <span class="kw">let </span>buffer_length = input_buffer.len();
 
         <span class="comment">// Find an insertion position with enough space
-        </span><span class="kw">let </span>insertion_position = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..buffer_length);
+        </span><span class="kw">let </span>insertion_position = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..buffer_length);
 
         <span class="comment">// Pick count
-        </span><span class="kw">let </span>insertion_count = <span class="self">self</span>.prng.gen_range(<span class="number">1</span>..=(buffer_length - insertion_position));
+        </span><span class="kw">let </span>insertion_count = <span class="self">self</span>.prng.random_range(<span class="number">1</span>..=(buffer_length - insertion_position));
 
         <span class="comment">// Pick value
-        </span><span class="kw">let </span>value = <span class="self">self</span>.prng.gen_range(MIN_ASCII..=MAX_ASCII);
+        </span><span class="kw">let </span>value = <span class="self">self</span>.prng.random_range(MIN_ASCII..=MAX_ASCII);
         <span class="kw">for </span>item <span class="kw">in </span>result.iter_mut().skip(insertion_position).take(insertion_count) {
             <span class="kw-2">*</span>item = value;
         }
@@ -490,7 +492,7 @@
         <span class="kw">let </span>buffer_length = first_buffer.len();
         <span class="kw">while </span>index != buffer_length {
             <span class="comment">// Pick the length of the sequence from 1 to maximum available
-            </span><span class="kw">let </span>sequence_length = <span class="self">self</span>.prng.gen_range(<span class="number">1</span>..=(buffer_length - index));
+            </span><span class="kw">let </span>sequence_length = <span class="self">self</span>.prng.random_range(<span class="number">1</span>..=(buffer_length - index));
 
             <span class="comment">// If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
@@ -516,9 +518,9 @@
         result.resize(buffer_length, <span class="number">0</span>);
         <span class="kw">while </span>index != buffer_length {
             <span class="comment">// Pick the length of the sequence from 1 to maximum available
-            </span><span class="kw">let </span>sequence_length = <span class="self">self</span>.prng.gen_range(<span class="number">1</span>..=(buffer_length - index));
+            </span><span class="kw">let </span>sequence_length = <span class="self">self</span>.prng.random_range(<span class="number">1</span>..=(buffer_length - index));
 
-            <span class="kw">let </span>source_position = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..=(buffer_length - sequence_length));
+            <span class="kw">let </span>source_position = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..=(buffer_length - sequence_length));
             <span class="comment">// If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
             </span><span class="kw">match </span>BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION.select(<span class="self">self</span>.prng) {

@@ -520,9 +520,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_unsigned_add() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.random();
+        <span class="kw">let </span>rhs: u64 = rng.random();
 
         <span class="comment">// to prevent `attempt to add with overflow`
         </span>lhs %= <span class="number">12341234</span>;
@@ -556,9 +556,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_signed_add() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs: i64 = rng.r#gen();
-        <span class="kw">let </span>rhs: i64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: i64 = rng.random();
+        <span class="kw">let </span>rhs: i64 = rng.random();
 
         <span class="comment">// to prevent `attempt to add with overflow`
         </span>lhs %= <span class="number">12341234</span>;
@@ -572,9 +572,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_unsigned_sub() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.random();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.random();
 
         <span class="comment">// to prevent `attempt to subtract with overflow`
         </span><span class="kw">if </span>lhs &lt; rhs {
@@ -590,9 +590,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_signed_sub() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs: i64 = rng.r#gen();
-        <span class="kw">let </span><span class="kw-2">mut </span>rhs: i64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: i64 = rng.random();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: i64 = rng.random();
 
         <span class="comment">// to prevent `attempt to subtract with overflow`
         </span>lhs %= <span class="number">12341234</span>;
@@ -607,9 +607,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_unsigned_mul() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.random();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.random();
 
         <span class="comment">// to prevent `attempt to multiply with overflow`
         </span>lhs %= <span class="number">12341234</span>;
@@ -624,9 +624,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_signed_mul() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.random();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.random();
 
         <span class="comment">// to prevent `attempt to multiply with overflow`
         </span>lhs %= <span class="number">12341234</span>;
@@ -641,9 +641,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_div() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span>lhs: u64 = rng.random();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.random();
 
         <span class="kw">if </span>rhs == <span class="number">0 </span>{
             rhs = <span class="number">1</span>;
@@ -658,9 +658,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_mod() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span>lhs: u64 = rng.random();
+        <span class="kw">let </span>rhs: u64 = rng.random();
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mod_instruction,
@@ -672,9 +672,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_and() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span>lhs: u64 = rng.random();
+        <span class="kw">let </span>rhs: u64 = rng.random();
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_and_instruction,
@@ -686,9 +686,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_or() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span>lhs: u64 = rng.random();
+        <span class="kw">let </span>rhs: u64 = rng.random();
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_or_instruction,
@@ -700,9 +700,9 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_xor() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span>lhs: u64 = rng.random();
+        <span class="kw">let </span>rhs: u64 = rng.random();
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_xor_instruction,
@@ -713,9 +713,9 @@
     }
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_shr() {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span>lhs: u64 = rng.r#gen();
-        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::rng();
+        <span class="kw">let </span>lhs: u64 = rng.random();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.random();
 
         rhs %= <span class="number">64</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(

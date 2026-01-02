@@ -364,7 +364,7 @@
 };
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_abi::input_parser::InputValue;
-<span class="kw">use </span>rand::{Rng, seq::SliceRandom};
+<span class="kw">use </span>rand::{Rng, seq::IndexedRandom};
 <span class="kw">use </span>rand_xorshift::XorShiftRng;
 
 <span class="kw">const </span>SMALL_VALUE_MAX: u64 = <span class="number">0xff</span>;
@@ -444,7 +444,7 @@
 
     <span class="kw">fn </span>apply_small_value_update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, element: FieldElement) -&gt; FieldElement {
         <span class="kw">let </span>small_value =
-            FieldElement::from(<span class="self">self</span>.prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX));
+            FieldElement::from(<span class="self">self</span>.prng.random_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX));
         <span class="kw">match </span>BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION.select(<span class="self">self</span>.prng) {
             FieldElementSmallValueUpdateOptions::Addition =&gt; element + small_value,
             FieldElementSmallValueUpdateOptions::Subtraction =&gt; element - small_value,

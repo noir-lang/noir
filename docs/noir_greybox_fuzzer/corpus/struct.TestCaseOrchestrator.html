@@ -10,7 +10,7 @@
 Updates execution counts and clears current sequence if it was using this testcase.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.get_next_testcase" class="method"><a class="src rightside" href="../../src/noir_greybox_fuzzer/corpus.rs.html#254-300">Source</a><h4 class="code-header">pub fn <a href="#method.get_next_testcase" class="fn">get_next_testcase</a>(
     &amp;mut self,
-    prng: &amp;mut <a class="struct" href="https://docs.rs/rand_xorshift/0.3.0/rand_xorshift/struct.XorShiftRng.html" title="struct rand_xorshift::XorShiftRng">XorShiftRng</a>,
+    prng: &amp;mut <a class="struct" href="https://docs.rs/rand_xorshift/0.4.0/rand_xorshift/struct.XorShiftRng.html" title="struct rand_xorshift::XorShiftRng">XorShiftRng</a>,
 ) -&gt; (<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.u64.html">u64</a>, <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.u64.html">u64</a>&gt;)</h4></section></summary><div class="docblock"><p>Selects the next testcase(s) to use for fuzzing based on execution counts.
 Prioritizes testcases that have been executed least often.
 Returns both a primary testcase and optionally a second one for splicing.</p>

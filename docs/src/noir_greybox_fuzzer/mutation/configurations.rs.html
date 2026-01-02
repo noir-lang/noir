@@ -369,7 +369,7 @@
     }
 
     <span class="kw">pub fn </span>select(<span class="kw-2">&amp;</span><span class="self">self</span>, prng: <span class="kw-2">&amp;mut </span>XorShiftRng) -&gt; T {
-        <span class="kw">let </span><span class="kw-2">mut </span>selector = prng.gen_range(<span class="number">0</span>..<span class="self">self</span>.total_weight);
+        <span class="kw">let </span><span class="kw-2">mut </span>selector = prng.random_range(<span class="number">0</span>..<span class="self">self</span>.total_weight);
         <span class="kw">for </span>(option, weight) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.options_with_weights {
             <span class="kw">if </span>selector &lt; <span class="kw-2">*</span>weight {
                 <span class="kw">return </span><span class="kw-2">*</span>option;

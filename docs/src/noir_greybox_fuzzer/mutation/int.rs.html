@@ -700,7 +700,7 @@
     ops::overflowing::{OverflowingAdd, OverflowingSub},
 };
 
-<span class="kw">use </span>rand::{Rng, seq::SliceRandom};
+<span class="kw">use </span>rand::{Rng, seq::IndexedRandom};
 <span class="kw">use </span>rand_xorshift::XorShiftRng;
 
 <span class="kw">use super</span>::{
@@ -926,8 +926,8 @@
 ) -&gt; FieldElement {
     <span class="kw">let </span>width = T::BITS;
     <span class="kw">let </span>lhs_int = T::from(field_to_u128(lhs)).expect(<span class="string">"Should convert"</span>);
-    <span class="kw">let </span>update = T::from(<span class="number">1u128 </span>&lt;&lt; prng.gen_range(<span class="number">0</span>..width)).expect(<span class="string">"Should convert"</span>);
-    <span class="kw">let </span>result_int = <span class="kw">if </span>prng.gen_range(<span class="number">0</span>..<span class="number">2</span>).is_zero() {
+    <span class="kw">let </span>update = T::from(<span class="number">1u128 </span>&lt;&lt; prng.random_range(<span class="number">0</span>..width)).expect(<span class="string">"Should convert"</span>);
+    <span class="kw">let </span>result_int = <span class="kw">if </span>prng.random_range(<span class="number">0</span>..<span class="number">2</span>).is_zero() {
         lhs_int.wrapping_add(<span class="kw-2">&amp;</span>update)
     } <span class="kw">else </span>{
         lhs_int.wrapping_sub(<span class="kw-2">&amp;</span>update)
@@ -951,8 +951,8 @@
 ) -&gt; FieldElement {
     <span class="kw">let </span>width = T::BITS;
     <span class="kw">let </span>lhs_int = T::from(field_to_i128(lhs, width)).expect(<span class="string">"Should convert"</span>);
-    <span class="kw">let </span>update = T::from(<span class="number">1i128 </span>&lt;&lt; prng.gen_range(<span class="number">0</span>..(width - <span class="number">1</span>))).expect(<span class="string">"Should convert"</span>);
-    <span class="kw">let </span>result_int = <span class="kw">if </span>prng.gen_range(<span class="number">0</span>..<span class="number">2</span>).is_zero() {
+    <span class="kw">let </span>update = T::from(<span class="number">1i128 </span>&lt;&lt; prng.random_range(<span class="number">0</span>..(width - <span class="number">1</span>))).expect(<span class="string">"Should convert"</span>);
+    <span class="kw">let </span>result_int = <span class="kw">if </span>prng.random_range(<span class="number">0</span>..<span class="number">2</span>).is_zero() {
         lhs_int.wrapping_add(<span class="kw-2">&amp;</span>update)
     } <span class="kw">else </span>{
         lhs_int.wrapping_sub(<span class="kw-2">&amp;</span>update)
@@ -1052,7 +1052,7 @@
 
 <span class="doccomment">/// Generate a random unsigned integer of given width and convert to field
 </span><span class="kw">fn </span>generate_random_for_width(prng: <span class="kw-2">&amp;mut </span>XorShiftRng, width: u32) -&gt; FieldElement {
-    FieldElement::from(prng.gen_range(<span class="number">0</span>..(<span class="number">1i128 </span>&lt;&lt; width)))
+    FieldElement::from(prng.random_range(<span class="number">0</span>..(<span class="number">1i128 </span>&lt;&lt; width)))
 }
 
 <span class="kw">struct </span>IntMutator&lt;<span class="lifetime">'a</span>&gt; {
@@ -1069,12 +1069,12 @@
     </span><span class="kw">fn </span>substitute_signed_int_with_fixed_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, width: u32) -&gt; InputValue {
         <span class="kw">let </span>value = <span class="kw">match </span>BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(<span class="self">self</span>.prng) {
             FixedIntSubstitutionOptions::Minimum =&gt; {
-                FIXED_SIGNED_VALUES[<span class="self">self</span>.prng.gen_range(<span class="number">0</span>..width <span class="kw">as </span>usize)]
+                FIXED_SIGNED_VALUES[<span class="self">self</span>.prng.random_range(<span class="number">0</span>..width <span class="kw">as </span>usize)]
             }
             FixedIntSubstitutionOptions::Maximum =&gt; {
-                FIXED_SIGNED_VALUES[<span class="self">self</span>.prng.gen_range(<span class="number">64</span>..(<span class="number">64 </span>+ width) <span class="kw">as </span>usize)]
+                FIXED_SIGNED_VALUES[<span class="self">self</span>.prng.random_range(<span class="number">64</span>..(<span class="number">64 </span>+ width) <span class="kw">as </span>usize)]
             }
-            FixedIntSubstitutionOptions::Pow2 =&gt; <span class="number">2i128</span>.pow(<span class="self">self</span>.prng.gen_range(<span class="number">0</span>..(width - <span class="number">1</span>))),
+            FixedIntSubstitutionOptions::Pow2 =&gt; <span class="number">2i128</span>.pow(<span class="self">self</span>.prng.random_range(<span class="number">0</span>..(width - <span class="number">1</span>))),
         };
         <span class="kw">let </span>checked_value = <span class="kw">match </span>width {
             <span class="number">8 </span>=&gt; value.clamp(i128::from(i8::MIN), i128::from(i8::MAX)),
@@ -1106,7 +1106,7 @@
 
     <span class="doccomment">/// Add or subtract a small signed value to input
     </span><span class="kw">fn </span>sub_add_small_value_signed(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>i128, width: u32) -&gt; InputValue {
-        <span class="kw">let </span>update = <span class="self">self</span>.prng.gen_range(i8::MIN..=i8::MAX);
+        <span class="kw">let </span>update = <span class="self">self</span>.prng.random_range(i8::MIN..=i8::MAX);
         InputValue::Field(<span class="kw">match </span>width {
             <span class="number">8 </span>=&gt; add_small::&lt;i8&gt;(input, update),
             <span class="number">16 </span>=&gt; add_small::&lt;i16&gt;(input, update),
@@ -1121,7 +1121,7 @@
 
     <span class="doccomment">/// Shift signed value
     </span><span class="kw">fn </span>shift_signed_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>i128, width: u32) -&gt; InputValue {
-        <span class="kw">let </span>exponent = <span class="self">self</span>.prng.gen_range(<span class="number">1</span>..=(width * <span class="number">2 </span>- <span class="number">1</span>));
+        <span class="kw">let </span>exponent = <span class="self">self</span>.prng.random_range(<span class="number">1</span>..=(width * <span class="number">2 </span>- <span class="number">1</span>));
         InputValue::Field(<span class="kw">match </span>width {
             <span class="number">8 </span>=&gt; shift_signed_int::&lt;i8&gt;(input, exponent),
             <span class="number">16 </span>=&gt; shift_signed_int::&lt;i16&gt;(input, exponent),
@@ -1220,7 +1220,7 @@
     <span class="comment">// Get one of the fixed values in place of the original value
     </span><span class="kw">fn </span>substitute_unsigned_int_with_fixed_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, width: u32) -&gt; InputValue {
         InputValue::Field(FieldElement::from(
-            FIXED_UNSIGNED_VALUES[<span class="self">self</span>.prng.gen_range(<span class="number">0</span>..(width * <span class="number">4</span>) <span class="kw">as </span>usize)]
+            FIXED_UNSIGNED_VALUES[<span class="self">self</span>.prng.random_range(<span class="number">0</span>..(width * <span class="number">4</span>) <span class="kw">as </span>usize)]
                 &amp; (u128::MAX &gt;&gt; (u128::BITS - width)),
         ))
     }
@@ -1241,7 +1241,7 @@
 
     <span class="doccomment">/// Shift signed value
     </span><span class="kw">fn </span>shift_unsigned_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>u128, width: u32) -&gt; InputValue {
-        <span class="kw">let </span>exponent = <span class="self">self</span>.prng.gen_range(<span class="number">1</span>..=(width * <span class="number">2 </span>- <span class="number">1</span>));
+        <span class="kw">let </span>exponent = <span class="self">self</span>.prng.random_range(<span class="number">1</span>..=(width * <span class="number">2 </span>- <span class="number">1</span>));
         InputValue::Field(<span class="kw">match </span>width {
             <span class="number">8 </span>=&gt; shift_unsigned_int::&lt;u8&gt;(input, exponent),
             <span class="number">16 </span>=&gt; shift_unsigned_int::&lt;u16&gt;(input, exponent),
@@ -1256,8 +1256,8 @@
 
     <span class="doccomment">/// Add or subtract a small signed value to input
     </span><span class="kw">fn </span>sub_add_small_value_unsigned(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>u128, width: u32) -&gt; InputValue {
-        <span class="kw">let </span>update = <span class="self">self</span>.prng.gen_range(u8::MIN..=u8::MAX);
-        <span class="kw">let </span>is_add = <span class="self">self</span>.prng.gen_range(<span class="number">0</span>..<span class="number">2</span>).is_zero();
+        <span class="kw">let </span>update = <span class="self">self</span>.prng.random_range(u8::MIN..=u8::MAX);
+        <span class="kw">let </span>is_add = <span class="self">self</span>.prng.random_range(<span class="number">0</span>..<span class="number">2</span>).is_zero();
 
         <span class="comment">// Probability of addition and subtraction is equal
         </span><span class="kw">if </span>is_add {
@@ -1345,7 +1345,7 @@
         <span class="comment">// If it's just one bit just get a random value
         </span><span class="kw">if </span>width == <span class="number">1 </span>{
             <span class="macro">assert!</span>(<span class="kw-2">*</span>sign == Sign::Unsigned);
-            InputValue::Field(FieldElement::from(<span class="self">self</span>.prng.gen_range(<span class="number">0</span>..<span class="number">1u32</span>)))
+            InputValue::Field(FieldElement::from(<span class="self">self</span>.prng.random_range(<span class="number">0</span>..<span class="number">1u32</span>)))
         } <span class="kw">else </span>{
             <span class="kw">match </span>sign {
                 Sign::Signed =&gt; <span class="self">self</span>.mutate_signed(initial_field_value, width),

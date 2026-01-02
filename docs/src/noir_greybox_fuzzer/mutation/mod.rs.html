@@ -905,7 +905,7 @@
                 configurations::TopLevelMutationOptions::Value =&gt; (),
                 configurations::TopLevelMutationOptions::Structure =&gt; {
                     <span class="kw">if </span>!arrays_hit.is_zero() {
-                        <span class="kw">return </span>(previous_input.clone(), <span class="prelude-val">Some</span>(prng.gen_range(<span class="number">1</span>..=arrays_hit)));
+                        <span class="kw">return </span>(previous_input.clone(), <span class="prelude-val">Some</span>(prng.random_range(<span class="number">1</span>..=arrays_hit)));
                     }
                 }
             },
@@ -914,7 +914,7 @@
         <span class="kw">match </span>abi_type {
             <span class="comment">// Boolean only has 2 values, there is no point in performing complex logic
             </span>AbiType::Boolean =&gt; {
-                (InputValue::Field(FieldElement::from(prng.gen_range(<span class="number">0u32</span>..=<span class="number">1u32</span>))), <span class="prelude-val">None</span>)
+                (InputValue::Field(FieldElement::from(prng.random_range(<span class="number">0u32</span>..=<span class="number">1u32</span>))), <span class="prelude-val">None</span>)
             }
             AbiType::Field =&gt; (
                 mutate_field_input_value(
@@ -1058,7 +1058,7 @@
         previous_input_map: <span class="kw-2">&amp;</span>InputMap,
         prng: <span class="kw-2">&amp;mut </span>XorShiftRng,
     ) -&gt; InputMap {
-        <span class="kw">let </span>chosen_weight = prng.gen_range(<span class="number">0</span>..<span class="self">self</span>.weight_tree.get_weight());
+        <span class="kw">let </span>chosen_weight = prng.random_range(<span class="number">0</span>..<span class="self">self</span>.weight_tree.get_weight());
         <span class="kw">let </span>current_level_weight_tree = <span class="self">self</span>.weight_tree.subnodes.as_ref().unwrap();
         <span class="self">self</span>.abi
             .parameters
@@ -1105,7 +1105,7 @@
             }
 
             <span class="comment">// For string, with a 50% chance pick one based on the unbalanced schedule, with 50% splice with string splicing methods
-            </span>AbiType::String { length: <span class="kw">_ </span>} =&gt; <span class="kw">match </span>prng.gen_range(<span class="number">0</span>..<span class="number">2</span>) {
+            </span>AbiType::String { length: <span class="kw">_ </span>} =&gt; <span class="kw">match </span>prng.random_range(<span class="number">0</span>..<span class="number">2</span>) {
                 <span class="number">0 </span>=&gt; <span class="kw">match </span>BASIC_UNBALANCED_VECTOR_CONFIGURATION.select(prng) {
                     UnbalancedSpliceOptions::FirstTestCase =&gt; first_input.clone(),
                     UnbalancedSpliceOptions::SecondTestCase =&gt; second_input.clone(),
@@ -1337,7 +1337,7 @@
                     .map(|param| {
                         (
                             param.name.clone(),
-                            <span class="kw">if </span>prng.gen_bool(<span class="number">0.5</span>) {
+                            <span class="kw">if </span>prng.random_bool(<span class="number">0.5</span>) {
                                 first_input_map[<span class="kw-2">&amp;</span>param.name].clone()
                             } <span class="kw">else </span>{
                                 second_input_map[<span class="kw-2">&amp;</span>param.name].clone()
@@ -1367,7 +1367,7 @@
             TestCaseSpliceTypeOptions::SingleElementImport =&gt; {
                 <span class="comment">// Import one low-level element from the second testcase into the first one
                 // Pick an element to import in the whole input
-                </span><span class="kw">let </span>chosen_weight = prng.gen_range(<span class="number">0</span>..<span class="self">self</span>.weight_tree.get_weight());
+                </span><span class="kw">let </span>chosen_weight = prng.random_range(<span class="number">0</span>..<span class="self">self</span>.weight_tree.get_weight());
                 <span class="kw">let </span>current_level_weight_tree = <span class="self">self</span>.weight_tree.subnodes.as_ref().unwrap();
                 <span class="self">self</span>.abi
                     .parameters
@@ -1407,12 +1407,12 @@
         <span class="kw">let </span><span class="kw-2">mut </span>starting_input_value = previous_input_map.clone();
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(additional_input_map) = additional_input_map {
-            <span class="kw">if </span>prng.gen_range(<span class="number">0</span>..<span class="number">4</span>).is_zero() {
+            <span class="kw">if </span>prng.random_range(<span class="number">0</span>..<span class="number">4</span>).is_zero() {
                 starting_input_value =
                     <span class="self">self</span>.splice_two_maps(<span class="kw-2">&amp;</span>previous_input_map, <span class="kw-2">&amp;</span>additional_input_map, prng);
             }
         }
-        <span class="kw">for _ in </span><span class="number">0</span>..(<span class="number">1 </span>&lt;&lt; prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
+        <span class="kw">for _ in </span><span class="number">0</span>..(<span class="number">1 </span>&lt;&lt; prng.random_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
             starting_input_value = <span class="self">self</span>.mutate_input_map_single(<span class="kw-2">&amp;</span>starting_input_value, prng);
         }
         starting_input_value

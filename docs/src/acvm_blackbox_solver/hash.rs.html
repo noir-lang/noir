@@ -111,10 +111,7 @@
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
-<span class="kw">use </span>blake2::digest::generic_array::GenericArray;
+<a href="#113" id="113">113</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 <span class="kw">use </span>blake2::{Blake2s256, Digest};
 
 <span class="kw">use </span><span class="kw">crate</span>::BlackBoxResolutionError;
@@ -137,13 +134,12 @@
 }
 
 <span class="kw">pub fn </span>sha256_compression(state: <span class="kw-2">&amp;mut </span>[u32; <span class="number">8</span>], msg_blocks: <span class="kw-2">&amp;</span>[u32; <span class="number">16</span>]) {
-    <span class="kw">let </span><span class="kw-2">mut </span>blocks = [<span class="number">0_u8</span>; <span class="number">64</span>];
+    <span class="kw">let </span><span class="kw-2">mut </span>blocks: [u8; <span class="number">64</span>] = [<span class="number">0_u8</span>; <span class="number">64</span>];
     <span class="kw">for </span>(i, block) <span class="kw">in </span>msg_blocks.iter().enumerate() {
         <span class="kw">let </span>bytes = block.to_be_bytes();
         blocks[i * <span class="number">4</span>..i * <span class="number">4 </span>+ <span class="number">4</span>].copy_from_slice(<span class="kw-2">&amp;</span>bytes);
     }
-    <span class="kw">let </span>blocks: GenericArray&lt;u8, sha2::digest::typenum::U64&gt; = blocks.into(); <span class="comment">// cSpell:disable-line
-    </span>sha2::compress256(state, <span class="kw-2">&amp;</span>[blocks]);
+    sha2::block_api::compress256(state, <span class="kw-2">&amp;</span>[blocks]);
 }
 
 <span class="kw">const </span>KECCAK_LANES: usize = <span class="number">25</span>;

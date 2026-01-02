@@ -166,11 +166,12 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
-<span class="kw">use </span>k256::elliptic_curve::PrimeField;
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 <span class="kw">use </span>k256::elliptic_curve::sec1::FromEncodedPoint;
+<span class="kw">use </span>k256::{FieldBytes, elliptic_curve::PrimeField};
 
-<span class="kw">use </span>blake2::digest::generic_array::GenericArray;
 <span class="kw">use </span>k256::{
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
@@ -238,7 +239,10 @@
 
     <span class="comment">// Note: This will panic if `hashed_msg &gt;= k256::Secp256k1::ORDER`.
     // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
-    </span><span class="kw">let </span>z = Scalar::from_repr(<span class="kw-2">*</span>GenericArray::from_slice(hashed_msg)).unwrap();
+    </span><span class="kw">let </span>z = Scalar::from_repr(
+        FieldBytes::try_from_iter(hashed_msg.iter().copied()).expect(<span class="string">"slice length mismatch"</span>),
+    )
+    .unwrap();
 
     <span class="comment">// Finished converting bytes into data structures
 
