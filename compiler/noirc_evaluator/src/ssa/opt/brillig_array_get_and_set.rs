@@ -320,4 +320,38 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         ssa.brillig_array_get_and_set();
     }
+
+    #[test]
+    fn mutable_reference_array_elements() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0():
+            v0 = allocate -> &mut u1
+            v1 = load v0 -> u1
+            jmpif v1 then: b1, else: b2
+          b1():
+            v2 = allocate -> &mut u1
+            store u1 1 at v2
+            jmp b3()
+          b2():
+            return
+          b3():
+            v4 = load v2 -> u1
+            jmpif v4 then: b4, else: b5
+          b4():
+            store u1 0 at v2
+            jmp b3()
+          b5():
+            jmp b2()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = ssa.interpret(vec![]);
+        dbg!(&result);
+    }
 }
