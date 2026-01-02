@@ -5,10 +5,12 @@ use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::circuit::Program;
 use fm::FileId;
 use noirc_abi::Abi;
-use noirc_driver::CompiledProgram;
-use noirc_driver::DebugFile;
-use noirc_errors::debug_info::ProgramDebugInfo;
 use serde::{Deserialize, Serialize};
+
+use crate::debug::DebugFile;
+use crate::debug::DebugInfo;
+use crate::debug::ProgramDebugInfo;
+use crate::ssa::SsaReport;
 
 use super::{deserialize_hash, serialize_hash};
 
@@ -69,4 +71,26 @@ impl From<ProgramArtifact> for CompiledProgram {
             expression_width: program.expression_width,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
+pub struct CompiledProgram {
+    pub noir_version: String,
+    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]
+    /// was compiled.
+    ///
+    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    pub hash: u64,
+
+    #[serde(
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
+    )]
+    pub program: Program<FieldElement>,
+    pub abi: Abi,
+    pub debug: Vec<DebugInfo>,
+    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
+    /// Maximum width of the expressions which will be constrained
+    pub expression_width: ExpressionWidth,
 }

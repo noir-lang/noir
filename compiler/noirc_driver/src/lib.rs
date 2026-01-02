@@ -9,6 +9,10 @@ use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
+use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
+use noirc_artifacts::debug::{DebugFile, DebugInfo};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
@@ -26,23 +30,15 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
-mod contract;
-mod debug;
-mod program;
 mod stdlib;
 
-use debug::filter_relevant_files;
-
 pub use abi_gen::gen_abi;
-pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
-pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
-pub use program::CompiledProgram;
 pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
@@ -512,7 +508,8 @@ pub fn compile_main(
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
-    let compilation_warnings = vecmap(compiled_program.warnings.clone(), CustomDiagnostic::from);
+    let compilation_warnings =
+        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
@@ -773,6 +770,54 @@ fn compile_contract_inner(
     }
 }
 
+pub fn filter_relevant_files(
+    debug_symbols: &[DebugInfo],
+    file_manager: &FileManager,
+) -> BTreeMap<FileId, DebugFile> {
+    let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
+        .iter()
+        .flat_map(|function_symbols| {
+            function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+                function_symbols
+                    .location_tree
+                    .get_call_stack(*call_stack_id)
+                    .into_iter()
+                    .map(|location| location.file)
+            })
+        })
+        .collect();
+
+    let files_with_brillig_debug_symbols: BTreeSet<FileId> = debug_symbols
+        .iter()
+        .flat_map(|function_symbols| {
+            function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                brillig_location_map.values().flat_map(|call_stack_id| {
+                    function_symbols
+                        .location_tree
+                        .get_call_stack(*call_stack_id)
+                        .into_iter()
+                        .map(|location| location.file)
+                })
+            })
+        })
+        .collect();
+
+    files_with_debug_symbols.extend(files_with_brillig_debug_symbols);
+
+    let mut file_map = BTreeMap::new();
+
+    for file_id in files_with_debug_symbols {
+        let file_path = file_manager.path(file_id).expect("file should exist");
+        let file_source = file_manager.fetch_file(file_id).expect("file should exist");
+
+        file_map.insert(
+            file_id,
+            DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
+        );
+    }
+    file_map
+}
+
 /// Default expression width used for Noir compilation.
 /// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
 /// while we can sometimes expect the compilation target width to change.
@@ -891,4 +936,43 @@ struct Contract {
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,
+}
+
+fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
+    match error {
+        SsaReport::Warning(warning) => {
+            let message = warning.to_string();
+            let (secondary_message, call_stack) = match warning {
+                    InternalWarning::ReturnConstant { call_stack } => {
+                        ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
+                    },
+                };
+            let call_stack = vecmap(call_stack, |location| location);
+            let location = call_stack.last().expect("Expected RuntimeError to have a location");
+            let diagnostic =
+                CustomDiagnostic::simple_warning(message, secondary_message, *location);
+            diagnostic.with_call_stack(call_stack)
+        }
+        SsaReport::Bug(bug) => {
+            let mut message = bug.to_string();
+            let (secondary_message, call_stack) = match bug {
+                    InternalBug::IndependentSubgraph { call_stack } => {
+                        ("There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
+                    }
+                    InternalBug::UncheckedBrilligCall { call_stack } => {
+                        ("This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
+                    }
+                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } => {
+                        if let Some(assertion_failure_message) = assertion_failure_message {
+                            message.push_str(&format!(": {assertion_failure_message}"));
+                        }
+                        ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
+                    }
+                };
+            let call_stack = vecmap(call_stack, |location| location);
+            let location = call_stack.last().expect("Expected RuntimeError to have a location");
+            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, *location);
+            diagnostic.with_call_stack(call_stack)
+        }
+    }
 }

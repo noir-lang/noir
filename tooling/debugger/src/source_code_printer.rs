@@ -247,9 +247,9 @@ mod tests {
     use crate::source_code_printer::render_location;
     use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
-    use noirc_artifacts::debug::DebugArtifact;
+    use noirc_artifacts::debug::{DebugArtifact, DebugInfo};
     use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
-    use noirc_errors::{Location, Span, debug_info::DebugInfo};
+    use noirc_errors::{Location, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;

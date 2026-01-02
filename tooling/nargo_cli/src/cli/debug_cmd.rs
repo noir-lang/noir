@@ -23,7 +23,8 @@ use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
 use noirc_frontend::hir::Context;
 
 use super::test_cmd::TestResult;

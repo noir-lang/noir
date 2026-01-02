@@ -11,11 +11,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{
-    acir::ssa::Artifacts,
-    brillig::BrilligOptions,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
 use acvm::{
     FieldElement,
     acir::{
@@ -25,9 +21,10 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
+use noirc_artifacts::{debug::DebugInfo, ssa::SsaReport};
 use noirc_errors::{
     call_stack::CallStackId,
-    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
 use noirc_frontend::shared::Visibility;

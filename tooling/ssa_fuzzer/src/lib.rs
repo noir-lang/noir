@@ -12,7 +12,8 @@ mod tests {
     use crate::typed_value::{NumericType, Type, TypedValue};
     use acvm::acir::native_types::{Witness, WitnessMap};
     use acvm::{AcirField, FieldElement};
-    use noirc_driver::{CompileOptions, CompiledProgram};
+    use noirc_artifacts::program::CompiledProgram;
+    use noirc_driver::CompileOptions;
     use noirc_evaluator::ssa::ir::instruction::BinaryOp;
     use rand::Rng;
 
