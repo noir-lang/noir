@@ -96,5 +96,9 @@ jobs:
           # This could _potentially_ clash with pushing benchmarks to this branch at the same time.
           # In practice, this will complete much sooner than the benchmarks are generated.
           git add ./stdlib/*
-          git commit -m "update noirdoc"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "update noirdoc"
+            git push
+          fi
