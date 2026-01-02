@@ -92,7 +92,7 @@ fn step1(
     for block in blocks.iter().copied() {
         // All variables visible at the start of the current block
         let entry_state = add_visible_variables_as_block_arguments(
-            &variables,
+            variables,
             dom_tree,
             block,
             &mut inserter.function.dfg,
@@ -156,7 +156,7 @@ fn step3(blocks: &[BasicBlockId], inserter: &mut FunctionInserter, cfg: &Control
 
         // Mask of whether each parameter has non-identical arguments,
         // E.g. if parameter 2's arguments are all identical, then keep_parameters[2] would be false
-        let mask = keep_argument_mask(inserter, &cfg, block, &parameters);
+        let mask = keep_argument_mask(inserter, cfg, block, &parameters);
 
         // Remove unneeded parameters from the block
         retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
