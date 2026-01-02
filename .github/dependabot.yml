@@ -19,6 +19,11 @@ updates:
     # Check the npm registry for updates every Monday
     schedule:
       interval: "weekly"
+    ignore:
+      # @types/node major version matches Node.js major version
+      # Keep compatible with our minimum supported Node version (22.x)
+      - dependency-name: "@types/node"
+        versions: [">=23.0.0"]
     groups:
       # group updates for linter
       linter:
@@ -38,3 +43,12 @@ updates:
       typedoc:
         patterns:
           - "typedoc*"
+      testing:
+        patterns:
+          - "chai"
+          - "@esm-bundle/chai"
+          - "mocha*"
+          - "sinon"
+          - "@types/chai"
+          - "@types/mocha*"
+          - "@types/sinon"
