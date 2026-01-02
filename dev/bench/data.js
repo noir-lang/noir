@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767363222830,
+  "lastUpdate": 1767363787650,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23210,48 +23210,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "725aeea3b7ef48bf4b5a9d6390327624412d9136",
-          "message": "chore: replace some unused `RegisterAllocator` methods with panics (#10897)",
-          "timestamp": "2025-12-15T14:47:59Z",
-          "tree_id": "49dd4130319993d22ca0521459afbe4572ac88e7",
-          "url": "https://github.com/noir-lang/noir/commit/725aeea3b7ef48bf4b5a9d6390327624412d9136"
-        },
-        "date": 1765811356813,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264359,
-            "range": "± 598",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231721,
-            "range": "± 5029",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797205,
-            "range": "± 2039",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "daf526ce21a8574894ea7d7006c78c565df1ee4a",
           "message": "fix: track when witnesses are used in the predicates of brillig calls when merging expressions (#10922)",
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793561,
             "range": "± 11367",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7fbc7f0a2df7f3bcbf723cc85e59d748cd08118",
+          "message": "chore: add compatibilty for node 24 in acvm_js test suite (#10706)",
+          "timestamp": "2026-01-02T14:20:00Z",
+          "tree_id": "749d352b4eeda68481f89640e6df70fe0a6189bb",
+          "url": "https://github.com/noir-lang/noir/commit/e7fbc7f0a2df7f3bcbf723cc85e59d748cd08118"
+        },
+        "date": 1767363752009,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257256,
+            "range": "± 1162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227481,
+            "range": "± 4361",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2258621,
+            "range": "± 6818",
             "unit": "ns/iter"
           }
         ]
