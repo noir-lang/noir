@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767374054120,
+  "lastUpdate": 1767374359828,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "436f025532e0bb85c8aca8aee8857b473cd02388",
-          "message": "fix: reference aliases in if_else arrays (#10902)",
-          "timestamp": "2025-12-17T18:44:27Z",
-          "tree_id": "dfdeb9aafa3e99c01d89dc5a590ba9c736f4ccbe",
-          "url": "https://github.com/noir-lang/noir/commit/436f025532e0bb85c8aca8aee8857b473cd02388"
-        },
-        "date": 1765998286368,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256489,
-            "range": "± 742",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225043,
-            "range": "± 4632",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790701,
-            "range": "± 1468",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "52492c47571c3ac5384f45de7c7c665bfdd2eee9",
           "message": "chore: remove redundant code (#10943)",
           "timestamp": "2025-12-17T22:47:04Z",
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791465,
             "range": "± 16393",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0a365c89fc601cf1fb2faf2ef1db0de0a517ec3c",
+          "message": "fix: skip release-end job when release PR isn't updated (#11031)",
+          "timestamp": "2026-01-02T16:57:37Z",
+          "tree_id": "832c24ddc284c29c43392e64142043a7061a51ef",
+          "url": "https://github.com/noir-lang/noir/commit/0a365c89fc601cf1fb2faf2ef1db0de0a517ec3c"
+        },
+        "date": 1767374327119,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259700,
+            "range": "± 789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231989,
+            "range": "± 3814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791011,
+            "range": "± 7942",
             "unit": "ns/iter"
           }
         ]
