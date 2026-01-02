@@ -383,7 +383,8 @@
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -429,6 +430,7 @@
     <span class="kw">let </span>parsed_files = parse_all(<span class="kw-2">&amp;</span>file_manager);
 
     <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     <span class="kw">let </span>root_crate_id = prepare_crate(<span class="kw-2">&amp;mut </span>context, file_name);
 
     (context, root_crate_id)

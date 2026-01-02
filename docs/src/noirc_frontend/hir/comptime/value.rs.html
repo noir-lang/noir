@@ -927,7 +927,16 @@
 <a href="#926" id="926">926</a>
 <a href="#927" id="927">927</a>
 <a href="#928" id="928">928</a>
-<a href="#929" id="929">929</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -1091,8 +1100,11 @@
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
             }
             Value::String(value) =&gt; {
-                <span class="kw">let </span>length = Type::Constant(value.len().into(), Kind::u32());
-                Type::String(Box::new(length))
+                <span class="kw">let </span>length: u32 = value
+                    .len()
+                    .try_into()
+                    .expect(<span class="string">"ICE: Value::get_type: value.len() is expected to fit into a u32"</span>);
+                Type::String(Box::new(length.into()))
             }
             Value::FormatString(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
             Value::Function(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
@@ -1748,20 +1760,26 @@
 
     <span class="doccomment">/// Converts any integral `Value` into a `SignedField`.
     /// Returns `None` for non-integral `Value`s and negative numbers.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_non_negative_signed_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SignedField&gt; {
+        <span class="kw">let </span>value = <span class="self">self</span>.to_signed_field()<span class="question-mark">?</span>;
+        value.is_positive().then_some(value)
+    }
+
+    <span class="doccomment">/// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_signed_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SignedField&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::Field(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
-
-            <span class="self">Self</span>::I8(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::I16(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::I32(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::I64(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::U1(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw">if </span><span class="kw-2">*</span>value { SignedField::one() } <span class="kw">else </span>{ SignedField::zero() }),
-            <span class="self">Self</span>::U8(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
-            <span class="self">Self</span>::U16(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
-            <span class="self">Self</span>::U32(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
-            <span class="self">Self</span>::U64(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
-            <span class="self">Self</span>::U128(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value).into()),
+            Value::Field(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::I8(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::I16(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::I32(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::I64(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::U1(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::U8(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::U16(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::U32(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::U64(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
+            Value::U128(value) =&gt; <span class="prelude-val">Some</span>(value.into()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }

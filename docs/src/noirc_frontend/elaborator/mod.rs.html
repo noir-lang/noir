@@ -909,7 +909,8 @@
 <a href="#908" id="908">908</a>
 <a href="#909" id="909">909</a>
 <a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1761,6 +1762,7 @@
         <span class="kw">let </span>file_manager = FileManager::new(<span class="kw-2">&amp;</span>PathBuf::new());
         <span class="kw">let </span>parsed_files = ParsedFiles::new();
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
+        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 

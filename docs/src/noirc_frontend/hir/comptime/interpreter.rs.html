@@ -1958,7 +1958,10 @@
 <a href="#1957" id="1957">1957</a>
 <a href="#1958" id="1958">1958</a>
 <a href="#1959" id="1959">1959</a>
-<a href="#1960" id="1960">1960</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2914,7 +2917,9 @@
         rhs: Value,
         id: ExprId,
     ) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>method = infix.trait_method_id;
+        <span class="kw">let </span>method = infix
+            .trait_method_id
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}"</span>, infix.operator));
         <span class="kw">let </span>operator = infix.operator.kind;
 
         <span class="kw">let </span>method_id = resolve_trait_item(<span class="self">self</span>.elaborator.interner, method, id)<span class="question-mark">?</span>.unwrap_method();
@@ -3902,9 +3907,10 @@
         <span class="kw">let </span>local_id = func_meta.source_module;
         <span class="kw">let </span>location = func_meta.location;
         <span class="kw">let </span>enabled_unstable_features = <span class="kw-2">&amp;</span><span class="self">self</span>.required_unstable_features[<span class="kw-2">&amp;</span>crate_id].clone();
+        <span class="kw">let </span>pedantic_solving = <span class="self">self</span>.def_interner.pedantic_solving;
         <span class="kw">let </span>cli_options = ElaboratorOptions {
             debug_comptime_in_file: <span class="prelude-val">None</span>,
-            pedantic_solving: <span class="bool-val">false</span>,
+            pedantic_solving,
             enabled_unstable_features,
             disable_required_unstable_features: <span class="bool-val">false</span>,
         };

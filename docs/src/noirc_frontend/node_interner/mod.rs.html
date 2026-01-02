@@ -1527,7 +1527,24 @@
 <a href="#1526" id="1526">1526</a>
 <a href="#1527" id="1527">1527</a>
 <a href="#1528" id="1528">1528</a>
-<a href="#1529" id="1529">1529</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1774,6 +1791,8 @@
     <span class="doccomment">/// Determines whether to run in LSP mode. In LSP mode references are tracked.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) lsp_mode: bool,
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) pedantic_solving: bool,
+
     <span class="doccomment">/// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
@@ -2016,6 +2035,7 @@
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: <span class="bool-val">false</span>,
+            pedantic_solving: <span class="bool-val">false</span>,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -2611,16 +2631,30 @@
         <span class="self">self</span>.selected_trait_implementations.get(<span class="kw-2">&amp;</span>ident_id).cloned()
     }
 
+    <span class="doccomment">/// Attempts to retrieve the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.infix_operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    </span><span class="kw">pub fn </span>try_get_operator_trait_method(<span class="kw-2">&amp;</span><span class="self">self</span>, operator: BinaryOpKind) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItemId&gt; {
+        <span class="kw">let </span>trait_id = <span class="kw-2">*</span><span class="self">self</span>.infix_operator_traits.get(<span class="kw-2">&amp;</span>operator)<span class="question-mark">?</span>;
+        <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
+        <span class="kw">let </span>func_id = <span class="kw-2">*</span>the_trait.method_ids.values().next().unwrap();
+        <span class="prelude-val">Some</span>(TraitItemId { trait_id, item_id: <span class="self">self</span>.function_definition_id(func_id) })
+    }
+
     <span class="doccomment">/// Retrieves the trait id for a given binary operator.
     /// All binary operators correspond to a trait - although multiple may correspond
     /// to the same trait (such as `==` and `!=`).
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     </span><span class="kw">pub fn </span>get_operator_trait_method(<span class="kw-2">&amp;</span><span class="self">self</span>, operator: BinaryOpKind) -&gt; TraitItemId {
-        <span class="kw">let </span>trait_id = <span class="self">self</span>.infix_operator_traits[<span class="kw-2">&amp;</span>operator];
-        <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
-        <span class="kw">let </span>func_id = <span class="kw-2">*</span>the_trait.method_ids.values().next().unwrap();
-        TraitItemId { trait_id, item_id: <span class="self">self</span>.function_definition_id(func_id) }
+        <span class="self">self</span>.try_get_operator_trait_method(operator).unwrap_or_else(|| {
+            <span class="macro">panic!</span>(
+                <span class="string">"get_operator_trait_method: missing trait method: {operator:?}, {:?}"</span>,
+                <span class="self">self</span>.infix_operator_traits
+            )
+        })
     }
 
     <span class="doccomment">/// Retrieves the trait id for a given unary operator.

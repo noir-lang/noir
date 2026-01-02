@@ -3264,7 +3264,9 @@
 <a href="#3263" id="3263">3263</a>
 <a href="#3264" id="3264">3264</a>
 <a href="#3265" id="3265">3265</a>
-<a href="#3266" id="3266">3266</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3266" id="3266">3266</a>
+<a href="#3267" id="3267">3267</a>
+<a href="#3268" id="3268">3268</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3967,6 +3969,7 @@
 
                     <span class="kw">let </span>method = infix.trait_method_id;
 
+                    <span class="kw">let </span>method = method.expect(<span class="string">"ICE: Monomorphizer::expr: expected the infix operator method to be resolved by monomorphization"</span>);
                     <span class="comment">// True here since we're immediately calling this operator method in the
                     // current runtime.
                     </span><span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
@@ -5898,9 +5901,10 @@
                 <span class="kw">let </span>msg = <span class="string">"match failure"</span>;
                 <span class="kw">let </span>msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
 
-                <span class="kw">let </span>u32_type = HirType::u32();
-                <span class="kw">let </span>length = (msg.len() <span class="kw">as </span>u128).into();
-                <span class="kw">let </span>length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
+                <span class="kw">let </span>length: u32 = msg.len().try_into().expect(
+                    <span class="string">"ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32"</span>,
+                );
+                <span class="kw">let </span>length = length.into();
                 <span class="kw">let </span>msg_type = HirType::String(Box::new(length));
 
                 <span class="kw">let </span>msg = <span class="prelude-val">Some</span>(Box::new((msg_expr, msg_type)));

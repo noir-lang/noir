@@ -134,7 +134,8 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -225,6 +226,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>fm = FileManager::new(root);
     <span class="kw">let </span>root_file_id = fm.add_file_with_source(Path::new(<span class="string">"test_file"</span>), src.to_string()).unwrap();
     <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(fm, Default::default());
+    context.enable_pedantic_solving();
 
     context.def_interner.populate_dummy_operator_traits();
     <span class="kw">let </span>root_crate_id = context.crate_graph.add_crate_root(root_file_id);

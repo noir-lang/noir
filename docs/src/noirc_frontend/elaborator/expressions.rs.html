@@ -1725,7 +1725,11 @@
 <a href="#1724" id="1724">1724</a>
 <a href="#1725" id="1725">1725</a>
 <a href="#1726" id="1726">1726</a>
-<a href="#1727" id="1727">1727</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2065,7 +2069,10 @@
                 (Lit(HirLiteral::Integer(integer)), <span class="self">self</span>.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>len = Type::Constant(str.len().into(), Kind::u32());
+                <span class="kw">let </span>len: u32 = str.len().try_into().expect(
+                    <span class="string">"ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32"</span>,
+                );
+                <span class="kw">let </span>len = len.into();
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) =&gt; <span class="self">self</span>.elaborate_fmt_string(fragments, length),
@@ -2134,7 +2141,8 @@
                     elem_id
                 });
 
-                <span class="kw">let </span>length = Type::Constant(elements.len().into(), Kind::u32());
+                <span class="kw">let </span>length: u32 = elements.len().try_into().expect(<span class="string">"ICE: Elaborator::elaborate_array_literal: elements.len() is expected to fit into a u32"</span>);
+                <span class="kw">let </span>length = length.into();
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } =&gt; {
@@ -2189,7 +2197,7 @@
             }
         }
 
-        <span class="kw">let </span>len = Type::Constant(length.into(), Kind::u32());
+        <span class="kw">let </span>len = length.into();
         <span class="kw">let </span>fmtstr_type =
             <span class="kw">if </span>capture_types.is_empty() { Type::Unit } <span class="kw">else </span>{ Type::Tuple(capture_types) };
         <span class="kw">let </span>typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
@@ -2942,14 +2950,14 @@
     <span class="kw">fn </span>elaborate_infix(<span class="kw-2">&amp;mut </span><span class="self">self</span>, infix: InfixExpression, location: Location) -&gt; (ExprId, Type) {
         <span class="kw">let </span>(lhs, lhs_type) = <span class="self">self</span>.elaborate_expression(infix.lhs);
         <span class="kw">let </span>(rhs, rhs_type) = <span class="self">self</span>.elaborate_expression(infix.rhs);
-        <span class="kw">let </span>trait_id = <span class="self">self</span>.interner.get_operator_trait_method(infix.operator.contents);
+        <span class="kw">let </span>opt_trait_id = <span class="self">self</span>.interner.try_get_operator_trait_method(infix.operator.contents);
 
         <span class="kw">let </span>file = infix.operator.location().file;
         <span class="kw">let </span>operator = HirBinaryOp::new(infix.operator, file);
         <span class="kw">let </span>expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
-            trait_method_id: trait_id,
+            trait_method_id: opt_trait_id,
             rhs,
         });
 
@@ -2959,7 +2967,7 @@
         <span class="kw">let </span>typ = <span class="self">self</span>.handle_operand_type_rules_result(
             result,
             <span class="kw-2">&amp;</span>lhs_type,
-            <span class="prelude-val">Some</span>(trait_id),
+            opt_trait_id,
             <span class="kw-2">*</span>expr_id,
             location,
         );

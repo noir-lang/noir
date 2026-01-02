@@ -3272,7 +3272,8 @@
 <a href="#3271" id="3271">3271</a>
 <a href="#3272" id="3272">3272</a>
 <a href="#3273" id="3273">3273</a>
-<a href="#3274" id="3274">3274</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3274" id="3274">3274</a>
+<a href="#3275" id="3275">3275</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -4353,10 +4354,11 @@
         </span><span class="kw">if </span>return_type_is_bits { Value::U1(digit != <span class="number">0</span>) } <span class="kw">else </span>{ Value::U8(digit) }
     });
 
-    <span class="kw">let </span>result_type = Type::Array(
-        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
-        element_type,
-    );
+    <span class="kw">let </span>len: u32 = decomposed_integer
+        .len()
+        .try_into()
+        .expect(<span class="string">"ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32"</span>);
+    <span class="kw">let </span>result_type = Type::Array(Box::new(len.into()), element_type);
 
     <span class="prelude-val">Ok</span>(Value::Array(decomposed_integer.into(), result_type))
 }

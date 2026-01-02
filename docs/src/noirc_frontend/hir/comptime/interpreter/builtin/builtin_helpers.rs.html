@@ -755,7 +755,9 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! Various helpers for implementing built-in functions in the comptime interpreter.
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a></pre></div><pre class="rust"><code><span class="doccomment">//! Various helpers for implementing built-in functions in the comptime interpreter.
 //!
 //! These functions may implement error checking for argument count, type-check an
 //! argument for a specific type, returning its value, etc.
@@ -765,6 +767,7 @@
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::Location;
 
+<span class="kw">use </span><span class="kw">crate</span>::Shared;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::tokens_to_string;
@@ -775,7 +778,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::parser::{Parser, ParserError};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{Keyword, LocatedToken, SecondaryAttributeKind};
-<span class="kw">use crate</span>::{Kind, Shared};
 <span class="kw">use crate</span>::{
     QuotedType, Type,
     ast::{
@@ -940,8 +942,9 @@
         </span><span class="kw">let </span>Type::Array(<span class="kw">_</span>, <span class="kw-2">ref </span>elem) = typ <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"get_array_map checked it was an array"</span>)
         };
-        <span class="kw">let </span>expected =
-            Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone()).to_string();
+        <span class="kw">let </span>len: u32 =
+            N.try_into().expect(<span class="string">"ICE: get_fixed_array_map: N is expected to fit into a u32"</span>);
+        <span class="kw">let </span>expected = Type::Array(Box::new(len.into()), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -1394,8 +1397,9 @@
 
 <span class="doccomment">/// Type to be used in `Value::Array(&lt;values&gt;, &lt;array-type&gt;)`.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>byte_array_type(len: usize) -&gt; Type {
+    <span class="kw">let </span>len: u32 = len.try_into().expect(<span class="string">"ICE: byte_array_type: N is expected to fit into a u32"</span>);
     Type::Array(
-        Box::new(Type::Constant(len.into(), Kind::u32())),
+        Box::new(len.into()),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
 }

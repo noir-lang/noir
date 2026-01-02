@@ -706,11 +706,233 @@
 <a href="#705" id="705">705</a>
 <a href="#706" id="706">706</a>
 <a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_errors::Location;
 
-<span class="kw">use crate</span>::{BinaryTypeOperator, Type, signed_field::SignedField};
+<span class="kw">use crate</span>::{BinaryTypeOperator, Type, TypeBinding, signed_field::SignedField};
 
 <span class="kw">impl </span>Type {
     <span class="doccomment">/// Try to canonicalize the representation of this type.
@@ -779,11 +1001,13 @@
                 <span class="kw">let </span>evaluate = |typ: <span class="kw-2">&amp;</span>Type| {
                     typ.evaluate_to_signed_field_helper(<span class="kw-2">&amp;</span>kind, dummy_location, run_simplifications)
                 };
+                <span class="kw">let </span>lhs_evaluated = evaluate(lhs);
+                <span class="kw">let </span>rhs_evaluated = evaluate(rhs);
 
                 <span class="comment">// evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(lhs_value) = evaluate(lhs) {
-                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(rhs_value) = evaluate(rhs) {
+                </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(lhs_value) = lhs_evaluated {
+                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(rhs_value) = rhs_evaluated {
                         <span class="kw">if let </span><span class="prelude-val">Ok</span>(result) = op.function(lhs_value, rhs_value, <span class="kw-2">&amp;</span>kind, dummy_location)
                         {
                             <span class="kw">return </span>Type::Constant(result, kind);
@@ -796,7 +1020,7 @@
 
                 <span class="comment">// See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
                 </span><span class="kw">if </span><span class="macro">matches!</span>(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
-                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(rhs_value) = evaluate(<span class="kw-2">&amp;</span>rhs) {
+                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(rhs_value) = rhs_evaluated {
                         <span class="kw">if </span>rhs_value.is_one() {
                             <span class="kw">return </span>lhs;
                         }
@@ -805,7 +1029,7 @@
 
                 <span class="comment">// See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
                 </span><span class="kw">if </span><span class="macro">matches!</span>(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
-                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(rhs_value) = evaluate(<span class="kw-2">&amp;</span>rhs) {
+                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(rhs_value) = rhs_evaluated {
                         <span class="kw">if </span>rhs_value.is_zero() {
                             <span class="kw">return </span>lhs;
                         }
@@ -848,6 +1072,12 @@
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
+            Type::TypeVariable(type_var) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>type_var.borrow() {
+                TypeBinding::Bound(binding) =&gt; {
+                    binding.canonicalize_helper(found_checked_cast, run_simplifications)
+                }
+                TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; Type::TypeVariable(type_var.clone()),
+            },
             other =&gt; other.clone(),
         }
     }
@@ -1042,7 +1272,8 @@
             }
             (Multiplication, Division) =&gt; {
                 <span class="comment">// We ensure the result divides evenly to preserve integer division semantics
-                // TODO: do the division simplification also in case of Field elements
+                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
+                // also in case of Field elements
                 </span><span class="kw">let </span>l_128: <span class="prelude-ty">Option</span>&lt;i128&gt; = l_const.try_to_signed();
                 <span class="kw">let </span>r_128: <span class="prelude-ty">Option</span>&lt;i128&gt; = r_const.try_to_signed();
                 <span class="kw">let </span>divides_evenly = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(l_128), <span class="prelude-val">Some</span>(r_128)) = (l_128, r_128) {
@@ -1075,6 +1306,38 @@
         signed_field::SignedField,
     };
 
+    <span class="kw">impl </span>std::ops::Add <span class="kw">for </span>Type {
+        <span class="kw">type </span>Output = Type;
+
+        <span class="kw">fn </span>add(<span class="self">self</span>, rhs: Type) -&gt; <span class="self">Self</span>::Output {
+            Type::infix_expr(Box::new(<span class="self">self</span>), BinaryTypeOperator::Addition, Box::new(rhs))
+        }
+    }
+
+    <span class="kw">impl </span>std::ops::Sub <span class="kw">for </span>Type {
+        <span class="kw">type </span>Output = Type;
+
+        <span class="kw">fn </span>sub(<span class="self">self</span>, rhs: Type) -&gt; <span class="self">Self</span>::Output {
+            Type::infix_expr(Box::new(<span class="self">self</span>), BinaryTypeOperator::Subtraction, Box::new(rhs))
+        }
+    }
+
+    <span class="kw">impl </span>std::ops::Mul <span class="kw">for </span>Type {
+        <span class="kw">type </span>Output = Type;
+
+        <span class="kw">fn </span>mul(<span class="self">self</span>, rhs: Type) -&gt; <span class="self">Self</span>::Output {
+            Type::infix_expr(Box::new(<span class="self">self</span>), BinaryTypeOperator::Multiplication, Box::new(rhs))
+        }
+    }
+
+    <span class="kw">impl </span>std::ops::Div <span class="kw">for </span>Type {
+        <span class="kw">type </span>Output = Type;
+
+        <span class="kw">fn </span>div(<span class="self">self</span>, rhs: Type) -&gt; <span class="self">Self</span>::Output {
+            Type::infix_expr(Box::new(<span class="self">self</span>), BinaryTypeOperator::Division, Box::new(rhs))
+        }
+    }
+
     <span class="attr">#[test]
     </span><span class="kw">fn </span>solves_n_minus_one_plus_one_through_checked_casts() {
         <span class="comment">// We want to test that the inclusion of a `CheckedCast` won't prevent us from canonicalizing
@@ -1085,19 +1348,11 @@
             name: std::rc::Rc::new(<span class="string">"N"</span>.to_owned()),
             implicit: <span class="bool-val">false</span>,
         });
-        <span class="kw">let </span>n_minus_one = Type::infix_expr(
-            Box::new(n.clone()),
-            BinaryTypeOperator::Subtraction,
-            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
-        );
+        <span class="kw">let </span>n_minus_one: Type = n.clone() - <span class="number">1u32</span>.into();
         <span class="kw">let </span>checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
 
-        <span class="kw">let </span>n_minus_one_plus_one = Type::infix_expr(
-            Box::new(checked_cast_n_minus_one.clone()),
-            BinaryTypeOperator::Addition,
-            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
-        );
+        <span class="kw">let </span>n_minus_one_plus_one = checked_cast_n_minus_one.clone() + <span class="number">1u32</span>.into();
 
         <span class="kw">let </span>canonicalized_typ = n_minus_one_plus_one.canonicalize();
 
@@ -1105,12 +1360,7 @@
 
         <span class="comment">// We also want to check that if the `CheckedCast` is on the RHS then we'll still be able to canonicalize
         // the expression `1 + (N - 1)` to `N`.
-
-        </span><span class="kw">let </span>one_plus_n_minus_one = Type::infix_expr(
-            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
-            BinaryTypeOperator::Addition,
-            Box::new(checked_cast_n_minus_one),
-        );
+        </span><span class="kw">let </span>one_plus_n_minus_one = Type::from(<span class="number">1u32</span>) + checked_cast_n_minus_one;
 
         <span class="kw">let </span>canonicalized_typ = one_plus_n_minus_one.canonicalize();
 
@@ -1122,15 +1372,9 @@
         <span class="kw">let </span>field_element_kind = Kind::numeric(Type::FieldElement);
         <span class="kw">let </span>x_var = TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), field_element_kind.clone());
         <span class="kw">let </span>x_type = Type::TypeVariable(x_var.clone());
-        <span class="kw">let </span>one = Type::Constant(SignedField::one(), field_element_kind.clone());
 
-        <span class="kw">let </span>lhs = Type::infix_expr(
-            Box::new(x_type.clone()),
-            BinaryTypeOperator::Addition,
-            Box::new(one.clone()),
-        );
-        <span class="kw">let </span>rhs =
-            Type::infix_expr(Box::new(one), BinaryTypeOperator::Addition, Box::new(x_type.clone()));
+        <span class="kw">let </span>lhs = x_type.clone() + SignedField::one().into();
+        <span class="kw">let </span>rhs = Type::from(SignedField::one()) + x_type.clone();
 
         <span class="comment">// canonicalize
         </span><span class="kw">let </span>lhs = lhs.canonicalize();
@@ -1155,30 +1399,86 @@
         <span class="comment">// ensure results are the same
         </span><span class="macro">assert_eq!</span>(lhs, rhs);
     }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>negative_u32_difference() {
+        <span class="kw">let </span>infix = Type::from(<span class="number">0u32</span>) - Type::from(<span class="number">1u32</span>);
+        <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+        <span class="macro">assert_eq!</span>(infix_canonicalized, infix);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>zero_divided_by_zero() {
+        <span class="kw">let </span>infix = Type::from(<span class="number">0u8</span>) / Type::from(<span class="number">0u8</span>);
+        <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+        <span class="macro">assert_eq!</span>(infix_canonicalized, infix);
+    }
+
+    <span class="attr">#[should_panic(expected = <span class="string">"`left == right` failed"</span>)]
+    #[test]
+    </span><span class="kw">fn </span>exact_division_simplifying() {
+        <span class="kw">let </span>infix = (Type::from(<span class="number">2u8</span>) * Type::from(<span class="number">160u8</span>)) / (Type::from(<span class="number">91u8</span>) - Type::from(<span class="number">86u8</span>));
+        <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+        <span class="kw">let </span>expected_result = (Type::from(<span class="number">2u8</span>) * Type::from(<span class="number">160u8</span>)) / Type::from(<span class="number">5u8</span>);
+        <span class="macro">assert_eq!</span>(infix_canonicalized, expected_result);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>exact_division_simplifying_with_checked_cast() {
+        <span class="kw">let </span>infix = (Type::from(<span class="number">2u8</span>) * Type::from(<span class="number">160u8</span>)) / (Type::from(<span class="number">91u8</span>) - Type::from(<span class="number">86u8</span>));
+        <span class="kw">let </span>infix = Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) };
+
+        <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+        <span class="kw">let </span>infix_canonicalized = <span class="kw">match </span>infix_canonicalized {
+            Type::CheckedCast { from, .. } =&gt; <span class="kw-2">*</span>from,
+            infix_canonicalized =&gt; infix_canonicalized,
+        };
+
+        <span class="kw">let </span>expected_result = (Type::from(<span class="number">2u8</span>) * Type::from(<span class="number">160u8</span>)) / Type::from(<span class="number">5u8</span>);
+        <span class="macro">assert_eq!</span>(infix_canonicalized, expected_result);
+    }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>proptests {
+    <span class="kw">use </span>std::{collections::HashMap, path::Path};
 
     <span class="kw">use </span>acvm::{AcirField, FieldElement};
-    <span class="kw">use </span>proptest::arbitrary::any;
-    <span class="kw">use </span>proptest::collection;
-    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
-    <span class="kw">use </span>proptest::result::maybe_ok;
+    <span class="kw">use </span>fm::FileManager;
+    <span class="kw">use </span>proptest::{arbitrary::any, collection, prelude::<span class="kw-2">*</span>, result::maybe_ok};
 
-    <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
-    <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
-    <span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
-    <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
+    <span class="kw">use crate</span>::{
+        ast::{Expression, ExpressionKind, InfixExpression, IntegerBitSize, Literal},
+        elaborator::{Elaborator, ElaboratorOptions},
+        graph::CrateId,
+        hir::{
+            Context,
+            comptime::{Interpreter, Value},
+        },
+        hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+        shared::Signedness,
+        signed_field::SignedField,
+    };
+
+    <span class="kw">use </span>noirc_errors::{Located, Location};
 
     <span class="macro">prop_compose!</span> {
         <span class="comment">// maximum_size must be non-zero
         </span><span class="kw">fn </span>arbitrary_u128_field_element(maximum_size: u128)
             (u128_value <span class="kw">in </span>any::&lt;u128&gt;())
-            -&gt; FieldElement
+            -&gt; SignedField
         {
             <span class="macro">assert!</span>(maximum_size != <span class="number">0</span>);
-            FieldElement::from(u128_value % maximum_size)
+            SignedField::from(u128_value % maximum_size)
+        }
+    }
+
+    <span class="macro">prop_compose!</span> {
+        <span class="kw">fn </span>arbitrary_i128_field_element(minimum_size:i128, maximum_size: i128)
+            (i128_value <span class="kw">in </span>any::&lt;i128&gt;())
+            -&gt; SignedField
+        {
+            SignedField::from(i128_value.clamp(minimum_size, maximum_size))
         }
     }
 
@@ -1187,17 +1487,17 @@
         <span class="comment">// Use both `u128` and hex proptest strategies
         </span><span class="kw">fn </span>arbitrary_field_element()
             (u128_or_hex <span class="kw">in </span>maybe_ok(any::&lt;u128&gt;(), <span class="string">"[0-9a-f]{64}"</span>))
-            -&gt; FieldElement
+            -&gt; SignedField
         {
             <span class="kw">match </span>u128_or_hex {
-                <span class="prelude-val">Ok</span>(number) =&gt; FieldElement::from(number),
-                <span class="prelude-val">Err</span>(hex) =&gt; FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).expect(<span class="string">"should accept any 32 byte hex string"</span>),
+                <span class="prelude-val">Ok</span>(number) =&gt; SignedField::from(number),
+                <span class="prelude-val">Err</span>(hex) =&gt; FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).expect(<span class="string">"should accept any 32 byte hex string"</span>).into(),
             }
         }
     }
 
-    <span class="comment">// Generate (arbitrary_unsigned_type, generator for that type)
-    </span><span class="kw">fn </span>arbitrary_unsigned_type_with_generator() -&gt; BoxedStrategy&lt;(Type, BoxedStrategy&lt;FieldElement&gt;)&gt;
+    <span class="comment">// Generate (arbitrary_numeric_type, generator for that type)
+    </span><span class="kw">fn </span>arbitrary_numeric_type_with_generator() -&gt; BoxedStrategy&lt;(Type, BoxedStrategy&lt;SignedField&gt;)&gt;
     {
         <span class="macro">prop_oneof!</span>[
             Just((Type::FieldElement, arbitrary_field_element().boxed())),
@@ -1206,7 +1506,19 @@
                 <span class="kw">let </span>maximum_size = typ.integral_maximum_size().unwrap().to_u128();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
-            Just((Type::Bool, arbitrary_u128_field_element(<span class="number">1</span>).boxed())),
+            any::&lt;IntegerBitSize&gt;().prop_map(|bit_size| {
+                <span class="kw">let </span>bit_size = <span class="kw">match </span>bit_size {
+                    <span class="comment">// I1 is rejected
+                    </span>IntegerBitSize::One =&gt; IntegerBitSize::Eight,
+                    <span class="comment">// I128 is rejected
+                    </span>IntegerBitSize::HundredTwentyEight =&gt; IntegerBitSize::SixtyFour,
+                    bit_size =&gt; bit_size,
+                };
+                <span class="kw">let </span>typ = Type::Integer(Signedness::Signed, bit_size);
+                <span class="kw">let </span>minimum_size = typ.integral_maximum_size().unwrap().to_i128();
+                <span class="kw">let </span>maximum_size = typ.integral_maximum_size().unwrap().to_i128();
+                (typ, arbitrary_i128_field_element(minimum_size, maximum_size).boxed())
+            }),
         ]
         .boxed()
     }
@@ -1231,36 +1543,72 @@
         })
     }
 
-    <span class="kw">fn </span>arbitrary_infix_expr(
+    <span class="kw">fn </span>infix_expr_helper(lhs_op_rhs: (Type, BinaryTypeOperator, Type)) -&gt; Type {
+        <span class="kw">let </span>(lhs, op, rhs) = lhs_op_rhs;
+        <span class="macro">assert_eq!</span>(lhs.kind(), rhs.kind());
+        <span class="kw">let </span>op = <span class="kw">if </span>lhs.kind().integral_maximum_size().is_none()
+            &amp;&amp; <span class="macro">matches!</span>(op, BinaryTypeOperator::Modulo)
+        {
+            <span class="comment">// `Field` does not currently support modulo
+            </span>BinaryTypeOperator::Addition
+        } <span class="kw">else </span>{
+            op
+        };
+        Type::infix_expr(Box::new(lhs), op, Box::new(rhs))
+    }
+
+    <span class="kw">fn </span>arbitrary_infix_expr_without_variables_helper(
         typ: Type,
-        arbitrary_value: BoxedStrategy&lt;FieldElement&gt;,
-        num_variables: usize,
+        arbitrary_value: BoxedStrategy&lt;SignedField&gt;,
     ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Type&gt; {
         <span class="kw">let </span>leaf = <span class="macro">prop_oneof!</span>[
-            arbitrary_variable(typ.clone(), num_variables),
-            arbitrary_value.prop_map(<span class="kw">move </span>|value| Type::Constant(
-                SignedField::positive(value),
-                Kind::numeric(typ.clone())
-            )),
+            arbitrary_value
+                .prop_map(<span class="kw">move </span>|value| Type::Constant(value, Kind::numeric(typ.clone()))),
         ];
 
         leaf.prop_recursive(
             <span class="number">8</span>,   <span class="comment">// 8 levels deep maximum
             </span><span class="number">256</span>, <span class="comment">// Shoot for maximum size of 256 nodes
             </span><span class="number">10</span>,  <span class="comment">// We put up to 10 items per collection
-            </span>|inner| {
-                (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner)
-                    .prop_map(|(lhs, op, rhs)| Type::infix_expr(Box::new(lhs), op, Box::new(rhs)))
-            },
+            </span>|inner| (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner).prop_map(infix_expr_helper),
+        )
+    }
+
+    <span class="macro">prop_compose!</span> {
+        <span class="kw">fn </span>arbitrary_infix_expr()
+            (type_and_gen <span class="kw">in </span>arbitrary_numeric_type_with_generator())
+            (infix_expr <span class="kw">in </span>arbitrary_infix_expr_without_variables_helper(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>), type_and_gen <span class="kw">in </span>Just(type_and_gen))
+        -&gt; (Type, Type) {
+            <span class="kw">let </span>(typ, _value_generator) = type_and_gen;
+            (infix_expr, typ)
+        }
+    }
+
+    <span class="kw">fn </span>arbitrary_infix_expr_with_variables(
+        typ: Type,
+        arbitrary_value: BoxedStrategy&lt;SignedField&gt;,
+        num_variables: usize,
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Type&gt; {
+        <span class="kw">let </span>leaf = <span class="macro">prop_oneof!</span>[
+            arbitrary_variable(typ.clone(), num_variables),
+            arbitrary_value
+                .prop_map(<span class="kw">move </span>|value| Type::Constant(value, Kind::numeric(typ.clone()))),
+        ];
+
+        leaf.prop_recursive(
+            <span class="number">8</span>,   <span class="comment">// 8 levels deep maximum
+            </span><span class="number">256</span>, <span class="comment">// Shoot for maximum size of 256 nodes
+            </span><span class="number">10</span>,  <span class="comment">// We put up to 10 items per collection
+            </span>|inner| (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner).prop_map(infix_expr_helper),
         )
     }
 
     <span class="macro">prop_compose!</span> {
         <span class="comment">// (infix_expr, type, generator)
         </span><span class="kw">fn </span>arbitrary_infix_expr_type_gen(num_variables: usize)
-            (type_and_gen <span class="kw">in </span>arbitrary_unsigned_type_with_generator())
-            (infix_expr <span class="kw">in </span>arbitrary_infix_expr(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>, num_variables), type_and_gen <span class="kw">in </span>Just(type_and_gen))
-        -&gt; (Type, Type, BoxedStrategy&lt;FieldElement&gt;) {
+            (type_and_gen <span class="kw">in </span>arbitrary_numeric_type_with_generator())
+            (infix_expr <span class="kw">in </span>arbitrary_infix_expr_with_variables(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>, num_variables), type_and_gen <span class="kw">in </span>Just(type_and_gen))
+        -&gt; (Type, Type, BoxedStrategy&lt;SignedField&gt;) {
             <span class="kw">let </span>(typ, value_generator) = type_and_gen;
             (infix_expr, typ, value_generator)
         }
@@ -1275,7 +1623,7 @@
             <span class="kw">let </span>(infix_expr, typ, _value_generator) = infix_type_gen;
             <span class="kw">let </span>bindings: Vec&lt;<span class="kw">_</span>&gt; = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(SignedField::positive(<span class="kw-2">*</span>value), Kind::numeric(typ.clone()))
+                    Type::Constant(<span class="kw-2">*</span>value, Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)
@@ -1293,11 +1641,51 @@
         }
     }
 
+    <span class="kw">fn </span>convert_infix_type_expr_to_expr(infix_expr: <span class="kw-2">&amp;</span>Type) -&gt; Expression {
+        <span class="kw">let </span>kind = <span class="kw">match </span>infix_expr {
+            Type::InfixExpr(lhs, op, rhs, _inversion) =&gt; {
+                <span class="kw">let </span>lhs = convert_infix_type_expr_to_expr(lhs);
+                <span class="kw">let </span>rhs = convert_infix_type_expr_to_expr(rhs);
+                <span class="kw">let </span>binary_op_kind = op.operator_to_binary_op_kind_helper();
+                <span class="kw">let </span>location = Location::dummy();
+                <span class="kw">let </span>operator = Located::from(location, binary_op_kind);
+                ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
+            }
+            Type::Constant(value, kind) =&gt; {
+                <span class="kw">let </span>integer_type_suffix = <span class="kw">match </span>kind {
+                    Kind::Numeric(typ) =&gt; {
+                        typ.as_integer_type_suffix().expect(<span class="string">"ICE: unexpected numeric type {typ:?}"</span>)
+                    }
+                    kind =&gt; <span class="macro">unimplemented!</span>(
+                        <span class="string">"convert_infix_type_expr_to_expr: unexpected non-numeric kind: {kind}"
+                    </span>),
+                };
+                <span class="kw">let </span>literal = Literal::Integer(<span class="kw-2">*</span>value, <span class="prelude-val">Some</span>(integer_type_suffix));
+                ExpressionKind::Literal(literal)
+            }
+            Type::TypeVariable(type_var) =&gt; <span class="macro">unimplemented!</span>(
+                <span class="string">"convert_infix_type_expr_to_expr: unexpected type variable {type_var:?}"
+            </span>),
+            infix_expr =&gt; <span class="macro">unimplemented!</span>(<span class="string">"unexpected infix expression type: {infix_expr:?}"</span>),
+        };
+        <span class="kw">let </span>location = Location::dummy();
+        Expression { kind, location }
+    }
+
+    <span class="comment">// Convert a numeric Value to a `Type::Constant` or panic if `Value::to_signed_field` fails
+    // (expected to happen when it's not numeric)
+    </span><span class="kw">fn </span>numeric_value_to_type(value: Value) -&gt; Type {
+        <span class="kw">let </span>kind_type = value.get_type();
+        <span class="kw">let </span>kind = Kind::numeric(kind_type.into_owned());
+        <span class="kw">let </span>value = value.to_signed_field().expect(<span class="string">"ICE: numeric_value_to_type: expected a "</span>);
+        Type::Constant(value, kind)
+    }
+
     <span class="macro">proptest!</span> {
-        <span class="attr">#[test]
-        </span><span class="comment">// Expect cases that don't resolve to constants, e.g. see
+        <span class="comment">// Expecting cases that don't resolve to constants, e.g. see
         // `arithmetic_generics_checked_cast_indirect_zeros`
-        </span><span class="attr">#[should_panic(expected = <span class="string">"matches!(infix, Type::Constant(..))"</span>)]
+        </span><span class="attr">#[should_panic(expected = <span class="string">"expected an InfixExpr, but found: "</span>)]
+        #[test]
         </span><span class="kw">fn </span>instantiate_before_or_after_canonicalize(infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings(<span class="number">10</span>)) {
             <span class="kw">let </span>(infix, typ, bindings) = infix_type_bindings;
 
@@ -1305,25 +1693,25 @@
             </span><span class="kw">let </span>infix_canonicalized = infix.canonicalize();
 
             <span class="comment">// bind vars
-            </span><span class="kw">for </span>(var, binding) <span class="kw">in </span>bindings {
-                var.bind(binding);
+            </span><span class="kw">for </span>(var, binding) <span class="kw">in </span><span class="kw-2">&amp;</span>bindings {
+                var.bind(binding.clone());
             }
 
             <span class="comment">// attempt to canonicalize to a constant
             </span><span class="kw">let </span>infix = infix.canonicalize();
             <span class="kw">let </span>infix_canonicalized = infix_canonicalized.canonicalize();
 
-            <span class="comment">// ensure we've canonicalized to constants
-            </span><span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(infix, Type::Constant(..)));
-            <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(infix_canonicalized, Type::Constant(..)));
+            <span class="kw">if </span><span class="macro">matches!</span>(infix, Type::InfixExpr(..)) {
+                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(infix_canonicalized, Type::InfixExpr(..)), <span class="string">"expected an InfixExpr, but found: {infix_canonicalized:?}"</span>);
+            } <span class="kw">else </span>{
+                <span class="comment">// ensure result kinds are the same as the original kind
+                </span><span class="kw">let </span>kind = Kind::numeric(typ);
+                <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
+                <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
 
-            <span class="comment">// ensure result kinds are the same as the original kind
-            </span><span class="kw">let </span>kind = Kind::numeric(typ);
-            <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
-            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
-
-            <span class="comment">// ensure results are the same
-            </span><span class="macro">prop_assert_eq!</span>(infix, infix_canonicalized);
+                <span class="comment">// ensure results are the same
+                </span><span class="macro">prop_assert_eq!</span>(infix, infix_canonicalized);
+            }
         }
 
         <span class="attr">#[test]
@@ -1368,14 +1756,81 @@
                 }
             }
         }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>compare_to_comptime(infix_type <span class="kw">in </span>arbitrary_infix_expr()) {
+            <span class="kw">let </span>(infix, typ) = infix_type;
+            <span class="kw">let </span>kind = Kind::numeric(typ.clone());
+            <span class="kw">let </span>expr = convert_infix_type_expr_to_expr(<span class="kw-2">&amp;</span>infix);
+
+            <span class="kw">let </span>root = Path::new(<span class="string">"."</span>);
+            <span class="kw">let </span>file_manager = FileManager::new(root);
+            <span class="kw">let </span>parsed_files = HashMap::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>context = Context::from_ref_file_manager(
+                <span class="kw-2">&amp;</span>file_manager,
+                <span class="kw-2">&amp;</span>parsed_files,
+            );
+            <span class="kw">let </span>options = ElaboratorOptions {
+                debug_comptime_in_file: <span class="prelude-val">None</span>,
+                pedantic_solving: <span class="bool-val">true</span>,
+                enabled_unstable_features: <span class="kw-2">&amp;</span>[],
+                disable_required_unstable_features: <span class="bool-val">false</span>,
+            };
+            <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::from_context(
+                <span class="kw-2">&amp;mut </span>context,
+                CrateId::Root(<span class="number">0</span>),
+                options,
+            );
+            <span class="kw">let </span>(expr_id, expr_type) = elaborator.elaborate_expression(expr);
+
+            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
+            <span class="macro">assert_eq!</span>(typ, expr_type);
+
+            <span class="kw">let </span>current_function = <span class="prelude-val">None</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new(
+                <span class="kw-2">&amp;mut </span>elaborator,
+                current_function,
+            );
+
+            <span class="kw">let </span>result_value = interpreter.evaluate(expr_id);
+            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
+
+            <span class="kw">let </span>result_type = <span class="kw">match </span>result_value {
+                <span class="prelude-val">Ok</span>(result_value) =&gt; numeric_value_to_type(result_value),
+                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; Type::Error,
+            };
+
+            <span class="kw">let </span>infix = Type::CheckedCast {
+                from: Box::new(infix.clone()),
+                to: Box::new(infix)
+            };
+
+            <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
+            <span class="macro">prop_assert!</span>(infix.kind().unifies(<span class="kw-2">&amp;</span>result_type.kind()));
+
+            <span class="kw">let </span>infix_canonicalized = <span class="kw">match </span>infix_canonicalized {
+                Type::CheckedCast { from, .. } =&gt; {
+                    <span class="kw-2">*</span>from
+                }
+                <span class="kw">_ </span>=&gt; infix_canonicalized,
+            };
+
+            <span class="comment">// expect an error from the interpreter when canonicalize does not produce a constant
+            </span><span class="kw">if </span><span class="macro">matches!</span>(infix_canonicalized, Type::Constant(..)) {
+                <span class="macro">prop_assert_eq!</span>(infix_canonicalized, result_type);
+            } <span class="kw">else </span>{
+                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(result_type, Type::Error));
+            }
+        }
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>try_simplify_partial_constants_does_not_simplify_large_field_elements() {
-        <span class="comment">// This test demonstrates that try_simplify_partial_constants() does not simplify
-        // expressions with FieldElements that don't fit in 128 bits, although
-        // this case should be handled (TODO).
-        </span><span class="kw">use crate</span>::{BinaryTypeOperator, TypeVariableId, signed_field::SignedField};
+        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/11013): This test demonstrates that
+        // try_simplify_partial_constants() does not simplify expressions with FieldElements
+        // that don't fit in 128 bits, although this case should be handled.
+        </span><span class="kw">use crate</span>::{TypeVariableId, signed_field::SignedField};
         <span class="kw">use </span>acvm::FieldElement;
 
         <span class="kw">let </span>typ = Type::FieldElement;
@@ -1392,19 +1847,8 @@
             <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
         ]));
 
-        <span class="kw">let </span>two = SignedField::positive(FieldElement::from(<span class="number">2_u128</span>));
-        <span class="comment">// Build expression: (N * large_field) / 2
-        </span><span class="kw">let </span>mul_expr = Type::infix_expr(
-            Box::new(n.clone()),
-            BinaryTypeOperator::Multiplication,
-            Box::new(Type::Constant(large_field, kind.clone())),
-        );
-
-        <span class="kw">let </span>div_expr = Type::infix_expr(
-            Box::new(mul_expr.clone()),
-            BinaryTypeOperator::Division,
-            Box::new(Type::Constant(two, kind.clone())),
-        );
+        <span class="kw">let </span>mul_expr = n.clone() * large_field.into();
+        <span class="kw">let </span>div_expr = mul_expr.clone() / SignedField::from(<span class="number">2u8</span>).into();
 
         <span class="comment">// Canonicalize the expression
         </span><span class="kw">let </span>canonicalized = div_expr.canonicalize();

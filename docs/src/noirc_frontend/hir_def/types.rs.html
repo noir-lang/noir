@@ -3247,7 +3247,28 @@
 <a href="#3246" id="3246">3246</a>
 <a href="#3247" id="3247">3247</a>
 <a href="#3248" id="3248">3248</a>
-<a href="#3249" id="3249">3249</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3249" id="3249">3249</a>
+<a href="#3250" id="3250">3250</a>
+<a href="#3251" id="3251">3251</a>
+<a href="#3252" id="3252">3252</a>
+<a href="#3253" id="3253">3253</a>
+<a href="#3254" id="3254">3254</a>
+<a href="#3255" id="3255">3255</a>
+<a href="#3256" id="3256">3256</a>
+<a href="#3257" id="3257">3257</a>
+<a href="#3258" id="3258">3258</a>
+<a href="#3259" id="3259">3259</a>
+<a href="#3260" id="3260">3260</a>
+<a href="#3261" id="3261">3261</a>
+<a href="#3262" id="3262">3262</a>
+<a href="#3263" id="3263">3263</a>
+<a href="#3264" id="3264">3264</a>
+<a href="#3265" id="3265">3265</a>
+<a href="#3266" id="3266">3266</a>
+<a href="#3267" id="3267">3267</a>
+<a href="#3268" id="3268">3268</a>
+<a href="#3269" id="3269">3269</a>
+<a href="#3270" id="3270">3270</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -6015,6 +6036,27 @@
     }
 }
 
+<span class="kw">impl </span>From&lt;u8&gt; <span class="kw">for </span>Type {
+    <span class="kw">fn </span>from(value: u8) -&gt; <span class="self">Self </span>{
+        Type::Constant(
+            value.into(),
+            Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        )
+    }
+}
+
+<span class="kw">impl </span>From&lt;u32&gt; <span class="kw">for </span>Type {
+    <span class="kw">fn </span>from(value: u32) -&gt; <span class="self">Self </span>{
+        Type::Constant(value.into(), Kind::u32())
+    }
+}
+
+<span class="kw">impl </span>From&lt;SignedField&gt; <span class="kw">for </span>Type {
+    <span class="kw">fn </span>from(value: SignedField) -&gt; <span class="self">Self </span>{
+        Type::Constant(value, Kind::numeric(Type::FieldElement))
+    }
+}
+
 <span class="kw">impl </span>BinaryTypeOperator {
     <span class="doccomment">/// Perform the actual rust numeric operation associated with this operator
     </span><span class="kw">pub fn </span>function(
@@ -6024,7 +6066,7 @@
         kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedField, TypeCheckError&gt; {
-        <span class="kw">match </span>kind.follow_bindings().integral_maximum_size() {
+        <span class="kw">match </span>kind.integral_maximum_size() {
             <span class="prelude-val">None </span>=&gt; <span class="kw">match </span><span class="self">self </span>{
                 BinaryTypeOperator::Addition =&gt; <span class="prelude-val">Ok</span>(a + b),
                 BinaryTypeOperator::Subtraction =&gt; <span class="prelude-val">Ok</span>(a - b),
@@ -6076,7 +6118,7 @@
                         BinaryTypeOperator::Modulo =&gt; a.checked_rem(b).ok_or(err)<span class="question-mark">?</span>,
                     };
 
-                    <span class="prelude-val">Ok</span>(result.into())
+                    kind.ensure_value_fits(result.into(), location)
                 }
             }
         }
