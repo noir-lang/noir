@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767388825790,
+  "lastUpdate": 1767390438666,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "36ae948396067a858db73b7913463c7991fbc052",
-          "message": "chore(scripts): Add support for library test scripts in `check-critical-libraries.sh` (#10961)",
-          "timestamp": "2025-12-18T18:42:53Z",
-          "tree_id": "fd174be0871d3a88529ba70806ba424d1afca9ab",
-          "url": "https://github.com/noir-lang/noir/commit/36ae948396067a858db73b7913463c7991fbc052"
-        },
-        "date": 1766084664785,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255473,
-            "range": "± 324",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225190,
-            "range": "± 1358",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791807,
-            "range": "± 2130",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3174326,
             "range": "± 4022",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abfee1f54b20984172ba23482f4af160395cfba5",
+          "message": "feat: improved error message when if is missing its condition (#11037)",
+          "timestamp": "2026-01-02T21:26:20Z",
+          "tree_id": "30674d90d00f83bc8c67b07e4eb668923f02ae5c",
+          "url": "https://github.com/noir-lang/noir/commit/abfee1f54b20984172ba23482f4af160395cfba5"
+        },
+        "date": 1767390404319,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262154,
+            "range": "± 721",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234563,
+            "range": "± 3565",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793779,
+            "range": "± 11067",
             "unit": "ns/iter"
           }
         ]
