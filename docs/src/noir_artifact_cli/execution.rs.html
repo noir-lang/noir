@@ -223,15 +223,13 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>acir::{AcirField, FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::BlackBoxFunctionSolver;
 <span class="kw">use </span>nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 <span class="kw">use </span>noirc_abi::{AbiType, Sign, input_parser::InputValue};
-<span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
-<span class="kw">use </span>noirc_driver::CompiledProgram;
+<span class="kw">use </span>noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 <span class="kw">use crate</span>::{
     errors::CliError,

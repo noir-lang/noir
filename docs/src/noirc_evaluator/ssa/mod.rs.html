@@ -570,10 +570,7 @@
 <a href="#569" id="569">569</a>
 <a href="#570" id="570">570</a>
 <a href="#571" id="571">571</a>
-<a href="#572" id="572">572</a>
-<a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#572" id="572">572</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -586,11 +583,7 @@
     path::PathBuf,
 };
 
-<span class="kw">use crate</span>::{
-    acir::ssa::Artifacts,
-    brillig::BrilligOptions,
-    errors::{RuntimeError, SsaReport},
-};
+<span class="kw">use crate</span>::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
 <span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
@@ -600,10 +593,11 @@
 };
 
 <span class="kw">use </span>ir::instruction::ErrorType;
-<span class="kw">use </span>noirc_errors::{
-    call_stack::CallStackId,
-    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+<span class="kw">use </span>noirc_artifacts::{
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
+    ssa::SsaReport,
 };
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -1089,7 +1083,7 @@
             OpcodeLocation::Brillig { .. } =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected ACIR opcode"</span>),
         })
         .collect();
-    <span class="kw">let </span>location_tree = generated_acir.call_stacks.to_location_tree();
+    <span class="kw">let </span>location_tree = LocationTree::from(<span class="kw-2">&amp;</span>generated_acir.call_stacks);
     <span class="kw">let </span><span class="kw-2">mut </span>debug_info = DebugInfo::new(
         brillig_locations,
         acir_location_map,

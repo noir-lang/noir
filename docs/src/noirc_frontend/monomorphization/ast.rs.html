@@ -698,15 +698,11 @@
 <a href="#697" id="697">697</a>
 <a href="#698" id="698">698</a>
 <a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#700" id="700">700</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_errors::{
-    Location,
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
-};
+<span class="kw">use </span>noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
+<span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{BinaryOpKind, IntegerBitSize},

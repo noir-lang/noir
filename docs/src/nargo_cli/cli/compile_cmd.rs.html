@@ -303,7 +303,8 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
 <span class="kw">use </span>std::io::{Read, Write};
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::time::Duration;
@@ -317,8 +318,9 @@
 <span class="kw">use </span>noir_artifact_cli::fs::artifact::{
     read_program_from_file, save_contract_to_file, save_program_to_file,
 };
+<span class="kw">use </span>noirc_artifacts::contract::CompiledContract;
 <span class="kw">use </span>noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-<span class="kw">use </span>noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
+<span class="kw">use </span>noirc_driver::{CompilationResult, CompileOptions};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>noirc_frontend::hir::ParsedFiles;

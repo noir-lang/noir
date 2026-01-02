@@ -272,7 +272,9 @@
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::circuit::Opcode;
 <span class="kw">use </span>acir::circuit::OpcodeLocation;
@@ -467,9 +469,11 @@
     <span class="kw">use </span>acir::circuit::{Circuit, Program, brillig::BrilligBytecode};
     <span class="kw">use </span>color_eyre::eyre;
     <span class="kw">use </span>fm::codespan_files::Files;
-    <span class="kw">use </span>noirc_artifacts::program::ProgramArtifact;
+    <span class="kw">use </span>noirc_artifacts::{
+        debug::{DebugInfo, ProgramDebugInfo},
+        program::ProgramArtifact,
+    };
     <span class="kw">use </span>noirc_driver::CrateName;
-    <span class="kw">use </span>noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
     <span class="kw">use </span>std::{collections::BTreeMap, path::Path, str::FromStr};
 
     <span class="kw">use </span><span class="kw">crate</span>::flamegraph::Sample;

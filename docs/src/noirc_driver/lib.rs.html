@@ -895,7 +895,91 @@
 <a href="#894" id="894">894</a>
 <a href="#895" id="895">895</a>
 <a href="#896" id="896">896</a>
-<a href="#897" id="897">897</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -906,6 +990,10 @@
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_abi::{AbiParameter, AbiType, AbiValue};
+<span class="kw">use </span>noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
+<span class="kw">use </span>noirc_artifacts::debug::{DebugFile, DebugInfo};
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+<span class="kw">use </span>noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, DiagnosticKind};
 <span class="kw">use </span>noirc_evaluator::brillig::BrilligOptions;
 <span class="kw">use </span>noirc_evaluator::create_program;
@@ -923,23 +1011,15 @@
 };
 <span class="kw">use </span>noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 <span class="kw">use </span>noirc_frontend::token::SecondaryAttributeKind;
-<span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>tracing::info;
 
 <span class="kw">mod </span>abi_gen;
-<span class="kw">mod </span>contract;
-<span class="kw">mod </span>debug;
-<span class="kw">mod </span>program;
 <span class="kw">mod </span>stdlib;
 
-<span class="kw">use </span>debug::filter_relevant_files;
-
 <span class="kw">pub use </span>abi_gen::gen_abi;
-<span class="kw">pub use </span>contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
-<span class="kw">pub use </span>debug::DebugFile;
 <span class="kw">pub use </span>noirc_frontend::graph::{CrateId, CrateName};
-<span class="kw">pub use </span>program::CompiledProgram;
 <span class="kw">pub use </span>stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 <span class="kw">const </span>STD_CRATE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"std"</span>;
@@ -1412,7 +1492,8 @@
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(|error| <span class="macro">vec!</span>[CustomDiagnostic::from(error)])<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>compilation_warnings = vecmap(compiled_program.warnings.clone(), CustomDiagnostic::from);
+    <span class="kw">let </span>compilation_warnings =
+        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
     <span class="kw">if </span>options.deny_warnings &amp;&amp; !compilation_warnings.is_empty() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(compilation_warnings);
     }
@@ -1673,6 +1754,54 @@
     }
 }
 
+<span class="kw">pub fn </span>filter_relevant_files(
+    debug_symbols: <span class="kw-2">&amp;</span>[DebugInfo],
+    file_manager: <span class="kw-2">&amp;</span>FileManager,
+) -&gt; BTreeMap&lt;FileId, DebugFile&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>files_with_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
+        .iter()
+        .flat_map(|function_symbols| {
+            function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+                function_symbols
+                    .location_tree
+                    .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                    .into_iter()
+                    .map(|location| location.file)
+            })
+        })
+        .collect();
+
+    <span class="kw">let </span>files_with_brillig_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
+        .iter()
+        .flat_map(|function_symbols| {
+            function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                brillig_location_map.values().flat_map(|call_stack_id| {
+                    function_symbols
+                        .location_tree
+                        .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                        .into_iter()
+                        .map(|location| location.file)
+                })
+            })
+        })
+        .collect();
+
+    files_with_debug_symbols.extend(files_with_brillig_debug_symbols);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>file_map = BTreeMap::new();
+
+    <span class="kw">for </span>file_id <span class="kw">in </span>files_with_debug_symbols {
+        <span class="kw">let </span>file_path = file_manager.path(file_id).expect(<span class="string">"file should exist"</span>);
+        <span class="kw">let </span>file_source = file_manager.fetch_file(file_id).expect(<span class="string">"file should exist"</span>);
+
+        file_map.insert(
+            file_id,
+            DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
+        );
+    }
+    file_map
+}
+
 <span class="doccomment">/// Default expression width used for Noir compilation.
 /// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
 /// while we can sometimes expect the compilation target width to change.
@@ -1791,5 +1920,44 @@
     </span>name: String,
     functions: Vec&lt;ContractFunctionMeta&gt;,
     outputs: ContractOutputs,
+}
+
+<span class="kw">fn </span>ssa_report_to_custom_diagnostic(error: SsaReport) -&gt; CustomDiagnostic {
+    <span class="kw">match </span>error {
+        SsaReport::Warning(warning) =&gt; {
+            <span class="kw">let </span>message = warning.to_string();
+            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>warning {
+                    InternalWarning::ReturnConstant { call_stack } =&gt; {
+                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
+                    },
+                };
+            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
+            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
+            <span class="kw">let </span>diagnostic =
+                CustomDiagnostic::simple_warning(message, secondary_message, <span class="kw-2">*</span>location);
+            diagnostic.with_call_stack(call_stack)
+        }
+        SsaReport::Bug(bug) =&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
+            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
+                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
+                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
+                    }
+                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
+                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
+                    }
+                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
+                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
+                        }
+                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
+                    }
+                };
+            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
+            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
+            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, <span class="kw-2">*</span>location);
+            diagnostic.with_call_stack(call_stack)
+        }
+    }
 }
 </code></pre></div></section></main></body></html>

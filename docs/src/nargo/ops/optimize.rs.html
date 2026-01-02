@@ -63,16 +63,14 @@
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
 <a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#65" id="65">65</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
     acir::circuit::{Program, brillig::BrilligFunctionId},
 };
 <span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_driver::{CompiledContract, CompiledProgram};
-<span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
+<span class="kw">use </span>noirc_artifacts::{contract::CompiledContract, debug::DebugInfo, program::CompiledProgram};
 
 <span class="kw">pub fn </span>optimize_program(<span class="kw-2">mut </span>compiled_program: CompiledProgram) -&gt; CompiledProgram {
     compiled_program.program =

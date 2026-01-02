@@ -868,12 +868,12 @@
     DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
     RunParams,
 };
-<span class="kw">use </span>noirc_driver::CompiledProgram;
 
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DefaultDebugForeignCallExecutor;
 <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
 
 <span class="kw">use </span>easy_repl::{CommandStatus, Repl, command};
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <span class="kw">use </span>std::cell::RefCell;
 <span class="kw">use </span>std::sync::mpsc::{<span class="self">self</span>, Receiver, Sender};
 <span class="kw">use </span>std::thread;

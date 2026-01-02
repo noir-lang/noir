@@ -363,7 +363,8 @@
 <a href="#362" id="362">362</a>
 <a href="#363" id="363">363</a>
 <a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
 <span class="kw">use </span>dap::errors::ServerError;
 <span class="kw">use </span>dap::events::OutputEventBody;
 <span class="kw">use </span>dap::requests::Command;
@@ -383,8 +384,9 @@
 <span class="kw">use </span>noir_artifact_cli::fs::inputs::read_inputs_from_file;
 <span class="kw">use </span>noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 <span class="kw">use </span>noirc_abi::Abi;
-<span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-<span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
+<span class="kw">use </span>noirc_artifacts::debug::DebugInfo;
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+<span class="kw">use </span>noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
 <span class="kw">use </span>std::io::{BufReader, BufWriter, Read, Write};
 <span class="kw">use </span>std::path::Path;

@@ -306,15 +306,17 @@
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_artifacts::ssa::SsaReport;
 
 <span class="kw">use </span><span class="kw">crate</span>::acir::AcirVar;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_fn::FunctionContext;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::gen_brillig_for;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::BrilligParameter;
-<span class="kw">use </span><span class="kw">crate</span>::errors::{RuntimeError, SsaReport};
+<span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::Value;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,

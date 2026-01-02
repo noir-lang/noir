@@ -926,7 +926,8 @@
 <a href="#925" id="925">925</a>
 <a href="#926" id="926">926</a>
 <a href="#927" id="927">927</a>
-<a href="#928" id="928">928</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -934,7 +935,8 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-</span><span class="kw">use </span>noirc_errors::call_stack::CallStack;
+</span><span class="kw">use </span>noirc_artifacts::ssa::{InternalWarning, SsaReport};
+<span class="kw">use </span>noirc_errors::call_stack::CallStack;
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>types::{AcirDynamicArray, AcirValue};
 
@@ -957,7 +959,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::Brillig;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::gen_brillig_for;
-<span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
+<span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
     ir::{

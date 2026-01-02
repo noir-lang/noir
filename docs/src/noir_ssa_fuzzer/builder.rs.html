@@ -997,10 +997,12 @@
 <a href="#996" id="996">996</a>
 <a href="#997" id="997">997</a>
 <a href="#998" id="998">998</a>
-<a href="#999" id="999">999</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
-<span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+<span class="kw">use </span>noirc_driver::CompileOptions;
 <span class="kw">use </span>noirc_evaluator::ssa::function_builder::FunctionBuilder;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::function::{Function, RuntimeType};

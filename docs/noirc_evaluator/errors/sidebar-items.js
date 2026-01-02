@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["InternalBug","InternalError","InternalWarning","RuntimeError","SsaReport"],"type":["RtResult"]};
+window.SIDEBAR_ITEMS = {"enum":["InternalError","RuntimeError"],"type":["RtResult"]};

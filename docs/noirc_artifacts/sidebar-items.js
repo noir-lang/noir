@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["deserialize_hash","serialize_hash"],"mod":["contract","debug","debug_vars","program"]};
+window.SIDEBAR_ITEMS = {"fn":["deserialize_hash","serialize_hash"],"mod":["contract","debug","debug_vars","program","ssa"]};

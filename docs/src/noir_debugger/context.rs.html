@@ -1488,8 +1488,7 @@
 <a href="#1487" id="1487">1487</a>
 <a href="#1488" id="1488">1488</a>
 <a href="#1489" id="1489">1489</a>
-<a href="#1490" id="1490">1490</a>
-<a href="#1491" id="1491">1491</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1490" id="1490">1490</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -1505,11 +1504,10 @@
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>nargo::NargoError;
 <span class="kw">use </span>nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_error_from};
-<span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, StackFrame};
-<span class="kw">use </span>noirc_driver::{CompiledProgram, DebugFile};
+<span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
 
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
-<span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
 <span class="kw">use </span>noirc_printable_type::{PrintableType, PrintableValue};
 <span class="kw">use </span>thiserror::Error;
 

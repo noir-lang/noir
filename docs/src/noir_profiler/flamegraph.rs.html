@@ -453,8 +453,8 @@
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>fm::codespan_files::Files;
 <span class="kw">use </span>inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
+<span class="kw">use </span>noirc_artifacts::debug::DebugInfo;
 <span class="kw">use </span>noirc_errors::Location;
-<span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
 <span class="kw">use </span>noirc_errors::reporter::line_and_column_from_span;
 <span class="kw">use </span>noirc_evaluator::brillig::ProcedureId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -754,10 +754,10 @@
         native_types::Expression,
     };
     <span class="kw">use </span>fm::FileManager;
+    <span class="kw">use </span>noirc_artifacts::debug::{DebugInfo, LocationTree};
     <span class="kw">use </span>noirc_errors::{
         Location, Span,
         call_stack::{CallStackHelper, CallStackId},
-        debug_info::DebugInfo,
     };
     <span class="kw">use </span>std::{collections::BTreeMap, path::Path};
 
@@ -839,7 +839,7 @@
         opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">2</span>), call_stack_id);
 
         opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">42</span>), CallStackId::new(<span class="number">1</span>));
-        <span class="kw">let </span>location_tree = call_stack_hlp.to_location_tree();
+        <span class="kw">let </span>location_tree = LocationTree::from(<span class="kw-2">&amp;</span>call_stack_hlp);
 
         <span class="kw">let </span>debug_info = DebugInfo::new(
             BTreeMap::default(),

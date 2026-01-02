@@ -219,8 +219,7 @@
 <a href="#218" id="218">218</a>
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#221" id="221">221</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>acvm::{
     AcirField, FieldElement,
@@ -230,8 +229,7 @@
 <span class="kw">use </span>nargo::foreign_calls::{
     DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
 };
-<span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
-<span class="kw">use </span>noirc_errors::debug_info::{DebugFnId, DebugVarId};
+<span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, DebugFnId, DebugVarId, DebugVars, StackFrame};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>DebugForeignCall {
     VarAssign,

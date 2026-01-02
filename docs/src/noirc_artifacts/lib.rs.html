@@ -52,7 +52,8 @@
 <a href="#51" id="51">51</a>
 <a href="#52" id="52">52</a>
 <a href="#53" id="53">53</a>
-<a href="#54" id="54">54</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="doccomment">//! This module defines the structure of Nargo's different compilation artifacts.
@@ -67,6 +68,7 @@
 <span class="kw">pub mod </span>debug;
 <span class="kw">mod </span>debug_vars;
 <span class="kw">pub mod </span>program;
+<span class="kw">pub mod </span>ssa;
 
 <span class="doccomment">/// Serialize `hash` as `String`, so that it doesn't get truncated in Javascript.
 </span><span class="kw">fn </span>serialize_hash&lt;S&gt;(hash: <span class="kw-2">&amp;</span>u64, s: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;

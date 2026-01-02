@@ -1662,7 +1662,8 @@
 <a href="#1661" id="1661">1661</a>
 <a href="#1662" id="1662">1662</a>
 <a href="#1663" id="1663">1663</a>
-<a href="#1664" id="1664">1664</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1681,6 +1682,7 @@
     native_types::{Expression, Witness},
 };
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
+<span class="kw">use </span>noirc_artifacts::ssa::{InternalBug, SsaReport};
 <span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackHelper};
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_integer::Integer;
@@ -1690,7 +1692,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::Endian, types::NumericType};
 <span class="kw">use crate</span>::{
     ErrorType,
-    errors::{InternalBug, InternalError, RuntimeError, SsaReport},
+    errors::{InternalError, RuntimeError},
 };
 
 <span class="kw">mod </span>black_box;

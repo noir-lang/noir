@@ -431,16 +431,14 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
+<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>gloo_utils::format::JsValueSerdeExt;
 <span class="kw">use </span>js_sys::{JsString, Object};
 <span class="kw">use </span>nargo::parse_all;
-<span class="kw">use </span>noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
+<span class="kw">use </span>noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact, ssa::SsaReport};
 <span class="kw">use </span>noirc_driver::{
     CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
-<span class="kw">use </span>noirc_evaluator::errors::SsaReport;
 <span class="kw">use </span>noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,

@@ -112,12 +112,10 @@
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
-<span class="kw">use </span>noirc_driver::{
-    CompilationResult, CompileOptions, CompiledContract, CompiledProgram, CrateId, check_crate,
-    link_to_debug_crate,
-};
+<a href="#114" id="114">114</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
+<span class="kw">use </span>noirc_artifacts::contract::CompiledContract;
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+<span class="kw">use </span>noirc_driver::{CompilationResult, CompileOptions, CrateId, check_crate, link_to_debug_crate};
 <span class="kw">use </span>noirc_frontend::debug::DebugInstrumenter;
 <span class="kw">use </span>noirc_frontend::hir::{Context, ParsedFiles};
 

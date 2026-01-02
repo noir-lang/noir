@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["CallStackHelper","CallStackId","LocationNode","LocationNodeDebugInfo","LocationTree"],"type":["CallStack"]};
+window.SIDEBAR_ITEMS = {"struct":["CallStackHelper","CallStackId","LocationNode"],"type":["CallStack"]};

@@ -296,7 +296,9 @@
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acir::circuit::brillig::BrilligFunctionId;
@@ -457,8 +459,10 @@
     };
     <span class="kw">use </span>color_eyre::eyre;
     <span class="kw">use </span>fm::codespan_files::Files;
-    <span class="kw">use </span>noirc_artifacts::program::ProgramArtifact;
-    <span class="kw">use </span>noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
+    <span class="kw">use </span>noirc_artifacts::{
+        debug::{DebugInfo, ProgramDebugInfo},
+        program::ProgramArtifact,
+    };
     <span class="kw">use </span>std::{collections::BTreeMap, path::Path};
 
     <span class="kw">use </span><span class="kw">crate</span>::flamegraph::Sample;

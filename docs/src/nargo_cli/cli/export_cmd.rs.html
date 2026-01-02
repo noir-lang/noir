@@ -100,9 +100,11 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::CompileError;
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::CompileError;
 <span class="kw">use </span>nargo::ops::{check_crate_and_report_errors, report_errors};
 <span class="kw">use </span>noir_artifact_cli::fs::artifact::save_program_to_file;
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_frontend::hir::ParsedFiles;
 <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
@@ -114,7 +116,7 @@
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 <span class="kw">use </span>nargo_toml::PackageSelection;
-<span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
+<span class="kw">use </span>noirc_driver::{CompileOptions, compile_no_check};
 
 <span class="kw">use </span>clap::Args;
 

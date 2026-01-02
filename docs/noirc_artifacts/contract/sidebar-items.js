@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ContractArtifact","ContractFunctionArtifact","ContractOutputsArtifact"]};
+window.SIDEBAR_ITEMS = {"struct":["CompiledContract","CompiledContractOutputs","ContractArtifact","ContractFunction","ContractFunctionArtifact","ContractOutputsArtifact"]};

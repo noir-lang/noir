@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ProgramArtifact"]};
+window.SIDEBAR_ITEMS = {"struct":["CompiledProgram","ProgramArtifact"]};

@@ -31,8 +31,10 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{acir::circuit::AcirOpcodeLocation, compiler::CircuitSimulator};
-<span class="kw">use </span>noirc_driver::{CompiledProgram, ErrorsAndWarnings};
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{acir::circuit::AcirOpcodeLocation, compiler::CircuitSimulator};
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+<span class="kw">use </span>noirc_driver::ErrorsAndWarnings;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
 
 <span class="doccomment">/// Run each function through a circuit simulator to check that they are solvable.

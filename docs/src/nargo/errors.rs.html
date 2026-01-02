@@ -281,8 +281,7 @@
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{
     AcirField, FieldElement,
@@ -293,9 +292,8 @@
     pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 <span class="kw">use </span>noirc_abi::{Abi, AbiErrorType, display_abi_error};
-<span class="kw">use </span>noirc_errors::{
-    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
-};
+<span class="kw">use </span>noirc_artifacts::debug::DebugInfo;
+<span class="kw">use </span>noirc_errors::{CustomDiagnostic, call_stack::CallStackId, reporter::ReportedErrors};
 
 <span class="kw">pub use </span>noirc_errors::Location;
 

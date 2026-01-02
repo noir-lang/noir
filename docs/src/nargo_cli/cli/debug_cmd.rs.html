@@ -308,7 +308,8 @@
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -333,7 +334,8 @@
 <span class="kw">use </span>noir_artifact_cli::fs::witness::save_witness_to_dir;
 <span class="kw">use </span>noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 <span class="kw">use </span>noirc_abi::Abi;
-<span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+<span class="kw">use </span>noirc_driver::CompileOptions;
 <span class="kw">use </span>noirc_frontend::hir::Context;
 
 <span class="kw">use </span><span class="kw">super</span>::test_cmd::TestResult;

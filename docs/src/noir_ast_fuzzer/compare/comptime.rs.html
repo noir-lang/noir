@@ -384,7 +384,8 @@
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
 <a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -399,9 +400,10 @@
 <span class="kw">use </span>nargo::errors::ExecutionError;
 <span class="kw">use </span>nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 <span class="kw">use </span>noirc_abi::Abi;
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <span class="kw">use </span>noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
+    prepare_crate,
 };
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;

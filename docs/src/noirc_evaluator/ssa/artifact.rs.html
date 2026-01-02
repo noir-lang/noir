@@ -56,9 +56,9 @@
     FieldElement,
     acir::circuit::{Circuit, ErrorSelector, Program, brillig::BrilligBytecode},
 };
-<span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
+<span class="kw">use </span>noirc_artifacts::{debug::DebugInfo, ssa::SsaReport};
 
-<span class="kw">use crate</span>::{ErrorType, errors::SsaReport};
+<span class="kw">use </span><span class="kw">crate</span>::ErrorType;
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>SsaProgramArtifact {

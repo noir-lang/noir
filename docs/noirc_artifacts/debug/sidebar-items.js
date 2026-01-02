@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DebugArtifact","DebugVars","StackFrame"]};
+window.SIDEBAR_ITEMS = {"struct":["DebugArtifact","DebugFile","DebugFnId","DebugFunction","DebugInfo","DebugTypeId","DebugVarId","DebugVariable","DebugVars","LocationNodeDebugInfo","LocationTree","ProcedureDebugId","ProgramDebugInfo","StackFrame"],"type":["DebugFunctions","DebugTypes","DebugVariables"]};

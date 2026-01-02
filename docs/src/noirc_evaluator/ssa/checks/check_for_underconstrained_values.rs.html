@@ -1520,8 +1520,7 @@
 <a href="#1519" id="1519">1519</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
-</span><span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, SsaReport};
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::basic_block::BasicBlockId;
+</span><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::basic_block::BasicBlockId;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::{Function, FunctionId};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
@@ -1529,6 +1528,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::visit_once_deque::VisitOnceDeque;
 <span class="kw">use </span>im::HashMap;
+<span class="kw">use </span>noirc_artifacts::ssa::{InternalBug, SsaReport};
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashSet};

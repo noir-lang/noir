@@ -391,7 +391,8 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">pub mod </span>builder;
@@ -405,7 +406,8 @@
     <span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Type, TypedValue};
     <span class="kw">use </span>acvm::acir::native_types::{Witness, WitnessMap};
     <span class="kw">use </span>acvm::{AcirField, FieldElement};
-    <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
+    <span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
+    <span class="kw">use </span>noirc_driver::CompileOptions;
     <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
     <span class="kw">use </span>rand::Rng;
 

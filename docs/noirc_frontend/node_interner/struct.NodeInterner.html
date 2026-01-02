@@ -322,7 +322,7 @@ or an immutable <code>Local</code> or <code>Global</code> definition which ultim
     local_id: <a class="struct" href="../hir/def_map/struct.LocalModuleId.html" title="struct noirc_frontend::hir::def_map::LocalModuleId">LocalModuleId</a>,
     crate_id: <a class="enum" href="../graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>,
     let_statement: <a class="struct" href="struct.StmtId.html" title="struct noirc_frontend::node_interner::StmtId">StmtId</a>,
-    file: FileId,
+    file: <a class="struct" href="../../fm/file_map/struct.FileId.html" title="struct fm::file_map::FileId">FileId</a>,
     attributes: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../lexer/token/struct.SecondaryAttribute.html" title="struct noirc_frontend::lexer::token::SecondaryAttribute">SecondaryAttribute</a>&gt;,
     mutable: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
     comptime: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
@@ -332,7 +332,7 @@ or an immutable <code>Local</code> or <code>Global</code> definition which ultim
     name: <a class="struct" href="../ast/struct.Ident.html" title="struct noirc_frontend::ast::Ident">Ident</a>,
     local_id: <a class="struct" href="../hir/def_map/struct.LocalModuleId.html" title="struct noirc_frontend::hir::def_map::LocalModuleId">LocalModuleId</a>,
     crate_id: <a class="enum" href="../graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>,
-    file: FileId,
+    file: <a class="struct" href="../../fm/file_map/struct.FileId.html" title="struct fm::file_map::FileId">FileId</a>,
     attributes: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../lexer/token/struct.SecondaryAttribute.html" title="struct noirc_frontend::lexer::token::SecondaryAttribute">SecondaryAttribute</a>&gt;,
     mutable: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
     comptime: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
@@ -481,7 +481,7 @@ instead of requiring they be pushed later.</p>
     visibility: <a class="enum" href="../ast/enum.ItemVisibility.html" title="enum noirc_frontend::ast::ItemVisibility">ItemVisibility</a>,
     krate: <a class="enum" href="../graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>,
     local_id: <a class="struct" href="../hir/def_map/struct.LocalModuleId.html" title="struct noirc_frontend::hir::def_map::LocalModuleId">LocalModuleId</a>,
-    file_id: FileId,
+    file_id: <a class="struct" href="../../fm/file_map/struct.FileId.html" title="struct fm::file_map::FileId">FileId</a>,
 ) -&gt; <a class="struct" href="struct.TypeId.html" title="struct noirc_frontend::node_interner::TypeId">TypeId</a></h4></section></summary><div class="docblock"><p>Creates a new struct or enum type with no fields or variants.</p>
 </div></details><section id="method.push_type_alias" class="method"><a class="src rightside" href="../../src/noirc_frontend/node_interner/mod.rs.html#601-619">Source</a><h4 class="code-header">pub fn <a href="#method.push_type_alias" class="fn">push_type_alias</a>(
     &amp;mut self,

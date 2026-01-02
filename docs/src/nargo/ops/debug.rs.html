@@ -190,9 +190,9 @@
 <a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>fm::FileManager;
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <span class="kw">use </span>noirc_driver::{
-    CompileOptions, CompiledProgram, CrateId, compile_no_check, file_manager_with_stdlib,
-    link_to_debug_crate,
+    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
 };
 <span class="kw">use </span>noirc_frontend::{
     debug::DebugInstrumenter,

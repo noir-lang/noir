@@ -137,6 +137,7 @@
 
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>clap::Args;
+<span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 
 <span class="kw">use crate</span>::{
     Artifact,
@@ -146,7 +147,6 @@
 <span class="kw">use </span>nargo::foreign_calls::{
     DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
 };
-<span class="kw">use </span>noirc_driver::CompiledProgram;
 
 <span class="kw">use </span><span class="kw">super</span>::parse_and_normalize_path;
 

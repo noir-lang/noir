@@ -596,9 +596,9 @@
     <span class="kw">use </span><span class="kw">crate</span>::source_code_printer::render_location;
     <span class="kw">use </span>acvm::acir::circuit::AcirOpcodeLocation;
     <span class="kw">use </span>fm::FileManager;
-    <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
-    <span class="kw">use </span>noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
-    <span class="kw">use </span>noirc_errors::{Location, Span, debug_info::DebugInfo};
+    <span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, DebugInfo, LocationNodeDebugInfo, LocationTree};
+    <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+    <span class="kw">use </span>noirc_errors::{Location, Span};
     <span class="kw">use </span>std::collections::BTreeMap;
     <span class="kw">use </span>std::ops::Range;
     <span class="kw">use </span>std::path::Path;
