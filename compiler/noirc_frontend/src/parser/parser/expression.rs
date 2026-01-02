@@ -553,6 +553,8 @@ impl Parser<'_> {
 
     /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
+        let if_keyword_location = self.current_token_location;
+
         if !self.eat_keyword(Keyword::If) {
             return None;
         }
@@ -561,6 +563,20 @@ impl Parser<'_> {
 
         let start_location = self.current_token_location;
         let Some(consequence) = self.parse_block() else {
+            // If it's `if { ... }` and a block doesn't come next, the user likely forgot
+            // to include a condition.
+            if matches!(condition.kind, ExpressionKind::Block(..)) {
+                self.push_error(ParserErrorReason::MissingIfCondition, if_keyword_location);
+                return Some(ExpressionKind::If(Box::new(IfExpression {
+                    condition: Expression {
+                        kind: ExpressionKind::Error,
+                        location: if_keyword_location,
+                    },
+                    consequence: condition,
+                    alternative: None,
+                })));
+            }
+
             self.expected_token(Token::LeftBrace);
             let location = self.location_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
@@ -2241,5 +2257,20 @@ mod tests {
         ";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parses_if_missing_condition() {
+        let src = "
+        if { 1 }
+        ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert!(matches!(expression.kind, ExpressionKind::If(..)));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
     }
 }
