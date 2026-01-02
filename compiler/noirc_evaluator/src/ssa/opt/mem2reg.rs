@@ -299,7 +299,6 @@ impl<'f> PerFunctionContext<'f> {
         let reference_parameters = self.reference_parameters();
 
         let aliases = block.get_aliases_for_value(*store_address);
-
         if aliases.is_unknown() {
             return true;
         }
