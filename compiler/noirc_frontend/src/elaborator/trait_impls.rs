@@ -79,11 +79,6 @@ impl Elaborator<'_> {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
                         // This can happen if the associated type is specified directly in the impl trait generics,
                         // This can't be done in code, but it could happen with unquoted types.
-                        self.push_err(TypeCheckError::ExpectingOtherError {
-                            message: "collect_trait_impl: missing associated type named generic"
-                                .to_string(),
-                            location: trait_impl.object_type.location,
-                        });
                         continue;
                     };
 
