@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767372646885,
+  "lastUpdate": 1767372678204,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "547021879aadc09caf0a20a506b250900a0f4810",
-          "message": "fix(ssa): Insert `enable_side_effects` before `Constrain` (#10936)",
-          "timestamp": "2025-12-17T18:31:40Z",
-          "tree_id": "611c2b830b47089be7293f0553034189bbe965de",
-          "url": "https://github.com/noir-lang/noir/commit/547021879aadc09caf0a20a506b250900a0f4810"
-        },
-        "date": 1765997588075,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257382,
-            "range": "± 668",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226816,
-            "range": "± 3491",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2259641,
-            "range": "± 2928",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793987,
             "range": "± 2591",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fff676f6cd3ddbddee69e756019ed50836875128",
+          "message": "chore(ci): do not fail CI if there are no changes to stdlib docs (#11029)",
+          "timestamp": "2026-01-02T16:29:34Z",
+          "tree_id": "68cc249f1a95679b615d65f2ab99f7ce2a078eed",
+          "url": "https://github.com/noir-lang/noir/commit/fff676f6cd3ddbddee69e756019ed50836875128"
+        },
+        "date": 1767372644742,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261269,
+            "range": "± 685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232869,
+            "range": "± 5622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790773,
+            "range": "± 1612",
             "unit": "ns/iter"
           }
         ]
