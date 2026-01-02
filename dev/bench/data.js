@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767384287618,
+  "lastUpdate": 1767385186670,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "c0bc074340061663618183b083d90dfe16da397a",
-          "message": "chore(comptime): Limit comptime recursion depth to 100 (#10932)",
-          "timestamp": "2025-12-18T13:34:26Z",
-          "tree_id": "5042f22c3b60f2f8b7ad84c2ae29aee1fcc04617",
-          "url": "https://github.com/noir-lang/noir/commit/c0bc074340061663618183b083d90dfe16da397a"
-        },
-        "date": 1766066129746,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258688,
-            "range": "± 665",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229320,
-            "range": "± 5194",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793108,
-            "range": "± 13094",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "0b3024ec3f9dceaba228b282ccd7ba883ae316a4",
           "message": "chore(comptime): Minor changes (#10927)",
           "timestamp": "2025-12-18T14:02:43Z",
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794537,
             "range": "± 6809",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c79b1c42e65ba08ffb750941ed235bbf71f5795",
+          "message": "fix(mem2reg): Loop carried aliases (#11018)",
+          "timestamp": "2026-01-02T19:57:42Z",
+          "tree_id": "ec1f242afc3cf7721fa3c6d495b1408ed707d17d",
+          "url": "https://github.com/noir-lang/noir/commit/4c79b1c42e65ba08ffb750941ed235bbf71f5795"
+        },
+        "date": 1767385127255,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260603,
+            "range": "± 714",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233361,
+            "range": "± 5634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792472,
+            "range": "± 1695",
             "unit": "ns/iter"
           }
         ]
