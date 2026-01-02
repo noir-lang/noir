@@ -76,7 +76,7 @@ impl From<ProgramArtifact> for CompiledProgram {
 #[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub struct CompiledProgram {
     pub noir_version: String,
-    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]
+    /// Hash of the Program (noirc_frontend::monomorphization::ast::Program) from which this [`CompiledProgram`]
     /// was compiled.
     ///
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
