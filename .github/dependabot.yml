@@ -38,3 +38,12 @@ updates:
       typedoc:
         patterns:
           - "typedoc*"
+      testing:
+        patterns:
+          - "chai"
+          - "@esm-bundle/chai"
+          - "mocha*"
+          - "sinon"
+          - "@types/chai"
+          - "@types/mocha*"
+          - "@types/sinon"
