@@ -335,7 +335,9 @@
 <a href="#334" id="334">334</a>
 <a href="#335" id="335">335</a>
 <a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -452,6 +454,8 @@
     </span>AssociatedTraitConstantDefaultValuesAreNotSupported,
     <span class="attr">#[error(<span class="string">"`mut` on a binding cannot be repeated"</span>)]
     </span>MutOnABindingCannotBeRepeated,
+    <span class="attr">#[error(<span class="string">"missing condition for `if` expression"</span>)]
+    </span>MissingIfCondition,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.

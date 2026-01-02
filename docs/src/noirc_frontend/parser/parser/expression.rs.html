@@ -2243,7 +2243,38 @@
 <a href="#2242" id="2242">2242</a>
 <a href="#2243" id="2243">2243</a>
 <a href="#2244" id="2244">2244</a>
-<a href="#2245" id="2245">2245</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2245" id="2245">2245</a>
+<a href="#2246" id="2246">2246</a>
+<a href="#2247" id="2247">2247</a>
+<a href="#2248" id="2248">2248</a>
+<a href="#2249" id="2249">2249</a>
+<a href="#2250" id="2250">2250</a>
+<a href="#2251" id="2251">2251</a>
+<a href="#2252" id="2252">2252</a>
+<a href="#2253" id="2253">2253</a>
+<a href="#2254" id="2254">2254</a>
+<a href="#2255" id="2255">2255</a>
+<a href="#2256" id="2256">2256</a>
+<a href="#2257" id="2257">2257</a>
+<a href="#2258" id="2258">2258</a>
+<a href="#2259" id="2259">2259</a>
+<a href="#2260" id="2260">2260</a>
+<a href="#2261" id="2261">2261</a>
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2798,6 +2829,8 @@
 
     <span class="doccomment">/// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_if_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
+        <span class="kw">let </span>if_keyword_location = <span class="self">self</span>.current_token_location;
+
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::If) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -2806,6 +2839,20 @@
 
         <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
         <span class="kw">let </span><span class="prelude-val">Some</span>(consequence) = <span class="self">self</span>.parse_block() <span class="kw">else </span>{
+            <span class="comment">// If it's `if { ... }` and a block doesn't come next, the user likely forgot
+            // to include a condition.
+            </span><span class="kw">if </span><span class="macro">matches!</span>(condition.kind, ExpressionKind::Block(..)) {
+                <span class="self">self</span>.push_error(ParserErrorReason::MissingIfCondition, if_keyword_location);
+                <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::If(Box::new(IfExpression {
+                    condition: Expression {
+                        kind: ExpressionKind::Error,
+                        location: if_keyword_location,
+                    },
+                    consequence: condition,
+                    alternative: <span class="prelude-val">None</span>,
+                })));
+            }
+
             <span class="self">self</span>.expected_token(Token::LeftBrace);
             <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
             <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::If(Box::new(IfExpression {
@@ -4486,6 +4533,21 @@
         "</span>;
         <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
         <span class="macro">assert!</span>(!errors.is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_if_missing_condition() {
+        <span class="kw">let </span>src = <span class="string">"
+        if { 1 }
+        ^^
+        "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let </span>expression = parser.parse_expression_or_error();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(expression.kind, ExpressionKind::If(..)));
+
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::MissingIfCondition));
     }
 }
 </code></pre></div></section></main></body></html>
