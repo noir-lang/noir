@@ -3,7 +3,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
-import { Barretenberg, deflattenFields, RawBuffer, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
+import { Barretenberg, deflattenFields, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
 import { getFile } from './utils.js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { createFileManager, compile } from '@noir-lang/noir_wasm';
@@ -52,13 +52,15 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     main_backend.destroy();
 
     const barretenbergAPI = await Barretenberg.new({ threads: 1 });
-    const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
+    const vkAsFields = await barretenbergAPI.vkAsFields({ verificationKey: innerCircuitVerificationKey });
+    const vkHash = await barretenbergAPI.poseidon2Hash({ inputs: vkAsFields.fields });
     barretenbergAPI.destroy();
 
     const recursion_inputs: InputMap = {
-      verification_key: vkAsFields.map((field) => field.toString()),
+      verification_key: vkAsFields.fields.map((field) => field.toString()),
       proof: deflattenFields(intermediateProof),
       public_inputs: intermediatePublicInputs,
+      key_hash: vkHash.hash.toString(),
     };
 
     logger.debug('recursion_inputs', recursion_inputs);
