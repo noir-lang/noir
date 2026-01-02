@@ -26,12 +26,17 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-pub fn get_monomorphized_no_emit_test(src: &str) -> Result<Program, MonomorphizationError> {
-    get_monomorphized(src)
+pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
+    get_monomorphized_with_error_filter(src, |_| false)
 }
 
-pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
+pub(crate) fn get_monomorphized_with_error_filter(
+    src: &str,
+    ignore_error: impl Fn(&CompilationError) -> bool,
+) -> Result<Program, MonomorphizationError> {
     let (_parsed_module, mut context, errors) = get_program(src);
+
+    let errors = errors.into_iter().filter(|e| !ignore_error(e)).collect::<Vec<_>>();
     assert!(
         errors.iter().all(|err| !err.is_error()),
         "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"

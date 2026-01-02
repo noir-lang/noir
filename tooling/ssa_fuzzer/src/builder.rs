@@ -393,13 +393,13 @@ impl FuzzerBuilder {
         TypedValue::new(res, array_elements_type)
     }
 
-    pub fn insert_slice(&mut self, elements: Vec<TypedValue>) -> TypedValue {
+    pub fn insert_vector(&mut self, elements: Vec<TypedValue>) -> TypedValue {
         let element_type = elements[0].type_of_variable.clone();
         assert!(
             elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
-        let array_elements_type = Type::Slice(Arc::new(vec![element_type]));
+        let array_elements_type = Type::Vector(Arc::new(vec![element_type]));
         let res = self.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
             array_elements_type.clone().into(),

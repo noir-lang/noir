@@ -101,7 +101,7 @@ fn test_make_composite_array() {
 }
 
 #[test]
-fn test_make_composite_slice() {
+fn test_make_composite_vector() {
     let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -138,7 +138,7 @@ fn test_make_byte_array_with_string_literal() {
 }
 
 #[test]
-fn test_make_byte_slice_with_string_literal() {
+fn test_make_byte_vector_with_string_literal() {
     let src = "
         acir(inline) fn main f0 {
           b0():
@@ -371,7 +371,7 @@ fn test_constrain_not_equal() {
 fn test_enable_side_effects() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u1):
             enable_side_effects v0
             return
         }
@@ -660,11 +660,11 @@ fn test_parses_with_comments() {
 }
 
 #[test]
-fn test_slice() {
+fn test_vector() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             return
         }
         ";
@@ -802,6 +802,18 @@ fn test_parses_print() {
         brillig(inline) impure fn main f0 {
           b0():
             call print()
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_oracle() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call oracle_call()
             return
         }
         ";

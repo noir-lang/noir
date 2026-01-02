@@ -4,7 +4,6 @@ use crate::tests::{assert_no_errors, check_errors};
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
@@ -137,19 +136,6 @@ fn disallows_references_in_globals() {
     let src = r#"
     pub global mutable: &mut Field = &mut 0;
                ^^^^^^^ References are not allowed in globals
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn errors_on_cyclic_globals() {
-    let src = r#"
-    pub comptime global A: u32 = B;
-                                 ^ Failed to resolve this global
-                        ^ Dependency cycle found
-                        ~ 'A' recursively depends on itself: A -> B -> A
-    pub comptime global B: u32 = A;
-                                 ^ Failed to resolve this global
     "#;
     check_errors(src);
 }

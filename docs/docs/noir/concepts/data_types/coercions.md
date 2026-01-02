@@ -34,19 +34,19 @@ Note that:
 
 Examples:
 ```rust
-fn requires_slice(_slice: [Field]) {}
+fn requires_vector(_vector: [Field]) {}
 comptime fn requires_ct_string(_s: CtString) {}
 
 fn main() {
     let array: [Field; 4] = [1, 2, 3, 4];
 
-    // Ok - array is converted to a slice
-    requires_slice(array);
+    // Ok - array is converted to a vector
+    requires_vector(array);
     // equivalent to:
-    requires_slice(array.as_slice());
+    requires_vector(array.as_vector());
 
     // coerce a constrained function to an unconstrained one:
-    let f: unconstrained fn([Field]) = requires_slice;
+    let f: unconstrained fn([Field]) = requires_vector;
 
     comptime {
         // Passing a str<6> where a CtString is expected

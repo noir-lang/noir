@@ -704,7 +704,7 @@ impl<'function> PerFunctionContext<'function> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         errors::RuntimeError,

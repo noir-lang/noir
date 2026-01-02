@@ -938,7 +938,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         self.push_tests_against_bare_variables(&mut rows);
 
         // If the first row is a match-all we match it and the remaining rows are ignored.
-        if rows.first().is_some_and(|row| row.columns.is_empty()) {
+        if rows.first().unwrap().columns.is_empty() {
             let row = rows.remove(0);
 
             return Ok(match row.guard {
@@ -954,7 +954,6 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
 
         let branch_var = self.branch_variable(&rows);
-        let location = self.elaborator.interner.definition(branch_var).location;
 
         let definition_type = self.elaborator.interner.definition_type(branch_var);
         match definition_type.follow_bindings_shallow().into_owned() {
@@ -982,16 +981,18 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 Ok(HirMatch::Switch(branch_var, cases, fallback))
             }
             Type::Tuple(fields) => {
+                let location = self.elaborator.interner.definition(branch_var).location;
                 let field_variables = self.fresh_match_variables(fields.clone(), location);
                 let cases = vec![(Constructor::Tuple(fields), field_variables, Vec::new())];
                 let (cases, fallback) = self.compile_constructor_cases(rows, branch_var, cases)?;
                 Ok(HirMatch::Switch(branch_var, cases, fallback))
             }
-            Type::DataType(type_def, generics) => {
-                let def = type_def.borrow();
-                if let Some(variants) = def.get_variants(&generics) {
-                    drop(def);
-                    let typ = Type::DataType(type_def, generics);
+            Type::DataType(type_definition, generics) => {
+                let location = self.elaborator.interner.definition(branch_var).location;
+                let definition = type_definition.borrow();
+                if let Some(variants) = definition.get_variants(&generics) {
+                    drop(definition);
+                    let typ = Type::DataType(type_definition, generics);
 
                     let cases = vecmap(variants.iter().enumerate(), |(idx, (_name, args))| {
                         let constructor = Constructor::Variant(typ.clone(), idx);
@@ -1002,9 +1003,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     let (cases, fallback) =
                         self.compile_constructor_cases(rows, branch_var, cases)?;
                     Ok(HirMatch::Switch(branch_var, cases, fallback))
-                } else if let Some(fields) = def.get_fields(&generics) {
-                    drop(def);
-                    let typ = Type::DataType(type_def, generics);
+                } else if let Some(fields) = definition.get_fields(&generics) {
+                    drop(definition);
+                    let typ = Type::DataType(type_definition, generics);
 
                     // Just treat structs as a single-variant type
                     let fields = vecmap(fields, |(_name, typ, _)| typ);
@@ -1015,29 +1016,34 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                         self.compile_constructor_cases(rows, branch_var, cases)?;
                     Ok(HirMatch::Switch(branch_var, cases, fallback))
                 } else {
-                    drop(def);
-                    let typ = Type::DataType(type_def, generics);
+                    drop(definition);
+                    let typ = Type::DataType(type_definition, generics);
                     Err(ResolverError::TypeUnsupportedInMatch { typ, location })
                 }
             }
             // We could match on these types in the future
             typ @ (Type::Array(_, _)
-            | Type::Slice(_)
+            | Type::Vector(_)
             | Type::String(_)
-            // But we'll never be able to match on these
+            // Some of these may be possible to match on:
+            | Type::FmtString(_, _)
+            | Type::Reference(..)
+            | Type::Quoted(_)
+
+            // These seem unlikely to be able to be matched on:
+            | Type::Constant(_, _)
+            | Type::CheckedCast { .. }
+            | Type::NamedGeneric(_)
+
+            // But we don't expect to ever be able to match on these:
             | Type::Alias(_, _)
             | Type::TypeVariable(_)
-            | Type::FmtString(_, _)
             | Type::TraitAsType(_, _, _)
-            | Type::NamedGeneric(_)
-            | Type::CheckedCast { .. }
             | Type::Function(_, _, _, _)
-            | Type::Reference(..)
             | Type::Forall(_, _)
-            | Type::Constant(_, _)
-            | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
             | Type::Error) => {
+                let location = self.elaborator.interner.definition(branch_var).location;
                 Err(ResolverError::TypeUnsupportedInMatch { typ, location })
             },
         }
@@ -1060,8 +1066,16 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         location: Location,
     ) -> DefinitionId {
         let name = format!("internal_match_variable_{index}");
-        let kind = DefinitionKind::Local(None);
-        let id = self.elaborator.interner.push_definition(name, false, false, kind, location);
+        let definition_kind = DefinitionKind::Local(None);
+        let mutable = false;
+        let comptime = false;
+        let id = self.elaborator.interner.push_definition(
+            name,
+            mutable,
+            comptime,
+            definition_kind,
+            location,
+        );
         self.elaborator.interner.push_definition_type(id, variable_type);
         id
     }
@@ -1075,8 +1089,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         rows: Vec<Row>,
         branch_var: DefinitionId,
     ) -> Result<(Vec<Case>, Box<HirMatch>), ResolverError> {
+        // Elements of 'raw_cases' are of the form (Constructor, Variables, Rows)
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
-        let mut fallback_rows = Vec::new();
+        let mut fallback_rows: Vec<Row> = Vec::new();
         let mut tested: HashMap<(SignedField, SignedField), usize> = HashMap::default();
 
         for mut row in rows {
@@ -1096,22 +1111,22 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
                 tested.insert(key, raw_cases.len());
 
-                let mut rows = fallback_rows.clone();
+                let mut inner_rows = fallback_rows.clone();
 
-                rows.push(row);
-                raw_cases.push((cons, Vec::new(), rows));
+                inner_rows.push(row);
+                raw_cases.push((cons, Vec::new(), inner_rows));
             } else {
-                for (_, _, rows) in &mut raw_cases {
-                    rows.push(row.clone());
+                for (_, _, inner_rows) in &mut raw_cases {
+                    inner_rows.push(row.clone());
                 }
 
                 fallback_rows.push(row);
             }
         }
 
-        let cases = try_vecmap(raw_cases, |(cons, vars, rows)| {
+        let cases = try_vecmap(raw_cases, |(constructors, variables, rows)| {
             let rows = self.compile_rows(rows)?;
-            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
+            Ok::<_, ResolverError>(Case::new(constructors, variables, rows))
         })?;
 
         Ok((cases, Box::new(self.compile_rows(fallback_rows)?)))
@@ -1168,6 +1183,14 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
 
         let cases = try_vecmap(cases, |(cons, vars, rows)| {
+            assert!(matches!(
+                cons,
+                Constructor::True
+                    | Constructor::False
+                    | Constructor::Unit
+                    | Constructor::Tuple(_)
+                    | Constructor::Variant(..)
+            ));
             let rows = self.compile_rows(rows)?;
             Ok::<_, ResolverError>(Case::new(cons, vars, rows))
         })?;
@@ -1177,7 +1200,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Move any cases with duplicate branches into a shared 'else' branch
     fn deduplicate_cases(mut cases: Vec<Case>) -> (Vec<Case>, Option<Box<HirMatch>>) {
-        let mut else_case = None;
+        let mut opt_else_case = None;
         let mut ending_cases = Vec::with_capacity(cases.len());
         let mut previous_case: Option<Case> = None;
 
@@ -1191,7 +1214,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         //   case, not just the first duplicated case we find. I suspect in most
         //   actual code snippets these are the same but it could still be nice to guarantee.
         while let Some(case) = cases.pop() {
-            if let Some(else_case) = &else_case {
+            if let Some(else_case) = &opt_else_case {
                 if case.body == *else_case {
                     // Delete the current case by not pushing it to `ending_cases`
                     continue;
@@ -1200,8 +1223,8 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 }
             } else if let Some(previous) = previous_case {
                 if case.body == previous.body {
-                    // else_case is known to be None here
-                    else_case = Some(previous.body);
+                    // opt_else_case is known to be None here
+                    opt_else_case = Some(previous.body);
 
                     // Delete both previous_case and case
                     previous_case = None;
@@ -1220,11 +1243,13 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
 
         ending_cases.reverse();
-        (ending_cases, else_case.map(Box::new))
+        (ending_cases, opt_else_case.map(Box::new))
     }
 
-    /// Return the variable that was referred to the most in `rows`
+    /// Return the variable that was referred to the most in `rows`, or panic if there are zero
+    /// `rows`
     fn branch_variable(&mut self, rows: &[Row]) -> DefinitionId {
+        assert!(!rows.is_empty(), "ICE branch_variable: expected at least one row");
         let mut counts = HashMap::default();
 
         for row in rows {
@@ -1372,13 +1397,13 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn missing_cases(&self, cases: &[Case], typ: &Type) -> Vec<(String, Vec<DefinitionId>)> {
         // We expect `cases` to come from a `Switch` which should always have
         // at least 2 cases, otherwise it should be a Success or Failure node.
-        let first = &cases[0];
+        let first_case = &cases[0];
 
-        if matches!(&first.constructor, Constructor::Int(_) | Constructor::Range(..)) {
+        if matches!(&first_case.constructor, Constructor::Int(_) | Constructor::Range(..)) {
             return self.missing_integer_cases(cases, typ);
         }
 
-        let all_constructors = first.constructor.all_constructors();
+        let all_constructors = first_case.constructor.all_constructors();
         let mut all_constructors =
             btree_map(all_constructors, |(constructor, arg_count)| (constructor, arg_count));
 
@@ -1432,6 +1457,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             if range.start() == range.end() {
                 (format!("{}", range.start()), Vec::new())
             } else {
+                assert!(range.start() < range.end());
                 (format!("{}..={}", range.start(), range.end()), Vec::new())
             }
         })
@@ -1441,7 +1467,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         starting_id: DefinitionId,
         env: &HashMap<DefinitionId, (String, Vec<DefinitionId>)>,
     ) -> String {
-        let Some((constructor, arguments)) = env.get(&starting_id) else {
+        let Some((constructor_str, arguments)) = env.get(&starting_id) else {
             return WILDCARD_PATTERN.to_string();
         };
 
@@ -1449,6 +1475,6 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
         let args = vecmap(arguments, |arg| Self::construct_missing_case(*arg, env)).join(", ");
 
-        if no_arguments { constructor.clone() } else { format!("{constructor}({args})") }
+        if no_arguments { constructor_str.clone() } else { format!("{constructor_str}({args})") }
     }
 }
