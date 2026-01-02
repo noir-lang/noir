@@ -3902,7 +3902,6 @@ version = "1.0.0-beta.17"
 dependencies = [
  "codespan-reporting",
  "fm",
- "noirc_printable_type",
  "noirc_span",
  "rustc-hash",
  "serde",
@@ -3959,6 +3958,7 @@ dependencies = [
  "insta",
  "iter-extended",
  "noirc_arena",
+ "noirc_artifacts",
  "noirc_errors",
  "noirc_printable_type",
  "num-bigint",

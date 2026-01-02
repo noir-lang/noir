@@ -21,11 +21,11 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
-use noirc_artifacts::{debug::DebugInfo, ssa::SsaReport};
-use noirc_errors::{
-    call_stack::CallStackId,
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
+use noirc_artifacts::{
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+    ssa::SsaReport,
 };
+use noirc_errors::call_stack::CallStackId;
 
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};

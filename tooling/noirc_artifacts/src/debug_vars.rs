@@ -1,9 +1,8 @@
 use acvm::AcirField;
-use noirc_errors::debug_info::{DebugFnId, DebugFunction, DebugTypeId, DebugVarId, DebugVariable};
 use noirc_printable_type::{PrintableType, PrintableValue, decode_printable_value};
 use std::collections::HashMap;
 
-use crate::debug::DebugInfo;
+use crate::debug::{DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable};
 
 #[derive(Debug, Default, Clone)]
 pub struct DebugVars<F> {

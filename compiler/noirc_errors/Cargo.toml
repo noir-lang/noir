@@ -15,6 +15,5 @@ workspace = true
 codespan-reporting.workspace = true
 fm.workspace = true
 rustc-hash.workspace = true
-noirc_printable_type.workspace = true
 noirc_span.workspace = true
 serde.workspace = true
