@@ -115,6 +115,8 @@ pub enum ParserErrorReason {
     AssociatedTraitConstantDefaultValuesAreNotSupported,
     #[error("`mut` on a binding cannot be repeated")]
     MutOnABindingCannotBeRepeated,
+    #[error("missing condition for `if` expression")]
+    MissingIfCondition,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
