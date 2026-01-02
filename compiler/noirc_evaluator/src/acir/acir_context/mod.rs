@@ -779,6 +779,14 @@ impl<F: AcirField> AcirContext<F> {
                 return Ok((lhs, zero));
             }
 
+            // If `rhs` is zero then the division fail.
+            (_, Some(rhs_const), _) if rhs_const.is_zero() => {
+                let msg = self
+                    .generate_assertion_message_payload("Attempted to divide by zero".to_string());
+                self.assert_eq_var(predicate, zero, Some(msg))?;
+                return Ok((zero, zero));
+            }
+
             // After this point, we cannot perform the division at compile-time.
             //
             // We need to check that the rhs is not zero, otherwise when executing the brillig quotient,
@@ -1515,7 +1523,7 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::BTreeMap;
 
     use acvm::{

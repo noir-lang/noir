@@ -26,7 +26,7 @@
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
-    ir::{function::Function, instruction::Instruction, types::NumericType},
+    ir::{dfg::DataFlowGraph, function::Function, instruction::Instruction, types::NumericType},
     ssa_gen::Ssa,
 };
 
@@ -94,9 +94,7 @@ impl Function {
                 return;
             }
 
-            // If we hit an instruction which is affected by the side effects var then we must insert the
-            // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-            if instruction.requires_acir_gen_predicate(context.dfg) {
+            if should_insert_side_effects_before_instruction(instruction, context.dfg) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
@@ -105,6 +103,26 @@ impl Function {
             }
         });
     }
+}
+
+/// Decide we should insert any pending side effect variable before we insert
+/// a particular instruction into the SSA.
+fn should_insert_side_effects_before_instruction(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+) -> bool {
+    // Constrain instructions don't need ACIR predicates, because the variables
+    // they operate on have the side effects incorporated into them,
+    // however they can later be turned into a ConstrainNotEqual instruction,
+    // which _does_ need an ACIR predicate. If we don't require the side effect
+    // variable for Constrain, then we might lose it and end up with a disabled
+    // constrain, as it could inherit some unintended side effect.
+    if matches!(instruction, Instruction::Constrain(..)) {
+        return true;
+    }
+    // If we hit an instruction which is affected by the side effects var then we must insert the
+    // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
+    instruction.requires_acir_gen_predicate(dfg)
 }
 
 /// Check that the CFG has been flattened.
@@ -118,7 +136,7 @@ fn remove_enable_side_effects_pre_check(function: &Function) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
@@ -190,13 +208,13 @@ mod test {
     fn keeps_enable_side_effects_for_instructions_that_have_side_effects() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: [u16; 3], v1: u32, v2: u32):
-            enable_side_effects v1
-            v3 = array_get v0, index v1 -> u16
-            enable_side_effects v1
+          b0(v0: [u16; 3], v1: u32, v2: u1, v3: u1):
+            enable_side_effects v2
             v4 = array_get v0, index v1 -> u16
             enable_side_effects v2
             v5 = array_get v0, index v1 -> u16
+            enable_side_effects v3
+            v6 = array_get v0, index v1 -> u16
             enable_side_effects u1 1
             v7 = array_get v0, index v1 -> u16
             return
@@ -206,16 +224,17 @@ mod test {
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: [u16; 3], v1: u32, v2: u32):
-            enable_side_effects v1
-            v3 = array_get v0, index v1 -> u16
-            v4 = array_get v0, index v1 -> u16
+          b0(v0: [u16; 3], v1: u32, v2: u1, v3: u1):
             enable_side_effects v2
+            v4 = array_get v0, index v1 -> u16
             v5 = array_get v0, index v1 -> u16
+            enable_side_effects v3
+            v6 = array_get v0, index v1 -> u16
             enable_side_effects u1 1
-            v7 = array_get v0, index v1 -> u16
+            v8 = array_get v0, index v1 -> u16
             return
-        }");
+        }
+        ");
     }
 
     #[test]
@@ -259,7 +278,7 @@ mod test {
     }
 
     #[test]
-    fn remove_enable_side_effects_for_slice_push_back() {
+    fn remove_enable_side_effects_for_vector_push_back() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -270,7 +289,7 @@ mod test {
             // this instruction should be removed
             enable_side_effects v1
 
-            v13, v14 = call slice_push_back(u32 3, v9, Field 5) -> (u32, [Field])
+            v13, v14 = call vector_push_back(u32 3, v9, Field 5) -> (u32, [Field])
             return
         }
         ";
@@ -282,14 +301,14 @@ mod test {
             v4 = array_get v0, index u32 0 -> u32
             v8 = make_array [Field 1, Field 2, Field 3] : [Field]
             v10 = array_set v8, index v2, value Field 4
-            v14, v15 = call slice_push_back(u32 3, v10, Field 5) -> (u32, [Field])
+            v14, v15 = call vector_push_back(u32 3, v10, Field 5) -> (u32, [Field])
             return
         }
         ");
     }
 
     #[test]
-    fn remove_enable_side_effects_for_slice_push_front() {
+    fn remove_enable_side_effects_for_vector_push_front() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -300,7 +319,7 @@ mod test {
             // this instruction should be removed
             enable_side_effects v1
 
-            v13, v14 = call slice_push_front(u32 3, v9, Field 5) -> (u32, [Field])
+            v13, v14 = call vector_push_front(u32 3, v9, Field 5) -> (u32, [Field])
             return
         }
         ";
@@ -312,14 +331,14 @@ mod test {
             v4 = array_get v0, index u32 0 -> u32
             v8 = make_array [Field 1, Field 2, Field 3] : [Field]
             v10 = array_set v8, index v2, value Field 4
-            v14, v15 = call slice_push_front(u32 3, v10, Field 5) -> (u32, [Field])
+            v14, v15 = call vector_push_front(u32 3, v10, Field 5) -> (u32, [Field])
             return
         }
         ");
     }
 
     #[test]
-    fn keep_enable_side_effects_for_slice_pop_back() {
+    fn keep_enable_side_effects_for_vector_pop_back() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -327,7 +346,7 @@ mod test {
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v2, value Field 4
             enable_side_effects v1
-            v13, v14, v15 = call slice_pop_back(u32 3, v9) -> (u32, [Field], Field)
+            v13, v14, v15 = call vector_pop_back(u32 3, v9) -> (u32, [Field], Field)
             return
         }
         ";
@@ -335,7 +354,7 @@ mod test {
     }
 
     #[test]
-    fn keep_enable_side_effects_for_slice_pop_front() {
+    fn keep_enable_side_effects_for_vector_pop_front() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -343,7 +362,7 @@ mod test {
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v2, value Field 4
             enable_side_effects v1
-            v13, v14, v15 = call slice_pop_front(u32 3, v9) -> (Field, u32, [Field])
+            v13, v14, v15 = call vector_pop_front(u32 3, v9) -> (Field, u32, [Field])
             return
         }
         ";
@@ -351,7 +370,7 @@ mod test {
     }
 
     #[test]
-    fn keep_enable_side_effects_for_slice_insert() {
+    fn keep_enable_side_effects_for_vector_insert() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -359,7 +378,7 @@ mod test {
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v2, value Field 4
             enable_side_effects v1
-            v13, v14 = call slice_insert(u32 3, v9, u32 1, Field 5) -> (u32, [Field])
+            v13, v14 = call vector_insert(u32 3, v9, u32 1, Field 5) -> (u32, [Field])
             return
         }
         ";
@@ -367,7 +386,7 @@ mod test {
     }
 
     #[test]
-    fn keep_enable_side_effects_for_slice_remove() {
+    fn keep_enable_side_effects_for_vector_remove() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -375,7 +394,7 @@ mod test {
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v2, value Field 4
             enable_side_effects v1
-            v13, v14, v15 = call slice_remove(u32 3, v9, u32 1) -> (u32, [Field], Field)
+            v13, v14, v15 = call vector_remove(u32 3, v9, u32 1) -> (u32, [Field], Field)
             return
         }
         ";
@@ -476,6 +495,40 @@ mod test {
             enable_side_effects u1 1
             v6 = allocate -> &mut Field
             v8 = add v1, u32 1
+            return
+        }
+        "
+        );
+    }
+
+    #[test]
+    fn inserts_insert_side_effects_before_constrain() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32, v3: u32):
+            enable_side_effects v0
+            v4 = mul v2, v3
+            enable_side_effects v1
+            v5 = add v2, v3
+            enable_side_effects v0
+            constrain v4 == u32 0
+            enable_side_effects u1 1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32, v3: u32):
+            enable_side_effects v0
+            v4 = mul v2, v3
+            enable_side_effects v1
+            v5 = add v2, v3
+            enable_side_effects v0
+            constrain v4 == u32 0
+            enable_side_effects u1 1
             return
         }
         "

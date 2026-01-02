@@ -561,7 +561,7 @@ fn die_post_check(func: &Function, flattened: bool) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use im::vector;

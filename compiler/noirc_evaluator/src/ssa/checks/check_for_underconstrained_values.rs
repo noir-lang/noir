@@ -485,17 +485,17 @@ impl DependencyContext {
                                 Intrinsic::ArrayLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsSlice
+                                | Intrinsic::AsVector
                                 | Intrinsic::BlackBox(..)
                                 | Intrinsic::DerivePedersenGenerators
                                 | Intrinsic::Hint(..)
-                                | Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRefCount
-                                | Intrinsic::SliceInsert
-                                | Intrinsic::SliceRemove
+                                | Intrinsic::VectorPushBack
+                                | Intrinsic::VectorPushFront
+                                | Intrinsic::VectorPopBack
+                                | Intrinsic::VectorPopFront
+                                | Intrinsic::VectorRefCount
+                                | Intrinsic::VectorInsert
+                                | Intrinsic::VectorRemove
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -799,17 +799,17 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsSlice
+                            | Intrinsic::AsVector
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::SliceInsert
-                            | Intrinsic::SlicePushBack
-                            | Intrinsic::SlicePushFront
-                            | Intrinsic::SlicePopBack
-                            | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceRefCount
-                            | Intrinsic::SliceRemove
+                            | Intrinsic::VectorInsert
+                            | Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorPopFront
+                            | Intrinsic::VectorRefCount
+                            | Intrinsic::VectorRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
@@ -952,7 +952,7 @@ impl Context {
     }
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::Ssa;
     use tracing_test::traced_test;
 

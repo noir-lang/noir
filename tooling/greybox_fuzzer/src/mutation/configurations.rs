@@ -206,7 +206,7 @@ pub(crate) enum UnbalancedSpliceOptions {
 
 pub(crate) type UnbalancedSpliceConfig = WeightedSelectionConfig<UnbalancedSpliceOptions, 2>;
 
-pub(crate) const BASIC_UNBALANCED_SLICE_CONFIGURATION: UnbalancedSpliceConfig =
+pub(crate) const BASIC_UNBALANCED_VECTOR_CONFIGURATION: UnbalancedSpliceConfig =
     UnbalancedSpliceConfig::new([
         (UnbalancedSpliceOptions::FirstTestCase, 8),
         (UnbalancedSpliceOptions::SecondTestCase, 2),

@@ -1,7 +1,0 @@
-[package]
-name = "comptime_slice_equality"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.31.0"
-
-[dependencies]

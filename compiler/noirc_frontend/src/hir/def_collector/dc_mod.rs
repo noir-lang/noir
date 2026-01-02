@@ -21,7 +21,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
-use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
+use crate::{Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -514,12 +514,32 @@ impl ModCollector<'_> {
             };
 
             let mut method_ids = HashMap::default();
-            let mut associated_types = Generics::new();
+            let mut associated_types = ResolvedGenerics::new();
             let mut associated_constant_ids = HashMap::default();
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
                     desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
+                }
+            }
+
+            // Check for duplicate trait item names across all item types (functions, types, constants)
+            let mut trait_item_names: HashMap<String, Ident> = HashMap::default();
+            for trait_item in &trait_definition.items {
+                let item_name = match &trait_item.item {
+                    TraitItem::Function { name, .. } => name,
+                    TraitItem::Constant { name, .. } => name,
+                    TraitItem::Type { name, .. } => name,
+                };
+                if let Some(first_def) = trait_item_names.get(item_name.as_str()) {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
             }
 

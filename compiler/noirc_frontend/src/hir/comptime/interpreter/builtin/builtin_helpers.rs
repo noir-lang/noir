@@ -11,8 +11,8 @@ use noirc_errors::Location;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
-use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
@@ -129,11 +129,11 @@ pub(crate) fn get_struct_field<T>(
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<T> {
-    let key = Rc::new(field_name.to_string());
+    let key = field_name.to_string();
     let Some(value) = struct_fields.get(&key) else {
         return Err(InterpreterError::ExpectedStructToHaveField {
             typ: struct_type.clone(),
-            field_name: Rc::into_inner(key).unwrap(),
+            field_name: key,
             location,
         });
     };
@@ -147,13 +147,13 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
     }
 }
 
-pub(crate) fn get_slice(
+pub(crate) fn get_vector(
     (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
-        Value::Slice(values, typ) => Ok((values, typ)),
+        Value::Vector(values, typ) => Ok((values, typ)),
         value => {
-            let expected = "slice";
+            let expected = "vector";
             type_mismatch(value, expected, location)
         }
     }
@@ -237,8 +237,8 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
-            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            type_mismatch(value, expected.to_string(), location)
+            let expected = Type::u32().to_string();
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -279,9 +279,9 @@ pub(crate) fn get_expr(
 
 pub(crate) fn get_format_string(
     (value, location): (Value, Location),
-) -> IResult<(Rc<String>, Type)> {
+) -> IResult<(Rc<Vec<FormatStringFragment>>, Type, u32)> {
     match value {
-        Value::FormatString(value, typ) => Ok((value, typ)),
+        Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
         value => type_mismatch(value, "fmtstr", location),
     }
 }
@@ -508,7 +508,10 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
-        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = errors
+            .into_iter()
+            .find(|error| !error.is_warning())
+            .expect("there is at least 1 error");
         let error = Box::new(error);
         let tokens = tokens_to_string(&tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
@@ -549,11 +552,11 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
 }
 
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
-    Value::Slice(statements, typ)
+    Value::Vector(statements, typ)
 }
 
 pub(super) fn has_named_attribute(
@@ -640,9 +643,9 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
     )
 }
 
-/// Type to be used in `Value::Slice(<values>, <slice-type>)`.
-pub(crate) fn byte_slice_type() -> Type {
-    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
+/// Type to be used in `Value::Vector(<values>, <vector-type>)`.
+pub(crate) fn byte_vector_type() -> Type {
+    Type::Vector(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
 }
 
 /// Create a `Value::Array` from bytes.
@@ -650,9 +653,9 @@ pub(crate) fn to_byte_array(values: &[u8]) -> Value {
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
 }
 
-/// Create a `Value::Slice` from bytes.
-pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
-    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
+/// Create a `Value::Vector` from bytes.
+pub(crate) fn to_byte_vector(values: &[u8]) -> Value {
+    Value::Vector(values.iter().copied().map(Value::U8).collect(), byte_vector_type())
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
@@ -713,4 +716,42 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     };
     let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
     Value::Quoted(Rc::new(tokens))
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+) -> String {
+    let mut result = String::new();
+    for fragment in fragments {
+        match fragment {
+            FormatStringFragment::String(string) => {
+                result.push_str(string);
+            }
+            FormatStringFragment::Value { name: _, value } => {
+                match value {
+                    Value::Quoted(tokens) => {
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        for (index, token) in tokens.iter().enumerate() {
+                            if index > 0 {
+                                result.push(' ');
+                            }
+                            result.push_str(&token.token().display(interner).to_string());
+                        }
+                    }
+                    Value::FormatString(fragments, _, _) => {
+                        // Nested format strings might have quoted values inside them,
+                        // so we need to recurse here instead of calling `value.display`.
+                        let inner_string = fragments_to_string(fragments, interner);
+                        result.push_str(&inner_string);
+                    }
+                    _ => {
+                        result.push_str(&value.display(interner).to_string());
+                    }
+                }
+            }
+        }
+    }
+    result
 }
