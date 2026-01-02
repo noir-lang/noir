@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767375723597,
+  "lastUpdate": 1767378338416,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "52492c47571c3ac5384f45de7c7c665bfdd2eee9",
-          "message": "chore: remove redundant code (#10943)",
-          "timestamp": "2025-12-17T22:47:04Z",
-          "tree_id": "0b289c484390e65a283ea316538a97af03d42796",
-          "url": "https://github.com/noir-lang/noir/commit/52492c47571c3ac5384f45de7c7c665bfdd2eee9"
-        },
-        "date": 1766012910771,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260588,
-            "range": "± 992",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231682,
-            "range": "± 2901",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798674,
-            "range": "± 3261",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "c44eebd91da2b4ee3fa35ca527b862ab36ddae3e",
           "message": "fix: update values on all blocks during constant folding (#10952)",
           "timestamp": "2025-12-18T11:34:02Z",
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791011,
             "range": "± 7942",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dbdfe6f0890970cad2aad6e58228a1899c833adc",
+          "message": "feat: panic message can be str or fmtstr (#10004)",
+          "timestamp": "2026-01-02T18:03:14Z",
+          "tree_id": "a1110afa99e75b2196f02ee2a7259f9e54f09019",
+          "url": "https://github.com/noir-lang/noir/commit/dbdfe6f0890970cad2aad6e58228a1899c833adc"
+        },
+        "date": 1767378301441,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258462,
+            "range": "± 493",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227347,
+            "range": "± 1951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2262655,
+            "range": "± 1808",
             "unit": "ns/iter"
           }
         ]
