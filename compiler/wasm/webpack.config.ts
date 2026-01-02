@@ -60,6 +60,10 @@ const webConfig: webpack.Configuration = {
       process: 'process/browser',
       stream: 'stream-browserify',
     }),
+    // Strip node: prefix from imports (used by memfs) so webpack can resolve them via fallback
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, '');
+    }),
   ],
   module: {
     rules: [
