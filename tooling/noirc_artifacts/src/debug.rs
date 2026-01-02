@@ -9,7 +9,7 @@ use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
 use noirc_errors::{
     Location,
-    call_stack::{CallStackId, LocationTree},
+    call_stack::{CallStack, CallStackHelper, CallStackId},
 };
 use noirc_printable_type::PrintableType;
 use serde::Deserializer;
@@ -354,6 +354,43 @@ impl DebugInfo {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+pub struct LocationNodeDebugInfo {
+    pub parent: Option<CallStackId>,
+    pub value: Location,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
+pub struct LocationTree {
+    pub locations: Vec<LocationNodeDebugInfo>,
+}
+
+impl LocationTree {
+    /// Construct a CallStack from a CallStackId
+    pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
+        let mut result = Vec::new();
+        while let Some(parent) = self.locations[call_stack.index()].parent {
+            result.push(self.locations[call_stack.index()].value);
+            call_stack = parent;
+        }
+        result.reverse();
+        result
+    }
+}
+
+impl From<&CallStackHelper> for LocationTree {
+    fn from(helper: &CallStackHelper) -> Self {
+        // Clone the locations into a LocationTree
+        LocationTree {
+            locations: helper
+                .locations
+                .iter()
+                .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
+                .collect(),
+        }
+    }
+}
+
 /// For a given file, we store the source code and the path to the file
 /// so consumers of the debug artifact can reconstruct the original source code structure.
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
@@ -389,10 +426,10 @@ pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
 #[cfg(test)]
 mod tests {
-    use crate::debug::{DebugArtifact, DebugInfo};
+    use crate::debug::{DebugArtifact, DebugInfo, LocationNodeDebugInfo, LocationTree};
     use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
-    use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
+    use noirc_errors::call_stack::CallStackId;
     use noirc_errors::{Location, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;

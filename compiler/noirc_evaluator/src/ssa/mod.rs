@@ -22,7 +22,7 @@ use acvm::{
 
 use ir::instruction::ErrorType;
 use noirc_artifacts::{
-    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
 };
 use noirc_errors::call_stack::CallStackId;
@@ -511,7 +511,7 @@ pub fn convert_generated_acir_into_circuit(
             OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-    let location_tree = generated_acir.call_stacks.to_location_tree();
+    let location_tree = LocationTree::from(&generated_acir.call_stacks);
     let mut debug_info = DebugInfo::new(
         brillig_locations,
         acir_location_map,

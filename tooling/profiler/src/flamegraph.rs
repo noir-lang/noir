@@ -307,7 +307,7 @@ mod tests {
         native_types::Expression,
     };
     use fm::FileManager;
-    use noirc_artifacts::debug::DebugInfo;
+    use noirc_artifacts::debug::{DebugInfo, LocationTree};
     use noirc_errors::{
         Location, Span,
         call_stack::{CallStackHelper, CallStackId},
@@ -392,7 +392,7 @@ mod tests {
         opcode_locations.insert(AcirOpcodeLocation::new(2), call_stack_id);
 
         opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
-        let location_tree = call_stack_hlp.to_location_tree();
+        let location_tree = LocationTree::from(&call_stack_hlp);
 
         let debug_info = DebugInfo::new(
             BTreeMap::default(),
