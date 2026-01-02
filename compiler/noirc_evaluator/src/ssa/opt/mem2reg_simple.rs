@@ -47,12 +47,8 @@ impl Function {
         let mut entry_states = BTreeMap::default();
         let mut exit_states = BTreeMap::default();
 
-        let start0 = std::time::Instant::now();
         let variables = collect_all_eligible_variables(inserter.function, &blocks);
-        let vars_time = start0.elapsed();
-        println!("collect_all_eligible_variables took {}ms", vars_time.as_millis());
 
-        let start = std::time::Instant::now();
         step1(
             &blocks,
             &variables,
@@ -61,22 +57,9 @@ impl Function {
             &mut entry_states,
             &mut exit_states,
         );
-        println!("step1 took {}ms", start.elapsed().as_millis());
-
-        let start = std::time::Instant::now();
         step2(&blocks, &variables, &mut inserter, &mut entry_states, &mut exit_states, &cfg);
-        println!("step2 took {}ms", start.elapsed().as_millis());
-
-        let start = std::time::Instant::now();
-
         step3(&blocks, &mut inserter, &cfg);
-        println!("step3 took {}ms", start.elapsed().as_millis());
-
-        let start = std::time::Instant::now();
-
         commit(&mut inserter, &variables, blocks);
-        println!("commit took {}ms", start.elapsed().as_millis());
-        println!("total is {}ms", start0.elapsed().as_millis());
     }
 }
 
