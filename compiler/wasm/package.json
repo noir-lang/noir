@@ -64,7 +64,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
     "html-webpack-plugin": "^5.6.5",
-    "memfs": "^4.17.2",
+    "memfs": "^4.51.1",
     "mocha": "^11.7.5",
     "mocha-each": "^2.0.1",
     "path-browserify": "^1.0.1",
