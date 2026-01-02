@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767370148900,
+  "lastUpdate": 1767370574445,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ab4978fbf5afa244acc65647ef6fcfd1080c73eb",
-          "message": "fix(acir): Always increment the dynaimc slice length during push back (#10940)",
-          "timestamp": "2025-12-17T17:14:13Z",
-          "tree_id": "af9f09df17bd57643681c3cfe72c4279b6f02296",
-          "url": "https://github.com/noir-lang/noir/commit/ab4978fbf5afa244acc65647ef6fcfd1080c73eb"
-        },
-        "date": 1765992959230,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255178,
-            "range": "± 640",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225721,
-            "range": "± 1037",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790657,
-            "range": "± 8009",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794439,
             "range": "± 7028",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "94481e909ebcba3fd0eb80c6712060a12c731a24",
+          "message": "chore(deps): bump @mdx-js/react from 3.0.0 to 3.1.1 (#11025)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-02T15:54:45Z",
+          "tree_id": "68a2a7e096cae36e02eb788880c3ea6bd37b08ab",
+          "url": "https://github.com/noir-lang/noir/commit/94481e909ebcba3fd0eb80c6712060a12c731a24"
+        },
+        "date": 1767370538512,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259057,
+            "range": "± 1037",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228037,
+            "range": "± 2722",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2261466,
+            "range": "± 1370",
             "unit": "ns/iter"
           }
         ]
