@@ -40,7 +40,7 @@ use super::configurations::{
 };
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 
 const SMALL_VALUE_MAX: u64 = 0xff;
@@ -120,7 +120,7 @@ impl<'a> FieldMutator<'a> {
 
     fn apply_small_value_update(&mut self, element: FieldElement) -> FieldElement {
         let small_value =
-            FieldElement::from(self.prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX));
+            FieldElement::from(self.prng.random_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX));
         match BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION.select(self.prng) {
             FieldElementSmallValueUpdateOptions::Addition => element + small_value,
             FieldElementSmallValueUpdateOptions::Subtraction => element - small_value,
