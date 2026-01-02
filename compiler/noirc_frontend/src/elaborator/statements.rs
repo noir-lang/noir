@@ -5,8 +5,8 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
-        LoopStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
     elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
@@ -22,7 +22,6 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
-    shared::Signedness,
 };
 
 use super::{Elaborator, Loop};
@@ -494,7 +493,7 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (mut index, index_type) = self.elaborate_expression(index);
 
-                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                let expected = Type::u32();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
                     expected: expected.clone(),
                     actual: index_type.clone(),
@@ -533,7 +532,7 @@ impl Elaborator<'_> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =

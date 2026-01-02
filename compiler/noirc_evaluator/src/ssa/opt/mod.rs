@@ -5,7 +5,7 @@
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
 mod array_set;
-mod as_slice_length;
+mod as_vector_length;
 mod basic_conditional;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;

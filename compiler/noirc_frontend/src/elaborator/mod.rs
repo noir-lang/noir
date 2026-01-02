@@ -532,7 +532,7 @@ impl<'context> Elaborator<'context> {
     fn mark_type_as_used(&mut self, typ: &Type) {
         match typ {
             Type::Array(_n, typ) => self.mark_type_as_used(typ),
-            Type::Slice(typ) => self.mark_type_as_used(typ),
+            Type::Vector(typ) => self.mark_type_as_used(typ),
             Type::Tuple(types) => {
                 for typ in types {
                     self.mark_type_as_used(typ);
@@ -850,6 +850,7 @@ pub mod test_utils {
         let file_manager = FileManager::new(&PathBuf::new());
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
+        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 

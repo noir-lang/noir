@@ -39,6 +39,7 @@ pub(crate) fn with_interpreter<T>(
     let file_manager = FileManager::new(&PathBuf::new());
     let parsed_files = ParsedFiles::new();
     let mut context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     context.def_interner.populate_dummy_operator_traits();
 
     let krate = context.crate_graph.add_crate_root(FileId::dummy());

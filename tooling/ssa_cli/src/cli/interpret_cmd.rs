@@ -156,7 +156,7 @@ fn abi_type_from_ssa(typ: &Type) -> AbiType {
         }
         Type::Reference(_) => unreachable!("refs do not appear in SSA ABI"),
         Type::Function => unreachable!("functions do not appear in SSA ABI"),
-        Type::Slice(_) => unreachable!("slices do not appear in SSA ABI"),
+        Type::Vector(_) => unreachable!("vectors do not appear in SSA ABI"),
     }
 }
 

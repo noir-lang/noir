@@ -1,6 +1,0 @@
-[package]
-name = "nested_slice_last_index_access_post_insert"
-type = "bin"
-authors = [""]
-
-[dependencies]

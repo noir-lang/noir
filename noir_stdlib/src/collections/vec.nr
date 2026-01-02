@@ -1,66 +1,75 @@
 pub struct Vec<T> {
-    pub(crate) slice: [T],
+    pub(crate) vector: [T],
 }
-// A mutable vector type implemented as a wrapper around immutable slices.
+// A mutable vector type implemented as a wrapper around immutable vectors.
 // A separate type is technically not needed but helps differentiate which operations are mutable.
 impl<T> Vec<T> {
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn new() -> Self {
-        Self { slice: &[] }
+        Self { vector: &[] }
     }
 
-    // Create a Vec containing each element from the given slice.
-    // Mutations to the resulting Vec will not affect the original slice.
-    pub fn from_slice(slice: [T]) -> Self {
-        Self { slice }
+    // Create a Vec containing each element from the given vector.
+    // Mutations to the resulting Vec will not affect the original vector.
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
+    pub fn from_vector(vector: [T]) -> Self {
+        Self { vector }
     }
 
     /// Get an element from the vector at the given index.
     /// Panics if the given index
     /// points beyond the end of the vector.
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn get(self, index: u32) -> T {
-        self.slice[index]
+        self.vector[index]
     }
 
     /// Write an element to the vector at the given index.
     /// Panics if the given index points beyond the end of the vector (`self.len()`).
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn set(&mut self, index: u32, value: T) {
-        self.slice[index] = value;
+        self.vector[index] = value;
     }
 
     /// Push a new element to the end of the vector, returning a
     /// new vector with a length one greater than the
     /// original unmodified vector.
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn push(&mut self, elem: T) {
-        self.slice = self.slice.push_back(elem);
+        self.vector = self.vector.push_back(elem);
     }
 
     /// Pop an element from the end of the given vector, returning
     /// a new vector with a length of one less than the given vector,
     /// as well as the popped element.
     /// Panics if the given vector's length is zero.
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn pop(&mut self) -> T {
-        let (popped_slice, last_elem) = self.slice.pop_back();
-        self.slice = popped_slice;
+        let (popped_vector, last_elem) = self.vector.pop_back();
+        self.vector = popped_vector;
         last_elem
     }
 
     /// Insert an element at a specified index, shifting all elements
     /// after it to the right
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn insert(&mut self, index: u32, elem: T) {
-        self.slice = self.slice.insert(index, elem);
+        self.vector = self.vector.insert(index, elem);
     }
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the removed element
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn remove(&mut self, index: u32) -> T {
-        let (new_slice, elem) = self.slice.remove(index);
-        self.slice = new_slice;
+        let (new_vector, elem) = self.vector.remove(index);
+        self.vector = new_vector;
         elem
     }
 
     /// Returns the number of elements in the vector
+    #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn len(self) -> u32 {
-        self.slice.len()
+        self.vector.len()
     }
 }
 
@@ -75,15 +84,15 @@ mod vec_tests {
         }
     }
 
-    mod from_slice {
+    mod from_vector {
         use crate::collections::vec::Vec;
 
         #[test]
         fn creates_vector_with_elements() {
-            let slice = &[1, 2, 3, 4, 5];
-            let vec = Vec::from_slice(slice);
+            let vector = &[1, 2, 3, 4, 5];
+            let vec = Vec::from_vector(vector);
             assert_eq(vec.len(), 5);
-            assert_eq(vec.slice, slice);
+            assert_eq(vec.vector, vector);
         }
     }
 
@@ -92,7 +101,7 @@ mod vec_tests {
 
         #[test]
         fn retrieves_elements_correctly() {
-            let vec = Vec { slice: &[10, 20, 30, 40, 50] };
+            let vec = Vec { vector: &[10, 20, 30, 40, 50] };
 
             assert_eq(vec.get(0), 10);
             assert_eq(vec.get(1), 20);
@@ -103,7 +112,7 @@ mod vec_tests {
 
         #[test(should_fail_with = "Index out of bounds")]
         fn panics_on_out_of_bounds() {
-            let vec = Vec { slice: &[1, 2, 3] };
+            let vec = Vec { vector: &[1, 2, 3] };
             let _ = vec.get(3);
         }
     }
@@ -113,22 +122,22 @@ mod vec_tests {
 
         #[test]
         fn updates_values_properly() {
-            let mut vec = Vec { slice: &[0, 0, 0, 0, 0] };
+            let mut vec = Vec { vector: &[0, 0, 0, 0, 0] };
 
             vec.set(0, 42);
-            assert_eq(vec.slice, &[42, 0, 0, 0, 0]);
+            assert_eq(vec.vector, &[42, 0, 0, 0, 0]);
 
             vec.set(1, 43);
-            assert_eq(vec.slice, &[42, 43, 0, 0, 0]);
+            assert_eq(vec.vector, &[42, 43, 0, 0, 0]);
 
             vec.set(2, 44);
-            assert_eq(vec.slice, &[42, 43, 44, 0, 0]);
+            assert_eq(vec.vector, &[42, 43, 44, 0, 0]);
 
             vec.set(1, 10);
-            assert_eq(vec.slice, &[42, 10, 44, 0, 0]);
+            assert_eq(vec.vector, &[42, 10, 44, 0, 0]);
 
             vec.set(0, 0);
-            assert_eq(vec.slice, &[0, 10, 44, 0, 0]);
+            assert_eq(vec.vector, &[0, 10, 44, 0, 0]);
         }
 
         #[test(should_fail_with = "Index out of bounds")]
@@ -145,7 +154,7 @@ mod vec_tests {
 
         #[test]
         fn adds_element_to_end() {
-            let mut vec = Vec { slice: &[1, 2, 3] };
+            let mut vec = Vec { vector: &[1, 2, 3] };
             let original_len = vec.len();
 
             vec.push(4);
@@ -169,7 +178,7 @@ mod vec_tests {
 
         #[test]
         fn removes_last_element() {
-            let mut vec = Vec { slice: &[1, 2, 3, 4, 5] };
+            let mut vec = Vec { vector: &[1, 2, 3, 4, 5] };
             let original_len = vec.len();
 
             let popped = vec.pop();
@@ -191,7 +200,7 @@ mod vec_tests {
 
         #[test]
         fn at_beginning() {
-            let mut vec = Vec { slice: &[1, 2, 3] };
+            let mut vec = Vec { vector: &[1, 2, 3] };
             vec.insert(0, 0);
 
             assert_eq(vec.len(), 4);
@@ -203,7 +212,7 @@ mod vec_tests {
 
         #[test]
         fn at_middle() {
-            let mut vec = Vec { slice: &[1, 2, 4, 5] };
+            let mut vec = Vec { vector: &[1, 2, 4, 5] };
             vec.insert(2, 3);
 
             assert_eq(vec.len(), 5);
@@ -216,7 +225,7 @@ mod vec_tests {
 
         #[test]
         fn at_end() {
-            let mut vec = Vec { slice: &[1, 2, 3] };
+            let mut vec = Vec { vector: &[1, 2, 3] };
             vec.insert(3, 4);
 
             assert_eq(vec.len(), 4);
@@ -228,7 +237,7 @@ mod vec_tests {
 
         #[test(should_fail_with = "Index out of bounds")]
         fn beyond_length_panics() {
-            let mut vec = Vec { slice: &[1, 2, 3] };
+            let mut vec = Vec { vector: &[1, 2, 3] };
             vec.insert(4, 5);
         }
     }
@@ -238,7 +247,7 @@ mod vec_tests {
 
         #[test]
         fn from_beginning() {
-            let mut vec = Vec { slice: &[0, 1, 2, 3, 4] };
+            let mut vec = Vec { vector: &[0, 1, 2, 3, 4] };
             let removed = vec.remove(0);
 
             assert_eq(removed, 0);
@@ -251,7 +260,7 @@ mod vec_tests {
 
         #[test]
         fn from_middle() {
-            let mut vec = Vec { slice: &[1, 2, 3, 4, 5] };
+            let mut vec = Vec { vector: &[1, 2, 3, 4, 5] };
             let removed = vec.remove(2);
 
             assert_eq(removed, 3);
@@ -264,7 +273,7 @@ mod vec_tests {
 
         #[test]
         fn from_end() {
-            let mut vec = Vec { slice: &[1, 2, 3, 4, 5] };
+            let mut vec = Vec { vector: &[1, 2, 3, 4, 5] };
             let removed = vec.remove(4);
 
             assert_eq(removed, 5);
@@ -277,7 +286,7 @@ mod vec_tests {
 
         #[test(should_fail_with = "Index out of bounds")]
         fn beyond_length_panics() {
-            let mut vec = Vec { slice: &[1, 2, 3] };
+            let mut vec = Vec { vector: &[1, 2, 3] };
             let _ = vec.remove(3);
         }
     }
@@ -290,10 +299,10 @@ mod vec_tests {
             let empty_vec: Vec<Field> = Vec::new();
             assert_eq(empty_vec.len(), 0);
 
-            let single_vec = Vec { slice: &[42] };
+            let single_vec = Vec { vector: &[42] };
             assert_eq(single_vec.len(), 1);
 
-            let multi_vec = Vec { slice: &[1, 2, 3, 4, 5] };
+            let multi_vec = Vec { vector: &[1, 2, 3, 4, 5] };
             assert_eq(multi_vec.len(), 5);
         }
     }
@@ -344,7 +353,7 @@ mod vec_tests {
 
         #[test]
         fn vector_with_custom_types() {
-            let mut vec = Vec { slice: &[true, false, true] };
+            let mut vec = Vec { vector: &[true, false, true] };
 
             assert_eq(vec.len(), 3);
             assert_eq(vec.get(0), true);

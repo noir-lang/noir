@@ -159,8 +159,10 @@ mod tests {
     };
     use color_eyre::eyre;
     use fm::codespan_files::Files;
-    use noirc_artifacts::program::ProgramArtifact;
-    use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
+    use noirc_artifacts::{
+        debug::{DebugInfo, ProgramDebugInfo},
+        program::ProgramArtifact,
+    };
     use std::{collections::BTreeMap, path::Path};
 
     use crate::flamegraph::Sample;

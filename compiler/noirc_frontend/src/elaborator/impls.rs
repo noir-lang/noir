@@ -212,7 +212,7 @@ impl Elaborator<'_> {
                 }
             } else {
                 let is_primitive = self_type.is_primitive();
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl {
+                self.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
                     location,
                     is_primitive,
                 });

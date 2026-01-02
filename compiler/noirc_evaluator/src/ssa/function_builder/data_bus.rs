@@ -179,7 +179,7 @@ impl FunctionBuilder {
                         }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
-                            Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
+                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size(),
                             Type::Numeric(_) => 1,
                             _ => unreachable!("Unsupported type for databus"),
                         };
@@ -190,7 +190,7 @@ impl FunctionBuilder {
             Type::Reference(_) => {
                 unreachable!("Attempted to add invalid type (reference) to databus")
             }
-            Type::Slice(_) => unreachable!("Attempted to add invalid type (slice) to databus"),
+            Type::Vector(_) => unreachable!("Attempted to add invalid type (vector) to databus"),
             Type::Function => unreachable!("Attempted to add invalid type (function) to databus"),
         }
     }

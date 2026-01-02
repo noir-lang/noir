@@ -11,7 +11,7 @@ use crate::mutations::configuration::{
 use rand::{Rng, rngs::StdRng};
 
 pub(crate) fn mutate(data: &mut FuzzerData, rng: &mut StdRng) {
-    let number_of_mutations = rng.gen_range(1..MAX_NUMBER_OF_MUTATIONS);
+    let number_of_mutations = rng.random_range(1..MAX_NUMBER_OF_MUTATIONS);
     for _ in 0..number_of_mutations {
         match BASIC_FUZZER_DATA_MUTATION_CONFIGURATION.select(rng) {
             FuzzerDataMutationOptions::Functions => {

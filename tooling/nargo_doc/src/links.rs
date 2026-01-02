@@ -233,7 +233,7 @@ pub(crate) fn path_to_link_target(
                         return Some(LinkTarget::PrimitiveType(primitive_type));
                     };
 
-                    // Array and Slice need special handling because they are composite types
+                    // Array and Vector need special handling because they are composite types
                     // that aren't named like they are in the docs.
                     match primitive_type {
                         PrimitiveTypeKind::Array => {
@@ -248,9 +248,9 @@ pub(crate) fn path_to_link_target(
                                 interner,
                             );
                         }
-                        PrimitiveTypeKind::Slice => {
+                        PrimitiveTypeKind::Vector => {
                             let typ =
-                                noirc_frontend::Type::Slice(Box::new(noirc_frontend::Type::Error));
+                                noirc_frontend::Type::Vector(Box::new(noirc_frontend::Type::Error));
                             return primitive_type_method_link_target(
                                 primitive_type,
                                 &typ,

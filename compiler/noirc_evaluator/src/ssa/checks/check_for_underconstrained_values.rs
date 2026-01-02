@@ -1,7 +1,6 @@
 //! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
-use crate::errors::{InternalBug, SsaReport};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
@@ -10,6 +9,7 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use crate::ssa::visit_once_deque::VisitOnceDeque;
 use im::HashMap;
+use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -485,17 +485,17 @@ impl DependencyContext {
                                 Intrinsic::ArrayLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsSlice
+                                | Intrinsic::AsVector
                                 | Intrinsic::BlackBox(..)
                                 | Intrinsic::DerivePedersenGenerators
                                 | Intrinsic::Hint(..)
-                                | Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRefCount
-                                | Intrinsic::SliceInsert
-                                | Intrinsic::SliceRemove
+                                | Intrinsic::VectorPushBack
+                                | Intrinsic::VectorPushFront
+                                | Intrinsic::VectorPopBack
+                                | Intrinsic::VectorPopFront
+                                | Intrinsic::VectorRefCount
+                                | Intrinsic::VectorInsert
+                                | Intrinsic::VectorRemove
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -799,17 +799,17 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsSlice
+                            | Intrinsic::AsVector
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::SliceInsert
-                            | Intrinsic::SlicePushBack
-                            | Intrinsic::SlicePushFront
-                            | Intrinsic::SlicePopBack
-                            | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceRefCount
-                            | Intrinsic::SliceRemove
+                            | Intrinsic::VectorInsert
+                            | Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorPopFront
+                            | Intrinsic::VectorRefCount
+                            | Intrinsic::VectorRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
@@ -952,7 +952,7 @@ impl Context {
     }
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::Ssa;
     use tracing_test::traced_test;
 
