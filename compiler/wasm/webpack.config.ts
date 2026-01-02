@@ -56,9 +56,10 @@ const webConfig: webpack.Configuration = {
       'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG),
     }),
     new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
       process: 'process/browser',
-      stream: 'stream-browserify',
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
     }),
     // Strip node: prefix from imports (used by memfs) so webpack can resolve them via fallback
     new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
