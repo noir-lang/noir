@@ -187,11 +187,11 @@ fn allows_multiple_underscore_parameters() {
 }
 
 #[test]
-fn cannot_return_slice_from_main() {
+fn cannot_return_vector_from_main() {
     let src = r#"
     fn main() -> pub [Field]{
        ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Slice is not a valid entry point type. Found: [Field]
+       ~~~~ Vector is not a valid entry point type. Found: [Field]
         &[1,2]
         
     }
@@ -254,5 +254,49 @@ fn non_entry_point_main() {
 
     fn main() {}
     "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn call_type_variable_of_kind_any() {
+    // Regression for https://github.com/noir-lang/noir/issues/10719
+    let src = "
+        trait Foo {
+            type Bar;
+
+            fn bar(self) -> Self::Bar;
+        }
+
+        impl Foo for () {
+            type Bar = fn() -> fn() -> ();
+
+            fn bar(self) -> Self::Bar {
+                || {
+                    || {
+                        ()
+                    }
+                }
+            }
+        }
+
+        struct Baz<T> {
+            inner: T,
+        }
+
+        impl<T> Foo for Baz<T>
+        where
+            T: Foo,
+        {
+            type Bar = <T as Foo>::Bar;
+
+            fn bar(self) -> Self::Bar {
+                self.inner.bar()
+            }
+        }
+
+        fn main() {
+            let _: () = (Baz { inner: () }.bar()())();
+        }
+    ";
     assert_no_errors(src);
 }

@@ -42,7 +42,7 @@
 //! - If DIE was run after mem2reg and flattening, no unreachable
 //!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
-use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use acvm::{AcirField, FieldElement};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -498,10 +498,6 @@ fn can_be_eliminated_if_unused(
 
         // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
         Call { func, .. } => match function.dfg[*func] {
-            // Explicitly allows removal of unused ec operations, even if they can fail
-            Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
-            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
-
             Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
             // All foreign functions are treated as having side effects.
@@ -565,7 +561,7 @@ fn die_post_check(func: &Function, flattened: bool) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use im::vector;
@@ -1241,6 +1237,22 @@ mod test {
         "#
         );
         assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn does_not_remove_unused_curve_operations() {
+        let src = r#"
+        acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field, v2: Field):
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v8 = make_array [v0, Field 0] : [(Field, Field); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field, u1); 1]
+            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -> [(Field, Field, u1); 1]
+            return v12
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]

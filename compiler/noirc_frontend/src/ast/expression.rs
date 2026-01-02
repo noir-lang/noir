@@ -424,7 +424,7 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Bool(bool),
     Integer(SignedField, Option<IntegerTypeSuffix>),
     Str(String),
@@ -471,6 +471,7 @@ pub struct Lambda {
     pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
     pub return_type: Option<UnresolvedType>,
     pub body: Expression,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -679,11 +680,11 @@ impl Display for Literal {
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
             }
-            Literal::Slice(ArrayLiteral::Standard(elements)) => {
+            Literal::Vector(ArrayLiteral::Standard(elements)) => {
                 let contents = vecmap(elements, ToString::to_string);
                 write!(f, "&[{}]", contents.join(", "))
             }
-            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
+            Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
@@ -812,15 +813,16 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let unconstrained = if self.unconstrained { "unconstrained " } else { "" };
         let parameters = vecmap(&self.parameters, |(name, r#type)| {
             if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
         });
 
         let parameters = parameters.join(", ");
         if let Some(return_type) = &self.return_type {
-            write!(f, "|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+            write!(f, "{unconstrained}|{}| -> {} {{ {} }}", parameters, return_type, self.body)
         } else {
-            write!(f, "|{}| {{ {} }}", parameters, self.body)
+            write!(f, "{unconstrained}|{}| {{ {} }}", parameters, self.body)
         }
     }
 }

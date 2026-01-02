@@ -883,7 +883,7 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use crate::assert_ssa_snapshot;
@@ -2156,13 +2156,13 @@ mod test {
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
         let call_target = match test_call {
             TestCall::Function(_) => "f1".to_string(),
-            TestCall::ForeignFunction => "print".to_string(), // The ony foreign function the SSA parser allows.
+            TestCall::ForeignFunction => "print".to_string(),
             TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
         };
 
         let src = format!(
             r#"
-        acir(inline) fn main f0 {{
+        brillig(inline) fn main f0 {{
           b0(v0: [u64; 25]):
             jmp b1(u32 0)
           b1(v1: u32):
@@ -2176,7 +2176,7 @@ mod test {
             return
         }}
 
-        acir(inline) {dummy_purity} fn dummy f1 {{
+        brillig(inline) {dummy_purity} fn dummy f1 {{
           b0(v0: [u64; 25]):
             return v0
         }}
@@ -2443,7 +2443,10 @@ mod control_dependence {
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::{function::RuntimeType, types::NumericType},
-            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
+            opt::{
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, unrolling::Loops,
+            },
             ssa_gen::Ssa,
         },
     };
@@ -3252,24 +3255,15 @@ mod control_dependence {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let expected = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::unsigned(32)),
-                from_constant(3_u128.into(), NumericType::unsigned(32)),
-            ])
-            .expect_err("Should have error");
-        assert!(matches!(expected, InterpreterError::RangeCheckFailed { .. }));
 
-        let mut ssa = ssa.loop_invariant_code_motion();
-        ssa.normalize_ids();
-
-        let got = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::unsigned(32)),
-                from_constant(3_u128.into(), NumericType::unsigned(32)),
-            ])
-            .expect_err("Should have error");
-        assert_eq!(expected, got);
+        let inputs = vec![
+            from_constant(2_u128.into(), NumericType::unsigned(32)),
+            from_constant(3_u128.into(), NumericType::unsigned(32)),
+        ];
+        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.loop_invariant_code_motion()
+        });
+        assert!(matches!(result, Err(InterpreterError::RangeCheckFailed { .. })));
 
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -3314,28 +3308,15 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let expected = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-                from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-            ])
-            .expect_err("Should have error");
-        let InterpreterError::ConstrainEqFailed { lhs_id, .. } = expected else {
-            panic!("Expected ConstrainEqFailed");
-        };
-        // Make sure that the constrain on v8 is the on that failed
-        assert_eq!(lhs_id.to_u32(), 8);
+        let inputs = vec![
+            from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+            from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+        ];
+        let (ssa, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.loop_invariant_code_motion()
+        });
 
-        let mut ssa = ssa.loop_invariant_code_motion();
-        ssa.normalize_ids();
-
-        let got = ssa
-            .interpret(vec![
-                from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-                from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
-            ])
-            .expect_err("Should have error");
-        let InterpreterError::ConstrainEqFailed { lhs_id, .. } = got else {
+        let Err(InterpreterError::ConstrainEqFailed { lhs_id, .. }) = execution_result else {
             panic!("Expected ConstrainEqFailed");
         };
         // Make sure that the constrain on v8 is the on that failed
@@ -3398,10 +3379,12 @@ mod control_dependence {
         // ```
         // Although `c*127` is loop invariant, the overflow checks of the multiplication must not be hoisted from the conditional `if a {..}`
         // They are code-gen as:
-        //    `range_check v23 to 8 bits`
-        //    `v24 = cast v23 as u8`
-        let src = r"
-        acir(inline) impure fn main f0 {
+        //    `range_check v19 to 8 bits, "attempt to multiply with overflow"`
+        //    `v20 = truncate v19 to 8 bits, max_bit_size: 254`
+        //    `v21 = cast v20 as u8`
+
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             jmp b1(u32 0)
           b1(v2: u32):
@@ -3412,81 +3395,74 @@ mod control_dependence {
           b3():
             return i16 3
           b4():
-            v7 = mul v1, i8 127
-            v8 = cast v7 as u16
-            v9 = truncate v8 to 8 bits, max_bit_size: 16
-            v10 = cast v1 as u8
-            v12 = lt v10, u8 128
-            v13 = not v12
-            v14 = cast v1 as Field
-            v15 = cast v12 as Field
+            v6 = cast v1 as u8
+            v8 = lt v6, u8 128
+            v9 = not v8
+            v10 = cast v1 as Field
+            v11 = cast v8 as Field
+            v12 = mul v11, v10
+            v14 = sub Field 256, v10
+            v15 = cast v9 as Field
             v16 = mul v15, v14
-            v18 = sub Field 256, v14
-            v19 = cast v13 as Field
-            v20 = mul v19, v18
-            v21 = add v16, v20
-            v23 = mul v21, Field 127
-            range_check v23 to 8 bits
-            v24 = cast v23 as u8
-            v25 = not v12
-            v26 = cast v25 as u8
-            v27 = unchecked_add u8 128, v26
-            v28 = lt v24, v27
-            constrain v28 == u1 1
-            v30 = cast v9 as i8
+            v17 = add v12, v16
+            v19 = mul v17, Field 127
+            range_check v19 to 8 bits, "attempt to multiply with overflow"
+            v20 = truncate v19 to 8 bits, max_bit_size: 254
+            v21 = cast v20 as u8
+            v22 = not v8
+            v23 = cast v22 as u8
+            v24 = unchecked_add u8 128, v23
+            v25 = lt v21, v24
+            constrain v25 == u1 1, "attempt to multiply with overflow"
             jmp b5()
           b5():
-            v32 = unchecked_add v2, u32 1
-            jmp b1(v32)
+            v28 = unchecked_add v2, u32 1
+            jmp b1(v28)
         }
-        ";
-
+    "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
         // We expect `v24 = cast v23 as u8` not to be hoisted and be kept in block `b4`.
         // If we were to hoist that cast to the outer loop's header, we would get potentially
         // an unsafe cast. It must stay just after the range-check.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
-            v4 = mul v1, i8 127
-            v5 = cast v4 as u16
-            v6 = truncate v5 to 8 bits, max_bit_size: 16
-            v7 = cast v1 as u8
-            v9 = lt v7, u8 128
-            v10 = not v9
-            v11 = cast v1 as Field
-            v12 = cast v9 as Field
+            v3 = cast v1 as u8
+            v5 = lt v3, u8 128
+            v6 = not v5
+            v7 = cast v1 as Field
+            v8 = cast v5 as Field
+            v9 = mul v8, v7
+            v11 = sub Field 256, v7
+            v12 = cast v6 as Field
             v13 = mul v12, v11
-            v15 = sub Field 256, v11
-            v16 = cast v10 as Field
-            v17 = mul v16, v15
-            v18 = add v13, v17
-            v20 = mul v18, Field 127
-            v21 = not v9
-            v22 = cast v21 as u8
-            v23 = unchecked_add u8 128, v22
+            v14 = add v9, v13
+            v16 = mul v14, Field 127
+            v17 = truncate v16 to 8 bits, max_bit_size: 254
+            v18 = not v5
+            v19 = cast v18 as u8
+            v20 = unchecked_add u8 128, v19
             jmp b1(u32 0)
           b1(v2: u32):
-            v25 = eq v2, u32 0
-            jmpif v25 then: b2, else: b3
+            v22 = eq v2, u32 0
+            jmpif v22 then: b2, else: b3
           b2():
             jmpif v0 then: b4, else: b5
           b3():
             return i16 3
           b4():
-            range_check v20 to 8 bits
-            v27 = cast v20 as u8
-            v28 = lt v27, v23
-            constrain v28 == u1 1
-            v30 = cast v6 as i8
+            range_check v16 to 8 bits, "attempt to multiply with overflow"
+            v24 = cast v17 as u8
+            v25 = lt v24, v20
+            constrain v25 == u1 1, "attempt to multiply with overflow"
             jmp b5()
           b5():
-            v32 = unchecked_add v2, u32 1
-            jmp b1(v32)
+            v28 = unchecked_add v2, u32 1
+            jmp b1(v28)
         }
-        ");
+        "#);
     }
 
     #[test]

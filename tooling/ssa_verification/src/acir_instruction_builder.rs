@@ -1,7 +1,7 @@
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{Circuit, ExpressionWidth, Program as AcirProgram},
+        circuit::{Circuit, Program as AcirProgram},
         native_types::Witness,
     },
 };
@@ -238,7 +238,6 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
         emit_ssa: { None },
         skip_underconstrained_check: true,
         skip_brillig_constraints_check: true,

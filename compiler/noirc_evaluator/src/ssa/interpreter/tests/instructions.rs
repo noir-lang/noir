@@ -886,9 +886,9 @@ fn array_set() {
     ",
     );
 
-    let v0 = values[0].as_array_or_slice().unwrap();
-    let v1 = values[1].as_array_or_slice().unwrap();
-    let v2 = values[2].as_array_or_slice().unwrap();
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+    let v2 = values[2].as_array_or_vector().unwrap();
 
     // acir function, so all rcs are 1
     assert_eq!(*v0.rc.borrow(), 1);
@@ -924,9 +924,9 @@ fn array_set_disabled_by_enable_side_effects() {
     ",
     );
 
-    let v0 = values[0].as_array_or_slice().unwrap();
-    let v1 = values[1].as_array_or_slice().unwrap();
-    let v2 = values[2].as_array_or_slice().unwrap();
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+    let v2 = values[2].as_array_or_vector().unwrap();
 
     // acir function, so all rcs are 1
     assert_eq!(*v0.rc.borrow(), 1);
@@ -957,8 +957,8 @@ fn array_set_with_offset() {
     ",
     );
 
-    let v0 = values[0].as_array_or_slice().unwrap();
-    let v1 = values[1].as_array_or_slice().unwrap();
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
 
     assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
     assert_eq!(*v1.rc.borrow(), 1);
@@ -985,7 +985,7 @@ fn increment_rc() {
         }
     ",
     );
-    let array = value.as_array_or_slice().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 4);
 }
 
@@ -1003,7 +1003,7 @@ fn increment_rc_disabled_in_acir() {
         }
     ",
     );
-    let array = value.as_array_or_slice().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 1);
 }
 
@@ -1019,7 +1019,7 @@ fn decrement_rc() {
         }
     ",
     );
-    let array = value.as_array_or_slice().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 0);
 }
 
@@ -1035,7 +1035,7 @@ fn decrement_rc_disabled_in_acir() {
         }
     ",
     );
-    let array = value.as_array_or_slice().unwrap();
+    let array = value.as_array_or_vector().unwrap();
     assert_eq!(*array.rc.borrow(), 1);
 }
 
@@ -1076,12 +1076,12 @@ fn make_array() {
         from_constant(2u128.into(), NumericType::NativeField),
     ];
     assert_eq!(values[0], Value::array(one_two.clone(), vec![Type::field()]));
-    assert_eq!(values[1], Value::slice(one_two, Arc::new(vec![Type::field()])));
+    assert_eq!(values[1], Value::vector(one_two, Arc::new(vec![Type::field()])));
 
     let hello =
         vecmap(b"Hello", |char| from_constant(u32::from(*char).into(), NumericType::char()));
     assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
-    assert_eq!(values[3], Value::slice(hello, Arc::new(vec![Type::char()])));
+    assert_eq!(values[3], Value::vector(hello, Arc::new(vec![Type::char()])));
 }
 
 #[test]
@@ -1097,6 +1097,63 @@ fn nop() {
         }
     ",
     );
+}
+
+// Test that side_effects_enabled state is properly saved and restored across function calls.
+// If a callee function disables side effects, this should not affect the caller function
+// when the call returns.
+#[test]
+fn enable_side_effects_not_leaked_across_calls() {
+    // If side_effects_enabled state is leaked, the constrain_not_equal would be skipped
+    // and the program would succeed even though the values are equal.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            // After returning from f1, side_effects should be enabled again
+            // This constrain should fail because 1 == 1
+            constrain u1 1 != u1 1
+            return
+        }
+
+        // This function disables side effects and doesn't restore them
+        acir(inline) fn disable_side_effects f1 {
+          b0():
+            enable_side_effects u1 0
+            return
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::ConstrainNeFailed { .. }));
+}
+
+// Test that side_effects_enabled state is properly saved and restored across function calls,
+// using a checked add instruction that would overflow.
+#[test]
+fn enable_side_effects_not_leaked_across_calls_2() {
+    // If side_effects_enabled state is leaked, the add would return 0 instead of overflowing
+    // and the program would succeed.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            // After returning from f1, side_effects should be enabled again
+            // This add should overflow because 200 + 100 > 255 (u8 max)
+            v0 = add u8 200, u8 100
+            return v0
+        }
+
+        // This function disables side effects and doesn't restore them
+        acir(inline) fn disable_side_effects f1 {
+          b0():
+            enable_side_effects u1 0
+            return
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]

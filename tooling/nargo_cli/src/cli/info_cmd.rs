@@ -1,4 +1,3 @@
-use acvm::acir::circuit::ExpressionWidth;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::{
@@ -16,10 +15,7 @@ use rayon::prelude::*;
 
 use crate::errors::CliError;
 
-use super::{
-    LockType, PackageOptions, WorkspaceCommand,
-    compile_cmd::{compile_workspace_full, get_target_width},
-};
+use super::{LockType, PackageOptions, WorkspaceCommand, compile_cmd::compile_workspace_full};
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
 ///
@@ -90,7 +86,6 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
         profile_brillig_execution(
             binary_packages,
             &args.prover_name,
-            args.compile_options.expression_width,
             args.compile_options.pedantic_solving,
         )?
     } else {
@@ -98,12 +93,8 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
             .into_iter()
             .par_bridge()
             .map(|(package, program)| {
-                let target_width = get_target_width(
-                    package.expression_width,
-                    args.compile_options.expression_width,
-                );
                 let package_name = package.name.to_string();
-                count_opcodes_and_gates_in_program(program, package_name, Some(target_width))
+                count_opcodes_and_gates_in_program(program, package_name)
             })
             .collect()
     };
@@ -117,7 +108,6 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
 fn profile_brillig_execution(
     binary_packages: Vec<(Package, ProgramArtifact)>,
     prover_name: &str,
-    expression_width: Option<ExpressionWidth>,
     pedantic_solving: bool,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
@@ -143,11 +133,8 @@ fn profile_brillig_execution(
             ))
         })?;
 
-        let expression_width = get_target_width(package.expression_width, expression_width);
-
         program_info.push(ProgramInfo {
             package_name: package.name.to_string(),
-            expression_width: Some(expression_width),
             functions: vec![FunctionInfo { name: "main".to_string(), opcodes: 0 }],
             unconstrained_functions_opcodes: profiling_samples.len(),
             unconstrained_functions: vec![FunctionInfo {

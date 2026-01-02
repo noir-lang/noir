@@ -57,6 +57,7 @@ impl fmt::Display for FuncId {
     }
 }
 
+/// A [TypeId] wraps a [ModuleId], because types are represented by an anonymous module.
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeId(pub(super) ModuleId);
 

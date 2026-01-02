@@ -258,7 +258,17 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
                     );
-                    Diagnostic::simple_error(reason.to_string(), secondary, error.location())
+                    match feature {
+                        UnstableFeature::TraitAsType => {
+                            let primary = "`impl Trait` as a type is experimental".to_string();
+                            Diagnostic::simple_warning(primary, secondary, error.location())
+                        }
+                        _ => Diagnostic::simple_error(
+                            reason.to_string(),
+                            secondary,
+                            error.location(),
+                        ),
+                    }
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())

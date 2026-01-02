@@ -314,3 +314,20 @@ fn generic_functions() {
     let result = interpret(program);
     assert_eq!(result, Value::U8(2));
 }
+
+#[test]
+fn capture_variables_by_copy() {
+    let program = "
+    fn main() {
+        comptime {
+            let mut x = 4;
+            let closure_capturing_mutable = |y| y + x;
+            assert(closure_capturing_mutable(1) == 5);
+            x += 1;
+            assert(closure_capturing_mutable(1) == 5);
+        }
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Unit);
+}

@@ -26,6 +26,12 @@ pub struct CircuitSimulator {
 }
 
 impl CircuitSimulator {
+    /// Check whether the circuit is solvable in theory.
+    ///
+    /// # Returns
+    ///
+    /// Returns `None` if the circuit is deemed to be solvable
+    /// Otherwise returns `Some(index)` where `index` is the opcode index of the first unsolvable opcode.
     pub fn check_circuit<F: AcirField>(circuit: &Circuit<F>) -> Option<usize> {
         Self::default().run_check_circuit(circuit)
     }

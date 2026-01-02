@@ -24,13 +24,13 @@
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
     "buffer-esm": "^1.2.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
     "ethers": "^6.14.3",
     "hardhat": "^2.24.1",
-    "prettier": "3.7.3",
+    "prettier": "3.7.4",
     "smol-toml": "^1.3.1",
     "toml": "^3.0.0",
-    "tslog": "^4.9.3"
+    "tslog": "^4.10.2"
   }
 }

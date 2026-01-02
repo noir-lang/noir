@@ -1,5 +1,5 @@
-use std::slice;
 use std::test::OracleMock;
+use std::vector;
 
 #[test]
 fn test_main() {
@@ -20,7 +20,7 @@ fn main(_x: Field) {
             reversed_mock_oracle_response[19 - i] = i;
         }
 
-        // TODO: this method of returning a slice feels hacky.
+        // TODO: this method of returning a vector feels hacky.
         let _ = OracleMock::mock("get_number_sequence").with_params(size).returns((
             20, mock_oracle_response,
         ));
@@ -40,14 +40,14 @@ unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
 unconstrained fn get_reverse_number_sequence(_size: Field) -> [Field] {}
 
 unconstrained fn get_number_sequence_wrapper(size: Field) {
-    let slice = get_number_sequence(size);
+    let vector = get_number_sequence(size);
     for i in 0..20_u32 {
-        assert(slice[i] == i as Field);
+        assert(vector[i] == i as Field);
     }
 
-    let reversed_slice = get_reverse_number_sequence(size);
+    let reversed_vector = get_reverse_number_sequence(size);
     // Regression test that we have not overwritten memory
     for i in 0..20_u32 {
-        assert(slice[i] == reversed_slice[19 - i]);
+        assert(vector[i] == reversed_vector[19 - i]);
     }
 }

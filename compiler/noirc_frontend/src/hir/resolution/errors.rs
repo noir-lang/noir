@@ -62,8 +62,8 @@ pub enum ResolverError {
     ParserError(Box<ParserError>),
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, location: Location },
-    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
-    NestedSlices { location: Location },
+    #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
+    NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
     #[error(
@@ -72,10 +72,8 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
-    #[error("Oracle functions cannot return multiple slices")]
-    OracleReturnsMultipleSlices { location: Location },
-    #[error("Oracle functions cannot be called directly from constrained functions")]
-    UnconstrainedOracleReturnToConstrained { location: Location },
+    #[error("Oracle functions cannot return multiple vectors")]
+    OracleReturnsMultipleVectors { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -108,6 +106,8 @@ pub enum ResolverError {
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
     NoPredicatesAttributeOnUnconstrained { ident: Ident, location: Location },
+    #[error("#[no_predicates] attribute is not allowed on entry point functions")]
+    NoPredicatesAttributeOnEntryPoint { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("The unquote operator '$' can only be used within a quote expression")]
@@ -177,7 +177,7 @@ pub enum ResolverError {
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
-        "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+        "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"
     )]
     NonU32Index { location: Location },
     #[error(
@@ -222,9 +222,8 @@ impl ResolverError {
             | ResolverError::GenericsOnSelfType { location }
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
-            | ResolverError::NestedSlices { location }
+            | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location }
-            | ResolverError::UnconstrainedOracleReturnToConstrained { location }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -261,9 +260,10 @@ impl ResolverError {
             | ResolverError::RecursiveTypeAlias { location } => *location,
             ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::OracleReturnsMultipleSlices { location, .. }
+            | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -454,8 +454,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *location
             ),
-            ResolverError::NestedSlices { location } => Diagnostic::simple_error(
-                "Nested slices, i.e. slices within an array or slice, are not supported".into(),
+            ResolverError::NestedVectors { location } => Diagnostic::simple_error(
+                "Nested vectors, i.e. vectors within an array or vector, are not supported".into(),
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
@@ -480,18 +480,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
                 diagnostic
             },
-            ResolverError::OracleReturnsMultipleSlices { location } => {
+            ResolverError::OracleReturnsMultipleVectors { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
                     *location,
                 )
             },
-            ResolverError::UnconstrainedOracleReturnToConstrained { location } => Diagnostic::simple_error(
-                error.to_string(),
-                "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
-                *location,
-            ),
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
@@ -595,6 +590,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
+                diag
+            }
+            ResolverError::NoPredicatesAttributeOnEntryPoint { ident, location } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("#[no_predicates] attribute is not allowed on entry point function {ident}"),
+                    "#[no_predicates] attribute not allowed on entry points".to_string(),
+                    *location,
+                );
+
+                diag.add_note("The `#[no_predicates]` attribute is used to prevent inlining of a function into the entry point, but applying it to the entry point itself has no effect".to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident, location } => {
@@ -791,7 +796,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::NonU32Index { location } => {
                 Diagnostic::simple_warning(
-                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(),
+                    "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error".to_string(),
                     String::new(),
                     *location,
                 )
