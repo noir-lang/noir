@@ -233,7 +233,7 @@ if their branch is taken.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.handle_blackbox_side_effects" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#991-1031">Source</a><h4 class="code-header">fn <a href="#method.handle_blackbox_side_effects" class="fn">handle_blackbox_side_effects</a>(
     &amp;mut self,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    blackbox: BlackBoxFunc,
+    blackbox: <a class="enum" href="../../../../acir/circuit/black_box_functions/enum.BlackBoxFunc.html" title="enum acir::circuit::black_box_functions::BlackBoxFunc">BlackBoxFunc</a>,
     arguments: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>Weave the <code>condition</code> into blackbox call arguments, returning the modified arguments.</p>
