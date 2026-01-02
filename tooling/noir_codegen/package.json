@@ -54,7 +54,7 @@
     "chai": "^4.5.0",
     "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
-    "mocha": "^11.5.0",
+    "mocha": "^11.7.5",
     "prettier": "3.7.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
