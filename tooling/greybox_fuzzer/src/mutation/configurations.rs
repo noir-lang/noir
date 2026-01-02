@@ -20,7 +20,7 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
     }
 
     pub fn select(&self, prng: &mut XorShiftRng) -> T {
-        let mut selector = prng.gen_range(0..self.total_weight);
+        let mut selector = prng.random_range(0..self.total_weight);
         for (option, weight) in &self.options_with_weights {
             if selector < *weight {
                 return *option;
