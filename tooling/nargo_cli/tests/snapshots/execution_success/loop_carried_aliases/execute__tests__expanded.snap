@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub (Field, Field) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        let result_tuple: Field = foo_tuple();
+        let result_field: Field = foo_field();
+        (result_tuple, result_field)
+    }
+}
+
+unconstrained fn foo_tuple() -> Field {
+    bar_tuple(&mut 3405691582_Field, (3735928559_Field,))
+}
+
+unconstrained fn bar_tuple(mut a: &mut Field, mut b: (Field,)) -> Field {
+    let mut i: Field = 0_Field;
+    loop {
+        if i == 2_Field { break; };
+        i = i + 1_Field;
+        b = (3735928559_Field,);
+        b.0 = *a;
+        a = &mut b.0;
+    }
+    b.0
+}
+
+unconstrained fn foo_field() -> Field {
+    bar_field(&mut 3405691582_Field, 3735928559_Field)
+}
+
+unconstrained fn bar_field(mut a: &mut Field, mut b: Field) -> Field {
+    let mut i: Field = 0_Field;
+    loop {
+        if i == 2_Field { break; };
+        i = i + 1_Field;
+        b = 3735928559_Field;
+        b = *a;
+        a = &mut b;
+    }
+    b
+}
