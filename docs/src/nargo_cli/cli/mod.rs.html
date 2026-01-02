@@ -320,7 +320,9 @@
 <a href="#319" id="319">319</a>
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
 <span class="kw">use </span>const_format::formatcp;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::{
@@ -538,10 +540,12 @@
             CrateName::from_str(<span class="kw-2">&amp;</span>package_name).expect(<span class="string">"package_name to be a valid CrateName"</span>);
         <span class="kw">let </span>selection = PackageSelection::Selected(package_name);
 
+        <span class="kw">let </span>assume_default_entry = <span class="bool-val">true</span>;
         <span class="kw">let </span>workspace = resolve_workspace_from_fixed_toml(
             nargo_toml,
             selection,
             <span class="prelude-val">Some</span>(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
         )<span class="question-mark">?</span>;
         compile_cmd::run(cmd, workspace)
     } <span class="kw">else </span>{

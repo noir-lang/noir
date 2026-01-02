@@ -755,7 +755,13 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -1293,7 +1299,13 @@
     current_compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
     <span class="kw">let </span>nargo_toml = read_toml(toml_path)<span class="question-mark">?</span>;
-    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+    <span class="kw">let </span>assume_default_entry = <span class="bool-val">false</span>;
+    resolve_workspace_from_fixed_toml(
+        nargo_toml,
+        package_selection,
+        current_compiler_version,
+        assume_default_entry,
+    )
 }
 
 <span class="doccomment">/// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
@@ -1303,8 +1315,8 @@
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
     current_compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    assume_default_entry: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
-    <span class="kw">let </span>assume_default_entry = <span class="bool-val">true</span>;
     <span class="kw">let </span>workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)<span class="question-mark">?</span>;
     <span class="kw">if let </span><span class="prelude-val">Some</span>(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(<span class="kw-2">&amp;</span>workspace, current_compiler_version)<span class="question-mark">?</span>;
