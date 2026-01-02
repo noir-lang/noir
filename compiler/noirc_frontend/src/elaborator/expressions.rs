@@ -583,7 +583,7 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        let expected = Type::u32();
         self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
             expected: expected.clone(),
             actual: index_type.clone(),
@@ -1276,6 +1276,7 @@ impl Elaborator<'_> {
                         expr_id,
                         trait_method_id,
                         operand_type,
+                        &typ,
                         location,
                     );
                 }
@@ -1637,7 +1638,7 @@ impl Elaborator<'_> {
 
         let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
-        let mut errors = Vec::new();
+        let mut errors: Vec<CompilationError> = Vec::new();
 
         for argument in arguments {
             match interpreter.evaluate(argument) {
@@ -1653,7 +1654,7 @@ impl Elaborator<'_> {
         let result = interpreter.call_function(function, comptime_args, bindings, location);
 
         if !errors.is_empty() {
-            self.errors.append(&mut errors);
+            self.push_errors(errors);
             return None;
         }
 

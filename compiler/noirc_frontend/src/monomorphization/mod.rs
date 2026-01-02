@@ -2538,7 +2538,7 @@ impl<'interner> Monomorphizer<'interner> {
             expression: Box::new(env_tuple),
         });
 
-        let location = None; // TODO: This should match the location of the lambda expression
+        let location = None; // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
         let mutable = true;
         let definition = Definition::Local(env_local_id);
 
@@ -2565,7 +2565,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_fn = ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
             mutable: false,
-            location: None, // TODO: This should match the location of the lambda expression
+            location: None, // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
             name: name.clone(),
             typ: lambda_fn_typ.clone(),
             id: self.next_ident_id(),

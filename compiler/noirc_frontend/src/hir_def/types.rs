@@ -59,6 +59,7 @@ pub enum Type {
 
     /// `FmtString(N, Vec<E>)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
+    /// and where N is either a type variable of some kind or a Type::Constant
     FmtString(Box<Type>, Box<Type>),
 
     /// The unit type `()`.
@@ -78,7 +79,7 @@ pub enum Type {
     Alias(Shared<TypeAlias>, Vec<Type>),
 
     /// TypeVariables are stand-in variables for some type which is not yet known.
-    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// They are not to be confused with NamedGenerics. While the latter mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
     /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
@@ -116,7 +117,7 @@ pub enum Type {
     /// &T
     Reference(Box<Type>, /*mutable*/ bool),
 
-    /// A type generic over the given type variables.
+    /// A type that's generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
@@ -199,7 +200,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
+        Self::numeric(Type::u32())
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -356,7 +357,7 @@ pub struct DataType {
     /// since these will handle applying generic arguments to fields as well.
     body: TypeBody,
 
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub location: Location,
 
     pub must_use: MustUse,
@@ -411,7 +412,7 @@ pub type GenericTypeVars = Vec<TypeVariable>;
 /// Corresponds to generic lists such as `<T, U>` with additional
 /// information gathered during name resolution that is necessary
 /// correctly resolving types.
-pub type Generics = Vec<ResolvedGeneric>;
+pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
@@ -465,7 +466,7 @@ impl DataType {
         id: TypeId,
         name: Ident,
         location: Location,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
     ) -> DataType {
         DataType {
@@ -610,7 +611,11 @@ impl DataType {
         &self,
         generic_args: &[Type],
     ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
-        assert_eq!(self.generics.len(), generic_args.len());
+        assert_eq!(
+            self.generics.len(),
+            generic_args.len(),
+            "get_fields_substitutions: expected the number of generics to equal the number of generic_args"
+        );
 
         self.generics
             .iter()
@@ -716,7 +721,7 @@ pub struct TypeAlias {
     pub name: Ident,
     pub id: TypeAliasId,
     pub typ: Type,
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
@@ -760,7 +765,7 @@ impl TypeAlias {
         name: Ident,
         location: Location,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -> TypeAlias {
@@ -770,7 +775,7 @@ impl TypeAlias {
     pub fn set_type_and_generics(
         &mut self,
         new_typ: Type,
-        new_generics: Generics,
+        new_generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         assert_eq!(self.typ, Type::Error);
@@ -1211,6 +1216,10 @@ impl Type {
     }
 
     pub fn default_int_type() -> Type {
+        Self::u32()
+    }
+
+    pub fn u32() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 

@@ -45,6 +45,7 @@ use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 use crate::hir::Context;
+use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
@@ -83,6 +84,8 @@ mod cast;
 mod foreign;
 mod infix;
 mod unquote;
+
+pub(crate) use builtin::builtin_helpers;
 
 /// Maximum depth of evaluation, limiting recursion during comptime as well as
 /// expression depth. The goal is to be able to provide Noir stack traces if
@@ -796,8 +799,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(fragments, captures, _length) => {
-                self.evaluate_format_string(fragments, captures, id)
+            HirLiteral::FmtStr(fragments, captures, length) => {
+                self.evaluate_format_string(fragments, captures, length, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Vector(array) => self.evaluate_vector(array, id),
@@ -812,9 +815,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         fragments: Vec<FmtStrFragment>,
         captures: Vec<ExprId>,
+        length: u32,
         id: ExprId,
     ) -> IResult<Value> {
-        let mut result = String::new();
+        let mut new_fragments = Vec::with_capacity(fragments.len());
 
         let mut values: VecDeque<_> =
             captures.into_iter().map(|capture| self.evaluate(capture)).collect::<Result<_, _>>()?;
@@ -822,24 +826,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         for fragment in fragments {
             match fragment {
                 FmtStrFragment::String(string) => {
-                    result.push_str(&string);
+                    new_fragments.push(FormatStringFragment::String(string));
                 }
-                FmtStrFragment::Interpolation(..) => {
+                FmtStrFragment::Interpolation(name, _location) => {
                     if let Some(value) = values.pop_front() {
-                        // When interpolating a quoted value inside a format string, we don't include the
-                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
-                        if let Value::Quoted(tokens) = value {
-                            for (index, token) in tokens.iter().enumerate() {
-                                if index > 0 {
-                                    result.push(' ');
-                                }
-                                result.push_str(
-                                    &token.token().display(self.elaborator.interner).to_string(),
-                                );
-                            }
-                        } else {
-                            result.push_str(&value.display(self.elaborator.interner).to_string());
-                        }
+                        new_fragments.push(FormatStringFragment::Value { name, value });
                     } else {
                         // If we can't find a value for this fragment it means the interpolated value was not
                         // found or it errored. In this case we error here as well.
@@ -853,7 +844,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         let typ = self.elaborator.interner.id_type(id);
-        Ok(Value::FormatString(Rc::new(result), typ))
+        Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.

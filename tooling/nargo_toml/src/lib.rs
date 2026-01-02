@@ -536,7 +536,13 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+    let assume_default_entry = false;
+    resolve_workspace_from_fixed_toml(
+        nargo_toml,
+        package_selection,
+        current_compiler_version,
+        assume_default_entry,
+    )
 }
 
 /// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
@@ -546,8 +552,8 @@ pub fn resolve_workspace_from_fixed_toml(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
     current_compiler_version: Option<String>,
+    assume_default_entry: bool,
 ) -> Result<Workspace, ManifestError> {
-    let assume_default_entry = true;
     let workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
