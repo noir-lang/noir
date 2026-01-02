@@ -3361,7 +3361,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
         <span class="kw">let </span><span class="kw-2">mut </span>comptime_args = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt; = Vec::new();
 
         <span class="kw">for </span>argument <span class="kw">in </span>arguments {
             <span class="kw">match </span>interpreter.evaluate(argument) {
@@ -3377,7 +3377,7 @@
         <span class="kw">let </span>result = interpreter.call_function(function, comptime_args, bindings, location);
 
         <span class="kw">if </span>!errors.is_empty() {
-            <span class="self">self</span>.errors.append(<span class="kw-2">&amp;mut </span>errors);
+            <span class="self">self</span>.push_errors(errors);
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
