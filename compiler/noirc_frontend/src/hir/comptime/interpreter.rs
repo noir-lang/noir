@@ -954,7 +954,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
-        let method = infix.trait_method_id;
+        let method = infix
+            .trait_method_id
+            .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
         let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
@@ -1942,9 +1944,10 @@ impl Context<'_, '_> {
         let local_id = func_meta.source_module;
         let location = func_meta.location;
         let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let pedantic_solving = self.def_interner.pedantic_solving;
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: false,
+            pedantic_solving,
             enabled_unstable_features,
             disable_required_unstable_features: false,
         };
