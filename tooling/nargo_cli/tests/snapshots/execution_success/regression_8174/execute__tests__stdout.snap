@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_8174] Circuit output: Vec([Vec([String("LNV"), String("ZIH")])])
+[regression_8174] Circuit output: [["LNV", "ZIH"]]

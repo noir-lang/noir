@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(index: u32) {
+    let mut vector: [(Field, [Field; 2])] =
+        &[(0_Field, [1_Field, 2_Field]), (3_Field, [4_Field, 5_Field])];
+    vector[index] = (6_Field, [7_Field, 8_Field]);
+    println(vector);
+}

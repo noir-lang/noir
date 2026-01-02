@@ -2,6 +2,27 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: use of deprecated function new
+  ┌─ src/main.nr:4:26
+  │
+4 │     let mut new_x = Vec::new();
+  │                          --- std::collections::vec::Vec is deprecated, use the built-in vector type instead
+  │
+
+warning: use of deprecated function new
+  ┌─ src/main.nr:9:22
+  │
+9 │     let mut a = Vec::new();
+  │                      --- std::collections::vec::Vec is deprecated, use the built-in vector type instead
+  │
+
+warning: use of deprecated function push
+   ┌─ src/main.nr:11:9
+   │
+11 │         a.push(x[i]);
+   │         ------ std::collections::vec::Vec is deprecated, use the built-in vector type instead
+   │
+
 error: Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
   ┌─ src/main.nr:5:13
   │
@@ -9,7 +30,7 @@ error: Call to unconstrained function is unsafe and must be in an unconstrained 
   │             -----------
   │
 
-error: Slices cannot be returned from an unconstrained runtime to a constrained runtime
+error: Vectors cannot be returned from an unconstrained runtime to a constrained runtime
   ┌─ src/main.nr:5:13
   │
 5 │     new_x = clear(x, y);

@@ -3,41 +3,47 @@
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
 //!
 //! A simple function is defined as the following:
-//! - Contains no more than [MAX_INSTRUCTIONS] instructions
+//! - Contains no more than a specified [maximum][crate::ssa::opt::inlining::inline_info::MAX_INSTRUCTIONS] instructions
 //! - The function only has a single block (e.g. no control flow or conditional branches)
 //! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
-use iter_extended::btree_map;
+
+use iter_extended::try_btree_map;
 
 use crate::ssa::{
+    RuntimeError,
     ir::{
         call_graph::CallGraph,
         function::{Function, RuntimeType},
     },
+    opt::brillig_entry_points::get_brillig_entry_points,
+    opt::inlining::inline_info::MAX_INSTRUCTIONS,
     ssa_gen::Ssa,
 };
 
-/// The maximum number of instructions chosen below is an expert estimation of a "small" function
-/// in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations
-/// in the compiler while avoiding code size bloat.
-///
-/// For example, a common "simple" function is writing into a mutable reference.
-/// When that function has no control flow, it generally means we can expect all loads and stores within the
-/// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
-/// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
-const MAX_INSTRUCTIONS: usize = 10;
-
 impl Ssa {
     /// See the [`inline_simple_functions`][self] module for more information.
-    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
+    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Result<Ssa, RuntimeError> {
         let call_graph = CallGraph::from_ssa(&self);
         let recursive_functions = call_graph.get_recursive_functions();
+        let brillig_entry_points =
+            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
 
         let should_inline_call = |callee: &Function| {
+            let runtime = callee.runtime();
             if let RuntimeType::Acir(_) = callee.runtime() {
                 // Functions marked to not have predicates should be preserved.
                 if callee.is_no_predicates() {
                     return false;
                 }
+                // ACIR entry points (e.g., foldable functions) should be preserved.
+                if runtime.is_entry_point() {
+                    return false;
+                }
+            }
+
+            // Do not inline Brillig entry points
+            if brillig_entry_points.contains(&callee.id()) {
+                return false;
             }
 
             let entry_block_id = callee.entry_block();
@@ -66,22 +72,17 @@ impl Ssa {
 
             true
         };
+        self.functions = try_btree_map(&self.functions, |(id, function)| {
+            let inlined = function.inlined(&self, &should_inline_call);
+            inlined.map(|new_function| (*id, new_function))
+        })?;
 
-        self.functions = btree_map(&self.functions, |(id, function)| {
-            (
-                *id,
-                function
-                    .inlined(&self, &should_inline_call)
-                    .expect("simple function should not be recursive"),
-            )
-        });
-
-        self
+        Ok(self)
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_normalized_ssa_equals},
@@ -89,7 +90,7 @@ mod test {
 
     fn assert_does_not_inline(src: &str) {
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_simple_functions();
+        let ssa = ssa.inline_simple_functions().unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -111,7 +112,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_simple_functions();
+        let ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -161,7 +162,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // In the first pass it won't recognize that `main` could be simplified.
-        let mut ssa = ssa.inline_simple_functions();
+        let mut ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(&mut ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -180,7 +181,7 @@ mod test {
         ");
 
         // After `bar` has been simplified, it does `main` as well.
-        ssa = ssa.inline_simple_functions();
+        ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -218,7 +219,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_simple_functions();
+        let ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -375,6 +376,48 @@ mod test {
           return
       }
       ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn basic_inlining_brillig_not_inlined_into_acir() {
+        // We expect that Brillig entry points (e.g., Brillig functions called from ACIR) should never be inlined.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_acir_fold_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(v0, v1) -> Field
+            v4 = call f1(v0, v1) -> Field
+            v5 = call f1(v0, v1) -> Field
+            v6 = eq v3, v4
+            constrain v3 == v4
+            v7 = eq v4, v5
+            constrain v4 == v5
+            return
+        }
+        acir(fold) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            v3 = not v2
+            constrain v2 == u1 0
+            return v0
+        }
+        ";
         assert_does_not_inline(src);
     }
 }

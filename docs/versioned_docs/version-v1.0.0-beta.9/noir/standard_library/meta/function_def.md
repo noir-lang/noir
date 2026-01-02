@@ -1,5 +1,6 @@
 ---
 title: FunctionDefinition
+description: Inspect and mutate function definitions in `comptime`—read signatures, body, attributes, and adjust parameters or return types.
 ---
 
 `std::meta::function_def` contains methods on the built-in `FunctionDefinition` type representing
@@ -9,7 +10,7 @@ a function definition in the source program.
 
 ### add_attribute
 
-```rust title="add_attribute" showLineNumbers 
+```rust title="add_attribute" showLineNumbers
 pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L3-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L3-L5</a></sub></sup>
@@ -21,7 +22,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 ### as_typed_expr
 
-```rust title="as_typed_expr" showLineNumbers 
+```rust title="as_typed_expr" showLineNumbers
 pub comptime fn as_typed_expr(self) -> TypedExpr {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L8-L10" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L8-L10</a></sub></sup>
@@ -36,7 +37,7 @@ let _ = quote { $typed_expr(1, 2, 3); };
 
 ### body
 
-```rust title="body" showLineNumbers 
+```rust title="body" showLineNumbers
 pub comptime fn body(self) -> Expr {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L13-L15" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L13-L15</a></sub></sup>
@@ -48,7 +49,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 ### has_named_attribute
 
-```rust title="has_named_attribute" showLineNumbers 
+```rust title="has_named_attribute" showLineNumbers
 pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L18-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L18-L20</a></sub></sup>
@@ -58,7 +59,7 @@ Returns true if this function has a custom attribute with the given name.
 
 ### is_unconstrained
 
-```rust title="is_unconstrained" showLineNumbers 
+```rust title="is_unconstrained" showLineNumbers
 pub comptime fn is_unconstrained(self) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L23-L25" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L23-L25</a></sub></sup>
@@ -68,7 +69,7 @@ Returns true if this function is unconstrained.
 
 ### module
 
-```rust title="module" showLineNumbers 
+```rust title="module" showLineNumbers
 pub comptime fn module(self) -> Module {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L28-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L28-L30</a></sub></sup>
@@ -78,7 +79,7 @@ Returns the module where the function is defined.
 
 ### name
 
-```rust title="name" showLineNumbers 
+```rust title="name" showLineNumbers
 pub comptime fn name(self) -> Quoted {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L33-L35" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L33-L35</a></sub></sup>
@@ -88,7 +89,7 @@ Returns the name of the function.
 
 ### parameters
 
-```rust title="parameters" showLineNumbers 
+```rust title="parameters" showLineNumbers
 pub comptime fn parameters(self) -> [(Quoted, Type)] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L38-L40" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L38-L40</a></sub></sup>
@@ -98,7 +99,7 @@ Returns each parameter of the function as a tuple of (parameter pattern, paramet
 
 ### return_type
 
-```rust title="return_type" showLineNumbers 
+```rust title="return_type" showLineNumbers
 pub comptime fn return_type(self) -> Type {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L43-L45" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L43-L45</a></sub></sup>
@@ -108,7 +109,7 @@ The return type of the function.
 
 ### set_body
 
-```rust title="set_body" showLineNumbers 
+```rust title="set_body" showLineNumbers
 pub comptime fn set_body(self, body: Expr) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L48-L50" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L48-L50</a></sub></sup>
@@ -120,7 +121,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 ### set_parameters
 
-```rust title="set_parameters" showLineNumbers 
+```rust title="set_parameters" showLineNumbers
 pub comptime fn set_parameters(self, parameters: [(Quoted, Type)]) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L53-L55" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L53-L55</a></sub></sup>
@@ -135,7 +136,7 @@ each parameter pattern to be a syntactically valid parameter.
 
 ### set_return_type
 
-```rust title="set_return_type" showLineNumbers 
+```rust title="set_return_type" showLineNumbers
 pub comptime fn set_return_type(self, return_type: Type) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L58-L60" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L58-L60</a></sub></sup>
@@ -147,7 +148,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 ### set_return_public
 
-```rust title="set_return_public" showLineNumbers 
+```rust title="set_return_public" showLineNumbers
 pub comptime fn set_return_public(self, public: bool) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L63-L65" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L63-L65</a></sub></sup>
@@ -159,7 +160,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 ### set_unconstrained
 
-```rust title="set_unconstrained" showLineNumbers 
+```rust title="set_unconstrained" showLineNumbers
 pub comptime fn set_unconstrained(self, value: bool) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L71-L73" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L71-L73</a></sub></sup>

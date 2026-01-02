@@ -9,21 +9,20 @@ use crate::hir::type_check::TypeCheckError;
 use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
-use crate::{Generics, Type};
+use crate::{ResolvedGenerics, Type};
 
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
-use crate::ast::{Expression, NoirEnumeration};
+use crate::ast::{Expression, NoirEnumeration, TypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
 };
 
 use crate::ast::{
-    ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnsupportedNumericGenericType,
+    Ident, ItemVisibility, LetStatement, NoirFunction, NoirStruct, NoirTrait, Path, PathSegment,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
 use crate::elaborator::FrontendOptions;
@@ -91,14 +90,14 @@ pub struct UnresolvedTraitImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    pub associated_types: Vec<(Ident, UnresolvedType)>,
-    pub associated_constants: Vec<(Ident, UnresolvedType, Expression)>,
+    pub associated_types: Vec<(Ident, Option<UnresolvedType>)>,
+    pub associated_constants: Vec<(Ident, Option<UnresolvedType>, Expression)>,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
-    pub resolved_generics: Generics,
+    pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
@@ -111,7 +110,7 @@ pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
     pub crate_id: CrateId,
     pub module_id: LocalModuleId,
-    pub type_alias_def: NoirTypeAlias,
+    pub type_alias_def: TypeAlias,
 }
 
 #[derive(Debug, Clone)]
@@ -215,6 +214,14 @@ impl CompilationError {
         // and it'd lead to code duplication to add them. `CompilationError::is_error`
         // also isn't expected to be called too often.
         CustomDiagnostic::from(self).is_error()
+    }
+
+    pub(crate) fn should_be_filtered(&self) -> bool {
+        let CompilationError::InterpreterError(error) = self else {
+            return false;
+        };
+
+        error.should_be_filtered()
     }
 }
 
@@ -559,12 +566,7 @@ fn inject_prelude(
     if !crate_id.is_stdlib() {
         let segments: Vec<_> = "std::prelude"
             .split("::")
-            .map(|segment| {
-                crate::ast::PathSegment::from(crate::ast::Ident::new(
-                    segment.into(),
-                    Location::dummy(),
-                ))
-            })
+            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
             .collect();
 
         let path = Path::plain(segments.clone(), Location::dummy());
@@ -600,16 +602,4 @@ fn inject_prelude(
             }
         }
     }
-}
-
-/// Separate the globals Vec into two. The first element in the tuple will be the
-/// literal globals, except for arrays, and the second will be all other globals.
-/// We exclude array literals as they can contain complex types
-pub fn filter_literal_globals(
-    globals: Vec<UnresolvedGlobal>,
-) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
-    globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
-        ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
-        _ => false,
-    })
 }

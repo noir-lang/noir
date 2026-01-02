@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unconstrained_numeric_generic_in_impl"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -206,14 +206,13 @@ impl Parser<'_> {
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type_or_error()
+            Some(self.parse_type_or_error())
         } else {
             self.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 self.previous_token_location,
             );
-            let location = self.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
+            None
         };
 
         if self.eat_assign() {
@@ -528,7 +527,7 @@ mod tests {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
-        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
         assert!(!noir_trait.is_alias);
     }
 

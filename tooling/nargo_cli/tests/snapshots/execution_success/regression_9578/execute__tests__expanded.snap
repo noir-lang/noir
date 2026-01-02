@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    a: u32,
+    b: (bool, [u64; 2]),
+    c: [u64; 3],
+}
+
+unconstrained fn main() {
+    show(1_u32, ());
+    show(2_u32, 123_Field);
+    show(3_u32, [1_Field, 2_Field, 3_Field]);
+    show(4_u32, (1_Field, 2_Field, 3_Field));
+    show(5_u32, [(1_Field, 2_Field), (3_Field, 4_Field)]);
+    show(6_u32, ((1_Field, 2_Field), [3_Field]));
+    show(7_u32, "123");
+    show(8_u32, (&mut (1_Field, 2_Field), 3_Field));
+    show(9_u32, &[1_Field, 2_Field, 3_Field]);
+    show(9_u32, &[(1_Field, 2_Field), (3_Field, 4_Field)]);
+    show(
+        10_u32,
+        Foo { a: 1_u32, b: (true, [3_u64, 4_u64]), c: [5_u64, 6_u64, 7_u64] },
+    );
+}
+
+unconstrained fn show<T>(case: u32, mut value: T) {
+    println((case, &mut value, value))
+}

@@ -1,0 +1,7 @@
+[package]
+name = "static_assert_dynamic_message"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]

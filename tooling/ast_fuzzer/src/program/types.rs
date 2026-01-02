@@ -1,12 +1,11 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
-    hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
+    signed_field::SignedField,
 };
 use strum::IntoEnumIterator as _;
 
@@ -19,7 +18,7 @@ pub const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Thirty
 pub fn type_depth(typ: &Type) -> usize {
     match typ {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
-        Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
+        Type::Array(_, typ) | Type::Vector(typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),
@@ -71,9 +70,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
         acc.insert(typ.clone());
 
         match typ {
-            Type::Array(len, typ) => {
+            Type::Array(len, item_type) => {
                 if *len > 0 {
-                    visit(acc, typ);
+                    visit(acc, item_type);
                 }
                 // Technically we could produce `[T; N]` from `[S; N]` if
                 // we can produce `T` from `S`, but let's ignore that;
@@ -83,9 +82,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // we might generate `[foo[1] as u64, 3u64]` instead of "mapping"
                 // over the entire foo. Same goes for tuples.
             }
-            Type::Tuple(types) => {
-                for typ in types {
-                    visit(acc, typ);
+            Type::Tuple(item_types) => {
+                for item_type in item_types {
+                    visit(acc, item_type);
                 }
             }
             Type::String(_) => {
@@ -119,8 +118,12 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // Maybe we can also cast to u1 or u8 etc?
                 acc.insert(Type::Field);
             }
-            Type::Slice(typ) => {
-                visit(acc, typ);
+            Type::Vector(item_type) => {
+                // pop_front -> (T, [T])
+                acc.insert(Type::Tuple(vec![item_type.as_ref().clone(), typ.clone()]));
+                // pop_back -> ([T], T)
+                acc.insert(Type::Tuple(vec![typ.clone(), item_type.as_ref().clone()]));
+                visit(acc, item_type);
             }
             Type::Reference(typ, _) => {
                 visit(acc, typ);
@@ -135,44 +138,6 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
     let mut acc = HashSet::new();
     visit(&mut acc, typ);
     acc
-}
-
-pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
-    use hir_def::types::{Kind as HirKind, Type as HirType};
-
-    // Meet the expectations of `Type::evaluate_to_u32`.
-    let size_const = |size: u32| {
-        Box::new(HirType::Constant(
-            FieldElement::from(size),
-            HirKind::Numeric(Box::new(HirType::Integer(
-                Signedness::Unsigned,
-                IntegerBitSize::ThirtyTwo,
-            ))),
-        ))
-    };
-
-    match typ {
-        Type::Unit => HirType::Unit,
-        Type::Bool => HirType::Bool,
-        Type::Field => HirType::FieldElement,
-        Type::Integer(signedness, integer_bit_size) => {
-            HirType::Integer(*signedness, *integer_bit_size)
-        }
-        Type::String(size) => HirType::String(size_const(*size)),
-        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
-        Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
-            vecmap(param_types, to_hir_type),
-            Box::new(to_hir_type(return_type)),
-            Box::new(to_hir_type(env_type)),
-            *unconstrained,
-        ),
-        Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
-        Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
-        Type::FmtString(_, _) => {
-            unreachable!("unexpected type converting to HIR: {}", typ)
-        }
-    }
 }
 
 /// Check if the type is a number.
@@ -200,9 +165,9 @@ pub(crate) fn is_function(typ: &Type) -> bool {
     matches!(typ, Type::Function(_, _, _, _))
 }
 
-/// Check if the type is a slice or an array.
-pub(crate) fn is_array_or_slice(typ: &Type) -> bool {
-    matches!(typ, Type::Array(_, _) | Type::Slice(_))
+/// Check if the type is a vector or an array.
+pub(crate) fn is_array_or_vector(typ: &Type) -> bool {
+    matches!(typ, Type::Array(_, _) | Type::Vector(_))
 }
 
 /// Peel off all reference types, to get to a concrete underlying type.
@@ -226,15 +191,15 @@ pub fn contains_reference(typ: &Type) -> bool {
         | Type::Unit
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
-        Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
+        Type::Array(_, typ) | Type::Vector(typ) => contains_reference(typ),
         Type::Tuple(types) => types.iter().any(contains_reference),
     }
 }
 
 /// Check if the type contains any references.
-pub fn contains_slice(typ: &Type) -> bool {
+pub fn contains_vector(typ: &Type) -> bool {
     match typ {
-        Type::Slice(_) => true,
+        Type::Vector(_) => true,
         Type::Field
         | Type::Integer(_, _)
         | Type::Bool
@@ -242,8 +207,8 @@ pub fn contains_slice(typ: &Type) -> bool {
         | Type::Unit
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
-        Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
-        Type::Tuple(types) => types.iter().any(contains_slice),
+        Type::Array(_, typ) | Type::Reference(typ, _) => contains_vector(typ),
+        Type::Tuple(types) => types.iter().any(contains_vector),
     }
 }
 
@@ -252,7 +217,7 @@ pub fn is_printable(typ: &Type) -> bool {
     match typ {
         Type::Reference(_, _) => false,
         Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
-        Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
+        Type::Vector(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
         Type::Tuple(types) => types.iter().all(is_printable),
         // Function signatures are printable, although they might differ when we force things to be Brillig.
         Type::Function(_, _, _, _) => true,
@@ -303,7 +268,7 @@ pub fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
 /// These are operations that commonly fail with random constants.
 pub fn can_binary_op_overflow(op: &BinaryOp) -> bool {
     use BinaryOpKind::*;
-    matches!(op, Add | Subtract | Multiply | ShiftLeft)
+    matches!(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
 }
 
 /// Can the binary operation fail because the RHS is zero.
@@ -347,4 +312,70 @@ pub fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Typ
 /// Reference an expression into a target type
 pub fn ref_mut(typ: Type) -> Type {
     Type::Reference(Box::new(typ), true)
+}
+
+/// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
+///
+/// Aims to maintain parity with [Monomorphizer::convert_type](noirc_frontend::monomorphization::Monomorphizer::convert_type).
+pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
+    use noirc_frontend::{Kind as HirKind, Type as HirType};
+
+    // Meet the expectations of `Type::evaluate_to_u32`.
+    fn size_const(size: u32) -> Box<HirType> {
+        Box::new(HirType::Constant(
+            SignedField::from(size),
+            HirKind::Numeric(Box::new(HirType::Integer(
+                Signedness::Unsigned,
+                IntegerBitSize::ThirtyTwo,
+            ))),
+        ))
+    }
+
+    // Inverse of HirType::Function -> Type::Tuple([Type::Function, Type::Function])
+    fn maybe_func(items: &[Type]) -> Option<HirType> {
+        if items.len() != 2 {
+            return None;
+        }
+        let Type::Function(args0, ret0, env0, false) = &items[0] else {
+            return None;
+        };
+        let Type::Function(args1, ret1, env1, true) = &items[1] else {
+            return None;
+        };
+        if args0 != args1 || ret0 != ret1 || env0 != env1 {
+            return None;
+        }
+        let func = HirType::Function(
+            vecmap(args0, to_hir_type),
+            Box::new(to_hir_type(ret0)),
+            Box::new(to_hir_type(env0)),
+            // Assume unconstrained.
+            false,
+        );
+        Some(func)
+    }
+
+    match typ {
+        Type::Unit => HirType::Unit,
+        Type::Bool => HirType::Bool,
+        Type::Field => HirType::FieldElement,
+        Type::Integer(signedness, integer_bit_size) => {
+            HirType::Integer(*signedness, *integer_bit_size)
+        }
+        Type::String(size) => HirType::String(size_const(*size)),
+        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
+        Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
+        Type::Vector(typ) => HirType::Vector(Box::new(to_hir_type(typ))),
+        Type::FmtString(size, typ) => {
+            HirType::FmtString(size_const(*size), Box::new(to_hir_type(typ)))
+        }
+        Type::Tuple(items) => maybe_func(items)
+            .unwrap_or_else(|| HirType::Tuple(items.iter().map(to_hir_type).collect())),
+        Type::Function(args, ret, env, unconstrained) => HirType::Function(
+            vecmap(args, to_hir_type),
+            Box::new(to_hir_type(ret)),
+            Box::new(to_hir_type(env)),
+            *unconstrained,
+        ),
+    }
 }

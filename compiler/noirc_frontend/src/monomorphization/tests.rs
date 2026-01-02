@@ -1,25 +1,9 @@
 #![cfg(test)]
 use crate::{
-    check_monomorphization_error_using_features, elaborator::UnstableFeature, test_utils::Expect,
+    elaborator::UnstableFeature, test_utils::get_monomorphized,
+    tests::check_monomorphization_error_using_features,
 };
 
-// NOTE: this will fail in CI when called twice within one test: test names must be unique
-#[macro_export]
-macro_rules! get_monomorphized {
-    ($src:expr, $expect:expr) => {
-        $crate::test_utils::get_monomorphized($src, Some($crate::function_path!()), $expect)
-    };
-}
-
-// NOTE: this will fail in CI when called twice within one test: test names must be unique
-#[macro_export]
-macro_rules! check_rewrite {
-    ($src:expr, $expected:expr) => {
-        $crate::monomorphization::tests::check_rewrite($src, $expected, $crate::function_path!())
-    };
-}
-
-#[named]
 #[test]
 fn bounded_recursive_type_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -40,10 +24,9 @@ fn bounded_recursive_type_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_monomorphization_error_using_features(src, &features);
 }
 
-#[named]
 #[test]
 fn recursive_type_with_alias_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -76,10 +59,9 @@ fn recursive_type_with_alias_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_monomorphization_error_using_features(src, &features);
 }
 
-#[named]
 #[test]
 fn mutually_recursive_types_error() {
     // cSpell:disable
@@ -102,10 +84,39 @@ fn mutually_recursive_types_error() {
         ";
     // cSpell:enable
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_monomorphization_error_using_features(src, &features);
 }
 
-#[named]
+#[test]
+fn mutually_recursive_types_with_structs_error() {
+    // cSpell:disable
+    let src = "
+        fn main() {
+            let _zero = Even::Zero;
+        }
+
+        enum Even {
+            Zero,
+            ^^^^ Type `EvenSucc` is recursive
+            ~~~~ All types in Noir must have a known size at compile-time
+            Succ(EvenSucc),
+        }
+
+        pub struct EvenSucc { inner: Odd }
+
+        enum Odd {
+            One,
+            Succ(OddSucc),
+        }
+
+        pub struct OddSucc { inner: Even }
+        ";
+
+    // cSpell:enable
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features);
+}
+
 #[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
@@ -116,24 +127,33 @@ fn simple_closure_with_no_captured_variables() {
     }
     "#;
 
-    let program = get_monomorphized!(src, Expect::Success).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0(y$l0: call_data(0) Field) -> pub Field {
         let x$l1 = 1;
-        let closure$l4 = {
+        let closure$l6 = ({
             let closure_variable$l3 = {
                 let env$l2 = (x$l1);
                 (env$l2, lambda$f1)
             };
             closure_variable$l3
-        };
+        }, {
+            let closure_variable$l5 = {
+                let env$l4 = (x$l1);
+                (env$l4, lambda$f2)
+            };
+            closure_variable$l5
+        });
         {
-            let tmp$l5 = closure$l4;
-            tmp$l5.1(tmp$l5.0)
+            let tmp$l7 = closure$l6.0;
+            tmp$l7.1(tmp$l7.0)
         }
     }
     fn lambda$f1(mut env$l2: (Field,)) -> Field {
         env$l2.0
+    }
+    unconstrained fn lambda$f2(mut env$l4: (Field,)) -> Field {
+        env$l4.0
     }
     ");
 }

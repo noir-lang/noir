@@ -92,7 +92,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let length_generator: [EmbeddedCurvePoint; 1] =
         derive_generators("pedersen_hash_length".as_bytes(), 0);
     generators[N] = length_generator[0];
-    multi_scalar_mul_array_return(generators, scalars)[0].x
+    multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
 #[field(bn254)]
@@ -114,19 +114,33 @@ fn __derive_generators<let N: u32, let M: u32>(
 ) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
-// Same as from_field but:
-// does not assert the limbs are 128 bits
-// does not assert the decomposition does not overflow the EmbeddedCurveScalar
+// Decompose the input 'bn254 scalar' into two 128 bits limbs.
+// It is called 'unsafe' because it does not assert the limbs are 128 bits
+// Assuming the limbs are 128 bits:
+// Assert the decomposition does not overflow the field size.
 fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     // Safety: xlo and xhi decomposition is checked below
     let (xlo, xhi) = unsafe { crate::field::bn254::decompose_hint(scalar) };
     // Check that the decomposition is correct
     assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
+    // Check that the decomposition does not overflow the field size
+    let (a, b) = if xhi == crate::field::bn254::PHI {
+        (xlo, crate::field::bn254::PLO)
+    } else {
+        (xhi, crate::field::bn254::PHI)
+    };
+    crate::field::bn254::assert_lt(a, b);
+
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
 
+pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [Field; N] {
+    assert_eq(input.len(), state_len);
+    poseidon2_permutation_internal(input)
+}
+
 #[foreign(poseidon2_permutation)]
-pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+fn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}
 
 // Generic hashing support.
 // Partially ported and impacted by rust.

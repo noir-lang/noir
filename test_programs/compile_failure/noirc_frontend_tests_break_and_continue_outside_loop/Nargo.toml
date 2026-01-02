@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_break_and_continue_outside_loop"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

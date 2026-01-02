@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[simple_mut] Circuit output: Field(3)
+[simple_mut] Circuit output: 0x03

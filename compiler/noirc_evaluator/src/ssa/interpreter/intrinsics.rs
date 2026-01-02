@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{hash::BuildHasher, io::Write};
 
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
@@ -6,14 +6,11 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
 use num_bigint::BigUint;
 
-use crate::ssa::{
-    interpreter::NumericValue,
-    ir::{
-        dfg,
-        instruction::{Endian, Intrinsic},
-        types::{NumericType, Type},
-        value::ValueId,
-    },
+use crate::ssa::ir::{
+    dfg,
+    instruction::{Endian, Intrinsic},
+    types::{NumericType, Type},
+    value::ValueId,
 };
 
 use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
@@ -28,23 +25,23 @@ impl<W: Write> Interpreter<'_, W> {
         match intrinsic {
             Intrinsic::ArrayLen => {
                 check_argument_count(args, 1, intrinsic)?;
-                let array = self.lookup_array_or_slice(args[0], "call to array_len")?;
+                let array = self.lookup_array_or_vector(args[0], "call to array_len")?;
                 let length = array.elements.borrow().len();
-                Ok(vec![Value::Numeric(NumericValue::U32(length as u32))])
+                Ok(vec![Value::u32(length as u32)])
             }
             Intrinsic::ArrayAsStrUnchecked => {
                 check_argument_count(args, 1, intrinsic)?;
                 Ok(vec![self.lookup(args[0])?])
             }
-            Intrinsic::AsSlice => {
+            Intrinsic::AsVector => {
                 check_argument_count(args, 1, intrinsic)?;
-                let array = self.lookup_array_or_slice(args[0], "call to as_slice")?;
+                let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
                 let length = array.elements.borrow().len();
-                let length = Value::Numeric(NumericValue::U32(length as u32));
+                let length = Value::u32(length as u32);
 
                 let elements = array.elements.borrow().to_vec();
-                let slice = Value::slice(elements, array.element_types.clone());
-                Ok(vec![length, slice])
+                let vector = Value::vector(elements, array.element_types.clone());
+                Ok(vec![length, vector])
             }
             Intrinsic::AssertConstant => {
                 // Nothing we can do here unfortunately if we want to allow code with
@@ -69,12 +66,12 @@ impl<W: Write> Interpreter<'_, W> {
                     Err(InterpreterError::StaticAssertFailed { condition: args[0], message })
                 }
             }
-            Intrinsic::SlicePushBack => self.slice_push_back(args),
-            Intrinsic::SlicePushFront => self.slice_push_front(args),
-            Intrinsic::SlicePopBack => self.slice_pop_back(args),
-            Intrinsic::SlicePopFront => self.slice_pop_front(args),
-            Intrinsic::SliceInsert => self.slice_insert(args),
-            Intrinsic::SliceRemove => self.slice_remove(args),
+            Intrinsic::VectorPushBack => self.vector_push_back(args),
+            Intrinsic::VectorPushFront => self.vector_push_front(args),
+            Intrinsic::VectorPopBack => self.vector_pop_back(args),
+            Intrinsic::VectorPopFront => self.vector_pop_front(args),
+            Intrinsic::VectorInsert => self.vector_insert(args),
+            Intrinsic::VectorRemove => self.vector_remove(args),
             Intrinsic::ApplyRangeConstraint => {
                 Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
@@ -126,7 +123,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let result =
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
-                    let result = result.iter().map(|v| (*v as u128).into());
+                    let result = result.iter().map(|v| u128::from(*v).into());
                     let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
@@ -150,7 +147,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let inputs = self.lookup_bytes(args[0], "call Blake2s BlackBox")?;
                     let result =
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
-                    let result = result.iter().map(|e| (*e as u128).into());
+                    let result = result.iter().map(|e| u128::from(*e).into());
                     let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
@@ -159,16 +156,17 @@ impl<W: Write> Interpreter<'_, W> {
                     let inputs = self.lookup_bytes(args[0], "call Blake3 BlackBox")?;
                     let results =
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
-                    let results = results.iter().map(|e| (*e as u128).into());
+                    let results = results.iter().map(|e| u128::from(*e).into());
                     let results = Value::array_from_iter(results, NumericType::unsigned(8))?;
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
-                    check_argument_count(args, 4, intrinsic)?;
+                    check_argument_count(args, 5, intrinsic)?;
                     let x = self.lookup_bytes(args[0], "call EcdsaSecp256k1 BlackBox")?;
                     let y = self.lookup_bytes(args[1], "call EcdsaSecp256k1 BlackBox")?;
                     let s = self.lookup_bytes(args[2], "call EcdsaSecp256k1 BlackBox")?;
                     let m = self.lookup_bytes(args[3], "call EcdsaSecp256k1 BlackBox")?;
+                    let predicate = self.lookup_bool(args[4], "call EcdsaSecp256k1 BlackBox")?;
                     let x_len = x.len();
                     let x_array: &[u8; 32] = &x.try_into().map_err(|_| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
@@ -190,21 +188,33 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
-                    let result = acvm::blackbox_solver::ecdsa_secp256k1_verify(
-                        &m, x_array, y_array, s_array,
-                    )
-                    .map_err(Self::convert_error)?;
+                    let m_len = m.len();
+                    let m_array: &[u8; 32] = &m.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: m_len,
+                        })
+                    })?;
+                    let result = if predicate {
+                        acvm::blackbox_solver::ecdsa_secp256k1_verify(
+                            m_array, x_array, y_array, s_array,
+                        )
+                        .map_err(Self::convert_error)?
+                    } else {
+                        true
+                    };
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },
                     )?])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256r1 => {
-                    check_argument_count(args, 4, intrinsic)?;
+                    check_argument_count(args, 5, intrinsic)?;
                     let x = self.lookup_bytes(args[0], "call EcdsaSecp256r1 BlackBox")?;
                     let y = self.lookup_bytes(args[1], "call EcdsaSecp256r1 BlackBox")?;
                     let s = self.lookup_bytes(args[2], "call EcdsaSecp256r1 BlackBox")?;
                     let m = self.lookup_bytes(args[3], "call EcdsaSecp256r1 BlackBox")?;
+                    let predicate = self.lookup_bool(args[4], "call EcdsaSecp256r1 BlackBox")?;
                     let x_len = x.len();
                     let x_array: &[u8; 32] = &x.try_into().map_err(|_| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
@@ -226,30 +236,42 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
-                    let result = acvm::blackbox_solver::ecdsa_secp256r1_verify(
-                        &m, x_array, y_array, s_array,
-                    )
-                    .map_err(Self::convert_error)?;
+                    let m_len = m.len();
+                    let m_array: &[u8; 32] = &m.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: m_len,
+                        })
+                    })?;
+
+                    let result = if predicate {
+                        acvm::blackbox_solver::ecdsa_secp256r1_verify(
+                            m_array, x_array, y_array, s_array,
+                        )
+                        .map_err(Self::convert_error)?
+                    } else {
+                        true
+                    };
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },
                     )?])
                 }
                 acvm::acir::BlackBoxFunc::MultiScalarMul => {
-                    check_argument_count(args, 2, intrinsic)?;
+                    check_argument_count(args, 3, intrinsic)?;
                     let input_points =
-                        self.lookup_array_or_slice(args[0], "call to MultiScalarMul blackbox")?;
+                        self.lookup_array_or_vector(args[0], "call to MultiScalarMul blackbox")?;
                     let mut points = Vec::new();
                     for (i, v) in input_points.elements.borrow().iter().enumerate() {
                         if i % 3 == 2 {
-                            points.push((v.as_bool().ok_or(
+                            points.push(u128::from(v.as_bool().ok_or(
                                 InterpreterError::Internal(InternalError::TypeError {
                                     value_id: args[0],
                                     value: v.to_string(),
                                     expected_type: "bool",
                                     instruction: "retrieving is_infinite in call to MultiScalarMul blackbox",
                                 })
-                            )? as u128).into());
+                            )?).into());
                         } else {
                             points.push(
                             v.as_field().ok_or(
@@ -263,7 +285,7 @@ impl<W: Write> Interpreter<'_, W> {
                         }
                     }
                     let scalars =
-                        self.lookup_array_or_slice(args[1], "call to MultiScalarMul blackbox")?;
+                        self.lookup_array_or_vector(args[1], "call to MultiScalarMul blackbox")?;
                     let mut scalars_lo = Vec::new();
                     let mut scalars_hi = Vec::new();
                     for (i, v) in scalars.elements.borrow().iter().enumerate() {
@@ -287,8 +309,14 @@ impl<W: Write> Interpreter<'_, W> {
                             )?);
                         }
                     }
+                    let predicate = self.lookup_bool(
+                        args[2],
+                        "retrieving predicate in call to MultiScalarMul blackbox",
+                    )?;
+
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
-                    let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
+                    let result =
+                        solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, predicate);
                     let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
@@ -305,7 +333,7 @@ impl<W: Write> Interpreter<'_, W> {
                     })?;
                     let results = acvm::blackbox_solver::keccakf1600(inputs_array)
                         .map_err(Self::convert_error)?;
-                    let results = results.iter().map(|e| (*e as u128).into());
+                    let results = results.iter().map(|e| u128::from(*e).into());
                     let results =
                         Value::array_from_iter(results, NumericType::Unsigned { bit_size: 64 })?;
                     Ok(vec![results])
@@ -316,7 +344,7 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(vec![])
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
-                    check_argument_count(args, 6, intrinsic)?;
+                    check_argument_count(args, 7, intrinsic)?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let lhs = (
                         self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
@@ -328,32 +356,28 @@ impl<W: Write> Interpreter<'_, W> {
                         self.lookup_field(args[4], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_bool(args[5], "call EmbeddedCurveAdd BlackBox")?,
                     );
-                    let result =
-                        solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
+                    let predicate = self.lookup_bool(args[6], "call EmbeddedCurveAdd BlackBox")?;
+                    let result = solver.ec_add(
+                        &lhs.0,
+                        &lhs.1,
+                        &lhs.2.into(),
+                        &rhs.0,
+                        &rhs.1,
+                        &rhs.2.into(),
+                        predicate,
+                    );
                     let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
-                acvm::acir::BlackBoxFunc::BigIntAdd
-                | acvm::acir::BlackBoxFunc::BigIntSub
-                | acvm::acir::BlackBoxFunc::BigIntMul
-                | acvm::acir::BlackBoxFunc::BigIntDiv
-                | acvm::acir::BlackBoxFunc::BigIntFromLeBytes
-                | acvm::acir::BlackBoxFunc::BigIntToLeBytes => {
-                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
-                        reason: "unused BigInt BlackBox function",
-                    }))
-                }
+
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
-                    check_argument_count(args, 2, intrinsic)?;
+                    check_argument_count(args, 1, intrinsic)?;
                     let inputs = self
                         .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
-                    let length =
-                        self.lookup_u32(args[1], "call Poseidon2Permutation BlackBox (length)")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
-                    let result = solver
-                        .poseidon2_permutation(&inputs, length)
-                        .map_err(Self::convert_error)?;
+                    let result =
+                        solver.poseidon2_permutation(&inputs).map_err(Self::convert_error)?;
                     let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }
@@ -371,12 +395,12 @@ impl<W: Write> Interpreter<'_, W> {
                     let state_len = state.len();
                     let mut state: [u32; 8] = state.try_into().map_err(|_| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
-                            expected_size: 16,
+                            expected_size: 8,
                             size: state_len,
                         })
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
-                    let result = state.iter().map(|e| (*e as u128).into());
+                    let result = state.iter().map(|e| u128::from(*e).into());
                     let result = Value::array_from_iter(result, NumericType::unsigned(32))?;
                     Ok(vec![result])
                 }
@@ -457,9 +481,16 @@ impl<W: Write> Interpreter<'_, W> {
                 let rhs = self.lookup_field(args[1], "rhs of call to field less than")?;
                 Ok(vec![Value::bool(lhs < rhs)])
             }
-            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
-                let array = self.lookup_array_or_slice(args[0], "array/slice ref count")?;
-                let rc = *array.rc.borrow();
+            Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => {
+                // `vector_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
+                let idx = if matches!(intrinsic, Intrinsic::VectorRefCount) { 1 } else { 0 };
+                let array = self.lookup_array_or_vector(args[idx], "array/vector ref count")?;
+                let mut rc = *array.rc.borrow();
+                // ACIR always returns 0 for the refcounts, and we expect that IncRc and DecRc don't appear in constrained SSA.
+                // The interpreter starts with a default ref-count value of 1. If it did not change, treat it as zero to match ACIR.
+                if !self.in_unconstrained_context() && rc == 1 {
+                    rc = 0;
+                }
                 Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))?])
             }
         }
@@ -500,135 +531,136 @@ impl<W: Write> Interpreter<'_, W> {
         Ok(vec![Value::array(elements, vec![Type::Numeric(element_type)])])
     }
 
-    /// (length, slice, elem...) -> (length, slice)
-    fn slice_push_back(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_push_back")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_push_back")?;
+    /// (length, vector, elem...) -> (length, vector)
+    fn vector_push_back(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to vector_push_back")?;
+        let vector = self.lookup_array_or_vector(args[1], "call to vector_push_back")?;
 
-        // The resulting slice should be cloned - should we check RC here to try mutating it?
+        // The resulting vector should be cloned - should we check RC here to try mutating it?
         // It'd need to be brillig-only if so since RC is always 1 in acir.
-        let mut new_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut new_elements = vector.elements.borrow().to_vec();
+        let element_types = vector.element_types.clone();
 
-        // The slice might contain more elements than its length.
+        // The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
         new_elements.truncate(element_types.len() * length as usize);
         for arg in args.iter().skip(2) {
             new_elements.push(self.lookup(*arg)?);
         }
 
-        let new_length = Value::Numeric(NumericValue::U32(length + 1));
-        let new_slice = Value::slice(new_elements, element_types);
-        Ok(vec![new_length, new_slice])
+        let new_length = Value::u32(length + 1);
+        let new_vector = Value::vector(new_elements, element_types);
+        Ok(vec![new_length, new_vector])
     }
 
-    /// (length, slice, elem...) -> (length, slice)
-    fn slice_push_front(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_push_front")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_push_front")?;
-        let slice_elements = slice.elements.clone();
-        let element_types = slice.element_types.clone();
+    /// (length, vector, elem...) -> (length, vector)
+    fn vector_push_front(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to vector_push_front")?;
+        let vector = self.lookup_array_or_vector(args[1], "call to vector_push_front")?;
+        let vector_elements = vector.elements.clone();
+        let element_types = vector.element_types.clone();
 
         let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
-        new_elements.extend_from_slice(&slice_elements.borrow());
+        new_elements.extend_from_slice(&vector_elements.borrow());
 
-        let new_length = Value::Numeric(NumericValue::U32(length + 1));
-        let new_slice = Value::slice(new_elements, element_types);
-        Ok(vec![new_length, new_slice])
+        let new_length = Value::u32(length + 1);
+        let new_vector = Value::vector(new_elements, element_types);
+        Ok(vec![new_length, new_vector])
     }
 
-    /// (length, slice) -> (length, slice, elem...)
-    fn slice_pop_back(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_pop_back")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_pop_back")?;
+    /// (length, vector) -> (length, vector, elem...)
+    fn vector_pop_back(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to vector_pop_back")?;
+        let vector = self.lookup_array_or_vector(args[1], "call to vector_pop_back")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut vector_elements = vector.elements.borrow().to_vec();
+        let element_types = vector.element_types.clone();
 
-        if slice_elements.is_empty() || length == 0 {
-            let instruction = "slice_pop_back";
-            return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
+        if vector_elements.is_empty() || length == 0 {
+            let instruction = "vector_pop_back";
+            return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
-        check_slice_can_pop_all_element_types(args[1], &slice)?;
+        check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        // The slice might contain more elements than its length.
+        // The vector might contain more elements than its length.
         // We want the last valid element, ignoring any extras following it.
         // We don't ever access the extras, so we might as well remove any.
-        slice_elements.truncate(element_types.len() * length as usize);
-        let mut popped_elements = vecmap(0..element_types.len(), |_| slice_elements.pop().unwrap());
+        vector_elements.truncate(element_types.len() * length as usize);
+        let mut popped_elements =
+            vecmap(0..element_types.len(), |_| vector_elements.pop().unwrap());
         popped_elements.reverse();
 
-        let new_length = Value::Numeric(NumericValue::U32(length - 1));
-        let new_slice = Value::slice(slice_elements, element_types);
-        let mut results = vec![new_length, new_slice];
+        let new_length = Value::u32(length - 1);
+        let new_vector = Value::vector(vector_elements, element_types);
+        let mut results = vec![new_length, new_vector];
         results.extend(popped_elements);
         Ok(results)
     }
 
-    /// (length, slice) -> (elem..., length, slice)
-    fn slice_pop_front(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_pop_front")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_pop_front")?;
+    /// (length, vector) -> (elem..., length, vector)
+    fn vector_pop_front(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to vector_pop_front")?;
+        let vector = self.lookup_array_or_vector(args[1], "call to vector_pop_front")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut vector_elements = vector.elements.borrow().to_vec();
+        let element_types = vector.element_types.clone();
 
-        if slice_elements.is_empty() || length == 0 {
-            let instruction = "slice_pop_front";
-            return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
+        if vector_elements.is_empty() || length == 0 {
+            let instruction = "vector_pop_front";
+            return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
-        check_slice_can_pop_all_element_types(args[1], &slice)?;
+        check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let mut results = slice_elements.drain(0..element_types.len()).collect::<Vec<_>>();
+        let mut results = vector_elements.drain(0..element_types.len()).collect::<Vec<_>>();
 
-        let new_length = Value::Numeric(NumericValue::U32(length - 1));
-        let new_slice = Value::slice(slice_elements, element_types);
+        let new_length = Value::u32(length - 1);
+        let new_vector = Value::vector(vector_elements, element_types);
         results.push(new_length);
-        results.push(new_slice);
+        results.push(new_vector);
         Ok(results)
     }
 
-    /// (length, slice, index:u32, elem...) -> (length, slice)
-    fn slice_insert(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_insert")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_insert")?;
-        let index = self.lookup_u32(args[2], "call to slice_insert")?;
+    /// (length, vector, index:u32, elem...) -> (length, vector)
+    fn vector_insert(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to vector_insert")?;
+        let vector = self.lookup_array_or_vector(args[1], "call to vector_insert")?;
+        let index = self.lookup_u32(args[2], "call to vector_insert")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut vector_elements = vector.elements.borrow().to_vec();
+        let element_types = vector.element_types.clone();
 
         let mut index = index as usize * element_types.len();
         for arg in args.iter().skip(3) {
-            slice_elements.insert(index, self.lookup(*arg)?);
+            vector_elements.insert(index, self.lookup(*arg)?);
             index += 1;
         }
 
-        let new_length = Value::Numeric(NumericValue::U32(length + 1));
-        let new_slice = Value::slice(slice_elements, element_types);
-        Ok(vec![new_length, new_slice])
+        let new_length = Value::u32(length + 1);
+        let new_vector = Value::vector(vector_elements, element_types);
+        Ok(vec![new_length, new_vector])
     }
 
-    /// (length, slice, index:u32) -> (length, slice, elem...)
-    fn slice_remove(&self, args: &[ValueId]) -> IResults {
-        let length = self.lookup_u32(args[0], "call to slice_remove")?;
-        let slice = self.lookup_array_or_slice(args[1], "call to slice_remove")?;
-        let index = self.lookup_u32(args[2], "call to slice_remove")?;
+    /// (length, vector, index:u32) -> (length, vector, elem...)
+    fn vector_remove(&self, args: &[ValueId]) -> IResults {
+        let length = self.lookup_u32(args[0], "call to vector_remove")?;
+        let vector = self.lookup_array_or_vector(args[1], "call to vector_remove")?;
+        let index = self.lookup_u32(args[2], "call to vector_remove")?;
 
-        let mut slice_elements = slice.elements.borrow().to_vec();
-        let element_types = slice.element_types.clone();
+        let mut vector_elements = vector.elements.borrow().to_vec();
+        let element_types = vector.element_types.clone();
 
-        if slice_elements.is_empty() {
-            let instruction = "slice_remove";
-            return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
+        if vector_elements.is_empty() {
+            let instruction = "vector_remove";
+            return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
-        check_slice_can_pop_all_element_types(args[1], &slice)?;
+        check_vector_can_pop_all_element_types(args[1], &vector)?;
 
         let index = index as usize * element_types.len();
-        let removed: Vec<_> = slice_elements.drain(index..index + element_types.len()).collect();
+        let removed: Vec<_> = vector_elements.drain(index..index + element_types.len()).collect();
 
-        let new_length = Value::Numeric(NumericValue::U32(length - 1));
-        let new_slice = Value::slice(slice_elements, element_types);
-        let mut results = vec![new_length, new_slice];
+        let new_length = Value::u32(length - 1);
+        let new_vector = Value::vector(vector_elements, element_types);
+        let mut results = vec![new_length, new_vector];
         results.extend(removed);
         Ok(results)
     }
@@ -688,8 +720,7 @@ impl<W: Write> Interpreter<'_, W> {
             // Everything up to the first meta is part of _some_ value.
             // We'll let each parser take as many fields as they need.
             let meta_idx = args.len() - 1 - num_values;
-            let input_as_fields =
-                (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let input_as_fields = values_to_fields(&args[3..meta_idx]);
             let field_iterator = &mut input_as_fields.into_iter();
 
             let mut fragments = Vec::new();
@@ -701,8 +732,7 @@ impl<W: Write> Interpreter<'_, W> {
             PrintableValueDisplay::FmtString(message, fragments)
         } else {
             let meta_idx = args.len() - 2;
-            let input_as_fields =
-                (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let input_as_fields = values_to_fields(&args[1..meta_idx]);
             let printable_type = value_to_printable_type(&args[meta_idx])?;
             let printable_value =
                 decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
@@ -751,16 +781,16 @@ fn check_argument_count_is_at_least(
     }
 }
 
-fn check_slice_can_pop_all_element_types(slice_id: ValueId, slice: &ArrayValue) -> IResult<()> {
-    let actual_length = slice.elements.borrow().len();
-    if actual_length >= slice.element_types.len() {
+fn check_vector_can_pop_all_element_types(vector_id: ValueId, vector: &ArrayValue) -> IResult<()> {
+    let actual_length = vector.elements.borrow().len();
+    if actual_length >= vector.element_types.len() {
         Ok(())
     } else {
-        Err(InterpreterError::Internal(InternalError::NotEnoughElementsToPopSliceOfStructs {
-            slice_id,
-            slice: slice.to_string(),
+        Err(InterpreterError::Internal(InternalError::NotEnoughElementsToPopVectorOfStructs {
+            vector_id,
+            vector: vector.to_string(),
             actual_length,
-            element_types: vecmap(slice.element_types.iter(), ToString::to_string),
+            element_types: vecmap(vector.element_types.iter(), ToString::to_string),
         }))
     }
 }
@@ -783,37 +813,61 @@ fn new_embedded_curve_point(
     ))
 }
 
-/// Convert a [Value] to a vector of [FieldElement] for printing.
-fn value_to_fields(value: &Value) -> Vec<FieldElement> {
-    fn go(value: &Value, fields: &mut Vec<FieldElement>) {
-        match value {
-            Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
-            Value::Reference(reference_value) => {
-                if let Some(value) = reference_value.element.borrow().as_ref() {
-                    go(value, fields);
+/// Convert a vector of [Value] to a flattened vector of [FieldElement] for printing.
+///
+/// It takes a vector, rather than individual values, so that it can try to
+/// pair up `u32` fields indicating the size of a `Vector` with its elements
+/// following in the next value, and truncate the data to the semantic length.
+fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
+    fn go<'a, I>(values: I, fields: &mut Vec<FieldElement>)
+    where
+        I: Iterator<Item = &'a Value>,
+    {
+        let mut vector_length: Option<usize> = None;
+        for value in values {
+            match value {
+                Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+                Value::Reference(reference_value) => {
+                    if let Some(value) = reference_value.element.borrow().as_ref() {
+                        go(std::iter::once(value), fields);
+                    }
+                }
+                Value::ArrayOrVector(array_value) => {
+                    let length = match vector_length {
+                        Some(length) if array_value.is_vector => {
+                            length * array_value.element_types.len()
+                        }
+                        _ => array_value.elements.borrow().len(),
+                    };
+                    go(array_value.elements.borrow().iter().take(length), fields);
+                }
+                Value::Function(id) => {
+                    // Based on `decode_printable_value` it will expect consume the environment as well,
+                    // but that's catered for the by the SSA generation: the env is passed as separate values.
+                    fields.push(FieldElement::from(id.to_u32()));
+                }
+                Value::ForeignFunction(x) => {
+                    // The actual display of functions only shows the type, but expects the ID.
+                    // Send a hash so we can interpret the Initial SSA until we wrap these values with a normal function.
+                    let hash = rustc_hash::FxBuildHasher.hash_one(x);
+                    fields.push(FieldElement::from(hash));
+                }
+                Value::Intrinsic(x) => {
+                    // Same as foreign functions: just pass something so we can handle the initial SSA even if somehow an intrinsic makes it here.
+                    let hash = rustc_hash::FxBuildHasher.hash_one(x);
+                    fields.push(FieldElement::from(hash));
                 }
             }
-            Value::ArrayOrSlice(array_value) => {
-                for value in array_value.elements.borrow().iter() {
-                    go(value, fields);
-                }
-            }
-            Value::Function(id) => {
-                // Based on `decode_printable_value` it will expect consume the environment as well,
-                // but that's catered for the by the SSA generation: the env is passed as separate values.
-                fields.push(FieldElement::from(id.to_u32()));
-            }
-            Value::Intrinsic(x) => {
-                panic!("didn't expect to print intrinsics: {x}")
-            }
-            Value::ForeignFunction(x) => {
-                panic!("didn't expect to print foreign functions: {x}")
+            // Chamber the length for a potential vector following it.
+            if let Some(length) = value.as_u32() {
+                vector_length = Some(length as usize);
+            } else {
+                vector_length = None;
             }
         }
     }
-
     let mut fields = Vec::new();
-    go(value, &mut fields);
+    go(values.iter(), &mut fields);
     fields
 }
 
@@ -834,7 +888,7 @@ fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
 
 /// Parse a value as `[u8]` and convert to UTF-8 `String`.
 fn value_to_string(name: &'static str, value: &Value) -> IResult<String> {
-    let arr = value.as_array_or_slice().and_then(|arr| {
+    let arr = value.as_array_or_vector().and_then(|arr| {
         arr.elements.borrow().iter().map(|v| v.as_u8()).collect::<Option<Vec<_>>>()
     });
     let Some(bz) = arr else {

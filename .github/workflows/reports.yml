@@ -20,7 +20,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -40,7 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store ACVM benchmarks result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "ACVM Benchmarks"
           tool: "cargo"
@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build list of projects
         id: get_bench_projects
@@ -79,7 +79,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -101,7 +101,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./dist/*
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -135,7 +135,7 @@ jobs:
           cp ./target/release/noir-inspector ./dist/noir-inspector
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noir-inspector
           path: ./dist/*
@@ -150,7 +150,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install `bb`
         run: |
@@ -195,7 +195,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -247,7 +247,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -299,7 +299,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -311,7 +311,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: in_progress_compilation_mem_report
           path: memory_report.json
@@ -325,7 +325,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload execution memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: in_progress_execution_mem_report
           path: memory_report.json
@@ -335,7 +335,7 @@ jobs:
   external_repo_reports:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -343,7 +343,7 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
@@ -353,7 +353,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -364,7 +364,6 @@ jobs:
 
       - name: Download noir-inspector binary
         uses: ./.github/actions/download-noir-inspector
-
 
       - name: Generate compilation report
         id: compilation_report
@@ -394,7 +393,7 @@ jobs:
           PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -437,7 +436,7 @@ jobs:
 
     name: External repo memory report - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: scripts
           sparse-checkout: |
@@ -450,7 +449,7 @@ jobs:
         uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -477,7 +476,7 @@ jobs:
           FLAGS: ${{ matrix.flags }}
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -502,7 +501,7 @@ jobs:
 
       - name: Upload execution memory report
         if: ${{ !matrix.cannot_execute }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.execution_report.outputs.report_name }}
           path: ${{ steps.execution_report.outputs.report_path }}
@@ -549,10 +548,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -565,7 +564,7 @@ jobs:
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Compilation Time"
           tool: "customSmallerIsBetter"
@@ -595,10 +594,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -611,7 +610,7 @@ jobs:
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Execution Time"
           tool: "customSmallerIsBetter"
@@ -641,10 +640,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -657,7 +656,7 @@ jobs:
           jq --slurp 'map(.artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Artifact Size"
           tool: "customSmallerIsBetter"
@@ -687,10 +686,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -703,7 +702,7 @@ jobs:
           jq --slurp 'map(.num_opcodes | select(.))' ./reports/* | tee num_opcodes.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Opcode count"
           tool: "customSmallerIsBetter"
@@ -733,15 +732,15 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: in_progress_compilation_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: compilation_mem_report_*
           path: ./reports
@@ -754,7 +753,7 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Compilation Memory"
           tool: "customSmallerIsBetter"
@@ -784,15 +783,15 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: in_progress_execution_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: execution_mem_report_*
           path: ./reports
@@ -805,7 +804,7 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
         with:
           name: "Execution Memory"
           tool: "customSmallerIsBetter"
@@ -838,13 +837,13 @@ jobs:
       - upload_execution_memory_report
 
     steps:
-        - name: Report overall success
-          run: |
-            if [[ $FAIL == true ]]; then
-                exit 1
-            else
-                exit 0
-            fi
-          env:
-            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+      - name: Report overall success
+        run: |
+          if [[ $FAIL == true ]]; then
+              exit 1
+          else
+              exit 0
+          fi
+        env:
+          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

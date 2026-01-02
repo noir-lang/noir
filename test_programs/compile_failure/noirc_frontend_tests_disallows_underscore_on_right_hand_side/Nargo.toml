@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_disallows_underscore_on_right_hand_side"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

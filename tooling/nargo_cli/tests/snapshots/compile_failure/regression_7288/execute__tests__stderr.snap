@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot pass mutable reference `&mut Field` from a constrained runtime to an unconstrained runtime
+  ┌─ src/main.nr:7:13
+  │
+7 │         foo(x)
+  │             -
+  │
+
+Aborting due to 1 previous error

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_match_on_empty_enum"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

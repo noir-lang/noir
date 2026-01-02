@@ -1,13 +1,14 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 use std::fmt::{Display, Formatter, Result};
 
-use acvm::acir::AcirField;
+use acvm::{FieldElement, acir::AcirField};
 use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
+    function_builder::data_bus::DataBus,
     ir::{
         instruction::ArrayOffset,
         types::{NumericType, Type},
@@ -48,7 +49,7 @@ impl Display for Printer<'_> {
         for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
-                    writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
+                    writeln!(f, "g{} = {typ} {}", id.to_u32(), number(*constant, typ))?;
                 }
                 Value::Instruction { instruction, .. } => {
                     display_instruction(&globals_dfg, *instruction, true, self.fm, f)?;
@@ -93,10 +94,34 @@ fn display_function(
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     }
 
+    display_databus(&function.dfg.data_bus, &function.dfg, f)?;
+
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, files, f)?;
     }
     write!(f, "}}")
+}
+
+fn display_databus(data_bus: &DataBus, dfg: &DataFlowGraph, f: &mut Formatter) -> Result {
+    for call_data in &data_bus.call_data {
+        write!(
+            f,
+            "  call_data({}): array: {}, indices: [",
+            call_data.call_data_id,
+            value(dfg, call_data.array_id),
+        )?;
+        for (i, (value_id, index)) in call_data.index_map.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", value(dfg, *value_id), index)?;
+        }
+        writeln!(f, "]")?;
+    }
+    if let Some(return_data) = data_bus.return_data {
+        writeln!(f, "  return_data: {}", value(dfg, return_data))?;
+    }
+    Ok(())
 }
 
 /// Display a single block. This will not display the block's successors.
@@ -122,7 +147,7 @@ fn display_block(
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            format!("{typ} {constant}")
+            format!("{typ} {}", number(*constant, typ))
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
@@ -137,6 +162,18 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Global(_) => {
             format!("g{}", id.to_u32())
         }
+    }
+}
+
+/// Formats the given number assuming it has the given type.
+/// Unsigned types and field element types will be formatter as-is,
+/// while signed types will be formatted as positive or negative numbers
+/// depending on where the number falls in the range given by the type's bit size.
+fn number(number: FieldElement, typ: &NumericType) -> String {
+    if let NumericType::Signed { bit_size } = typ {
+        number.to_string_as_signed_integer(*bit_size)
+    } else {
+        number.to_string()
     }
 }
 
@@ -326,17 +363,19 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             write!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index, offset } => {
+        Instruction::ArrayGet { array, index } => {
+            let offset = dfg.array_offset(*array, *index);
             write!(
                 f,
                 "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
-                display_array_offset(offset),
+                display_array_offset(&offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable, offset } => {
+        Instruction::ArraySet { array, index, value, mutable } => {
+            let offset = dfg.array_offset(*array, *index);
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
@@ -347,7 +386,7 @@ fn display_instruction_inner(
                 mutable,
                 array,
                 index,
-                display_array_offset(offset),
+                display_array_offset(&offset),
                 value
             )
         }
@@ -378,16 +417,16 @@ fn display_instruction_inner(
             // It could happen that the byte array is a random byte sequence that happens to be printable
             // (it didn't come from a string literal) but this still reduces the noise in the output
             // and actually represents the same value.
-            let (element_types, is_slice) = match typ {
+            let (element_types, is_vector) = match typ {
                 Type::Array(types, _) => (types, false),
-                Type::Slice(types) => (types, true),
-                _ => panic!("Expected array or slice type for MakeArray"),
+                Type::Vector(types) => (types, true),
+                _ => panic!("Expected array or vector type for MakeArray"),
             };
             if element_types.len() == 1
                 && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
             {
                 if let Some(string) = try_byte_array_to_string(elements, dfg) {
-                    if is_slice {
+                    if is_vector {
                         return write!(f, "make_array &b{string:?}");
                     } else {
                         return write!(f, "make_array b{string:?}");
@@ -417,7 +456,7 @@ fn display_instruction_inner(
 fn display_array_offset(offset: &ArrayOffset) -> String {
     match offset {
         ArrayOffset::None => String::new(),
-        ArrayOffset::Array | ArrayOffset::Slice => format!(" minus {}", offset.to_u32()),
+        ArrayOffset::Array | ArrayOffset::Vector => format!(" minus {}", offset.to_u32()),
     }
 }
 
@@ -434,18 +473,21 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
             return None;
         }
         let byte: u8 = element as u8;
-        const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
-        if byte != FORM_FEED
-            && (byte.is_ascii_alphanumeric()
-                || byte.is_ascii_punctuation()
-                || byte.is_ascii_whitespace())
-        {
+        if is_printable_byte(byte) {
             string.push(byte as char);
         } else {
             return None;
         }
     }
     Some(string)
+}
+
+pub fn is_printable_byte(byte: u8) -> bool {
+    const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+    byte != FORM_FEED
+        && (byte.is_ascii_alphanumeric()
+            || byte.is_ascii_punctuation()
+            || byte.is_ascii_whitespace())
 }
 
 fn result_types(dfg: &DataFlowGraph, results: &[ValueId]) -> String {

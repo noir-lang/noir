@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[function_ref] Circuit output: String("bar")
+[function_ref] Circuit output: "bar"

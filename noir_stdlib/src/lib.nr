@@ -1,7 +1,7 @@
 pub mod hash;
 pub mod aes128;
 pub mod array;
-pub mod slice;
+pub mod vector;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
 pub mod embedded_curve_ops;
@@ -22,6 +22,8 @@ pub mod append;
 pub mod mem;
 pub mod panic;
 pub mod hint;
+
+mod primitive_docs;
 
 use convert::AsPrimitive;
 
@@ -46,16 +48,6 @@ pub fn print<T>(input: T) {
     unsafe {
         print_unconstrained(false, input);
     }
-}
-
-#[deprecated("This functions is deprecated in favour of external verification libraries. To verify Barretenberg proofs, it's recommended to use the library https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/noir/bb_proof_verification")]
-pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
-    verification_key: [Field; N],
-    proof: [Field; M],
-    public_inputs: [Field; K],
-    key_hash: Field,
-) {
-    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
 }
 
 /// Asserts the validity of the provided proof and public inputs against the provided verification key and hash.
@@ -146,46 +138,3 @@ where
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
-
-mod tests {
-    use super::ops::arith::WrappingMul;
-
-    #[test(should_fail_with = "custom message")]
-    fn test_static_assert_custom_message() {
-        super::static_assert(1 == 2, "custom message");
-    }
-
-    #[test]
-    fn test_wrapping_mul() {
-        let zero: u128 = 0;
-        let one: u128 = 1;
-        let two_pow_64: u128 = 0x10000000000000000;
-        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;
-
-        // 1*0==0
-        assert_eq(zero, zero.wrapping_mul(one));
-
-        // 0*1==0
-        assert_eq(zero, one.wrapping_mul(zero));
-
-        // 1*1==1
-        assert_eq(one, one.wrapping_mul(one));
-
-        // 0 * ( 1 << 64 ) ==  0
-        assert_eq(zero, zero.wrapping_mul(two_pow_64));
-
-        // ( 1 << 64 ) * 0 == 0
-        assert_eq(zero, two_pow_64.wrapping_mul(zero));
-
-        // 1 * ( 1 << 64 ) == 1 << 64
-        assert_eq(two_pow_64, two_pow_64.wrapping_mul(one));
-
-        // ( 1 << 64 ) * 1 == 1 << 64
-        assert_eq(two_pow_64, one.wrapping_mul(two_pow_64));
-
-        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64
-        assert_eq(zero, two_pow_64.wrapping_mul(two_pow_64));
-        // -1 * -1 == 1
-        assert_eq(one, u128_max.wrapping_mul(u128_max));
-    }
-}

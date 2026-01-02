@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[brillig_uninitialized_arrays] Circuit output: Field(1)
+[brillig_uninitialized_arrays] Circuit output: 0x01

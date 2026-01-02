@@ -1,3 +1,5 @@
+//! Function-local context management for type variables and trait constraints.
+
 use noirc_errors::Location;
 
 use crate::{

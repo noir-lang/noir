@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[as_witness] Circuit output: Field(42)
+[as_witness] Circuit output: 0x2a

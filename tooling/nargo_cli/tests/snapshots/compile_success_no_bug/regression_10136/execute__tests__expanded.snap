@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(array: [Field; 1], cond: bool) -> pub u32 {
+    let vector: [Field] = array.as_vector();
+    let mut vector: [Field] = std::hint::black_box(vector);
+    if cond { vector = vector.push_back(1_Field); };
+    vector.len()
+}

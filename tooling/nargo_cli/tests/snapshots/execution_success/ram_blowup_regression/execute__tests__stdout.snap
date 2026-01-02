@@ -1,5 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: stdout
----
-[ram_blowup_regression] Circuit output: Field(387019072746874033871663166450370497041337936686368559213842580820036284132)

@@ -1,5 +1,6 @@
 ---
 title: TraitDefinition
+description: Work with trait definitions at compile time—convert to trait constraints and inspect basic properties.
 ---
 
 `std::meta::trait_def` contains methods on the built-in `TraitDefinition` type. This type

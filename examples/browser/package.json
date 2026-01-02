@@ -1,0 +1,21 @@
+{
+  "name": "browser_example",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "yarn build && playwright test browser.test.ts"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "3.0.0-nightly.20251104",
+    "@noir-lang/noir_js": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6",
+    "vite-plugin-node-polyfills": "0.17.0"
+  }
+}

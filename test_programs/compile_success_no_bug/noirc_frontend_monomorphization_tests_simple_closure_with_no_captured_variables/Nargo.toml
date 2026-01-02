@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_monomorphization_tests_simple_closure_with_no_captured_variables"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

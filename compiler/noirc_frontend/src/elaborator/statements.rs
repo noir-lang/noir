@@ -1,18 +1,17 @@
+//! Statement elaboration including let bindings, assignments, and control flow.
+
 use noirc_errors::Location;
 
 use crate::{
-    DataType, Type,
+    Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
-        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
-    elaborator::PathResolutionTarget,
+    elaborator::{PathResolutionTarget, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::struct_member_is_visible,
-        },
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -23,7 +22,6 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
-    shared::Signedness,
 };
 
 use super::{Elaborator, Loop};
@@ -42,7 +40,7 @@ impl Elaborator<'_> {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block, location) => self.elaborate_loop(block, location),
+            StatementKind::Loop(loop_) => self.elaborate_loop(loop_),
             StatementKind::While(while_) => self.elaborate_while(while_),
             StatementKind::Break => self.elaborate_jump(true, statement.location),
             StatementKind::Continue => self.elaborate_jump(false, statement.location),
@@ -73,16 +71,31 @@ impl Elaborator<'_> {
         statement: Statement,
         target_type: Option<&Type>,
     ) -> (StmtId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
+
+        if has_errors {
+            self.interner.stmts_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    fn elaborate_statement_inner(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
         let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
-        let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, location);
+        let id = self.interner.push_stmt_full(hir_statement, location);
         (id, typ)
     }
 
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
-        self.elaborate_let(let_stmt, None)
+        let (let_statement, typ) = self.elaborate_let(let_stmt, None);
+        (HirStatement::Let(let_statement), typ)
     }
 
     /// Elaborate a local or global let statement.
@@ -93,9 +106,14 @@ impl Elaborator<'_> {
         &mut self,
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
-    ) -> (HirStatement, Type) {
-        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
-        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+    ) -> (HirLetStatement, Type) {
+        let no_type = let_stmt.r#type.is_none();
+        let wildcard_allowed = if global_id.is_some() {
+            WildcardAllowed::No(WildcardDisallowedContext::Global)
+        } else {
+            WildcardAllowed::Yes
+        };
+        let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
@@ -103,7 +121,7 @@ impl Elaborator<'_> {
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
-        if type_contains_unspecified && global_id.is_some() {
+        if global_id.is_some() && (no_type || annotated_type.contains_type_variable()) {
             let expected_type = annotated_type.clone();
             let error = ResolverError::UnspecifiedGlobalType {
                 pattern_location,
@@ -114,8 +132,14 @@ impl Elaborator<'_> {
         }
 
         let definition = match global_id {
-            None => DefinitionKind::Local(Some(expression)),
-            Some(id) => DefinitionKind::Global(id),
+            None => {
+                debug_assert!(!let_stmt.is_global_let);
+                DefinitionKind::Local(Some(expression))
+            }
+            Some(id) => {
+                debug_assert!(let_stmt.is_global_let);
+                DefinitionKind::Global(id)
+            }
         };
 
         // Now check if LHS is the same type as the RHS
@@ -132,12 +156,13 @@ impl Elaborator<'_> {
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
-        let pattern = self.elaborate_pattern_and_store_ids(
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let pattern = self.elaborate_pattern(
             let_stmt.pattern,
             r#type.clone(),
             definition,
-            &mut Vec::new(),
             warn_if_unused,
+            &mut parameter_names_in_list,
         );
 
         let attributes = let_stmt.attributes;
@@ -145,7 +170,7 @@ impl Elaborator<'_> {
         let is_global_let = let_stmt.is_global_let;
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
-        (HirStatement::Let(let_), Type::Unit)
+        (let_, Type::Unit)
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
@@ -178,8 +203,7 @@ impl Elaborator<'_> {
         if new_statements.is_empty() {
             (assign, Type::Unit)
         } else {
-            let assign = self.interner.push_stmt(assign);
-            self.interner.push_stmt_location(assign, expr_location);
+            let assign = self.interner.push_stmt_full(assign, expr_location);
             new_statements.push(assign);
             let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
             let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
@@ -210,8 +234,6 @@ impl Elaborator<'_> {
         self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
-        // TODO: For loop variables are currently mutable by default since we haven't
-        //       yet implemented syntax for them to be optionally mutable.
         let kind = DefinitionKind::Local(None);
         let identifier = self.add_variable_decl(
             identifier, false, // mutable
@@ -255,11 +277,8 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
-    pub(super) fn elaborate_loop(
-        &mut self,
-        block: Expression,
-        location: Location,
-    ) -> (HirStatement, Type) {
+    pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
+        let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
             self.push_err(ResolverError::LoopInConstrainedFn { location });
@@ -346,7 +365,7 @@ impl Elaborator<'_> {
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
-        (expr, self.interner.next_type_variable())
+        (expr, Type::Unit)
     }
 
     fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
@@ -412,9 +431,7 @@ impl Elaborator<'_> {
                             super::PathResolutionMode::MarkAsUsed,
                         );
                         if let Ok(result) = result {
-                            for error in result.errors {
-                                self.push_err(error);
-                            }
+                            self.push_errors(result.errors);
                             self.push_err(ResolverError::Expected {
                                 location,
                                 expected: "value",
@@ -476,7 +493,7 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (mut index, index_type) = self.elaborate_expression(index);
 
-                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                let expected = Type::u32();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
                     expected: expected.clone(),
                     actual: index_type.clone(),
@@ -515,7 +532,7 @@ impl Elaborator<'_> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =
@@ -605,106 +622,19 @@ impl Elaborator<'_> {
 
         let pattern = HirPattern::Identifier(ident);
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-        let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location);
+        let let_ = self.interner.push_stmt_full(let_, location);
         Some((let_, ident_id))
-    }
-
-    /// Type checks a field access, adding dereference operators as necessary
-    pub(super) fn check_field_access(
-        &mut self,
-        lhs_type: &Type,
-        field_name: &str,
-        location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
-    ) -> Option<(Type, usize)> {
-        let lhs_type = lhs_type.follow_bindings();
-
-        match &lhs_type {
-            Type::DataType(s, args) => {
-                let s = s.borrow();
-                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
-                    self.interner.add_struct_member_reference(s.id, index, location);
-
-                    self.check_struct_field_visibility(&s, field_name, visibility, location);
-
-                    return Some((field, index));
-                }
-            }
-            Type::Tuple(elements) => {
-                if let Ok(index) = field_name.parse::<usize>() {
-                    let length = elements.len();
-                    if index < length {
-                        return Some((elements[index].clone(), index));
-                    } else {
-                        self.push_err(TypeCheckError::TupleIndexOutOfBounds {
-                            index,
-                            lhs_type,
-                            length,
-                            location,
-                        });
-                        return None;
-                    }
-                }
-            }
-            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
-            Type::Reference(element, mutable) => {
-                if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                    return self.check_field_access(
-                        element,
-                        field_name,
-                        location,
-                        Some(dereference_lhs),
-                    );
-                } else {
-                    let (element, index) =
-                        self.check_field_access(element, field_name, location, dereference_lhs)?;
-                    return Some((Type::Reference(Box::new(element), *mutable), index));
-                }
-            }
-            _ => (),
-        }
-
-        // If we get here the type has no field named 'access.rhs'.
-        // Now we specialize the error message based on whether we know the object type in question yet.
-        if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
-        } else if lhs_type != Type::Error {
-            self.push_err(TypeCheckError::AccessUnknownMember {
-                lhs_type,
-                field_name: field_name.to_string(),
-                location,
-            });
-        }
-
-        None
-    }
-
-    pub(super) fn check_struct_field_visibility(
-        &mut self,
-        struct_type: &DataType,
-        field_name: &str,
-        visibility: ItemVisibility,
-        location: Location,
-    ) {
-        if self.silence_field_visibility_errors > 0 {
-            return;
-        }
-
-        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), location),
-            )));
-        }
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let location = statement.location;
         let (hir_statement, _typ) =
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
+
+        // Run the interpreter - it will check if execution has been halted
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
+
         let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);

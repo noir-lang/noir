@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_errors_on_incorrect_generics_in_type_trait_call"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

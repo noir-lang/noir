@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[double_neg_cond_bool_input] Circuit output: Field(1)
+[double_neg_cond_bool_input] Circuit output: 0x01

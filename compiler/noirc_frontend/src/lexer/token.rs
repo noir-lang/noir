@@ -147,7 +147,14 @@ pub enum IntegerTypeSuffix {
 }
 
 impl IntegerTypeSuffix {
-    pub(crate) fn as_type(&self) -> crate::Type {
+    /// Returns the type of this integer suffix when used in a value position.
+    /// Note that this is _not_ the type of the integer when the integer is in a type position!
+    ///
+    /// An integer value like `3u32` has type `u32` but when used in a type `[Field; 3u32]`,
+    /// `3u32` will have the type `Type::Constant(3, Kind::Numeric(u32))`. As a result, using
+    /// this method for any kind checks on integer types will result in a kind error! For those
+    /// cases, use [IntegerTypeSuffix::as_kind] instead.
+    pub(crate) fn as_type(self) -> crate::Type {
         use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
         match self {
             IntegerTypeSuffix::I8 => Integer(Signed, Eight),
@@ -162,6 +169,18 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
             IntegerTypeSuffix::Field => crate::Type::FieldElement,
         }
+    }
+
+    /// Returns the kind of this integer constant when used in a type position.
+    /// For example, when used as `[Field; 3u32]`, this [IntegerTypeSuffix::U32]
+    /// will return `Kind::Numeric(Type::U32)`.
+    ///
+    /// This method should generally be used whenever an integer is used in a type position.
+    /// [IntegerTypeSuffix::as_type] would return a raw `u32` type which is not the actual
+    /// type of an integer in a type position - that'd be `Type::Constant(3, Kind::Numeric(u32))`
+    /// for `3u32`.
+    pub(crate) fn as_kind(self) -> crate::Kind {
+        crate::Kind::Numeric(Box::new(self.as_type()))
     }
 }
 
@@ -225,9 +244,9 @@ pub enum Token {
     /// &
     Ampersand,
     /// & followed immediately by '['
-    /// This is a lexer hack to distinguish slices
+    /// This is a lexer hack to distinguish vectors
     /// from taking a reference to an array
-    SliceStart,
+    VectorStart,
     /// ^
     Caret,
     /// <<
@@ -329,7 +348,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
-        Token::SliceStart => BorrowedToken::Ampersand,
+        Token::VectorStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -447,7 +466,7 @@ impl LocatedToken {
     }
 }
 
-impl std::fmt::Display for LocatedToken {
+impl Display for LocatedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
@@ -497,13 +516,13 @@ impl SpannedToken {
     }
 }
 
-impl std::fmt::Display for SpannedToken {
+impl Display for SpannedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
 }
 
-impl fmt::Display for Token {
+impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
@@ -567,7 +586,7 @@ impl fmt::Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::SliceStart => write!(f, "&"),
+            Token::VectorStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -600,7 +619,7 @@ impl fmt::Display for Token {
     }
 }
 
-impl fmt::Display for IntegerTypeSuffix {
+impl Display for IntegerTypeSuffix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IntegerTypeSuffix::I8 => write!(f, "i8"),
@@ -640,7 +659,7 @@ pub enum TokenKind {
     InnerDocComment,
 }
 
-impl fmt::Display for TokenKind {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenKind::Token(tok) => write!(f, "{tok}"),
@@ -741,7 +760,7 @@ pub enum IntType {
     Signed(u32),   // i64 = Signed(64)
 }
 
-impl fmt::Display for IntType {
+impl Display for IntType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             IntType::Unsigned(num) => write!(f, "u{num}"),
@@ -794,7 +813,7 @@ pub enum TestScope {
     None,
 }
 
-impl fmt::Display for TestScope {
+impl Display for TestScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TestScope::None => write!(f, ""),
@@ -826,7 +845,7 @@ pub enum FuzzingScope {
     None,
 }
 
-impl fmt::Display for FuzzingScope {
+impl Display for FuzzingScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FuzzingScope::None => write!(f, ""),
@@ -966,7 +985,7 @@ pub enum Attribute {
     Secondary(SecondaryAttribute),
 }
 
-impl fmt::Display for Attribute {
+impl Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Attribute::Function(attribute) => write!(f, "{attribute}"),
@@ -1059,13 +1078,13 @@ impl FunctionAttributeKind {
     }
 }
 
-impl fmt::Display for FunctionAttribute {
+impl Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.kind.fmt(f)
     }
 }
 
-impl fmt::Display for FunctionAttributeKind {
+impl Display for FunctionAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FunctionAttributeKind::Test(scope) => write!(f, "#[test{scope}]"),
@@ -1117,6 +1136,12 @@ pub enum SecondaryAttributeKind {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    /// Unlike Rust, all values in Noir already warn if they are not used.
+    ///
+    /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
+    /// an optional message for the error.
+    MustUse(Option<String>),
 }
 
 impl SecondaryAttributeKind {
@@ -1146,17 +1171,29 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Varargs => "varargs".to_string(),
             SecondaryAttributeKind::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
+            SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
+            SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+        }
+    }
+
+    /// If this is a `#[must_use]` attribute, return `Some(message)` where message is the
+    /// optional message. Otherwise, return `None`. Since `message` itself is optional,
+    /// `Some(None)` indicates there is a `must_use` but no message was provided.
+    pub(crate) fn must_use_message(&self) -> Option<Option<String>> {
+        match self {
+            SecondaryAttributeKind::MustUse(message) => Some(message.clone()),
+            _ => None,
         }
     }
 }
 
-impl fmt::Display for SecondaryAttribute {
+impl Display for SecondaryAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.kind.fmt(f)
     }
 }
 
-impl fmt::Display for SecondaryAttributeKind {
+impl Display for SecondaryAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#[{}]", self.contents())
     }
@@ -1208,10 +1245,12 @@ pub enum Keyword {
     CallData,
     Comptime,
     Constrain,
+    Constrained,
     Continue,
     Contract,
     Crate,
     Dep,
+    Dual,
     Else,
     Enum,
     Fn,
@@ -1240,7 +1279,7 @@ pub enum Keyword {
     While,
 }
 
-impl fmt::Display for Keyword {
+impl Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Keyword::As => write!(f, "as"),
@@ -1250,10 +1289,12 @@ impl fmt::Display for Keyword {
             Keyword::CallData => write!(f, "call_data"),
             Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Constrained => write!(f, "constrained"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
+            Keyword::Dual => write!(f, "dual"),
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
             Keyword::Fn => write!(f, "fn"),
@@ -1295,10 +1336,12 @@ impl Keyword {
             "call_data" => Keyword::CallData,
             "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
+            "constrained" => Keyword::Constrained,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
+            "dual" => Keyword::Dual,
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,
             "fn" => Keyword::Fn,

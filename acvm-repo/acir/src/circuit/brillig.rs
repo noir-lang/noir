@@ -28,6 +28,7 @@
 
 use super::opcodes::BlockId;
 use crate::native_types::{Expression, Witness};
+use acir_field::AcirField;
 use brillig::Opcode as BrilligOpcode;
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +42,19 @@ pub enum BrilligInputs<F> {
     MemoryArray(BlockId),
 }
 
+impl<F: AcirField> std::fmt::Display for BrilligInputs<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BrilligInputs::Single(expr) => expr.fmt(f),
+            BrilligInputs::Array(exprs) => {
+                let joined = exprs.iter().map(|e| format!("{e}")).collect::<Vec<_>>().join(", ");
+                write!(f, "[{joined}]")
+            }
+            BrilligInputs::MemoryArray(block_id) => block_id.fmt(f),
+        }
+    }
+}
+
 /// Outputs for the Brillig VM. Once the VM has completed
 /// execution, this will be the object that is returned.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
@@ -50,12 +64,27 @@ pub enum BrilligOutputs {
     Array(Vec<Witness>),
 }
 
+impl std::fmt::Display for BrilligOutputs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BrilligOutputs::Simple(witness) => write!(f, "{witness}"),
+            BrilligOutputs::Array(witnesses) => {
+                let joined =
+                    witnesses.iter().map(|w| format!("{w}")).collect::<Vec<_>>().join(", ");
+                write!(f, "[{joined}]")
+            }
+        }
+    }
+}
+
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligFunctionId].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BrilligBytecode<F> {
+    #[serde(default)] // For backwards compatibility
+    pub function_name: String,
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
 

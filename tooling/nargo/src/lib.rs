@@ -231,9 +231,24 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
 
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
-    let num_threads = rayon::current_num_threads();
+    // Collect only .nr files to process
+    let nr_files: Vec<_> = file_manager
+        .as_file_map()
+        .all_file_ids()
+        .filter(|&&file_id| {
+            let file_path = file_manager.path(file_id).expect("expected file to exist");
+            let file_extension =
+                file_path.extension().expect("expected all file paths to have an extension");
+            file_extension == "nr"
+        })
+        .copied()
+        .collect();
+
+    // Limit threads to the actual number of files we need to process.
+    let num_threads = rayon::current_num_threads().min(nr_files.len()).max(1);
+
     let (sender, receiver) = mpsc::channel();
-    let iter = &Mutex::new(file_manager.as_file_map().all_file_ids());
+    let iter = &Mutex::new(nr_files.into_iter());
 
     thread::scope(|scope| {
         // Start worker threads
@@ -247,17 +262,9 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
                 .spawn_scoped(scope, move || {
                     loop {
                         // Get next file to process from the iterator.
-                        let Some(&file_id) = iter.lock().unwrap().next() else {
+                        let Some(file_id) = iter.lock().unwrap().next() else {
                             break;
                         };
-
-                        let file_path = file_manager.path(file_id).expect("expected file to exist");
-                        let file_extension = file_path
-                            .extension()
-                            .expect("expected all file paths to have an extension");
-                        if file_extension != "nr" {
-                            continue;
-                        }
 
                         let parsed_file = parse_file(file_manager, file_id);
 

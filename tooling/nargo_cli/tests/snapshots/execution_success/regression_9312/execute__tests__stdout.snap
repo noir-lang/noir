@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_9312] Circuit output: Vec([Vec([Field(1), Field(20)]), Vec([Field(3), Field(60)])])
+[regression_9312] Circuit output: ((1, 0x14), (3, 0x3c))

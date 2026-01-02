@@ -17,9 +17,6 @@ on:
   merge_group:
   pull_request:
 
-permissions:
-  # Necessary to upload new release artifacts
-  contents: write
 
 jobs:
   build-apple-darwin:
@@ -31,12 +28,18 @@ jobs:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
     timeout-minutes: 30
+    permissions:
+      id-token: write
+      # Necessary to upload new release artifacts
+      contents: write
+      attestations: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
+
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -49,27 +52,16 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build environment and Compile
-        run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-          cargo build --package noir_profiler --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-          cargo build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+      - uses: taiki-e/install-action@just
+
+      - name: Build binaries
+        run: just package
         env:
+          CARGO_BUILD_TARGET: ${{ matrix.target }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
-          cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
-          cp ./target/${{ matrix.target }}/release/noir-inspector ./dist/noir-inspector
-
-          # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-          7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
-          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-${{ matrix.target }}.tar.gz
-
       - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noir-${{ matrix.target }}
           path: ./dist/*
@@ -85,6 +77,12 @@ jobs:
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Generate noir binaries attestation
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
         uses: svenstaro/upload-release-action@v2
@@ -138,10 +136,15 @@ jobs:
       matrix:
         target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, aarch64-unknown-linux-gnu]
     timeout-minutes: 30
+    permissions:
+      id-token: write
+      # Necessary to upload new release artifacts
+      contents: write
+      attestations: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
@@ -156,32 +159,17 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Install Cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross@0.2.5
+      - uses: taiki-e/install-action@just
 
       - name: Build binaries
-        run: |
-          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-          cross build --package noir_profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-          cross build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+        run: just package
         env:
+          JUST_USE_CROSS: true
+          CARGO_BUILD_TARGET: ${{ matrix.target }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
-          cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
-          cp ./target/${{ matrix.target }}/release/noir-inspector ./dist/noir-inspector
-
-          # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-          tar -czf nargo-${{ matrix.target }}.tar.gz -C dist nargo
-          tar -czf noir-${{ matrix.target }}.tar.gz -C dist .
-
       - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: noir-${{ matrix.target }}
           path: ./dist/*
@@ -198,6 +186,12 @@ jobs:
           prerelease: true
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Generate noir binaries attestation
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
         uses: svenstaro/upload-release-action@v2

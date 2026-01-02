@@ -17,5 +17,5 @@ comptime fn glue(x: Quoted, y: Quoted) -> Quoted {
 fn hello_world() {}
 
 comptime fn call(x: Quoted) -> Quoted {
-    quote { x() }
+    quote { $x() }
 }

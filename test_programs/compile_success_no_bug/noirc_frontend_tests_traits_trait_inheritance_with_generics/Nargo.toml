@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_inheritance_with_generics"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

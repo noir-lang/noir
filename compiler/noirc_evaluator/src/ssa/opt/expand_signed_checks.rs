@@ -1,3 +1,9 @@
+/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+/// into unchecked operations followed by explicit overflow checks.
+///
+/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+/// operations, while also allowing further optimizations to be done during subsequent
+/// SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
@@ -29,10 +35,10 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions, decomposing any checked signed arithmetic to have explicit
     /// overflow checks.
-    pub(crate) fn expand_signed_checks(&mut self) {
+    fn expand_signed_checks(&mut self) {
         // TODO: consider whether we can implement this more efficiently in brillig.
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -61,7 +67,7 @@ impl Function {
             // We remove the current instruction, as we will need to replace it with multiple new instructions.
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut expansion_context = Context { context };
             let new_result = match operator {
@@ -470,7 +476,7 @@ fn expand_signed_checks_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -499,8 +505,7 @@ mod tests {
             v12 = eq v11, v8
             v13 = unchecked_mul v12, v10
             constrain v13 == v10, "attempt to add with overflow"
-            v14 = cast v3 as i32
-            return v14
+            return v3
         }
         "#);
     }
@@ -532,8 +537,7 @@ mod tests {
             v13 = eq v12, v8
             v14 = unchecked_mul v13, v11
             constrain v14 == v11, "attempt to subtract with overflow"
-            v15 = cast v3 as i32
-            return v15
+            return v3
         }
         "#);
     }
@@ -600,9 +604,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     #[test]
@@ -614,9 +616,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     #[test]
@@ -628,8 +628,6 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 }

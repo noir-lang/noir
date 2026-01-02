@@ -48,13 +48,13 @@ unconstrained fn get_msb(val: [u64; 6]) -> u32 {
 
 unconstrained fn shl(shift: u32) -> [u64; 6] {
     let num_shifted_limbs: u32 = shift / 60_u32;
-    let limb_shift: u8 = (shift % 60_u32) as u8;
+    let limb_shift: u64 = (shift % 60_u32) as u64;
     let mut result: [u64; 6] = [0_u64; 6];
     result[num_shifted_limbs] = 1_u64 << limb_shift;
     for i in 1_u32..6_u32 - num_shifted_limbs {
         {
-            let i_3799: u32 = i + num_shifted_limbs;
-            result[i_3799] = 0_u64;
+            let i_4514: u32 = i + num_shifted_limbs;
+            result[i_4514] = 0_u64;
         }
     }
     result

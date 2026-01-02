@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[array_with_refs_return] Circuit output: Vec([Field(2), Field(3)])
+[array_with_refs_return] Circuit output: [2, 3]

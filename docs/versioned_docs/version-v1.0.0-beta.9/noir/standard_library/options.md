@@ -1,5 +1,6 @@
 ---
 title: Option<T> Type
+description: Express presence or absence safely with `Option<T>`—construct, inspect, and transform values without nulls.
 ---
 
 The `Option<T>` type is a way to express that a value might be present (`Some(T))` or absent (`None`). It's a safer way to handle potential absence of values, compared to using nulls in many other languages.

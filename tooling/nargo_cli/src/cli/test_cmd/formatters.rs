@@ -132,7 +132,7 @@ impl Formatter for PrettyFormatter {
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        &[diag.clone()],
+                        std::slice::from_ref(diag),
                         deny_warnings,
                         silence_warnings,
                     );
@@ -148,7 +148,7 @@ impl Formatter for PrettyFormatter {
             TestStatus::CompileError(file_diagnostic) => {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[file_diagnostic.clone()],
+                    std::slice::from_ref(file_diagnostic),
                     deny_warnings,
                     silence_warnings,
                 );
@@ -322,7 +322,7 @@ impl Formatter for TerseFormatter {
                         if let Some(diag) = error_diagnostic {
                             noirc_errors::reporter::report_all(
                                 file_manager.as_file_map(),
-                                &[diag.clone()],
+                                std::slice::from_ref(diag),
                                 deny_warnings,
                                 silence_warnings,
                             );
@@ -331,7 +331,7 @@ impl Formatter for TerseFormatter {
                     TestStatus::CompileError(file_diagnostic) => {
                         noirc_errors::reporter::report_all(
                             file_manager.as_file_map(),
-                            &[file_diagnostic.clone()],
+                            std::slice::from_ref(file_diagnostic),
                             deny_warnings,
                             silence_warnings,
                         );

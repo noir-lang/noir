@@ -151,7 +151,7 @@ impl InputValue {
                 TomlTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let new_value = parse_integer_to_signed(integer as i128, *width, arg_name)?;
+                let new_value = parse_integer_to_signed(i128::from(integer), *width, arg_name)?;
                 InputValue::Field(new_value)
             }
 
@@ -215,7 +215,7 @@ impl InputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::FieldElement;
     use proptest::prelude::*;
 

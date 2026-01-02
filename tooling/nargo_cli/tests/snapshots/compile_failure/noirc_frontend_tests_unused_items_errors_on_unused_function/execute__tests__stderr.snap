@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: stderr
----
-error: cannot compile crate into a program as it does not contain a `main` function
-
-Aborting due to 1 previous error

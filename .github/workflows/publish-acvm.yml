@@ -11,9 +11,11 @@ jobs:
   publish:
     name: Publish in order
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 

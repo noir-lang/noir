@@ -36,6 +36,7 @@ fn main(input: [Entry; HASHMAP_LEN]) {
     test_retain();
     test_iterators();
     test_mut_iterators();
+    test_iter_len_shrink_on_key_collision();
 
     doc_tests();
 }
@@ -197,6 +198,29 @@ fn test_mut_iterators() {
     let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
 
     assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
+}
+
+// Ensure that mutating keys to collide shrinks the length and keeps iterator invariants intact.
+fn test_iter_len_shrink_on_key_collision() {
+    let mut hashmap = ALLOCATE_HASHMAP();
+
+    hashmap.insert(1, 10);
+    hashmap.insert(2, 20);
+    hashmap.insert(3, 30);
+
+    // Mutate all keys to the same value to force collisions.
+    hashmap.iter_keys_mut(|_k: K| -> K { 0 });
+
+    assert_eq(
+        hashmap.len(),
+        1,
+        "HashMap length should shrink to 1 after key collisions during iter_keys_mut.",
+    );
+
+    // These calls will assert internally if _len is not synchronized with the table.
+    let _ = hashmap.entries();
+    let _ = hashmap.keys();
+    let _ = hashmap.values();
 }
 
 // docs:start:type_alias

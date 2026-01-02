@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[to_be_bytes] Circuit output: Vec([Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(31), Field(33), Field(60)])
+[to_be_bytes] Circuit output: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 33, 60]

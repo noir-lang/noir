@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[global_array_rc_regression_8259] Circuit output: Vec([Field(1), Field(0), Field(1)])
+[global_array_rc_regression_8259] Circuit output: [true, false, true]

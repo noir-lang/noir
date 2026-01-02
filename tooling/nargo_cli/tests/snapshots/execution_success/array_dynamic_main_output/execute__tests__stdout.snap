@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[array_dynamic_main_output] Circuit output: Vec([Field(0), Field(1), Field(2), Field(3), Field(4), Field(0), Field(6), Field(7), Field(8), Field(9)])
+[array_dynamic_main_output] Circuit output: [0x00, 0x01, 0x02, 0x03, 0x04, 0x00, 0x06, 0x07, 0x08, 0x09]

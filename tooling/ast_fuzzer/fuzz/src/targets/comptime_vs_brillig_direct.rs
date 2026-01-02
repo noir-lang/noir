@@ -6,7 +6,8 @@
 //! This variant accesses the interpreter directly instead of going
 //! through nargo, which speeds up execution but also currently
 //! has some issues (inability to use prints among others).
-use crate::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
+use crate::targets::default_config;
+use crate::{compare_results_comptime, compile_into_circuit_or_die, default_ssa_options};
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
@@ -24,20 +25,21 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Allow overflows half the time.
-        avoid_overflow: u.arbitrary()?,
-        // Slices need some parts of the stdlib that we can't just append to the source
+        // Vectors need some parts of the stdlib that we can't just append to the source
         // the way it is currently done to support prints, because they are low level extensions.
-        avoid_slices: true,
+        avoid_vectors: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
-        ..Default::default()
+        // Leaving it at 1 for CI
+        min_functions: 0,
+        max_functions: 1,
+        ..default_config(u)?
     };
 
     let inputs = CompareComptime::arb(u, config, |program| {
         let options = CompareOptions::default();
-        let ssa = create_ssa_or_die(
+        let ssa = compile_into_circuit_or_die(
             change_all_functions_into_unconstrained(program),
             &options.onto(default_ssa_options()),
             Some("brillig"),
@@ -47,7 +49,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec_direct(|program| {
         let options = CompareOptions::default();
-        let ssa = create_ssa_or_die(
+        let ssa = compile_into_circuit_or_die(
             program,
             &options.onto(default_ssa_options()),
             Some("comptime_result_wrapper"),
@@ -63,11 +65,10 @@ mod tests {
 
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig_direct
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 500);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2500);
     }
 }

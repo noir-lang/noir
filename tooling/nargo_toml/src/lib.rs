@@ -13,7 +13,6 @@ use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
-use noirc_driver::parse_expression_width;
 use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
@@ -232,16 +231,6 @@ impl PackageConfig {
             })?;
         }
 
-        let expression_width = self
-            .package
-            .expression_width
-            .as_ref()
-            .map(|expression_width| {
-                parse_expression_width(expression_width)
-                    .map_err(|err| ManifestError::ParseExpressionWidth(err.to_string()))
-            })
-            .map_or(Ok(None), |res| res.map(Some))?;
-
         // Collect any unstable features the package needs to compile.
         // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
         let compiler_required_unstable_features =
@@ -258,7 +247,6 @@ impl PackageConfig {
             package_type,
             name,
             dependencies,
-            expression_width,
         })
     }
 }
@@ -696,11 +684,12 @@ mod tests {
                     );
 
                     // Go into the last created directory
-                    if indent > current_indent && last_item.is_some() {
-                        let last_item = last_item.unwrap();
-                        assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
-                        current_dir.push(last_item);
-                        current_indent += 1;
+                    if let Some(last_item) = last_item {
+                        if indent > current_indent {
+                            assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
+                            current_dir.push(last_item);
+                            current_indent += 1;
+                        }
                     }
                     // Go back into an ancestor directory
                     while indent < current_indent {

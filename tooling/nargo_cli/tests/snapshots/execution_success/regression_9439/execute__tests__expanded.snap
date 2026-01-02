@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(n: u32) {
+    let num1: &mut Field = &mut 0_Field;
+    let mut vector: [&mut Field] = &[];
+    for _ in 0_u32..n {
+        vector = vector.push_back(num1);
+    }
+    *vector[0_u32] = 9_Field;
+    assert(*vector[0_u32] == 9_Field);
+    assert(*num1 == 9_Field);
+}

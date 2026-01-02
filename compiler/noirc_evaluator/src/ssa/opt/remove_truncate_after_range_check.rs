@@ -1,4 +1,4 @@
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
@@ -23,7 +23,7 @@ impl Function {
         // Keeps the minimum bit size a value was range-checked against
         let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -49,9 +49,8 @@ impl Function {
                             // v1 = truncate v0 to 32 bits, max_bit_size: 254
                             //
                             // we need to remove the `truncate` and all references to `v1` should now be `v0`.
-                            let result =
-                                context.dfg.instruction_results(instruction_id).first().unwrap();
-                            context.replace_value(*result, *value);
+                            let [result] = context.dfg.instruction_result(instruction_id);
+                            context.replace_value(result, *value);
                             context.remove_current_instruction();
                         }
                     }
@@ -66,7 +65,7 @@ impl Function {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -129,9 +128,6 @@ mod tests {
             return v1
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_truncate_after_range_check();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_truncate_after_range_check);
     }
 }

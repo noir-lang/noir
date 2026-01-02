@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: bool) {
+    println(f"x's value: {x}");
+    if x {
+        let empty_vector: [u8] = &[];
+        let _: (u8, [u8]) = empty_vector.pop_front();
+    }
+}

@@ -222,6 +222,19 @@ For cases like this there is `$crate` which when used in a quote will always res
 So the library author can instead quote `$crate::foo::my_function()` and have it work in all cases as long as
 `foo` and `my_function` are both publicly visible.
 
+```rust
+/// We want to access this function within the quoted code below
+/// and we want it to work in external crates.
+pub fn double(x: u64) -> u64 { x * 2 }
+
+comptime fn double_twice(code: Quoted) -> Quoted {
+    quote {
+        // `$crate` is a stand-in for the current crate
+        $crate::double($crate::double($code))
+    }
+}
+```
+
 ---
 
 ## Attributes
@@ -318,7 +331,7 @@ The following is an incomplete list of some `comptime` types along with some use
 - `FunctionDefinition`: A function definition
   - Methods:
     - `fn parameters(self) -> [(Quoted, Type)]`
-      - Returns a slice of `(name, type)` pairs for each parameter
+      - Returns a vector of `(name, type)` pairs for each parameter
 - `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`

@@ -21,6 +21,9 @@ acvm.workspace = true
 thiserror.workspace = true
 libfuzzer-sys = { workspace = true, features = ["arbitrary-derive"] }
 serde.workspace = true
+strum_macros = "0.24"
+strum = "0.24"
+
 [dev-dependencies]
 rand.workspace = true
 

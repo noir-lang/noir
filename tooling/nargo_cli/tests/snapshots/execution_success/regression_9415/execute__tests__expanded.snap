@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(index: u32) {
+    let v0: &mut Field = &mut 1_Field;
+    let v1: &mut Field = &mut 2_Field;
+    let mut v3: [&mut Field; 1] = [v0];
+    v3[index] = v1;
+    *v3[index] = 3_Field;
+    assert(*v3[index] == 3_Field);
+}

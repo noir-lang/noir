@@ -18,6 +18,7 @@ use nargo::ops::{
 use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
+use noir_artifact_cli::execution::input_value_to_string;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
@@ -116,7 +117,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     };
 
     let compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, None, args.compile_options);
+        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
 
     if let Some(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
@@ -141,7 +142,7 @@ fn debug_test_fn(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, package, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {
@@ -277,7 +278,9 @@ fn decode_and_save_program_witness(
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
 
     if let (_, Some(return_value)) = abi.decode(main_witness)? {
-        println!("[{package_name}] Circuit output: {return_value:?}");
+        let abi_type = &abi.return_type.as_ref().unwrap().abi_type;
+        let output_string = input_value_to_string(&return_value, abi_type);
+        println!("[{package_name}] Circuit output: {output_string}");
     }
 
     if let Some(witness_name) = target_witness_name {

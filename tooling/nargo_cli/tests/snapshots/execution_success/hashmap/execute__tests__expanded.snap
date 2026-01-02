@@ -40,6 +40,7 @@ fn main(input: [Entry; 6]) {
     test_retain();
     test_iterators();
     test_mut_iterators();
+    test_iter_len_shrink_on_key_collision();
     doc_tests();
 }
 
@@ -197,6 +198,22 @@ fn test_mut_iterators() {
         entries == [(12_Field, 30_Field), (30_Field, 70_Field), (66_Field, 130_Field)],
         "Got incorrect iteration of entries.",
     );
+}
+
+fn test_iter_len_shrink_on_key_collision() {
+    let mut hashmap: HashMap<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>> =
+        ALLOCATE_HASHMAP();
+    hashmap.insert(1_Field, 10_Field);
+    hashmap.insert(2_Field, 20_Field);
+    hashmap.insert(3_Field, 30_Field);
+    hashmap.iter_keys_mut(|_k: K| -> K { 0_Field });
+    assert(
+        hashmap.len() == 1_u32,
+        "HashMap length should shrink to 1 after key collisions during iter_keys_mut.",
+    );
+    let _: BoundedVec<(Field, Field), 8> = hashmap.entries();
+    let _: BoundedVec<Field, 8> = hashmap.keys();
+    let _: BoundedVec<Field, 8> = hashmap.values();
 }
 
 type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>;

@@ -10,7 +10,6 @@ use super::{
     GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
-use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::graph::CrateId;
 use crate::node_interner::{
@@ -35,6 +34,12 @@ pub struct Statement {
     pub location: Location,
 }
 
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
 /// ends in a block, such as a Statement::Expression containing an if expression.
@@ -44,20 +49,20 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
-    Loop(Expression, Location /* loop keyword location */),
+    Loop(LoopStatement),
     While(WhileStatement),
     Break,
     Continue,
     /// This statement should be executed at compile-time
     Comptime(Box<Statement>),
-    // This is an expression with a trailing semi-colon
+    /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    // This is an interned StatementKind during comptime code.
-    // The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned StatementKind during comptime code.
+    /// The actual StatementKind can be retrieved with a NodeInterner.
     Interned(InternedStatementKind),
-    // This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
+    /// This statement is the result of a recovered parse error.
+    /// To avoid issuing multiple errors in later steps, it should
+    /// be skipped in any future analysis if possible.
     Error,
 }
 
@@ -164,7 +169,7 @@ impl StatementKind {
 impl StatementKind {
     pub fn new_let(
         pattern: Pattern,
-        r#type: UnresolvedType,
+        r#type: Option<UnresolvedType>,
         expression: Expression,
         attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
@@ -299,7 +304,7 @@ pub struct ModuleDeclaration {
     pub has_semicolon: bool,
 }
 
-impl std::fmt::Display for ModuleDeclaration {
+impl Display for ModuleDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mod {}", self.ident)
     }
@@ -318,7 +323,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
-    /// This path is a Crate or Dep path which always points to the given crate
+    /// This path is a Crate or Dep path which always points to the given crate.
+    /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
     Resolved(CrateId),
 }
 
@@ -421,7 +427,7 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub location: Location,
-    // The location of `kind` (this is the same as `location` for plain kinds)
+    /// The location of `kind` (this is the same as `location` for plain kinds)
     pub kind_location: Location,
 }
 
@@ -439,12 +445,13 @@ impl Path {
         self
     }
 
-    /// Construct a PathKind::Plain from this single
+    /// Construct a [PathKind::Plain] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
+    /// Construct a [PathKind::Plain] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)
@@ -478,15 +485,21 @@ impl Path {
             && self.segments.first().unwrap().generics.is_none()
     }
 
+    pub fn no_generic(&self) -> bool {
+        for segment in &self.segments {
+            if segment.generics.is_some() {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub fn as_ident(&self) -> Option<&Ident> {
         if !self.is_ident() {
             return None;
         }
         self.segments.first().map(|segment| &segment.ident)
-    }
-
-    pub(crate) fn is_wildcard(&self) -> bool {
-        if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -546,7 +559,7 @@ impl Display for PathSegment {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
     pub pattern: Pattern,
-    pub r#type: UnresolvedType,
+    pub r#type: Option<UnresolvedType>,
     pub expression: Expression,
     pub attributes: Vec<SecondaryAttribute>,
 
@@ -802,7 +815,7 @@ impl ForRange {
                 let let_array = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(array_ident.clone()),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         array,
                         vec![],
                     ),
@@ -839,7 +852,7 @@ impl ForRange {
                 let let_elem = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         Expression::new(loop_element, array_location),
                         vec![],
                     ),
@@ -894,6 +907,12 @@ pub struct WhileStatement {
     pub while_keyword_location: Location,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct LoopStatement {
+    pub body: Expression,
+    pub loop_keyword_location: Location,
+}
+
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -901,7 +920,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
+            StatementKind::Loop(loop_) => write!(f, "loop {}", loop_.body),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }
@@ -917,10 +936,10 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
-            write!(f, "let {} = {}", self.pattern, self.expression)
+        if let Some(typ) = &self.r#type {
+            write!(f, "let {}: {} = {}", self.pattern, typ, self.expression)
         } else {
-            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+            write!(f, "let {} = {}", self.pattern, self.expression)
         }
     }
 }

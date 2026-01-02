@@ -29,7 +29,7 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::{ArrayOffset, ErrorType};
+use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::validation::validate_function;
 use super::{
@@ -41,6 +41,8 @@ use super::{
         value::ValueId,
     },
 };
+
+pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
@@ -132,9 +134,41 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
-    validate_ssa(&ssa);
 
-    Ok(ssa)
+    validate_ssa_or_err(ssa)
+}
+
+/// Run the panicky validation, and try to turn it into a [RuntimeError] if it fails.
+fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+    // Temporarily take the hook, so we don't get the panic printout.
+    let old_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_info| {}));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)));
+    std::panic::set_hook(old_hook);
+
+    if let Err(payload) = result {
+        // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
+        // under the panic message, which makes it difficult to see what went wrong.
+        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+            eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+        }
+
+        // Try to get the panic message and turn this into a RuntimeError
+        let message = if let Some(message) = payload.downcast_ref::<String>() {
+            message.to_owned()
+        } else if let Some(message) = payload.downcast_ref::<&str>() {
+            message.to_string()
+        } else {
+            format!("{payload:?}")
+        };
+        let err = RuntimeError::SsaValidationError {
+            message: message.to_owned(),
+            call_stack: CallStack::default(),
+        };
+        Err(err)
+    } else {
+        Ok(ssa)
+    }
 }
 
 pub fn validate_ssa(ssa: &Ssa) {
@@ -231,19 +265,19 @@ impl FunctionContext<'_> {
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Slice(array) => {
+            ast::Literal::Vector(array) => {
                 let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
-                    ast::Type::Slice(_) => {
-                        let slice_length =
+                    ast::Type::Vector(_) => {
+                        let vector_length =
                             self.builder.length_constant(array.contents.len() as u128);
-                        let slice_contents =
+                        let vector_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
-                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                        Tree::Branch(vec![vector_length.into(), vector_contents])
                     }
-                    _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
+                    _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
                 })
             }
             ast::Literal::Integer(value, typ, location) => {
@@ -253,7 +287,7 @@ impl FunctionContext<'_> {
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
-                Ok(self.builder.numeric_constant(*value as u128, NumericType::bool()).into())
+                Ok(self.builder.numeric_constant(u128::from(*value), NumericType::bool()).into())
             }
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
@@ -278,7 +312,7 @@ impl FunctionContext<'_> {
                 let string = self.codegen_string(&string);
                 let field_count = self
                     .builder
-                    .numeric_constant(*number_of_fields as u128, NumericType::NativeField);
+                    .numeric_constant(u128::from(*number_of_fields), NumericType::NativeField);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -296,13 +330,13 @@ impl FunctionContext<'_> {
 
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            self.builder.numeric_constant(*byte as u128, NumericType::char()).into()
+            self.builder.numeric_constant(u128::from(*byte), NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
-    // Codegen an array but make sure that we do not have a nested slice
+    // Codegen an array but make sure that we do not have a nested vector
     ///
     /// The bool aspect of each array element indicates whether the element is an array constant
     /// or not. If it is, we avoid incrementing the reference count because we consider the
@@ -312,8 +346,8 @@ impl FunctionContext<'_> {
         elements: Vec<Values>,
         typ: Type,
     ) -> Result<Values, RuntimeError> {
-        if typ.is_nested_slice() {
-            return Err(RuntimeError::NestedSlice { call_stack: self.builder.get_call_stack() });
+        if typ.is_nested_vector() {
+            return Err(RuntimeError::NestedVector { call_stack: self.builder.get_call_stack() });
         }
         Ok(self.codegen_array(elements, typ))
     }
@@ -424,14 +458,16 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Generate the index value first, it might modify the collection itself.
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
-        // Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, slices require two value ids for their representation.
-        let (array, slice_length) = if array_or_slice.len() > 1 {
-            (array_or_slice[1], Some(array_or_slice[0]))
+        // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
+        let array_or_vector = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Vectors are represented as a tuple in the form: (length, vector contents).
+        // Thus, vectors require two value ids for their representation.
+        let (array, vector_length) = if array_or_vector.len() > 1 {
+            (array_or_vector[1], Some(array_or_vector[0]))
         } else {
-            (array_or_slice[0], None)
+            (array_or_vector[0], None)
         };
 
         self.codegen_array_index(
@@ -439,7 +475,7 @@ impl FunctionContext<'_> {
             index_value,
             &index.element_type,
             index.location,
-            slice_length,
+            vector_length,
         )
     }
 
@@ -459,26 +495,27 @@ impl FunctionContext<'_> {
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
-        let type_size = Self::convert_type(element_type).size_of_type();
+        let type_size_usize = Self::convert_type(element_type).size_of_type();
         let type_size =
-            self.builder.numeric_constant(type_size as u128, NumericType::length_type());
+            self.builder.numeric_constant(type_size_usize as u128, NumericType::length_type());
 
         let array_type = &self.builder.type_of_value(array);
+        let runtime = self.builder.current_function.runtime();
 
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-                // We then only need to inject it for brillig functions.
-                let runtime = self.builder.current_function.runtime();
-                if runtime.is_brillig() {
+                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
+                // except when the inner elements have no size, because the array access can be optimized out in that case.
+                // We then only need to inject it for brillig functions or for 'unit' elements.
+                if runtime.is_brillig() || type_size_usize == 0 {
                     let len =
-                        self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                        self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
                     self.codegen_access_check(index, len);
                 }
             }
-            Type::Slice(_) => {
-                // The slice length is dynamic however so we can't rely on it being equal to the underlying memory
+            Type::Vector(_) => {
+                // The vector length is dynamic however so we can't rely on it being equal to the underlying memory
                 // block as we can do for array types. We then inject a access check for both ACIR and brillig.
                 self.codegen_access_check(
                     index,
@@ -486,33 +523,39 @@ impl FunctionContext<'_> {
                 );
             }
 
-            _ => unreachable!("must have array or slice but got {array_type}"),
+            _ => unreachable!("must have array or vector but got {array_type}"),
         }
 
-        // This shouldn't overflow because the initial index is within array bounds
+        // This can overflow if the original index is already not in the bounds of the array
+        // and we skipped inserting constraints. To stay on the conservative side, start with
+        // a checked operation, and simplify to unchecked if it can be evaluated.
+        // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
+        // In ACIR the values are represented as Fields, so they don't wrap around, but ACIR has built-in OOB checks,
+        // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
+        let unchecked = true;
+
         let base_index = self.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: true },
+            BinaryOp::Mul { unchecked },
             type_size,
         );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let index = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index, unchecked);
             field_index += 1;
 
             // Reference counting in brillig relies on us incrementing reference
-            // counts when nested arrays/slices are constructed or indexed. This
+            // counts when nested arrays/vectors are constructed or indexed. This
             // has no effect in ACIR code.
-            let offset = ArrayOffset::None;
-            let result = self.builder.insert_array_get(array, index, offset, typ);
+            let result = self.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }
 
-    /// Prepare an array or slice access.
-    /// Check that the index being used to access an array/slice element
-    /// is less than the (potentially dynamic) array/slice length.
+    /// Prepare an array or vector access.
+    /// Check that the index being used to access an array/vector element
+    /// is less than the (potentially dynamic) array/vector length.
     fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
@@ -629,7 +672,7 @@ impl FunctionContext<'_> {
 
         let result = self.codegen_expression(&for_expr.block);
         self.codegen_unless_break_or_continue(result, |this, _| {
-            let new_loop_index = this.make_offset(loop_index, 1);
+            let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
 
@@ -1062,12 +1105,12 @@ impl FunctionContext<'_> {
             self.builder.set_location(location).get_intrinsic_from_value(function)
         {
             match intrinsic {
-                Intrinsic::SliceInsert => {
+                Intrinsic::VectorInsert => {
                     let one = self.builder.length_constant(1u128);
 
-                    // We add one here in the case of a slice insert as a slice insert at the length of the slice
-                    // can be converted to a slice push back
-                    // This is unchecked as the slice length could be u32::max
+                    // We add one here in the case of a vector insert as a vector insert at the length of the vector
+                    // can be converted to a vector push back
+                    // This is unchecked as the vector length could be u32::max
                     let len_plus_one = self.builder.insert_binary(
                         arguments[0],
                         BinaryOp::Add { unchecked: false },
@@ -1076,8 +1119,22 @@ impl FunctionContext<'_> {
 
                     self.codegen_access_check(arguments[2], len_plus_one);
                 }
-                Intrinsic::SliceRemove => {
+                Intrinsic::VectorRemove => {
                     self.codegen_access_check(arguments[2], arguments[0]);
+                }
+                Intrinsic::VectorPopFront | Intrinsic::VectorPopBack
+                    if self.builder.current_function.runtime().is_brillig() =>
+                {
+                    // We need to put in a constraint to protect against accessing empty vectors:
+                    // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
+                    // * In ACIR we do have protection against reading empty vectors (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
+                    //   when it inevitably tries to read from an empty vector anyway. We have to handle that by removing operations which are known
+                    //   to fail and replace them with conditional constraints that do take the side effect into account.
+                    // By doing this in the SSA we might be able to optimize this away later.
+                    let zero =
+                        self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
+                    self.codegen_access_check(zero, arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -1182,7 +1239,7 @@ impl FunctionContext<'_> {
 
         // Must remember to increment i before jumping
         if let Some(loop_index) = loop_.loop_index {
-            let new_loop_index = self.make_offset(loop_index, 1);
+            let new_loop_index = self.make_offset(loop_index, 1, true);
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);

@@ -454,6 +454,11 @@ pub enum AbiErrorType {
     String { string: String },
 }
 
+/// Decode the raw revert data according to some error type descriptor.
+///
+/// By contrast to how arguments are passed to foreign calls, the revert data is already flattened,
+/// so we don't have control over how we flatten the data before decoding, however note that vectors
+/// are not allowed in revert data, so this shouldn't be a problem.
 pub fn display_abi_error<F: AcirField>(
     fields: &[F],
     error_type: AbiErrorType,
@@ -468,9 +473,9 @@ pub fn display_abi_error<F: AcirField>(
             };
             let _length_of_items = fields_iter.next();
             let items = item_types.into_iter().map(|abi_type| {
-                let printable_typ = (&abi_type).into();
-                let decoded = decode_printable_value(&mut fields_iter, &printable_typ);
-                (decoded, printable_typ)
+                let printable_type = (&abi_type).into();
+                let decoded = decode_printable_value(&mut fields_iter, &printable_type);
+                (decoded, printable_type)
             });
             PrintableValueDisplay::FmtString(string, items.collect())
         }
@@ -490,7 +495,7 @@ pub fn display_abi_error<F: AcirField>(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use proptest::prelude::*;
 
     use crate::arbitrary::arb_abi_and_input_map;

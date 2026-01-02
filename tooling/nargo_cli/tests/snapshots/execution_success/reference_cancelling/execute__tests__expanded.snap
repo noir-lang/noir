@@ -12,7 +12,7 @@ fn main() {
 fn store_through_outer_pointer() -> bool {
     let a: &mut ((bool,),) = &mut ((false,),);
     let b: &mut bool = &mut a.0.0;
-    *(a) = ((true,),);
+    *a = ((true,),);
     println(*b);
     *b
 }

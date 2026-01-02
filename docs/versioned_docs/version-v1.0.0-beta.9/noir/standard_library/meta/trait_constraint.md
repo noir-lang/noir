@@ -1,5 +1,6 @@
 ---
 title: TraitConstraint
+description: Represent trait constraints at compile time for searching and matching trait implementations.
 ---
 
 `std::meta::trait_constraint` contains methods on the built-in `TraitConstraint` type which represents

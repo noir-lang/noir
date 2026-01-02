@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_as_trait_path_self_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

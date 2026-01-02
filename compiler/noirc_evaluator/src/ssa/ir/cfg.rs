@@ -4,7 +4,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 /// A container for the successors and predecessors of some Block.
@@ -155,36 +155,40 @@ impl ControlFlowGraph {
     /// such that there is a path from every block to the exit node.
     /// Ex: below the forward CFG has one exit node: b2
     /// However, there is no path from b5 to b2
+    /// ```text
     /// forward          reverse
     ///  -------          -------
-    ///   b0*              b0               
-    ///   |                ^             
-    ///   v                |             
-    ///   b1               b1             
-    ///  /  \             ^  ^             
-    /// v    v           /    \             
-    /// b3   b4          b3   b4              
-    /// |    |           ^    ^             
-    /// v    v           |    |             
-    /// b2   b5 <-|      b2*  b5 <-|             
-    ///       \___|            \___|                      
+    ///   b0*              b0
+    ///   |                ^
+    ///   v                |
+    ///   b1               b1
+    ///  /  \             ^  ^
+    /// v    v           /    \
+    /// b3   b4          b3   b4
+    /// |    |           ^    ^
+    /// v    v           |    |
+    /// b2   b5 <-|      b2*  b5 <-|
+    ///       \___|            \___|
+    /// ```
     ///
     /// The extended CFG is the forward CFG with a new 'exit' node:
+    /// ```text
     ///  extended         extended reverse
     ///  -------          -------
-    ///   b0*              b0               
-    ///   |                ^             
-    ///   v                |             
-    ///   b1               b1             
-    ///  /  \             ^  ^             
-    /// v    v           /    \             
-    /// b3   b4          b3   b4              
-    /// |    |           ^    ^             
-    /// v    v           |    |             
-    /// b2   b5 <-|      b2   b5 <-|             
-    /// \    /\___|      ^    ^\___|             
+    ///   b0*              b0
+    ///   |                ^
+    ///   v                |
+    ///   b1               b1
+    ///  /  \             ^  ^
+    /// v    v           /    \
+    /// b3   b4          b3   b4
+    /// |    |           ^    ^
+    /// v    v           |    |
+    /// b2   b5 <-|      b2   b5 <-|
+    /// \    /\___|      ^    ^\___|
     ///  v  v            \    /
     ///  exit             exit*
+    /// ```
     pub(crate) fn extended_reverse(func: &mut Function) -> Self {
         let mut cfg = Self::with_function(func);
         // Exit blocks are the ones having no successor

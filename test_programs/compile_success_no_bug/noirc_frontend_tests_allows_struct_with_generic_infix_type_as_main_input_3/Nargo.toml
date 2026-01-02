@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_allows_struct_with_generic_infix_type_as_main_input_3"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

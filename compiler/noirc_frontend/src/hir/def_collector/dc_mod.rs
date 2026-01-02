@@ -11,17 +11,17 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
+    DocComment, Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData, desugar_generic_trait_bounds,
+    Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    desugar_generic_trait_bounds_and_reorder_where_clause,
 };
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
-use crate::token::{SecondaryAttribute, TestScope};
+use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
-use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
+use crate::{Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -177,7 +177,10 @@ impl ModCollector<'_> {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for mut r#impl in impls {
-            desugar_generic_trait_bounds(&mut r#impl.generics, &mut r#impl.where_clause);
+            desugar_generic_trait_bounds_and_reorder_where_clause(
+                &mut r#impl.generics,
+                &mut r#impl.where_clause,
+            );
 
             collect_impl(
                 &mut context.def_interner,
@@ -201,7 +204,7 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
-            desugar_generic_trait_bounds(
+            desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut trait_impl.impl_generics,
                 &mut trait_impl.where_clause,
             );
@@ -298,7 +301,7 @@ impl ModCollector<'_> {
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
             let mut noir_function = function.item;
-            desugar_generic_trait_bounds(
+            desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut noir_function.def.generics,
                 &mut noir_function.def.where_clause,
             );
@@ -368,7 +371,7 @@ impl ModCollector<'_> {
     fn collect_type_aliases(
         &mut self,
         context: &mut Context,
-        type_aliases: Vec<Documented<NoirTypeAlias>>,
+        type_aliases: Vec<Documented<TypeAlias>>,
         krate: CrateId,
     ) -> Vec<CompilationError> {
         let mut errors: Vec<CompilationError> = vec![];
@@ -445,16 +448,21 @@ impl ModCollector<'_> {
             let doc_comments = trait_definition.doc_comments;
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
-            let location = trait_definition.location;
+            let location = trait_definition.name.location();
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+            desugar_generic_trait_bounds_and_reorder_where_clause(
+                &mut trait_definition.generics,
+                &mut trait_definition.where_clause,
+            );
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
                 context,
                 &name,
                 ItemVisibility::Public,
-                name.location(),
+                location,
                 Vec::new(),
                 Vec::new(),
                 false,
@@ -506,12 +514,32 @@ impl ModCollector<'_> {
             };
 
             let mut method_ids = HashMap::default();
-            let mut associated_types = Generics::new();
+            let mut associated_types = ResolvedGenerics::new();
             let mut associated_constant_ids = HashMap::default();
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
-                    desugar_generic_trait_bounds(generics, where_clause);
+                    desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
+                }
+            }
+
+            // Check for duplicate trait item names across all item types (functions, types, constants)
+            let mut trait_item_names: HashMap<String, Ident> = HashMap::default();
+            for trait_item in &trait_definition.items {
+                let item_name = match &trait_item.item {
+                    TraitItem::Function { name, .. } => name,
+                    TraitItem::Constant { name, .. } => name,
+                    TraitItem::Type { name, .. } => name,
+                };
+                if let Some(first_def) = trait_item_names.get(item_name.as_str()) {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
             }
 
@@ -617,7 +645,8 @@ impl ModCollector<'_> {
                             errors.push(error.into());
                         } else {
                             let type_variable_id = context.def_interner.next_type_variable_id();
-                            let typ = self.resolve_associated_constant_type(typ, &mut errors);
+                            let typ =
+                                self.resolve_associated_constant_type(typ.as_ref(), &mut errors);
                             let type_var =
                                 TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
@@ -727,6 +756,8 @@ impl ModCollector<'_> {
                 false, // is struct
             ) {
                 Ok(child) => {
+                    let nargo_doc_primitive = check_nargo_doc_primitive(crate_id, &submodule);
+
                     self.collect_attributes(
                         submodule.outer_attributes,
                         file_id,
@@ -740,6 +771,13 @@ impl ModCollector<'_> {
                         && submodule.contents.inner_doc_comments.is_empty())
                     {
                         doc_comments.extend(submodule.contents.inner_doc_comments.clone());
+
+                        if let Some(primitive) = nargo_doc_primitive {
+                            context
+                                .def_interner
+                                .primitive_docs
+                                .insert(primitive, doc_comments.clone());
+                        }
 
                         context
                             .def_interner
@@ -894,9 +932,14 @@ impl ModCollector<'_> {
 
     fn resolve_associated_constant_type(
         &self,
-        typ: &UnresolvedType,
+        typ: Option<&UnresolvedType>,
         errors: &mut Vec<CompilationError>,
     ) -> Type {
+        let Some(typ) = typ else {
+            // Don't report an error again as it was already reported by the parser
+            return Type::Error;
+        };
+
         // TODO: delay this to the Elaborator
         // See https://github.com/noir-lang/noir/issues/8504
         if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ {
@@ -915,6 +958,23 @@ impl ModCollector<'_> {
         errors.push(error.into());
         Type::Error
     }
+}
+
+/// If this submodule is an stdlib module that's tagged with `#['nargo_doc_primitive <primitive>]`,
+/// returns the primitive it refers to.
+fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> Option<String> {
+    if !crate_id.is_stdlib() {
+        return None;
+    }
+
+    submodule.outer_attributes.iter().find_map(|attr| {
+        if let SecondaryAttributeKind::Tag(tag) = &attr.kind {
+            if let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ") {
+                return Some(primitive.to_string());
+            }
+        }
+        None
+    })
 }
 
 /// Add a child module to the current def_map.
@@ -1003,7 +1063,7 @@ pub fn collect_function(
     usage_tracker: &mut UsageTracker,
     function: &NoirFunction,
     module: ModuleId,
-    doc_comments: Vec<String>,
+    doc_comments: Vec<DocComment>,
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
     if let Some(field) = function.attributes().get_field_attribute() {
@@ -1012,6 +1072,7 @@ pub fn collect_function(
         }
     }
 
+    let is_crate_root = def_map.root() == module.local_id;
     let module_data = &mut def_map[module.local_id];
 
     let test_attribute = function.def.attributes.as_test_function();
@@ -1021,7 +1082,7 @@ pub fn collect_function(
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
-        function.name() == MAIN_FUNCTION
+        is_crate_root && function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
     let has_allow_dead_code = function.def.attributes.has_allow("dead_code");
@@ -1324,7 +1385,11 @@ pub fn collect_impl(
 
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
-        desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
+        desugar_generic_trait_bounds_and_reorder_where_clause(
+            &mut method.def.generics,
+            &mut method.def.where_clause,
+        );
+
         let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -1418,8 +1483,8 @@ fn is_native_field(str: &str) -> bool {
     if let Ok(big_num) = big_num { big_num == FieldElement::modulus() } else { CHOSEN_FIELD == str }
 }
 
-type AssociatedTypes = Vec<(Ident, UnresolvedType)>;
-type AssociatedConstants = Vec<(Ident, UnresolvedType, Expression)>;
+type AssociatedTypes = Vec<(Ident, Option<UnresolvedType>)>;
+type AssociatedConstants = Vec<(Ident, Option<UnresolvedType>, Expression)>;
 
 /// Returns a tuple of (methods, associated types, associated constants)
 pub(crate) fn collect_trait_impl_items(
@@ -1449,7 +1514,7 @@ pub(crate) fn collect_trait_impl_items(
                 let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
-                desugar_generic_trait_bounds(
+                desugar_generic_trait_bounds_and_reorder_where_clause(
                     &mut impl_method.def.generics,
                     &mut impl_method.def.where_clause,
                 );

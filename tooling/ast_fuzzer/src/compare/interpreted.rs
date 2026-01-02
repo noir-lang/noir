@@ -16,7 +16,7 @@ use noirc_evaluator::ssa::{
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 use regex::Regex;
 
-use crate::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
+use crate::{Config, arb_program, compare::logging, input::arb_inputs_from_ssa, program_abi};
 
 use super::{Comparable, CompareOptions, CompareResult, FailedOutput, PassedOutput};
 
@@ -70,43 +70,24 @@ impl CompareInterpreted {
     ) -> arbitrary::Result<Self> {
         let program = arb_program(u, c)?;
         let abi = program_abi(&program);
+        logging::log_program(&program, "");
+
         let (options, ssa1, ssa2) = f(u, program.clone())?;
 
+        logging::log_options(&options, "");
+        logging::log_ssa(&ssa1.ssa, &format!("after step {} - {}", ssa1.step, ssa1.msg));
+        logging::log_ssa(&ssa2.ssa, &format!("after step {} - {}", ssa2.step, ssa2.msg));
+
         let input_map = arb_inputs_from_ssa(u, &ssa1.ssa, &abi)?;
+        logging::log_abi_inputs(&abi, &input_map);
+
         let ssa_args = input_values_to_ssa(&abi, &input_map);
+        logging::log_ssa_inputs(&ssa_args);
 
         Ok(Self { program, abi, input_map, ssa_args, options, ssa1, ssa2 })
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        // Debug prints up front in case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
-        log::debug!("Program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
-        log::debug!(
-            "ABI inputs: \n{}\n",
-            noirc_abi::input_parser::Format::Toml.serialize(&self.input_map, &self.abi).unwrap()
-        );
-        log::debug!(
-            "SSA inputs:\n{}\n",
-            self.ssa_args
-                .iter()
-                .enumerate()
-                .map(|(i, v)| format!("{i}: {v}"))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
-        log::debug!(
-            "SSA after step {} ({}):\n{}\n",
-            self.ssa1.step,
-            self.ssa1.msg,
-            self.ssa1.ssa.print_without_locations()
-        );
-        log::debug!(
-            "SSA after step {} ({}):\n{}\n",
-            self.ssa2.step,
-            self.ssa2.msg,
-            self.ssa2.ssa.print_without_locations()
-        );
-
         // Interpret an SSA with a fresh copy of the input values.
         let interpret = |ssa: &Ssa| {
             let mut output = Vec::new();
@@ -194,6 +175,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
                 BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
                 BinaryOp::Mul { unchecked: false } => msg == "attempt to multiply with overflow",
+                BinaryOp::Shl | BinaryOp::Shr => {
+                    msg == "attempt to bit-shift with overflow"
+                        || msg == "attempt to shift right with overflow"
+                        || msg == "attempt to shift left with overflow"
+                }
                 _ => false,
             },
             (
@@ -220,7 +206,20 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 msg2.as_ref().is_some_and(|msg| msg == msg1)
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
-                msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
+                msg.as_ref().is_some_and(|msg| {
+                    msg == "attempt to divide by zero" || msg.contains("divisor of zero")
+                })
+            }
+            (DivisionByZero { .. }, DivisionByZero { .. }) => {
+                // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
+                true
+            }
+            (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
+                // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
+                msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
+            }
+            (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
+                msg.as_ref().is_some_and(|msg| msg.contains("Index out of bounds"))
             }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
@@ -236,11 +235,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
 impl Comparable for Value {
     fn equivalent(a: &Self, b: &Self) -> bool {
         match (a, b) {
-            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
+            (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_slice == b.is_slice
+                    && a.is_vector == b.is_vector
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -277,11 +276,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Value>, types: Vec<Type>| {
-        Value::ArrayOrSlice(ArrayValue {
+        Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_slice: false,
+            is_vector: false,
         })
     };
     match input {
@@ -300,10 +299,8 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values.push(array_value(
-            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
-            vec![Type::unsigned(8)],
-        )),
+        InputValue::String(s) => values
+            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");

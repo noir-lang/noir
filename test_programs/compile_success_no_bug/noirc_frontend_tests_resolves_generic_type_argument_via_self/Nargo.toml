@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_resolves_generic_type_argument_via_self"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

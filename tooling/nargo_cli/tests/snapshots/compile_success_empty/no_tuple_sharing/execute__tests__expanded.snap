@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let c: bool = true;
+    // Safety: comment added by `nargo expand`
+    let b: bool = unsafe { func_1((0_Field, true)) };
+    assert(c);
+    assert(b);
+}
+
+unconstrained fn func_1(a: (Field, bool)) -> bool {
+    let mut b: (Field, bool) = a;
+    b.1 = false;
+    a.1
+}

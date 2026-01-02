@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use acvm::{
+    AcirField,
+    acir::brillig::{ForeignCallParam, ForeignCallResult},
+    pwg::ForeignCallWaitInfo,
+};
 use jsonrpsee::{
     core::client::ClientT,
     http_client::{HttpClient, HttpClientBuilder},
@@ -54,6 +58,79 @@ struct ResolveForeignCallRequest<F> {
     package_name: Option<String>,
 }
 
+#[derive(Eq, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+struct JSONSerializableFieldElement<F: AcirField>(F);
+
+impl<F: AcirField> JSONSerializableFieldElement<F> {
+    fn new(value: F) -> Self {
+        JSONSerializableFieldElement(value)
+    }
+
+    fn into_inner(self) -> F {
+        self.0
+    }
+}
+
+impl<F: AcirField> Serialize for JSONSerializableFieldElement<F> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.to_hex().serialize(serializer)
+    }
+}
+
+impl<'de, F: AcirField> Deserialize<'de> for JSONSerializableFieldElement<F> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: std::borrow::Cow<'de, str> = Deserialize::deserialize(deserializer)?;
+        match F::from_hex(&s) {
+            Some(value) => Ok(Self(value)),
+            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {s}",))),
+        }
+    }
+}
+
+fn prepare_foreign_call<F: AcirField>(
+    foreign_call: ForeignCallWaitInfo<F>,
+) -> ForeignCallWaitInfo<JSONSerializableFieldElement<F>> {
+    ForeignCallWaitInfo {
+        function: foreign_call.function,
+        inputs: foreign_call
+            .inputs
+            .into_iter()
+            .map(|param| match param {
+                ForeignCallParam::Single(value) => {
+                    ForeignCallParam::Single(JSONSerializableFieldElement::new(value))
+                }
+                ForeignCallParam::Array(values) => ForeignCallParam::Array(
+                    values.into_iter().map(JSONSerializableFieldElement::new).collect(),
+                ),
+            })
+            .collect(),
+    }
+}
+
+fn receive_foreign_call_result<F: AcirField>(
+    foreign_call_result: ForeignCallResult<JSONSerializableFieldElement<F>>,
+) -> ForeignCallResult<F> {
+    ForeignCallResult {
+        values: foreign_call_result
+            .values
+            .into_iter()
+            .map(|param| match param {
+                ForeignCallParam::Single(value) => ForeignCallParam::Single(value.into_inner()),
+                ForeignCallParam::Array(values) => ForeignCallParam::Array(
+                    values.into_iter().map(|val| val.into_inner()).collect(),
+                ),
+            })
+            .collect(),
+    }
+}
+
 type ResolveForeignCallResult<F> = Result<ForeignCallResult<F>, ForeignCallError>;
 
 impl RPCForeignCallExecutor {
@@ -90,9 +167,11 @@ impl RPCForeignCallExecutor {
     where
         F: AcirField + Serialize + for<'a> Deserialize<'a>,
     {
+        let foreign_call = prepare_foreign_call(foreign_call.clone());
+
         let params = ResolveForeignCallRequest {
             session_id: self.id,
-            function_call: foreign_call.clone(),
+            function_call: foreign_call,
             root_path: self
                 .root_path
                 .clone()
@@ -101,9 +180,14 @@ impl RPCForeignCallExecutor {
             package_name: self.package_name.clone().or(Some(String::new())),
         };
         let encoded_params = rpc_params!(params);
-        self.runtime.block_on(async {
+        let response: Result<
+            ForeignCallResult<JSONSerializableFieldElement<F>>,
+            jsonrpsee::core::ClientError,
+        > = self.runtime.block_on(async {
             self.external_resolver.request("resolve_foreign_call", encoded_params).await
-        })
+        });
+
+        response.map(receive_foreign_call_result)
     }
 }
 
@@ -146,10 +230,69 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+mod serialization_tests {
     use acvm::{
-        FieldElement, acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
-        pwg::ForeignCallWaitInfo,
+        AcirField, FieldElement, acir::brillig::ForeignCallParam,
+        brillig_vm::brillig::ForeignCallResult,
+    };
+    use proptest::prelude::*;
+
+    use super::JSONSerializableFieldElement;
+
+    #[test]
+    fn deserializes_json_as_expected() {
+        let raw_responses: [(
+            &str,
+            Vec<ForeignCallParam<JSONSerializableFieldElement<FieldElement>>>,
+        ); 3] = [
+            ("[]", Vec::new()),
+            (
+                "[\"0x0000000000000000000000000000000000000000000000000000000000000001\"]",
+                vec![ForeignCallParam::Single(JSONSerializableFieldElement::new(
+                    FieldElement::one(),
+                ))],
+            ),
+            ("[[]]", vec![ForeignCallParam::Array(Vec::new())]),
+        ];
+
+        for (raw_response, expected) in raw_responses {
+            let decoded_response: ForeignCallResult<JSONSerializableFieldElement<FieldElement>> =
+                serde_json::from_str(&format!("{{ \"values\": {raw_response} }}")).unwrap();
+            assert_eq!(decoded_response, ForeignCallResult { values: expected });
+        }
+    }
+
+    acvm::acir::acir_field::field_wrapper!(TestField, FieldElement);
+
+    impl Arbitrary for TestField {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<u128>().prop_map(|v| Self(FieldElement::from(v))).boxed()
+        }
+    }
+
+    proptest! {
+        /// We want to ensure that the serialization and deserialization of arrays of fields works correctly
+        /// with `JSONSerializableFieldElement` as JSON serialization on `FieldElement` confuses empty arrays with a field element.
+        #[test]
+        fn arrays_of_fields_serialization_roundtrip(param: Vec<JSONSerializableFieldElement<TestField>>) {
+            let serialized = serde_json::to_string(&param).unwrap();
+            let deserialized: Vec<JSONSerializableFieldElement<TestField>> = serde_json::from_str(&serialized).unwrap();
+
+            prop_assert_eq!(param, deserialized);
+        }
+
+
+    }
+}
+
+#[cfg(test)]
+mod server_tests {
+    use acvm::{
+        AcirField, FieldElement, acir::brillig::ForeignCallParam,
+        brillig_vm::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo,
     };
     use jsonrpsee::proc_macros::rpc;
     use jsonrpsee::server::Server;
@@ -157,17 +300,62 @@ mod tests {
     use tokio::sync::{mpsc, oneshot};
 
     use super::{
-        ForeignCallExecutor, RPCForeignCallExecutor, ResolveForeignCallRequest,
-        ResolveForeignCallResult,
+        ForeignCallExecutor, JSONSerializableFieldElement, RPCForeignCallExecutor,
+        ResolveForeignCallRequest, ResolveForeignCallResult,
     };
+
+    /// Convert the foreign call request from the RPC client to the internal format.
+    ///
+    /// This is used to convert the request from the JSON RPC client to the format expected by
+    /// the `ForeignCallExecutor`.
+    fn receive_foreign_call<F: AcirField>(
+        foreign_call: ForeignCallWaitInfo<JSONSerializableFieldElement<F>>,
+    ) -> ForeignCallWaitInfo<F> {
+        ForeignCallWaitInfo {
+            function: foreign_call.function,
+            inputs: foreign_call
+                .inputs
+                .into_iter()
+                .map(|param| match param {
+                    ForeignCallParam::Single(value) => ForeignCallParam::Single(value.into_inner()),
+                    ForeignCallParam::Array(values) => ForeignCallParam::Array(
+                        values.into_iter().map(|val| val.into_inner()).collect(),
+                    ),
+                })
+                .collect(),
+        }
+    }
+
+    /// Convert the foreign call result from the internal format to the JSON RPC client format.
+    ///
+    /// This is used to convert the response from the `ForeignCallExecutor` to the format expected by
+    /// the JSON RPC client.
+    fn prepare_foreign_call_result<F: AcirField>(
+        foreign_call_result: ForeignCallResult<F>,
+    ) -> ForeignCallResult<JSONSerializableFieldElement<F>> {
+        ForeignCallResult {
+            values: foreign_call_result
+                .values
+                .into_iter()
+                .map(|param| match param {
+                    ForeignCallParam::Single(value) => {
+                        ForeignCallParam::Single(JSONSerializableFieldElement::new(value))
+                    }
+                    ForeignCallParam::Array(values) => ForeignCallParam::Array(
+                        values.into_iter().map(JSONSerializableFieldElement::new).collect(),
+                    ),
+                })
+                .collect(),
+        }
+    }
 
     #[rpc(server)]
     trait OracleResolver {
         #[method(name = "resolve_foreign_call")]
         fn resolve_foreign_call(
             &self,
-            req: ResolveForeignCallRequest<FieldElement>,
-        ) -> Result<ForeignCallResult<FieldElement>, ErrorObjectOwned>;
+            req: ResolveForeignCallRequest<JSONSerializableFieldElement<FieldElement>>,
+        ) -> Result<ForeignCallResult<JSONSerializableFieldElement<FieldElement>>, ErrorObjectOwned>;
     }
 
     struct OracleResolverImpl;
@@ -191,15 +379,17 @@ mod tests {
     impl OracleResolverServer for OracleResolverImpl {
         fn resolve_foreign_call(
             &self,
-            req: ResolveForeignCallRequest<FieldElement>,
-        ) -> Result<ForeignCallResult<FieldElement>, ErrorObjectOwned> {
-            let response = match req.function_call.function.as_str() {
-                "sum" => self.sum(req.function_call.inputs[0].clone()),
-                "echo" => self.echo(req.function_call.inputs[0].clone()),
-                "id" => FieldElement::from(req.session_id as u128).into(),
+            req: ResolveForeignCallRequest<JSONSerializableFieldElement<FieldElement>>,
+        ) -> Result<ForeignCallResult<JSONSerializableFieldElement<FieldElement>>, ErrorObjectOwned>
+        {
+            let foreign_call = receive_foreign_call(req.function_call);
+            let response = match foreign_call.function.as_str() {
+                "sum" => self.sum(foreign_call.inputs[0].clone()),
+                "echo" => self.echo(foreign_call.inputs[0].clone()),
+                "id" => FieldElement::from(u128::from(req.session_id)).into(),
                 _ => panic!("unexpected foreign call"),
             };
-            Ok(response)
+            Ok(prepare_foreign_call_result(response))
         }
     }
 

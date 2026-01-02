@@ -52,10 +52,15 @@ pub trait AcirField:
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32;
 
+    /// Downcast the field into a `u128`.
+    /// Panic if the value does not fit
     fn to_u128(self) -> u128;
 
+    /// Downcast the field into a `u128` if it fits into 128 bits, otherwise return `None`.
     fn try_into_u128(self) -> Option<u128>;
 
+    /// Downcast the field into a `i128`.
+    /// Panic if the value does not fit
     fn to_i128(self) -> i128;
 
     fn try_into_i128(self) -> Option<i128>;
@@ -68,7 +73,15 @@ pub trait AcirField:
     /// Before using this FieldElement, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;
 
+    /// Returns the vale of this field as a hex string without the `0x` prefix.
+    /// The returned string will have a length equal to the maximum number of hex
+    /// digits needed to represent the maximum value of this field.
     fn to_hex(self) -> String;
+
+    /// Returns the value of this field as a hex string with leading zeroes removed,
+    /// prepended with `0x`.
+    /// A singular '0' will be prepended as well if the trimmed string has an odd length.
+    fn to_short_hex(self) -> String;
 
     fn from_hex(hex_str: &str) -> Option<Self>;
 
@@ -144,7 +157,7 @@ macro_rules! field_wrapper {
                 $field::max_num_bytes()
             }
 
-            fn modulus() -> num_bigint::BigUint {
+            fn modulus() -> ::num_bigint::BigUint {
                 $field::modulus()
             }
 
@@ -182,6 +195,10 @@ macro_rules! field_wrapper {
 
             fn to_hex(self) -> String {
                 self.0.to_hex()
+            }
+
+            fn to_short_hex(self) -> String {
+                self.0.to_short_hex()
             }
 
             fn from_hex(hex_str: &str) -> Option<Self> {

@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_9037] Circuit output: Vec([Vec([Field(0)])])
+[regression_9037] Circuit output: [[false]]
