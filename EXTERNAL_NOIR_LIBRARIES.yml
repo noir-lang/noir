@@ -85,12 +85,6 @@ libraries:
     path: noir-projects/noir-protocol-circuits/crates/blob
     timeout: 600
     critical: false
-  protocol_circuits_parity_lib:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/parity-lib
-    timeout: 15
-    critical: false
   protocol_circuits_private_kernel_lib:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
