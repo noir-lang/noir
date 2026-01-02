@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767379678564,
+  "lastUpdate": 1767381814961,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c44eebd91da2b4ee3fa35ca527b862ab36ddae3e",
-          "message": "fix: update values on all blocks during constant folding (#10952)",
-          "timestamp": "2025-12-18T11:34:02Z",
-          "tree_id": "d4977381c58780514f254384d26cec7b1d53dc63",
-          "url": "https://github.com/noir-lang/noir/commit/c44eebd91da2b4ee3fa35ca527b862ab36ddae3e"
-        },
-        "date": 1766058920557,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254590,
-            "range": "± 322",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224622,
-            "range": "± 3318",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790691,
-            "range": "± 6011",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "155266597+strmfos@users.noreply.github.com",
             "name": "strmfos",
             "username": "strmfos"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2262655,
             "range": "± 1808",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0a97d07a4420be3ce1f64493c350bbfc4f16792a",
+          "message": "chore: add property test to compare arithmetic generics to comptime interpreter (#11014)",
+          "timestamp": "2026-01-02T18:59:55Z",
+          "tree_id": "e64907182c9bb5d71317a6e3991d10ee45c5d220",
+          "url": "https://github.com/noir-lang/noir/commit/0a97d07a4420be3ce1f64493c350bbfc4f16792a"
+        },
+        "date": 1767381781361,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259253,
+            "range": "± 1888",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231922,
+            "range": "± 7329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791494,
+            "range": "± 5999",
             "unit": "ns/iter"
           }
         ]
