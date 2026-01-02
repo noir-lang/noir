@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767369274985,
+  "lastUpdate": 1767369476907,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "240a4d5204ac77f85bca27a5cf7065c90efce0ca",
-          "message": "fix(acir): Read slices with their type (#10939)",
-          "timestamp": "2025-12-17T16:54:46Z",
-          "tree_id": "de3a92ca265fa9ba1b9b7b1ffe154ba7e442bab1",
-          "url": "https://github.com/noir-lang/noir/commit/240a4d5204ac77f85bca27a5cf7065c90efce0ca"
-        },
-        "date": 1765991797844,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256669,
-            "range": "± 1625",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226676,
-            "range": "± 3816",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792082,
-            "range": "± 1145",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "ab4978fbf5afa244acc65647ef6fcfd1080c73eb",
           "message": "fix(acir): Always increment the dynaimc slice length during push back (#10940)",
           "timestamp": "2025-12-17T17:14:13Z",
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2263015,
             "range": "± 2456",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf311cb0495a0078f940a15f28dee6b9230b773c",
+          "message": "chore: add exponential backoff to `setStable.ts` (#11030)",
+          "timestamp": "2026-01-02T15:54:09Z",
+          "tree_id": "d8b4c172dba84186f3c0c6a75cc8150aea0759a1",
+          "url": "https://github.com/noir-lang/noir/commit/bf311cb0495a0078f940a15f28dee6b9230b773c"
+        },
+        "date": 1767369444297,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268279,
+            "range": "± 1269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 240620,
+            "range": "± 4365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794439,
+            "range": "± 7028",
             "unit": "ns/iter"
           }
         ]
