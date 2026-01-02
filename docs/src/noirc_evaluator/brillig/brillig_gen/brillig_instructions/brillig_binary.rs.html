@@ -342,7 +342,16 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_block::{BrilligBlock, type_of_binary_operation};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_fn::FunctionContext;
@@ -350,6 +359,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{BinaryOp, InstructionId, binary::Binary};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::printer::try_to_extract_string_from_error_payload;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{dfg::DataFlowGraph, instruction::ConstrainError, value::ValueId};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -664,18 +674,26 @@
         };
 
         <span class="kw">match </span>assert_message {
-            <span class="prelude-val">Some</span>(ConstrainError::Dynamic(selector, <span class="kw">_</span>, values)) =&gt; {
-                <span class="kw">let </span>payload_values = vecmap(values, |value| <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value, dfg));
-                <span class="kw">let </span>payload_as_params = vecmap(values, |value| {
-                    <span class="kw">let </span>value_type = dfg.type_of_value(<span class="kw-2">*</span>value);
-                    FunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>value_type)
-                });
-                <span class="self">self</span>.brillig_context.codegen_constrain_with_error_data(
-                    <span class="kw-2">*</span>condition,
-                    payload_values,
-                    payload_as_params,
-                    <span class="prelude-val">Some</span>(<span class="kw-2">*</span>selector),
-                );
+            <span class="prelude-val">Some</span>(ConstrainError::Dynamic(selector, is_string_type, values)) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(constant_string) =
+                    try_to_extract_string_from_error_payload(<span class="kw-2">*</span>is_string_type, values, dfg)
+                {
+                    <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, <span class="prelude-val">Some</span>(constant_string));
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>payload_values =
+                        vecmap(values, |value| <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value, dfg));
+                    <span class="kw">let </span>payload_as_params = vecmap(values, |value| {
+                        <span class="kw">let </span>value_type = dfg.type_of_value(<span class="kw-2">*</span>value);
+                        FunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>value_type)
+                    });
+
+                    <span class="self">self</span>.brillig_context.codegen_constrain_with_error_data(
+                        <span class="kw-2">*</span>condition,
+                        payload_values,
+                        payload_as_params,
+                        <span class="prelude-val">Some</span>(<span class="kw-2">*</span>selector),
+                    );
+                }
             }
             <span class="prelude-val">Some</span>(ConstrainError::StaticString(message)) =&gt; {
                 <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, <span class="prelude-val">Some</span>(message.clone()));
