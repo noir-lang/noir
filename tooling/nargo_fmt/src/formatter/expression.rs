@@ -2649,4 +2649,13 @@ global y = 1;
 "#;
         assert_format_with_max_width(src, src, 20);
     }
+
+    #[test]
+    fn turbofish_with_negative_literal() {
+        let src = r#"fn main() {
+    foo::<-128>();
+}
+"#;
+        assert_format(src, src);
+    }
 }

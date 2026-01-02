@@ -6,7 +6,7 @@ use crate::hir::printer::items::ItemBuilder;
 use crate::hir::resolution::visibility::module_def_id_visibility;
 use crate::node_interner::TraitImplId;
 use crate::{
-    DataType, Generics, Kind, NamedGeneric, Type,
+    DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
     ast::{Ident, ItemVisibility},
     graph::Dependency,
     hir::{
@@ -688,7 +688,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('>');
     }
 
-    fn show_generics(&mut self, generics: &Generics) {
+    fn show_generics(&mut self, generics: &ResolvedGenerics) {
         if generics.is_empty() {
             return;
         }
