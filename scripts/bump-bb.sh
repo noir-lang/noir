@@ -7,7 +7,7 @@ sed -i.bak "s/^VERSION=.*/VERSION=\"$BB_VERSION\"/" ./scripts/install_bb.sh  && 
 
 # Update bb_proof_verification tag in Nargo.toml files (these require a leading 'v')
 grep -rl 'bb_proof_verification' --include='Nargo.toml' . | while read -r file; do
-    sed -i.bak '/bb_proof_verification/s/tag = "v[^"]*"/tag = "v'"$BB_VERSION"'"/' "$file" && rm "$file.bak"
+    sed -i.bak '/bb_proof_verification/s/tag *= *"v[^"]*"/tag = "v'"$BB_VERSION"'"/' "$file" && rm "$file.bak"
 done
 
 tmp=$(mktemp)
