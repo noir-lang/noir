@@ -409,10 +409,10 @@ impl Elaborator<'_> {
         has_inline_attribute: bool,
         location: Location,
     ) {
-        match typ {
+        match typ.follow_bindings() {
             Type::Unit => return,
             Type::Array(length, _) | Type::String(length) => {
-                if length_is_zero(length) {
+                if length_is_zero(&length) {
                     //returning zero length arrays is allowed
                     return;
                 }
