@@ -630,7 +630,7 @@
 <span class="doccomment">/// `pub` is required on return types for entry point functions
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>missing_pub(func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
     <span class="kw">if </span>func.is_entry_point
-        &amp;&amp; func.return_type() != <span class="kw-2">&amp;</span>Type::Unit
+        &amp;&amp; func.return_type().follow_bindings() != Type::Unit
         &amp;&amp; func.return_visibility == Visibility::Private
     {
         <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
