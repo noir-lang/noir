@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767391807120,
+  "lastUpdate": 1767443091839,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "be15de4b4cc2f66e3e5b44af7e1f9af7a2f85044",
-          "message": "fix(fuzzer): Add the \"in\" keyword to `make_name` (#10957)",
-          "timestamp": "2025-12-18T20:46:15Z",
-          "tree_id": "351a8b186874382ea4e8bf8321f83f5bcce2e82a",
-          "url": "https://github.com/noir-lang/noir/commit/be15de4b4cc2f66e3e5b44af7e1f9af7a2f85044"
-        },
-        "date": 1766092011428,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257915,
-            "range": "± 1577",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227660,
-            "range": "± 1612",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792423,
-            "range": "± 3714",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "dff029ddba970efe9e1b3ad06c8261aaf52a18e2",
           "message": "fix(examples): Fails CI when any of `just examples` errors out (#10956)",
           "timestamp": "2025-12-18T20:48:01Z",
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793779,
             "range": "± 11067",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f1315f4835d25a0a383e79ea4fd890a63449077",
+          "message": "fix: type alias of unit return type of main function (#11038)",
+          "timestamp": "2026-01-03T12:03:06Z",
+          "tree_id": "1f9b6d73a6e8befeb2d0297e0df0428a6b4cbcd8",
+          "url": "https://github.com/noir-lang/noir/commit/2f1315f4835d25a0a383e79ea4fd890a63449077"
+        },
+        "date": 1767443058044,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264711,
+            "range": "± 823",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236835,
+            "range": "± 6643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790712,
+            "range": "± 7022",
             "unit": "ns/iter"
           }
         ]
