@@ -258,7 +258,7 @@ impl DocItemBuilder<'_> {
                     noirc_frontend::Type::String(..) => PrimitiveTypeKind::Str,
                     noirc_frontend::Type::FmtString(..) => PrimitiveTypeKind::Fmtstr,
                     noirc_frontend::Type::Array(..) => PrimitiveTypeKind::Array,
-                    noirc_frontend::Type::Slice(..) => PrimitiveTypeKind::Slice,
+                    noirc_frontend::Type::Vector(..) => PrimitiveTypeKind::Vector,
                     _ => {
                         let Type::Primitive(kind) = self.convert_type(&primitive_type.typ) else {
                             panic!("Expected primitive type");
@@ -439,8 +439,8 @@ impl DocItemBuilder<'_> {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
-            noirc_frontend::Type::Slice(element) => {
-                Type::Slice { element: Box::new(self.convert_type(element)) }
+            noirc_frontend::Type::Vector(element) => {
+                Type::Vector { element: Box::new(self.convert_type(element)) }
             }
             noirc_frontend::Type::String(length) => {
                 Type::String { length: Box::new(self.convert_type(length)) }

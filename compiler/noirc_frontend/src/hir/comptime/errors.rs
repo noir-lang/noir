@@ -295,6 +295,7 @@ pub enum InterpreterError {
     // until the loop can be resumed properly. These cases will never be displayed to users.
     Break,
     Continue,
+    SkippedDueToEarlierErrors,
 }
 
 #[allow(unused)]
@@ -307,6 +308,18 @@ impl From<InterpreterError> for CompilationError {
 }
 
 impl InterpreterError {
+    /// Returns true if this error should be filtered out and not displayed to the user.
+    /// This is used for internal control flow errors and errors that indicate the interpreter
+    /// was skipped due to earlier errors that were already reported.
+    pub(crate) fn should_be_filtered(&self) -> bool {
+        matches!(
+            self,
+            InterpreterError::Break
+                | InterpreterError::Continue
+                | InterpreterError::SkippedDueToEarlierErrors { .. }
+        )
+    }
+
     pub fn location(&self) -> Location {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
@@ -376,8 +389,10 @@ impl InterpreterError {
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
-            InterpreterError::Break | InterpreterError::Continue => {
-                panic!("Tried to get the location of Break/Continue error!")
+            InterpreterError::Break
+            | InterpreterError::Continue
+            | InterpreterError::SkippedDueToEarlierErrors => {
+                panic!("Tried to get the location of Break/Continue/SkippedDueToTypeErrors error!")
             }
         }
     }
@@ -487,8 +502,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonArrayIndexed { typ, location } => {
-                let msg = format!("Expected an array or slice but found a(n) {typ}");
-                let secondary = "Only arrays or slices may be indexed".into();
+                let msg = format!("Expected an array or vector but found a(n) {typ}");
+                let secondary = "Only arrays or vectors may be indexed".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonIntegerUsedAsIndex { typ, location } => {
@@ -709,7 +724,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::ExpectedIdentForStructField { value, index, location } => {
                 let msg = format!(
-                    "Quoted value in index {index} of this slice is not a valid field name"
+                    "Quoted value in index {index} of this vector is not a valid field name"
                 );
                 let secondary = format!("`{value}` is not a valid field name for `set_fields`");
                 CustomDiagnostic::simple_error(msg, secondary, *location)
@@ -775,6 +790,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
+            }
+            InterpreterError::SkippedDueToEarlierErrors => {
+                unreachable!(
+                    "SkippedDueToTypeErrors should be handled internally like Break/Continue"
+                )
             }
             InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
                 let msg = "Duplicate field name in call to `set_fields`".to_string();

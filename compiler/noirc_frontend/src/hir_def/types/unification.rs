@@ -163,7 +163,7 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
-            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, bindings),
+            (Vector(elem_a), Vector(elem_b)) => elem_a.try_unify(elem_b, bindings),
 
             (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
 
@@ -516,7 +516,7 @@ impl Type {
             return;
         }
 
-        if self.try_array_to_slice_coercion(expected, expression, interner) {
+        if self.try_array_to_vector_coercion(expected, expression, interner) {
             return;
         }
 
@@ -568,9 +568,9 @@ impl Type {
         }
     }
 
-    /// Try to apply the array to slice coercion to this given type pair and expression.
+    /// Try to apply the array to vector coercion to this given type pair and expression.
     /// If self can be converted to target this way, do so and return true to indicate success.
-    fn try_array_to_slice_coercion(
+    fn try_array_to_vector_coercion(
         &self,
         target: &Type,
         expression: ExprId,
@@ -579,8 +579,8 @@ impl Type {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
-            // We can only do the coercion if the `as_slice` method exists.
+        if let (Type::Array(_size, element1), Type::Vector(element2)) = (&this, &target) {
+            // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
             if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
                 // Still have to ensure the element types match.

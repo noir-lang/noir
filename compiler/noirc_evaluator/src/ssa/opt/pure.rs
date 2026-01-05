@@ -295,7 +295,7 @@ fn analyze_call_graph(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},

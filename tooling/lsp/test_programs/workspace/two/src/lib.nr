@@ -12,8 +12,8 @@ fn use_struct() {
 
 use one::subone::SomeTrait;
 
-fn use_global() {
-    let _ = one::subone::some_global;
+fn use_invalid_global() {
+    let _ = one::subone::invalid_global;
 }
 
 fn use_struct_method() {
@@ -118,3 +118,7 @@ global array: [Field; 3] = [1, 2 + 3, 4];
 
 /// See [one::subone::SubOneStruct]
 fn doc_comments_test() {}
+
+fn use_invalid_global() {
+    let _ = one::subone::valid_global;
+}

@@ -138,23 +138,23 @@ impl ChunkFormatter<'_, '_> {
             })),
             Literal::Array(array_literal) => group.group(self.format_array_literal(
                 array_literal,
-                false, // is slice
+                false, // is vector
             )),
-            Literal::Slice(array_literal) => {
+            Literal::Vector(array_literal) => {
                 group.group(self.format_array_literal(
                     array_literal,
-                    true, // is slice
+                    true, // is vector
                 ));
             }
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> ChunkGroup {
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_vector: bool) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if is_slice {
-                formatter.write_token(Token::SliceStart);
+            if is_vector {
+                formatter.write_token(Token::VectorStart);
             }
             formatter.write_left_bracket();
         }));
@@ -1434,7 +1434,7 @@ mod tests {
     }
 
     #[test]
-    fn format_standard_slice() {
+    fn format_standard_vector() {
         let src = "global x = & [ 1 , 2 , 3 , ] ;";
         let expected = "global x = &[1, 2, 3];\n";
         assert_format(src, expected);
@@ -2648,5 +2648,14 @@ global y = 1;
 }
 "#;
         assert_format_with_max_width(src, src, 20);
+    }
+
+    #[test]
+    fn turbofish_with_negative_literal() {
+        let src = r#"fn main() {
+    foo::<-128>();
+}
+"#;
+        assert_format(src, src);
     }
 }

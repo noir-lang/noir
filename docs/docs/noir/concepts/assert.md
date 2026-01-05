@@ -73,14 +73,14 @@ fn main(x : Field, y : Field) {
     // this fails because `x` is not known at compile-time
     static_assert(x == 2, "expected x to be known at compile-time and equal to 2");
 
-    let mut example_slice = &[];
+    let mut example_vector = &[];
     if y == 4 {
-        example_slice = example_slice.push_back(0);
+        example_vector = example_vector.push_back(0);
     }
 
-    // This fails because the length of `example_slice` is not known at
+    // This fails because the length of `example_vector` is not known at
     // compile-time
-    let error_message = "expected an empty slice, known at compile-time";
-    static_assert(example_slice.len() == 0, error_message);
+    let error_message = "expected an empty vector, known at compile-time";
+    static_assert(example_vector.len() == 0, error_message);
 }
 ```
