@@ -1123,7 +1123,12 @@
 <a href="#1122" id="1122">1122</a>
 <a href="#1123" id="1123">1123</a>
 <a href="#1124" id="1124">1124</a>
-<a href="#1125" id="1125">1125</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
 //! arithmetic instructions since ACIR doesn't directly support bit shifts.
 //!
 //! In all cases, if the shift amount is equal to or exceeds the operand's number of bits,
@@ -1453,7 +1458,12 @@
         </span><span class="kw">let </span>max_exponent_bits = <span class="kw">if </span><span class="self">self</span>.context.dfg.get_value_max_num_bits(exponent) == <span class="number">1 </span>{
             <span class="number">1
         </span>} <span class="kw">else </span>{
-            <span class="self">self</span>.context.dfg.type_of_value(exponent).bit_size().ilog2()
+            <span class="kw">let </span>exponent_bit_size = <span class="self">self</span>.context.dfg.type_of_value(exponent).bit_size();
+            <span class="macro">assert!</span>(
+                exponent_bit_size.is_power_of_two(),
+                <span class="string">"ICE: exponent type bit size is expected to be a power of two"
+            </span>);
+            exponent_bit_size.ilog2()
         };
         <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), max_exponent_bits)];
 
