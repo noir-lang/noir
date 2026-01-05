@@ -815,7 +815,8 @@
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
 <a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
 //!
 //! This module handles the execution of compile-time code and attributes in Noir.
 //!
@@ -1402,6 +1403,7 @@
                         <span class="self">self</span>.crate_id,
                         location.file,
                         local_module,
+                        <span class="kw-2">&amp;mut </span><span class="self">self</span>.errors,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {

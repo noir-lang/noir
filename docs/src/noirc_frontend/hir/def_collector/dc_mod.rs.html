@@ -1815,7 +1815,15 @@
 <a href="#1814" id="1814">1814</a>
 <a href="#1815" id="1815">1815</a>
 <a href="#1816" id="1816">1816</a>
-<a href="#1817" id="1817">1817</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2033,6 +2041,7 @@
                     krate,
                     <span class="self">self</span>.file_id,
                     <span class="self">self</span>.module_id,
+                    <span class="kw-2">&amp;mut </span>errors,
                 );
 
             <span class="kw">let </span>module = ModuleId { krate, local_id: <span class="self">self</span>.module_id };
@@ -3310,6 +3319,7 @@
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
+    errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
 ) -&gt; (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     <span class="kw">let </span><span class="kw-2">mut </span>unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: <span class="prelude-val">None</span>, self_type: <span class="prelude-val">None </span>};
@@ -3341,6 +3351,12 @@
                 associated_constants.push((name, typ, expr));
             }
             TraitImplItemKind::Type { name, alias } =&gt; {
+                <span class="kw">if </span>alias.is_none() {
+                    <span class="kw">let </span>ident = name.clone();
+                    <span class="kw">let </span>error = ResolverError::AssociatedTypeInImplWithoutBody { ident };
+                    errors.push(error.into());
+                }
+
                 associated_types.push((name, alias));
             }
         }
