@@ -141,6 +141,7 @@ impl Elaborator<'_> {
 
         let definition_id = global.definition_id;
         let location = global.location;
+
         let mut interpreter = self.setup_interpreter();
 
         // Evaluate the global's initializer expression at compile time using the interpreter.

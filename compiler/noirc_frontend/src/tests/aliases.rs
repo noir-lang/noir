@@ -377,3 +377,21 @@ fn call_function_alias_type() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_10415() {
+    let src = r#"
+    type Nothing = ();
+
+    fn main() -> Nothing {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10415_without_alias() {
+    let src = r#"
+    fn main() -> () {}
+    "#;
+    assert_no_errors(src);
+}

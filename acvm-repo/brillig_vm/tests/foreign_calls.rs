@@ -504,7 +504,7 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 }
 
 #[test]
-fn foreign_call_opcode_nested_arrays_and_slices_input() {
+fn foreign_call_opcode_nested_arrays_and_vectors_input() {
     // This is the data we want to pass:
     // [(Field, [Field], [Field; 1]); 2]
     // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]

@@ -13,9 +13,10 @@ use nargo::NargoError;
 use nargo::errors::ExecutionError;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 use noirc_abi::Abi;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
+    prepare_crate,
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::SsaProgramArtifact;
@@ -44,6 +45,7 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
     let parsed_files = parse_all(&file_manager);
 
     let mut context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)

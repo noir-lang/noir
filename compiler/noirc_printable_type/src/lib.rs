@@ -17,7 +17,7 @@ pub enum PrintableType {
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
-    Slice {
+    Vector {
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
@@ -65,7 +65,7 @@ impl std::fmt::Display for PrintableType {
         match self {
             PrintableType::Field => write!(f, "Field"),
             PrintableType::Array { length, typ } => write!(f, "[{typ}; {length}]"),
-            PrintableType::Slice { typ } => write!(f, "[{typ}]"),
+            PrintableType::Vector { typ } => write!(f, "[{typ}]"),
             PrintableType::Tuple { types } => {
                 let types = vecmap(types, ToString::to_string);
                 if types.len() == 1 {
@@ -110,7 +110,7 @@ pub enum PrintableValue<F> {
     Field(F),
     String(String),
     FmtString(String, Vec<PrintableValue<F>>),
-    Vec { array_elements: Vec<PrintableValue<F>>, is_slice: bool },
+    Vec { array_elements: Vec<PrintableValue<F>>, is_vector: bool },
     Struct(BTreeMap<String, PrintableValue<F>>),
     Enum { tag: usize, elements: Vec<PrintableValue<F>> },
     Other,
@@ -204,11 +204,11 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 output.push_str("<<ref>>");
             }
         }
-        PrintableType::Array { typ, .. } | PrintableType::Slice { typ } => {
-            let PrintableValue::Vec { array_elements, is_slice } = value else {
+        PrintableType::Array { typ, .. } | PrintableType::Vector { typ } => {
+            let PrintableValue::Vec { array_elements, is_vector } = value else {
                 return None;
             };
-            if *is_slice {
+            if *is_vector {
                 output.push('&');
             }
             output.push('[');
@@ -394,11 +394,11 @@ pub fn decode_printable_value<F: AcirField>(
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec { array_elements, is_slice: false }
+            PrintableValue::Vec { array_elements, is_vector: false }
         }
-        PrintableType::Slice { typ } => {
+        PrintableType::Vector { typ } => {
             let length =
-                field_iterator.next().expect("not enough data: expected slice length").to_u128()
+                field_iterator.next().expect("not enough data: expected vector length").to_u128()
                     as usize;
 
             let mut array_elements = Vec::with_capacity(length);
@@ -407,11 +407,11 @@ pub fn decode_printable_value<F: AcirField>(
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec { array_elements, is_slice: true }
+            PrintableValue::Vec { array_elements, is_vector: true }
         }
         PrintableType::Tuple { types } => PrintableValue::Vec {
             array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
-            is_slice: false,
+            is_vector: false,
         },
         PrintableType::String { length } => {
             let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
@@ -536,7 +536,7 @@ impl<F: AcirField> PrintableValueDisplay<F> {
 
 /// Flatten input parameters into a field vector.
 ///
-/// Slices are expected to have exactly as many elements as indicated by their corresponding length,
+/// Vectors are expected to have exactly as many elements as indicated by their corresponding length,
 /// with any extra elements pruned by the caller already.
 fn flatten_inputs<F: AcirField>(input_values: &[ForeignCallParam<F>]) -> impl Iterator<Item = F> {
     input_values.iter().flat_map(|param| param.fields())
@@ -631,7 +631,7 @@ fn flattened_reference_size(typ: &PrintableType) -> usize {
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::FmtString { .. } => 1,
-        PrintableType::Slice { .. } => 2, // length + pointer
+        PrintableType::Vector { .. } => 2, // length + pointer
         PrintableType::Enum { .. } => {
             // This is tricky because enums are encoded as [tag, field1, field2, ...],
             // however when we have a reference to an enum variant, then even the tag
@@ -690,7 +690,7 @@ mod tests {
     fn one_element_tuple_to_string() {
         let value = PrintableValue::<FieldElement>::Vec {
             array_elements: vec![PrintableValue::Field(1_u128.into())],
-            is_slice: false,
+            is_vector: false,
         };
         let typ = PrintableType::Tuple { types: vec![PrintableType::Field] };
         let string = to_string(&value, &typ);
@@ -704,7 +704,7 @@ mod tests {
                 PrintableValue::Field(1_u128.into()),
                 PrintableValue::Field(2_u128.into()),
             ],
-            is_slice: false,
+            is_vector: false,
         };
         let typ = PrintableType::Tuple { types: vec![PrintableType::Field, PrintableType::Field] };
         let string = to_string(&value, &typ);

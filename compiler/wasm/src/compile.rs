@@ -2,11 +2,10 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
 use nargo::parse_all;
-use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
+use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact, ssa::SsaReport};
 use noirc_driver::{
     CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
-use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -304,7 +303,7 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::{graph::CrateName, hir::Context};

@@ -14,7 +14,7 @@ use crate::{
 
 use super::Context;
 
-mod slice_ops;
+mod vector_ops;
 
 impl Context<'_> {
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.
@@ -38,11 +38,11 @@ impl Context<'_> {
                 Ok(arguments.iter().map(|v| self.convert_value(*v, dfg)).collect())
             }
             Intrinsic::BlackBox(black_box) => {
-                // Slice arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
-                // No blackbox functions currently take slice arguments so we have an assertion here to catch if this changes in the future.
+                // Vector arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
+                // No blackbox functions currently take vector arguments so we have an assertion here to catch if this changes in the future.
                 assert!(
-                    !arguments.iter().any(|arg| matches!(dfg.type_of_value(*arg), Type::Slice(_))),
-                    "ICE: Slice arguments passed to blackbox function"
+                    !arguments.iter().any(|arg| matches!(dfg.type_of_value(*arg), Type::Vector(_))),
+                    "ICE: Vector arguments passed to blackbox function"
                 );
 
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
@@ -100,28 +100,31 @@ impl Context<'_> {
                     .bit_decompose(endian, field, array_length, numeric_type)
                     .map(|array| vec![array])
             }
-            Intrinsic::AsSlice => {
+            Intrinsic::AsVector => {
                 let array_contents = arguments[0];
                 let array_type = dfg.type_of_value(array_contents);
-                assert!(!array_type.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-                let Type::Array(_, slice_length) = array_type else {
-                    unreachable!("Expected Array input for `as_slice` intrinsic");
+                assert!(
+                    !array_type.is_nested_vector(),
+                    "ICE: Nested vector used in ACIR generation"
+                );
+                let Type::Array(_, vector_length) = array_type else {
+                    unreachable!("Expected Array input for `as_vector` intrinsic");
                 };
-                let slice_length = self.acir_context.add_constant(slice_length);
+                let vector_length = self.acir_context.add_constant(vector_length);
                 let acir_value = self.convert_value(array_contents, dfg);
                 let result = self.read_array_with_type(acir_value, &array_type)?;
                 Ok(vec![
-                    AcirValue::Var(slice_length, NumericType::length_type()),
+                    AcirValue::Var(vector_length, NumericType::length_type()),
                     AcirValue::Array(result),
                 ])
             }
 
-            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg, result_ids),
-            Intrinsic::SlicePushFront => self.convert_slice_push_front(arguments, dfg),
-            Intrinsic::SlicePopBack => self.convert_slice_pop_back(arguments, dfg, result_ids),
-            Intrinsic::SlicePopFront => self.convert_slice_pop_front(arguments, dfg, result_ids),
-            Intrinsic::SliceInsert => self.convert_slice_insert(arguments, dfg, result_ids),
-            Intrinsic::SliceRemove => self.convert_slice_remove(arguments, dfg, result_ids),
+            Intrinsic::VectorPushBack => self.convert_vector_push_back(arguments, dfg, result_ids),
+            Intrinsic::VectorPushFront => self.convert_vector_push_front(arguments, dfg),
+            Intrinsic::VectorPopBack => self.convert_vector_pop_back(arguments, dfg, result_ids),
+            Intrinsic::VectorPopFront => self.convert_vector_pop_front(arguments, dfg, result_ids),
+            Intrinsic::VectorInsert => self.convert_vector_insert(arguments, dfg, result_ids),
+            Intrinsic::VectorRemove => self.convert_vector_remove(arguments, dfg, result_ids),
 
             Intrinsic::AsWitness => {
                 let arg = arguments[0];
@@ -149,7 +152,7 @@ impl Context<'_> {
             | Intrinsic::StaticAssert
             | Intrinsic::AssertConstant
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount => {
+            | Intrinsic::VectorRefCount => {
                 unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
         }

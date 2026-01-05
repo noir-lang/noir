@@ -1,0 +1,209 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Match {
+    succeeded: bool,
+    match_ends: u32,
+    leftover: [u8],
+}
+
+impl Match {
+    fn empty(leftover: [u8]) -> Self {
+        Self { succeeded: true, match_ends: 0_u32, leftover: leftover }
+    }
+}
+
+impl Eq for Match {
+    fn eq(self, other: Self) -> bool {
+        (self.succeeded == other.succeeded) & (self.match_ends == other.match_ends)
+    }
+}
+
+trait Regex {
+    fn find_match(self, input: [u8]) -> Match;
+}
+
+impl Regex for () {
+    fn find_match(_self: Self, input: [u8]) -> Match {
+        Match::empty(input)
+    }
+}
+
+impl<let N: u32> Regex for str<N> {
+    fn find_match(self, input: [u8]) -> Match {
+        let mut leftover: [u8] = input;
+        let mut matches_input: bool = true;
+        let self_as_bytes: [u8; N] = self.as_bytes();
+        {
+            let ___i0: [u8; N] = self_as_bytes;
+            for ___i1 in 0_u32..___i0.len() {
+                let c: u8 = ___i0[___i1];
+                {
+                    if leftover.len() != 0_u32 {
+                        let (first_elem, popped_vector): (u8, [u8]) = leftover.pop_front();
+                        leftover = popped_vector;
+                        matches_input = matches_input & (first_elem == c);
+                    } else {
+                        matches_input = false;
+                    }
+                }
+            }
+        };
+        if matches_input {
+            Match { succeeded: true, match_ends: self_as_bytes.len(), leftover: leftover }
+        } else {
+            Match { succeeded: false, match_ends: 0_u32, leftover: input }
+        }
+    }
+}
+
+impl<T, U> Regex for (T, U)
+where
+    T: Regex,
+    U: Regex,
+{
+    fn find_match(self, input: [u8]) -> Match {
+        let lhs_result: Match = self.0.find_match(input);
+        if lhs_result.succeeded {
+            let rhs_result: Match = self.1.find_match(lhs_result.leftover);
+            if rhs_result.succeeded {
+                Match {
+                    succeeded: true,
+                    match_ends: lhs_result.match_ends + rhs_result.match_ends,
+                    leftover: rhs_result.leftover,
+                }
+            } else {
+                Match { succeeded: false, match_ends: 0_u32, leftover: input }
+            }
+        } else {
+            Match { succeeded: false, match_ends: 0_u32, leftover: input }
+        }
+    }
+}
+
+struct Repeated<T, let N: u32> {
+    inner: T,
+}
+
+impl<let N: u32, T> Regex for Repeated<T, N>
+where
+    T: Regex,
+{
+    fn find_match(self, input: [u8]) -> Match {
+        let mut result: Match = Match::empty(input);
+        for _ in 0_u32..N {
+            if result.succeeded {
+                let next_result: Match = self.inner.find_match(result.leftover);
+                result = Match {
+                    succeeded: next_result.succeeded,
+                    match_ends: result.match_ends + next_result.match_ends,
+                    leftover: next_result.leftover,
+                };
+            }
+        }
+        result
+    }
+}
+
+struct Or<T, U> {
+    lhs: T,
+    rhs: U,
+}
+
+impl<T, U> Regex for Or<T, U>
+where
+    T: Regex,
+    U: Regex,
+{
+    fn find_match(self, input: [u8]) -> Match {
+        let lhs_result: Match = self.lhs.find_match(input);
+        if lhs_result.succeeded {
+            lhs_result
+        } else {
+            self.rhs.find_match(input)
+        }
+    }
+}
+
+struct Question<T> {
+    inner: T,
+}
+
+impl<T> Regex for Question<T>
+where
+    T: Regex,
+{
+    fn find_match(self, input: [u8]) -> Match {
+        Or::<T, ()> { lhs: self.inner, rhs: () }.find_match(input)
+    }
+}
+
+struct Star<T, let N: u32> {
+    inner: T,
+}
+
+impl<let N: u32, T> Regex for Star<T, N>
+where
+    T: Regex,
+{
+    fn find_match(self, input: [u8]) -> Match {
+        let regex: Repeated<Question<T>, N> =
+            Repeated::<Question<T>, N> { inner: Question::<T> { inner: self.inner } };
+        regex.find_match(input)
+    }
+}
+
+struct Plus<T, let N: u32, let N_PRED: u32> {
+    inner: T,
+}
+
+impl<let N: u32, let N_PRED: u32, T> Regex for Plus<T, N, N_PRED>
+where
+    T: Regex,
+{
+    fn find_match(self, input: [u8]) -> Match {
+        std::static_assert((N_PRED + 1_u32) == N, "N - 1 != N_PRED");
+        let star: Star<T, N_PRED> = Star::<T, N_PRED> { inner: self.inner };
+        (self.inner, star).find_match(input)
+    }
+}
+
+fn main() {
+    let graey_regex: (str<2>, (Or<str<1>, str<1>>, str<1>)) =
+        ("gr", (Or::<str<1>, str<1>> { lhs: "a", rhs: "e" }, "y"));
+    let result: Match = graey_regex.find_match("gray".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 4_u32, leftover: &[] });
+    let result: Match = graey_regex.find_match("grey".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 4_u32, leftover: &[] });
+    let colour_regex: (str<4>, (Question<str<1>>, str<1>)) =
+        ("colo", (Question::<str<1>> { inner: "u" }, "r"));
+    let result: Match = colour_regex.find_match("color".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 5_u32, leftover: &[] });
+    let result: Match = colour_regex.find_match("colour".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 6_u32, leftover: &[] });
+    let three_empties_regex: Repeated<(), 3> = Repeated::<(), 3> { inner: () };
+    let result: Match = three_empties_regex.find_match("111".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 0_u32, leftover: &[] });
+    let zero_ones_regex: Repeated<str<1>, 0> = Repeated::<str<1>, 0> { inner: "1" };
+    let result: Match = zero_ones_regex.find_match("111".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 0_u32, leftover: &[] });
+    let one_ones_regex: Repeated<str<1>, 1> = Repeated::<str<1>, 1> { inner: "1" };
+    let result: Match = one_ones_regex.find_match("111".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 1_u32, leftover: &[] });
+    let two_ones_regex: Repeated<str<1>, 2> = Repeated::<str<1>, 2> { inner: "1" };
+    let result: Match = two_ones_regex.find_match("111".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 2_u32, leftover: &[] });
+    let three_ones_regex: Repeated<str<1>, 3> = Repeated::<str<1>, 3> { inner: "1" };
+    let result: Match = three_ones_regex.find_match("1111".as_bytes().as_vector());
+    println(result);
+    assert(result == Match { succeeded: true, match_ends: 3_u32, leftover: &[] });
+}

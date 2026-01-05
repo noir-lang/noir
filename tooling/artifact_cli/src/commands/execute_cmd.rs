@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
+use noirc_artifacts::program::CompiledProgram;
 
 use crate::{
     Artifact,
@@ -11,7 +12,6 @@ use crate::{
 use nargo::foreign_calls::{
     DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
 };
-use noirc_driver::CompiledProgram;
 
 use super::parse_and_normalize_path;
 

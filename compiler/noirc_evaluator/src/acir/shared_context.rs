@@ -49,7 +49,7 @@ pub(super) struct SharedContext<F: AcirField> {
     /// There can be Brillig functions specified in SSA which do not act as
     /// entry points in ACIR (e.g. only called by other Brillig functions)
     /// This mapping is necessary to use the correct function pointer for a Brillig call.
-    /// This uses the brillig parameters in the map since using slices with different lengths
+    /// This uses the brillig parameters in the map since using vectors with different lengths
     /// needs to create different brillig entrypoints
     brillig_generated_func_pointers:
         BTreeMap<(FunctionId, Vec<BrilligParameter>), BrilligFunctionId>,
