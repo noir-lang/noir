@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="3.0.0-nightly.20251104"
+VERSION="3.0.0-nightly.20260102"
 
 BBUP_PATH=~/.bb/bbup
 
