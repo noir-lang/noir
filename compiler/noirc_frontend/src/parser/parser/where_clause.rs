@@ -71,7 +71,6 @@ impl Parser<'_> {
         self.expected_label(ParsingRuleLabel::TraitBound);
         TraitBound {
             trait_path: Path::plain(Vec::new(), self.location_at_previous_token_end()),
-            trait_id: None,
             trait_generics: GenericTypeArgs::default(),
         }
     }
@@ -80,7 +79,7 @@ impl Parser<'_> {
     pub(crate) fn parse_trait_bound(&mut self) -> Option<TraitBound> {
         let trait_path = self.parse_path_no_turbofish()?;
         let trait_generics = self.parse_generic_type_args();
-        Some(TraitBound { trait_path, trait_generics, trait_id: None })
+        Some(TraitBound { trait_path, trait_generics })
     }
 }
 
