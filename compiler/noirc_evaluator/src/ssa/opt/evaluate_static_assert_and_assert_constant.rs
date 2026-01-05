@@ -230,7 +230,7 @@ fn append_foreign_call_param(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::ssa_gen::Ssa};
 
     #[test]

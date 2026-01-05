@@ -7,7 +7,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
@@ -49,7 +49,7 @@ impl Elaborator<'_> {
 
     /// Add the given generics to scope.
     /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
-    pub(super) fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
+    pub(super) fn add_generics(&mut self, generics: &UnresolvedGenerics) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             let mut is_error = false;
             let (type_var, name) = match self.resolve_generic(generic) {
@@ -90,7 +90,7 @@ impl Elaborator<'_> {
     pub(super) fn add_existing_generics(
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
-        generics: &Generics,
+        generics: &ResolvedGenerics,
     ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
@@ -268,7 +268,7 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
                 self.visit_type(length);
                 self.visit_type(element);
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 self.visit_type(element);
             }
             Type::FmtString(length, element) => {

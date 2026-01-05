@@ -16,11 +16,4 @@ error: Type annotation needed
   │                      ---- Could not determine the value of the generic argument `N` declared on the function `half`
   │
 
-error: Non-integer array length: `_`
-   ┌─ src/main.nr:12:5
-   │
-12 │     N / 2
-   │     - Array lengths must be integers, but evaluating `_` resulted in `Expected a constant, but found `_``
-   │
-
-Aborting due to 3 previous errors
+Aborting due to 2 previous errors

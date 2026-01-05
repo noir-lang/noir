@@ -14,6 +14,7 @@ use crate::{
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
+    hir::comptime::value::FormatStringFragment,
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
@@ -284,7 +285,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::SliceStart
+            | Token::VectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -400,7 +401,19 @@ impl Display for ValuePrinter<'_, '_> {
             Value::U128(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
-            Value::FormatString(value, _) => write!(f, "{value}"),
+            Value::FormatString(fragments, _, _) => {
+                for fragment in fragments.iter() {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            write!(f, "{string}")?;
+                        }
+                        FormatStringFragment::Value { name: _, value } => {
+                            write!(f, "{}", value.display(self.interner))?;
+                        }
+                    }
+                }
+                Ok(())
+            }
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
@@ -462,7 +475,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
             }
-            Value::Slice(values, _) => {
+            Value::Vector(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "&[{}]", values.join(", "))
             }
@@ -772,7 +785,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
         Literal::Array(array_literal) => {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
-        Literal::Slice(array_literal) => {
+        Literal::Vector(array_literal) => {
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
@@ -917,8 +930,8 @@ fn remove_interned_in_unresolved_type_data(
             expr,
             Box::new(remove_interned_in_unresolved_type(interner, *typ)),
         ),
-        UnresolvedTypeData::Slice(typ) => {
-            UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
+        UnresolvedTypeData::Vector(typ) => {
+            UnresolvedTypeData::Vector(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
         }
         UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, *typ),

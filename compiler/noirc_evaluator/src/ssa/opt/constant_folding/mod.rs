@@ -145,11 +145,29 @@ impl Function {
             // Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
             let blocks_to_revisit = context.blocks_to_revisit;
 
+            // Preserve the values_to_replace mapping across iterations.
+            // This is necessary because instructions that were simplified or deduplicated in earlier
+            // iterations may still be referenced by instructions in blocks that are revisited.
+            // Without preserving this mapping, those references could point to orphaned instructions.
+            let values_to_replace = context.values_to_replace;
+
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
+            context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
+        }
+
+        // After all iterations, apply the final values_to_replace mapping to all instructions
+        // in all reachable blocks. This is necessary in case an instruction uses a value re-mapped
+        // in another block that is processed after the instruction's block.
+        // By applying the final mapping here, we ensure consistency.
+        if !context.values_to_replace.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &context.values_to_replace);
+            }
+            self.dfg.data_bus.replace_values(&context.values_to_replace);
         }
     }
 }
@@ -176,7 +194,7 @@ struct Context {
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
-    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 2` without
     /// laying down constraints for the addition:
     ///
     /// ```ssa
@@ -653,7 +671,7 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -661,8 +679,8 @@ mod test {
             interpreter::value::Value,
             ir::{types::NumericType, value::ValueMapping},
             opt::{
-                assert_normalized_ssa_equals, assert_ssa_does_not_change,
-                constant_folding::DEFAULT_MAX_ITER,
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, constant_folding::DEFAULT_MAX_ITER,
             },
         },
     };
@@ -2377,10 +2395,11 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let result_before = ssa.interpret(vec![]);
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        let result_after = ssa.interpret(vec![]);
-        assert_eq!(result_before, result_after);
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 
     // Regression for #9451
@@ -2415,16 +2434,16 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let inputs = vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()];
 
-        let ssa = ssa.purity_analysis();
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 
     #[test]
@@ -2447,15 +2466,15 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let inputs = vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()];
 
-        let ssa = ssa.purity_analysis();
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 }

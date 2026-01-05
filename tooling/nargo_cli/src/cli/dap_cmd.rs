@@ -18,8 +18,9 @@ use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_errors::debug_info::DebugInfo;
+use noirc_artifacts::debug::DebugInfo;
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;

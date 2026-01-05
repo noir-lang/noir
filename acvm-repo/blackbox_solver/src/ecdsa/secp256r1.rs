@@ -2,7 +2,7 @@ use acir::BlackBoxFunc;
 use p256::elliptic_curve::PrimeField;
 use p256::elliptic_curve::sec1::FromEncodedPoint;
 
-use blake2::digest::generic_array::GenericArray;
+use p256::FieldBytes;
 use p256::{
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
@@ -70,7 +70,10 @@ pub(super) fn verify_signature(
 
     // Note: This will panic if `hashed_msg >= p256::NistP256::ORDER`.
     // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
-    let z = Scalar::from_repr(*GenericArray::from_slice(hashed_msg)).unwrap();
+    let z = Scalar::from_repr(
+        FieldBytes::try_from_iter(hashed_msg.iter().copied()).expect("slice length mismatch"),
+    )
+    .unwrap();
 
     // Finished converting bytes into data structures
 
