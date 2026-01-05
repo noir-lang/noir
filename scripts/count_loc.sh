@@ -7,7 +7,7 @@ cd $(dirname "$0")/../
 if ! command -v "tokei" >/dev/null 2>&1; then
     echo "Error: tokei is required but not installed." >&2
     echo "Error: Run \`cargo install --git https://github.com/TomAFrench/tokei --branch tf/add-noir-support tokei\`" >&2
-    
+
     exit 1
 fi
 
