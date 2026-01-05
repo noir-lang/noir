@@ -202,6 +202,8 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, ident: Ident },
+    #[error("Associated type in `impl` without body")]
+    AssociatedTypeInImplWithoutBody { ident: Ident },
 }
 
 impl ResolverError {
@@ -280,7 +282,8 @@ impl ResolverError {
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
             | ResolverError::DataBusOnNonEntryPoint { ident, .. }
-            | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
+            | ResolverError::PatternBoundMoreThanOnce { ident }
+            | ResolverError::AssociatedTypeInImplWithoutBody { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
             }
@@ -892,6 +895,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
+            },
+            ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
+                Diagnostic::simple_error(
+                    "Associated type in impl without body".to_string(),
+                    "Provide a definition for the type: ` = <type>;`".to_string(),
+                    ident.location(),
+                )
             },
         }
     }
