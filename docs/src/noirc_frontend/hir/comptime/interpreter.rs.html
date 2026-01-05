@@ -1944,24 +1944,7 @@
 <a href="#1943" id="1943">1943</a>
 <a href="#1944" id="1944">1944</a>
 <a href="#1945" id="1945">1945</a>
-<a href="#1946" id="1946">1946</a>
-<a href="#1947" id="1947">1947</a>
-<a href="#1948" id="1948">1948</a>
-<a href="#1949" id="1949">1949</a>
-<a href="#1950" id="1950">1950</a>
-<a href="#1951" id="1951">1951</a>
-<a href="#1952" id="1952">1952</a>
-<a href="#1953" id="1953">1953</a>
-<a href="#1954" id="1954">1954</a>
-<a href="#1955" id="1955">1955</a>
-<a href="#1956" id="1956">1956</a>
-<a href="#1957" id="1957">1957</a>
-<a href="#1958" id="1958">1958</a>
-<a href="#1959" id="1959">1959</a>
-<a href="#1960" id="1960">1960</a>
-<a href="#1961" id="1961">1961</a>
-<a href="#1962" id="1962">1962</a>
-<a href="#1963" id="1963">1963</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1946" id="1946">1946</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -3753,7 +3736,7 @@
 }
 
 <span class="doccomment">/// Bounds check the given array and index pair.
-/// This will also ensure the given arguments are in fact an array and integer.
+/// This will also ensure the given arguments are in fact an array and u32.
 </span><span class="kw">fn </span>bounds_check(array: Value, index: Value, location: Location) -&gt; IResult&lt;(Vector&lt;Value&gt;, usize)&gt; {
     <span class="kw">let </span>collection = <span class="kw">match </span>array {
         Value::Array(array, <span class="kw">_</span>) =&gt; array,
@@ -3765,32 +3748,15 @@
     };
 
     <span class="kw">let </span>index = <span class="kw">match </span>index {
-        Value::Field(value) =&gt; {
-            <span class="kw">let </span>u64: <span class="prelude-ty">Option</span>&lt;u64&gt; = value.try_to_unsigned();
-            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                <span class="kw">let </span>typ = Type::default_int_type();
-                InterpreterError::IntegerOutOfRangeForType { value, typ, location }
-            })<span class="question-mark">?
-        </span>}
-        Value::I8(value) =&gt; value <span class="kw">as </span>usize,
-        Value::I16(value) =&gt; value <span class="kw">as </span>usize,
-        Value::I32(value) =&gt; value <span class="kw">as </span>usize,
-        Value::I64(value) =&gt; value <span class="kw">as </span>usize,
-        Value::U1(value) =&gt; {
-            <span class="kw">if </span>value {
-                <span class="number">1_usize
-            </span>} <span class="kw">else </span>{
-                <span class="number">0_usize
-            </span>}
-        }
-        Value::U8(value) =&gt; value <span class="kw">as </span>usize,
-        Value::U16(value) =&gt; value <span class="kw">as </span>usize,
         Value::U32(value) =&gt; value <span class="kw">as </span>usize,
-        Value::U64(value) =&gt; value <span class="kw">as </span>usize,
-        Value::U128(value) =&gt; value <span class="kw">as </span>usize,
         value =&gt; {
             <span class="kw">let </span>typ = value.get_type().into_owned();
-            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonIntegerUsedAsIndex { typ, location });
+            <span class="kw">let </span>expected_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
+                expected: expected_type.to_string(),
+                actual: typ,
+                location,
+            });
         }
     };
 
