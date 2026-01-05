@@ -252,7 +252,7 @@ fn check_errors_with_options(
         if !expected_primaries.contains(primary_message) {
             report_all(context.file_manager.as_file_map(), &errors, false, false);
             panic!(
-                "Primary error at {span:?} has unexpected message: {primary_message:?}; should be one of {expected_primaries:?}"
+                "Primary error at {span:?} has unexpected message: {primary_message:?};\nShould be one of {expected_primaries:?}"
             );
         } else {
             all_primaries.remove(&(span, primary_message.clone()));
@@ -281,7 +281,7 @@ fn check_errors_with_options(
             if !expected_secondaries.contains(secondary_message) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Secondary error at {span:?} has unexpected message: {secondary_message:?}; should be one of {expected_secondaries:?}"
+                    "Secondary error at {span:?} has unexpected message: {secondary_message:?};\nShould be one of {expected_secondaries:?}"
                 );
             } else {
                 all_secondaries.remove(&(span, secondary_message.clone()));
