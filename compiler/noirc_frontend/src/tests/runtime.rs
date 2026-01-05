@@ -404,3 +404,18 @@ fn disallows_export_attribute_on_trait_impl_method() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn regression_10413() {
+    let src = "
+    fn main() {
+        foo(());
+    }
+
+    #[fold]
+    fn foo(_: ()) {}
+              ^^ Invalid type found in the entry point to a program
+              ~~ Unit is not a valid entry point type
+    ";
+    check_errors(src);
+}
