@@ -409,49 +409,37 @@ fn regression_10863() {
         }
     }
     ";
-    // The only errors must be about index type mismatch
+    // The type error is detected during elaboration, so comptime evaluation is skipped.
+    // We only get the TypeMismatchWithSource error (not the interpreter error).
     with_interpreter(program, |_interpreter, _main, errors| {
         let has_type_mismatch_with_source = errors.iter().any(|e| {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
-        let has_type_mismatch = errors.iter().any(|e| {
-            matches!(e, CompilationError::InterpreterError(InterpreterError::TypeMismatch { .. }))
-        });
-        assert!(
-            has_type_mismatch && has_type_mismatch_with_source,
-            "Expected a TypeMismatch error for negative index"
-        );
-        assert_eq!(errors.len(), 2, "Expected exactly two errors");
+        assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
+        assert_eq!(errors.len(), 1, "Expected exactly one error");
     });
 }
 
 #[test]
-// Regression for issue https://github.com/noir-lang/noir/issues/10863
+// Regression for issue https://github.com/noir-lang/noir/issues/10861
 fn regression_10861() {
     let program = "
     fn main() {
         comptime {
             // u32::MAX + 1
             let x: Field = 4294967296;
-            // u64::MAX + 1
-            // let x: Field = 18446744073709551616;
             let array = [1, 2, 3];
             assert_eq(array[x], 1);
         }
     }
     ";
-    // The only errors must be about index type mismatch
+    // The type error is detected during elaboration, so comptime evaluation is skipped.
+    // We only get the TypeMismatchWithSource error (not the interpreter error).
     with_interpreter(program, |_interpreter, _main, errors| {
         let has_type_mismatch_with_source = errors.iter().any(|e| {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
-        let has_type_mismatch = errors.iter().any(|e| {
-            matches!(e, CompilationError::InterpreterError(InterpreterError::TypeMismatch { .. }))
-        });
-        assert!(
-            has_type_mismatch && has_type_mismatch_with_source,
-            "Expected a TypeMismatch error for negative index"
-        );
-        assert_eq!(errors.len(), 2, "Expected exactly two errors");
+        assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
+        assert_eq!(errors.len(), 1, "Expected exactly one error");
     });
 }
