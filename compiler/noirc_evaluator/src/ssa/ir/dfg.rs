@@ -654,20 +654,20 @@ impl DataFlowGraph {
             _ => None,
         }
     }
-    pub(crate) fn try_get_slice_capacity(&self, value: ValueId) -> Option<u32> {
+    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<u32> {
         // For arrays we know the size statically
         if let Some(length) = self.try_get_array_length(value) {
             return Some(length);
         }
 
-        // Check if the value was made by a MakeArray instruction, which can create slices as well.
+        // Check if the value was made by a MakeArray instruction, which can create vectors as well.
         let (array, typ) = self.get_array_constant(value)?;
         let elements_size = typ.element_size();
 
         let length = if elements_size == 0 {
             array.len()
         } else {
-            // Compute the slice length by dividing the flattened
+            // Compute the vector length by dividing the flattened
             // array length by the size of each array element
             assert_eq!(
                 array.len() % elements_size,
@@ -826,7 +826,7 @@ impl DataFlowGraph {
         self.function_purities.get(&function).copied()
     }
 
-    /// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
     pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
         if !self.runtime.is_brillig()
             || !self.brillig_arrays_offset
@@ -836,7 +836,7 @@ impl DataFlowGraph {
         }
         match self.type_of_value(array) {
             Type::Array(_, _) => ArrayOffset::Array,
-            Type::Slice(_) => ArrayOffset::Slice,
+            Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,
         }
     }

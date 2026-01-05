@@ -50,15 +50,15 @@
     "clean": "rm -rf ./lib"
   },
   "devDependencies": {
-    "@types/chai": "^4",
+    "@types/chai": "^5",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.13.10",
     "@types/pako": "^2",
     "@types/prettier": "^3.0.0",
-    "chai": "^4.5.0",
+    "chai": "^6.2.2",
     "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
-    "mocha": "^11.5.0",
+    "mocha": "^11.7.5",
     "prettier": "3.7.4",
     "ts-node": "^10.9.2",
     "tsc-multi": "^1.1.0",
