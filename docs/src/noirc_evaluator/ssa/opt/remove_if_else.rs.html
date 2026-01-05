@@ -1156,7 +1156,48 @@
 <a href="#1155" id="1155">1155</a>
 <a href="#1156" id="1156">1156</a>
 <a href="#1157" id="1157">1157</a>
-<a href="#1158" id="1158">1158</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#1158" id="1158">1158</a>
+<a href="#1159" id="1159">1159</a>
+<a href="#1160" id="1160">1160</a>
+<a href="#1161" id="1161">1161</a>
+<a href="#1162" id="1162">1162</a>
+<a href="#1163" id="1163">1163</a>
+<a href="#1164" id="1164">1164</a>
+<a href="#1165" id="1165">1165</a>
+<a href="#1166" id="1166">1166</a>
+<a href="#1167" id="1167">1167</a>
+<a href="#1168" id="1168">1168</a>
+<a href="#1169" id="1169">1169</a>
+<a href="#1170" id="1170">1170</a>
+<a href="#1171" id="1171">1171</a>
+<a href="#1172" id="1172">1172</a>
+<a href="#1173" id="1173">1173</a>
+<a href="#1174" id="1174">1174</a>
+<a href="#1175" id="1175">1175</a>
+<a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
+<a href="#1179" id="1179">1179</a>
+<a href="#1180" id="1180">1180</a>
+<a href="#1181" id="1181">1181</a>
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a>
+<a href="#1187" id="1187">1187</a>
+<a href="#1188" id="1188">1188</a>
+<a href="#1189" id="1189">1189</a>
+<a href="#1190" id="1190">1190</a>
+<a href="#1191" id="1191">1191</a>
+<a href="#1192" id="1192">1192</a>
+<a href="#1193" id="1193">1193</a>
+<a href="#1194" id="1194">1194</a>
+<a href="#1195" id="1195">1195</a>
+<a href="#1196" id="1196">1196</a>
+<a href="#1197" id="1197">1197</a>
+<a href="#1198" id="1198">1198</a>
+<a href="#1199" id="1199">1199</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1410,7 +1451,10 @@
                                 <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } =&gt; {
-                                <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c + <span class="number">1</span>);
+                                <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| {
+                                    <span class="comment">// Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
+                                    </span>c.checked_add(<span class="number">1</span>).expect(<span class="string">"Vector capacity overflow"</span>)
+                                });
                             }
                             SizeChange::Dec { old, new } =&gt; {
                                 <span class="comment">// We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
@@ -2312,6 +2356,44 @@
             return v26, v28, v18
         }
         "#</span>);
+    }
+
+    <span class="comment">// Regression test for https://github.com/noir-lang/noir/issues/10978
+    // The remove_if_else pass should panic due to a checked addition overflow
+    // when processing arrays with capacity u32::MAX.
+    </span><span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Vector capacity overflow"</span>)]
+    </span><span class="kw">fn </span>regression_10978() {
+        <span class="comment">// This is the SSA for the Noir program described in the issue,
+        // before the remove if-else pass.
+        </span><span class="kw">let </span>src = <span class="string">"
+       acir(inline) impure fn main f0 {
+        b0(v0: u1):
+            v2 = call f1() -&gt; [Field; 4294967295]
+            v4, v5 = call as_vector(v2) -&gt; (u32, [Field])
+            v9, v10 = call vector_push_back(u32 4294967295, v5, Field 1) -&gt; (u32, [Field])
+            v11, v12 = call vector_push_back(v9, v10, Field 1) -&gt; (u32, [Field])
+            enable_side_effects v0
+            v13 = not v0
+            enable_side_effects u1 1
+            v15 = cast v0 as u32
+            v16 = cast v13 as u32
+            v17 = unchecked_mul v15, v9
+            v18 = unchecked_mul v16, v11
+            v19 = unchecked_add v17, v18
+            v20 = if v0 then v10 else (if v13) v12
+            v22, v23 = call black_box(v19, v20) -&gt; (u32, [Field])
+            return
+        }
+        brillig(inline) impure fn void_to_array f1 {
+        b0():
+            v1 = call void_to_array_oracle() -&gt; [Field; 4294967295]
+            return v1
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let _ </span>= ssa.remove_if_else();
     }
 }
 </code></pre></div></section></main></body></html>
