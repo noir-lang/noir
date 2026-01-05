@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["InvalidType"],"fn":["length_is_zero"]};
+window.SIDEBAR_ITEMS = {"enum":["InvalidType"],"fn":["length_is_valid_for_entry_point"]};

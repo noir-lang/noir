@@ -582,7 +582,21 @@
 <a href="#581" id="581">581</a>
 <a href="#582" id="582">582</a>
 <a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -617,7 +631,6 @@
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
     shared::Visibility,
-    validity::length_is_zero,
 };
 
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -767,12 +780,14 @@
         <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract(), is_crate_root);
         <span class="comment">// Temporary allow vectors for contract functions, until contracts are re-factored.
         </span><span class="kw">if </span>!func.attributes().has_contract_library_method() {
-            <span class="self">self</span>.check_if_type_is_valid_for_program_output(
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="self">self</span>.check_if_type_is_valid_for_program_output(
                 <span class="kw-2">&amp;</span>return_type,
                 is_entry_point || func.is_test_or_fuzz(),
                 func.has_inline_attribute(),
-                location,
-            );
+                func.return_type().location,
+            ) {
+                <span class="self">self</span>.push_err(err);
+            }
         }
 
         <span class="comment">// Build function type
@@ -935,12 +950,14 @@
                 </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed),
             };
 
-            <span class="self">self</span>.check_if_type_is_valid_for_program_input(
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="self">self</span>.check_if_type_is_valid_for_program_input(
                 <span class="kw-2">&amp;</span>typ,
                 is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
                 type_location,
-            );
+            ) {
+                <span class="self">self</span>.push_err(err);
+            }
 
             <span class="kw">if </span>is_entry_point || is_test_or_fuzz {
                 <span class="self">self</span>.mark_type_as_used(<span class="kw-2">&amp;</span>typ);
@@ -965,25 +982,43 @@
     <span class="doccomment">/// Only sized types are valid to be used as main's parameters or the parameters to a contract
     /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
-    </span><span class="kw">fn </span>check_if_type_is_valid_for_program_input(
+    </span><span class="kw">fn </span>check_if_type_is_valid_for_program(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
+        allow_empty_arrays: bool,
         location: Location,
-    ) {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TypeCheckError&gt; {
         <span class="kw">if </span>is_entry_point {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = typ.program_input_validity() {
-                <span class="self">self</span>.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-                <span class="kw">return</span>;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = typ.program_input_validity(allow_empty_arrays) {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
 
         <span class="kw">if </span>has_inline_attribute {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = typ.non_inlined_function_input_validity() {
-                <span class="self">self</span>.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+                <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>check_if_type_is_valid_for_program_input(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: <span class="kw-2">&amp;</span>Type,
+        is_entry_point: bool,
+        has_inline_attribute: bool,
+        location: Location,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TypeCheckError&gt; {
+        <span class="self">self</span>.check_if_type_is_valid_for_program(
+            typ,
+            is_entry_point,
+            has_inline_attribute,
+            <span class="bool-val">false</span>,
+            location,
+        )
     }
 
     <span class="kw">fn </span>check_if_type_is_valid_for_program_output(
@@ -992,24 +1027,17 @@
         is_entry_point: bool,
         has_inline_attribute: bool,
         location: Location,
-    ) {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TypeCheckError&gt; {
         <span class="kw">match </span>typ.follow_bindings() {
-            Type::Unit =&gt; <span class="kw">return</span>,
-            Type::Array(length, <span class="kw">_</span>) | Type::String(length) =&gt; {
-                <span class="kw">if </span>length_is_zero(<span class="kw-2">&amp;</span>length) {
-                    <span class="comment">//returning zero length arrays is allowed
-                    </span><span class="kw">return</span>;
-                }
-            }
-            <span class="kw">_ </span>=&gt; (),
+            Type::Unit =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="kw">_ </span>=&gt; <span class="self">self</span>.check_if_type_is_valid_for_program(
+                typ,
+                is_entry_point,
+                has_inline_attribute,
+                <span class="bool-val">true</span>,
+                location,
+            ),
         }
-
-        <span class="self">self</span>.check_if_type_is_valid_for_program_input(
-            typ,
-            is_entry_point,
-            has_inline_attribute,
-            location,
-        );
     }
 
     <span class="kw">fn </span>run_function_lints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) {
