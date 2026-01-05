@@ -252,7 +252,10 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| c + 1);
+                                self.set_capacity(context.dfg, old, new, |c| {
+                                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
+                                    c.checked_add(1).expect("Vector capacity overflow")
+                                });
                             }
                             SizeChange::Dec { old, new } => {
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
