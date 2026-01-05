@@ -3662,7 +3662,7 @@ mod control_dependence {
             let ssa = Ssa::from_str(&src).unwrap();
             let ssa = ssa.loop_invariant_code_motion();
             let ssa_string = ssa.to_string();
-            assert!(ssa_string.contains("inc_rc"), "failed on {}", expr);
+            assert!(ssa_string.contains("inc_rc"), "failed on {expr}");
         }
     }
 }
