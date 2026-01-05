@@ -424,7 +424,7 @@ fn deeply_nested_expression_parser_overflow() {
     // This should hit the parser's maximum recursion depth limit
     let mut expr = String::from("1");
     for i in 2..=200 {
-        expr = format!("({} + {})", expr, i);
+        expr = format!("({expr} + {i})");
     }
 
     let src = format!(
