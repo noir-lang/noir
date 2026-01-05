@@ -33,7 +33,6 @@ use crate::{
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
     shared::Visibility,
-    validity::length_is_zero,
 };
 
 use super::Elaborator;
@@ -183,12 +182,14 @@ impl Elaborator<'_> {
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
-            self.check_if_type_is_valid_for_program_output(
+            if let Err(err) = self.check_if_type_is_valid_for_program_output(
                 &return_type,
                 is_entry_point || func.is_test_or_fuzz(),
                 func.has_inline_attribute(),
-                location,
-            );
+                func.return_type().location,
+            ) {
+                self.push_err(err);
+            }
         }
 
         // Build function type
@@ -351,12 +352,14 @@ impl Elaborator<'_> {
                 _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
-            self.check_if_type_is_valid_for_program_input(
+            if let Err(err) = self.check_if_type_is_valid_for_program_input(
                 &typ,
                 is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
                 type_location,
-            );
+            ) {
+                self.push_err(err);
+            }
 
             if is_entry_point || is_test_or_fuzz {
                 self.mark_type_as_used(&typ);
@@ -381,25 +384,43 @@ impl Elaborator<'_> {
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
     /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
+    fn check_if_type_is_valid_for_program(
+        &mut self,
+        typ: &Type,
+        is_entry_point: bool,
+        has_inline_attribute: bool,
+        allow_empty_arrays: bool,
+        location: Location,
+    ) -> Result<(), TypeCheckError> {
+        if is_entry_point {
+            if let Some(invalid_type) = typ.program_input_validity(allow_empty_arrays) {
+                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+            }
+        }
+
+        if has_inline_attribute {
+            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
+                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+            }
+        }
+
+        Ok(())
+    }
+
     fn check_if_type_is_valid_for_program_input(
         &mut self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
         location: Location,
-    ) {
-        if is_entry_point {
-            if let Some(invalid_type) = typ.program_input_validity() {
-                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-                return;
-            }
-        }
-
-        if has_inline_attribute {
-            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
-                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-            }
-        }
+    ) -> Result<(), TypeCheckError> {
+        self.check_if_type_is_valid_for_program(
+            typ,
+            is_entry_point,
+            has_inline_attribute,
+            false,
+            location,
+        )
     }
 
     fn check_if_type_is_valid_for_program_output(
@@ -408,24 +429,17 @@ impl Elaborator<'_> {
         is_entry_point: bool,
         has_inline_attribute: bool,
         location: Location,
-    ) {
+    ) -> Result<(), TypeCheckError> {
         match typ.follow_bindings() {
-            Type::Unit => return,
-            Type::Array(length, _) | Type::String(length) => {
-                if length_is_zero(&length) {
-                    //returning zero length arrays is allowed
-                    return;
-                }
-            }
-            _ => (),
+            Type::Unit => Ok(()),
+            _ => self.check_if_type_is_valid_for_program(
+                typ,
+                is_entry_point,
+                has_inline_attribute,
+                true,
+                location,
+            ),
         }
-
-        self.check_if_type_is_valid_for_program_input(
-            typ,
-            is_entry_point,
-            has_inline_attribute,
-            location,
-        );
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
