@@ -94,7 +94,11 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     brillig::{BlackBoxOp, IntegerBitSize},
 };
@@ -128,13 +132,17 @@
             <span class="kw">return</span>;
         }
 
-        <span class="comment">// If we are truncating a value down to a natively supported integer, we can just use the cast instruction
+        <span class="comment">// If we are truncating a value down to a natively supported integer, we can just use the cast instruction.
+        //
+        // This is exploiting the fact that the cast instruction will automatically truncate the value when
+        // casting to a smaller bit size. We can then avoid the more expensive modulo operation.
         </span><span class="kw">if </span>IntegerBitSize::try_from(bit_size).is_ok() {
-            <span class="comment">// We cast back and forth to ensure that the value is truncated.
+            <span class="comment">// Allocate a temporary register to hold the intermediate casted value.
             </span><span class="kw">let </span>intermediate_register = <span class="self">self</span>.allocate_single_addr(bit_size);
-
             <span class="self">self</span>.cast_instruction(<span class="kw-2">*</span>intermediate_register, value_to_truncate);
-            <span class="self">self</span>.cast_instruction(destination_of_truncated_value, <span class="kw-2">*</span>intermediate_register);
+
+            <span class="comment">// We then cast back to the original type to satisfy typed memory.
+            </span><span class="self">self</span>.cast_instruction(destination_of_truncated_value, <span class="kw-2">*</span>intermediate_register);
 
             <span class="kw">return</span>;
         }
