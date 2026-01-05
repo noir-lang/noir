@@ -68,8 +68,9 @@ mod tests {
             nargo.arg("--pedantic-solving");
         }
 
-        // Enable enums and ownership as unstable features
+        // Enable enums and trait_as_type as unstable features
         nargo.arg("-Zenums");
+        nargo.arg("-Ztrait_as_type");
 
         if force_brillig.0 {
             {

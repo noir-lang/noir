@@ -6,6 +6,7 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
+use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use types::{AcirDynamicArray, AcirValue};
@@ -29,7 +30,7 @@ mod types;
 
 use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
-use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
+use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -807,7 +808,7 @@ impl<'a> Context<'a> {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+            (_, Type::Vector(..)) | (Type::Vector(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
             // If either side is a numeric type, then we expect their types to be

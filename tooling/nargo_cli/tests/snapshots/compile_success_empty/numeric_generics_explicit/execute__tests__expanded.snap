@@ -36,8 +36,8 @@ impl<let S: u32> MyStruct<S> {
     fn insert(mut self, index: Field, elem: Field) -> Self {
         assert((index as u32) < S);
         {
-            let i_4511: u32 = index as u32;
-            self.data[i_4511] = elem;
+            let i_4521: u32 = index as u32;
+            self.data[i_4521] = elem;
         };
         self
     }

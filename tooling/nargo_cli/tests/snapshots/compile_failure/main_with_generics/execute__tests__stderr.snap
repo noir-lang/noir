@@ -15,6 +15,6 @@ error: Invalid type found in the entry point to a program
 1 │ fn main<let F: u32>(x: [Field; F]) {
   │                        ---------- Invalid entry point type: [Field; F]
   │
-  = Note: slices, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
+  = Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
 
 Aborting due to 2 previous errors

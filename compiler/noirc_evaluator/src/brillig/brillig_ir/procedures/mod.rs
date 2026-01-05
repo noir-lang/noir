@@ -1,4 +1,4 @@
-use noirc_errors::debug_info::ProcedureDebugId;
+use noirc_artifacts::debug::ProcedureDebugId;
 use serde::{Deserialize, Serialize};
 
 mod array_copy;
