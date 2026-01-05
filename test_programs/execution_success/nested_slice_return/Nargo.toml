@@ -1,6 +1,0 @@
-[package]
-name = "nested_slice_return"
-type = "bin"
-authors = [""]
-
-[dependencies]

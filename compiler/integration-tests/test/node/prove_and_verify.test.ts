@@ -6,19 +6,10 @@ import { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
 
-let api: Barretenberg;
-let honkBackend: UltraHonkBackend;
-
-before(async () => {
-  api = await Barretenberg.new({ threads: 1 });
-  honkBackend = new UltraHonkBackend(assert_lt_program.bytecode, api);
-});
-
-after(async () => {
-  await api?.destroy();
-});
-
 it('end-to-end proof creation and verification', async () => {
+  const barretenbergAPI = await Barretenberg.new();
+  const honkBackend = new UltraHonkBackend(assert_lt_program.bytecode, barretenbergAPI);
+
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -40,6 +31,9 @@ it('end-to-end proof creation and verification', async () => {
 });
 
 it('end-to-end proof creation and verification -- Verifier API', async () => {
+  const barretenbergAPI = await Barretenberg.new();
+  const honkBackend = new UltraHonkBackend(assert_lt_program.bytecode, barretenbergAPI);
+
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -56,12 +50,15 @@ it('end-to-end proof creation and verification -- Verifier API', async () => {
   const verificationKey = await honkBackend.getVerificationKey();
 
   // Proof verification
-  const verifier = new UltraHonkVerifierBackend(api);
+  const verifier = new UltraHonkVerifierBackend(barretenbergAPI);
   const isValid = await verifier.verifyProof({ ...proof, verificationKey });
   expect(isValid).to.be.true;
 });
 
 it('end-to-end proving and verification with different instances', async () => {
+  const barretenbergAPI = await Barretenberg.new();
+  const honkBackend = new UltraHonkBackend(assert_lt_program.bytecode, barretenbergAPI);
+
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -75,7 +72,7 @@ it('end-to-end proving and verification with different instances', async () => {
   // bb.js part
   const proof = await honkBackend.generateProof(witness);
 
-  const verifier = new UltraHonkBackend(assert_lt_program.bytecode, api);
+  const verifier = new UltraHonkBackend(assert_lt_program.bytecode, barretenbergAPI);
   const proof_is_valid = await verifier.verifyProof(proof);
   expect(proof_is_valid).to.be.true;
 });

@@ -62,8 +62,8 @@ pub enum ResolverError {
     ParserError(Box<ParserError>),
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, location: Location },
-    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
-    NestedSlices { location: Location },
+    #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
+    NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
     #[error(
@@ -72,8 +72,8 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
-    #[error("Oracle functions cannot return multiple slices")]
-    OracleReturnsMultipleSlices { location: Location },
+    #[error("Oracle functions cannot return multiple vectors")]
+    OracleReturnsMultipleVectors { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -177,7 +177,7 @@ pub enum ResolverError {
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
-        "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+        "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"
     )]
     NonU32Index { location: Location },
     #[error(
@@ -222,7 +222,7 @@ impl ResolverError {
             | ResolverError::GenericsOnSelfType { location }
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
-            | ResolverError::NestedSlices { location }
+            | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
@@ -263,7 +263,7 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::OracleReturnsMultipleSlices { location, .. }
+            | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -454,8 +454,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *location
             ),
-            ResolverError::NestedSlices { location } => Diagnostic::simple_error(
-                "Nested slices, i.e. slices within an array or slice, are not supported".into(),
+            ResolverError::NestedVectors { location } => Diagnostic::simple_error(
+                "Nested vectors, i.e. vectors within an array or vector, are not supported".into(),
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
@@ -480,7 +480,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
                 diagnostic
             },
-            ResolverError::OracleReturnsMultipleSlices { location } => {
+            ResolverError::OracleReturnsMultipleVectors { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
@@ -796,7 +796,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::NonU32Index { location } => {
                 Diagnostic::simple_warning(
-                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(),
+                    "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error".to_string(),
                     String::new(),
                     *location,
                 )

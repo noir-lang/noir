@@ -44,8 +44,8 @@ pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
     UHashMap::default();
 
-// Given a type definition and a slice of traits to derive, create trait impls for each.
-// This function is as simple as iterating over the slice, checking if we have a trait
+// Given a type definition and a vector of traits to derive, create trait impls for each.
+// This function is as simple as iterating over the vector, checking if we have a trait
 // handler registered for the given trait, calling it, and appending the result.
 // docs:start:derive
 #[varargs]
@@ -303,8 +303,8 @@ mod tests {
         let _: Bar = Bar { x: 1, y: [2, 3] };
         let _: MyStruct = MyStruct { my_field: 1 };
         let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
-        let _ = derive_do_nothing(crate::panic::panic(f""));
-        let _ = derive_do_nothing_alt(crate::panic::panic(f""));
+        let _ = derive_do_nothing(crate::panic::panic(""));
+        let _ = derive_do_nothing_alt(crate::panic::panic(""));
         if false {
             remove_unused_warnings();
         }

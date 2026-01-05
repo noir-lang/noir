@@ -1,10 +1,8 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
-use noirc_errors::{
-    Location,
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
-};
+use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
+use noirc_errors::Location;
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
@@ -57,8 +55,8 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn is_array_or_slice_literal(&self) -> bool {
-        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    pub fn is_array_or_vector_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Vector(_)))
     }
 
     /// The return type of an expression, if it has an obvious one.
@@ -71,7 +69,7 @@ impl Expression {
         match self {
             Expression::Ident(ident) => borrowed(&ident.typ),
             Expression::Literal(literal) => match literal {
-                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Array(literal) | Literal::Vector(literal) => borrowed(&literal.typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
@@ -269,7 +267,7 @@ pub struct While {
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
@@ -527,7 +525,7 @@ pub enum Type {
     FmtString(/*len:*/ u32, Box<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Slice(Box<Type>),
+    Vector(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
     /// `(args, ret, env, unconstrained)`
     Function(
@@ -546,10 +544,10 @@ impl Type {
         }
     }
 
-    /// Returns the element type of this array or slice
+    /// Returns the element type of this array or vector
     pub fn array_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            Type::Array(_, elem) | Type::Vector(elem) => Some(elem),
             _ => None,
         }
     }
@@ -694,7 +692,7 @@ impl Display for Type {
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Slice(element) => write!(f, "[{element}]"),
+            Type::Vector(element) => write!(f, "[{element}]"),
             Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
             Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }

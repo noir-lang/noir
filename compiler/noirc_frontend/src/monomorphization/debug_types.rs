@@ -2,7 +2,7 @@ use crate::{
     debug::{DebugInstrumenter, SourceFieldId, SourceVarId},
     hir_def::types::Type,
 };
-use noirc_errors::debug_info::{
+use noirc_artifacts::debug::{
     DebugFnId, DebugFunction, DebugFunctions, DebugTypeId, DebugTypes, DebugVarId, DebugVariable,
     DebugVariables,
 };

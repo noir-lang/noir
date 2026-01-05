@@ -23,9 +23,9 @@ pub fn checked_transmute<T, U>(value: T) -> U {}
 #[builtin(array_refcount)]
 pub fn array_refcount<T, let N: u32>(array: [T; N]) -> u32 {}
 
-/// Returns the internal reference count of a slice value in unconstrained code.
+/// Returns the internal reference count of a vector value in unconstrained code.
 ///
-/// Slices only have reference count in unconstrained code - using this anywhere
+/// Lists only have reference count in unconstrained code - using this anywhere
 /// else will return zero.
-#[builtin(slice_refcount)]
-pub fn slice_refcount<T>(slice: [T]) -> u32 {}
+#[builtin(vector_refcount)]
+pub fn vector_refcount<T>(vector: [T]) -> u32 {}

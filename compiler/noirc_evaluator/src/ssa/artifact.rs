@@ -4,9 +4,9 @@ use acvm::{
     FieldElement,
     acir::circuit::{Circuit, ErrorSelector, Program, brillig::BrilligBytecode},
 };
-use noirc_errors::debug_info::DebugInfo;
+use noirc_artifacts::{debug::DebugInfo, ssa::SsaReport};
 
-use crate::{ErrorType, errors::SsaReport};
+use crate::ErrorType;
 
 #[derive(Default)]
 pub struct SsaProgramArtifact {

@@ -376,7 +376,7 @@ impl HasPrograms for CompareMorph {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::BTreeMap;
 
     use acir::circuit::{ErrorSelector, brillig::BrilligFunctionId};

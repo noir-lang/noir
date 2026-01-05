@@ -9,7 +9,7 @@ use acvm::{
     blackbox_solver::StubbedBlackBoxSolver,
     pwg::{ACVM, ACVMStatus},
 };
-use noirc_errors::debug_info::DebugInfo;
+use noirc_artifacts::debug::DebugInfo;
 use noirc_frontend::shared::Visibility;
 use std::collections::BTreeMap;
 

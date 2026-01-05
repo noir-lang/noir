@@ -45,6 +45,7 @@ use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 use crate::hir::Context;
+use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
@@ -83,6 +84,8 @@ mod cast;
 mod foreign;
 mod infix;
 mod unquote;
+
+pub(crate) use builtin::builtin_helpers;
 
 /// Maximum depth of evaluation, limiting recursion during comptime as well as
 /// expression depth. The goal is to be able to provide Noir stack traces if
@@ -256,6 +259,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         elaborator.elaborate_function(function);
                     });
 
+                    // Recursive call - this will now hit the Some(body) branch
                     self.get_function_body(function, location)
                 } else {
                     let function = self.elaborator.interner.function_name(&function).to_owned();
@@ -332,27 +336,42 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Call a closure value with the given arguments and environment, returning the result.
     fn call_closure(
         &mut self,
-        lambda: HirLambda,
-        environment: Vec<Value>,
+        closure: Closure,
         arguments: Vec<(Value, Location)>,
-        function_scope: Option<FuncId>,
-        module_scope: ModuleId,
         call_location: Location,
     ) -> IResult<Value> {
+        // Undo the type current type bindings
+        if let Some(bindings) = self.bound_generics.last() {
+            unbind_all(bindings);
+        }
+
+        // Rebind the type bindings that existed when the closure was created
+        force_bind_all(&closure.bindings);
+
         // Set the closure's scope to that of the function it was originally evaluated in
-        let old_module = self.elaborator.replace_module(module_scope);
-        let old_function = std::mem::replace(&mut self.current_function, function_scope);
+        let old_module = self.elaborator.replace_module(closure.module_scope);
+        let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
 
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
-        let result = self.call_closure_inner(lambda, environment, arguments, call_location);
+        let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
         self.elaborator.pop_interpreter_call_stack();
 
-        self.current_function = old_function;
-        if let Some(old_module) = old_module {
-            self.elaborator.replace_module(old_module);
+        // Undo the type bindings that existed when the closure was created
+        unbind_all(&closure.bindings);
+
+        // Redo the current type bindings
+        if let Some(bindings) = self.bound_generics.last() {
+            force_bind_all(bindings);
         }
+
+        self.current_function = old_function;
+        let Some(old_module) = old_module else {
+            // The module should always be set by the time we're interpreting comptime code
+            panic!("ICE: Expected local_module to be set when calling a closure");
+        };
+        self.elaborator.replace_module(old_module);
         result
     }
 
@@ -369,6 +388,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         if closure.parameters.len() != arguments.len() {
+            self.exit_function(previous_state);
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: closure.parameters.len(),
                 actual: arguments.len(),
@@ -445,9 +465,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// an empty set of bindings to become the new top of the stack.
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, (_, kind)) in bindings {
-                var.unbind(var.id(), kind.clone());
-            }
+            unbind_all(bindings);
         }
         // Push a new bindings list for the current function
         self.bound_generics.push(HashMap::default());
@@ -460,9 +478,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            for (var, (binding, _kind)) in bindings {
-                var.force_bind(binding.clone());
-            }
+            force_bind_all(bindings);
         }
     }
 
@@ -607,6 +623,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluate an expression and return the result.
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+        // If comptime evaluation has been halted, don't execute anything
+        if self.elaborator.comptime_evaluation_halted {
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        // Skip expressions that had errors during elaboration and halt all future execution
+        if self.elaborator.interner.exprs_with_errors.contains(&id) {
+            self.elaborator.comptime_evaluation_halted = true;
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         match self.evaluate_no_dereference(id)? {
             Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
             other => Ok(other.move_struct()),
@@ -772,11 +799,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(fragments, captures, _length) => {
-                self.evaluate_format_string(fragments, captures, id)
+            HirLiteral::FmtStr(fragments, captures, length) => {
+                self.evaluate_format_string(fragments, captures, length, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
-            HirLiteral::Slice(array) => self.evaluate_slice(array, id),
+            HirLiteral::Vector(array) => self.evaluate_vector(array, id),
         }
     }
 
@@ -788,9 +815,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         fragments: Vec<FmtStrFragment>,
         captures: Vec<ExprId>,
+        length: u32,
         id: ExprId,
     ) -> IResult<Value> {
-        let mut result = String::new();
+        let mut new_fragments = Vec::with_capacity(fragments.len());
 
         let mut values: VecDeque<_> =
             captures.into_iter().map(|capture| self.evaluate(capture)).collect::<Result<_, _>>()?;
@@ -798,24 +826,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         for fragment in fragments {
             match fragment {
                 FmtStrFragment::String(string) => {
-                    result.push_str(&string);
+                    new_fragments.push(FormatStringFragment::String(string));
                 }
-                FmtStrFragment::Interpolation(..) => {
+                FmtStrFragment::Interpolation(name, _location) => {
                     if let Some(value) = values.pop_front() {
-                        // When interpolating a quoted value inside a format string, we don't include the
-                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
-                        if let Value::Quoted(tokens) = value {
-                            for (index, token) in tokens.iter().enumerate() {
-                                if index > 0 {
-                                    result.push(' ');
-                                }
-                                result.push_str(
-                                    &token.token().display(self.elaborator.interner).to_string(),
-                                );
-                            }
-                        } else {
-                            result.push_str(&value.display(self.elaborator.interner).to_string());
-                        }
+                        new_fragments.push(FormatStringFragment::Value { name, value });
                     } else {
                         // If we can't find a value for this fragment it means the interpolated value was not
                         // found or it errored. In this case we error here as well.
@@ -829,7 +844,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         let typ = self.elaborator.interner.id_type(id);
-        Ok(Value::FormatString(Rc::new(result), typ))
+        Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
@@ -841,7 +856,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         evaluate_integer(typ, value, location)
     }
 
-    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub(crate) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -894,9 +909,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_slice(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_vector(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
         self.evaluate_array(array, id).map(|value| match value {
-            Value::Array(array, typ) => Value::Slice(array, typ),
+            Value::Array(array, typ) => Value::Vector(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
         })
     }
@@ -939,7 +954,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
-        let method = infix.trait_method_id;
+        let method = infix
+            .trait_method_id
+            .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
         let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
@@ -1152,14 +1169,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 Ok(result)
             }
-            Value::Closure(closure) => self.call_closure(
-                closure.lambda,
-                closure.env,
-                arguments,
-                closure.function_scope,
-                closure.module_scope,
-                location,
-            ),
+            Value::Closure(closure) => self.call_closure(*closure, arguments, location),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1239,8 +1249,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();
-        let closure =
-            Closure { lambda, env, typ, function_scope: self.current_function, module_scope };
+        let bindings = self.bound_generics.last().cloned().unwrap_or_default();
+        let closure = Closure {
+            lambda,
+            env,
+            typ,
+            function_scope: self.current_function,
+            module_scope,
+            bindings,
+        };
         Ok(Value::Closure(Box::new(closure)))
     }
 
@@ -1250,6 +1267,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+        // If comptime evaluation has been halted, don't execute anything
+        if self.elaborator.comptime_evaluation_halted {
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
+        // Skip statements that had errors during elaboration and halt all future execution
+        if self.elaborator.interner.stmts_with_errors.contains(&statement) {
+            self.elaborator.comptime_evaluation_halted = true;
+            return Err(InterpreterError::SkippedDueToEarlierErrors);
+        }
+
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
@@ -1271,7 +1299,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub(crate) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.elaborator.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
@@ -1350,7 +1378,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let constructor = match &array_value {
                     Value::Array(..) => Value::Array,
-                    _ => Value::Slice,
+                    _ => Value::Vector,
                 };
 
                 let typ = array_value.get_type().into_owned();
@@ -1375,11 +1403,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
                 for (name, lvalue) in lvalue_fields.iter() {
-                    let Some(rvalue) = rvalue_fields.remove(name) else { continue };
+                    let Some(rvalue) = rvalue_fields.remove(name) else {
+                        // Defensive check: If we reach here, it indicates a type system bug
+                        panic!(
+                            "ICE: store_flattened encountered a struct field mismatch. \
+                            Struct field '{name}' exists in lvalue but not in rvalue. \
+                            This should have been caught by type checking.",
+                        );
+                    };
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }
             (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
+                // Defensive check: tuple lengths should match. If they do not, it indicates a type system bug
+                assert_eq!(
+                    lvalue_fields.len(),
+                    rvalue_fields.len(),
+                    "ICE: store_flattened encountered a tuple length mismatch. \
+                    This should have been caught by type checking."
+                );
+
                 for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
@@ -1664,6 +1707,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 }
 
+fn unbind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+    for (var, (_, kind)) in bindings {
+        var.unbind(var.id(), kind.clone());
+    }
+}
+
+fn force_bind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+    for (var, (binding, _kind)) in bindings {
+        var.force_bind(binding.clone());
+    }
+}
+
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
     use IntegerBitSize::*;
     use Signedness::*;
@@ -1735,11 +1790,11 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 }
 
 /// Bounds check the given array and index pair.
-/// This will also ensure the given arguments are in fact an array and integer.
+/// This will also ensure the given arguments are in fact an array and u32.
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
-        Value::Slice(array, _) => array,
+        Value::Vector(array, _) => array,
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonArrayIndexed { typ, location });
@@ -1747,32 +1802,15 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
     };
 
     let index = match index {
-        Value::Field(value) => {
-            let u64: Option<u64> = value.try_to_unsigned();
-            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                let typ = Type::default_int_type();
-                InterpreterError::IntegerOutOfRangeForType { value, typ, location }
-            })?
-        }
-        Value::I8(value) => value as usize,
-        Value::I16(value) => value as usize,
-        Value::I32(value) => value as usize,
-        Value::I64(value) => value as usize,
-        Value::U1(value) => {
-            if value {
-                1_usize
-            } else {
-                0_usize
-            }
-        }
-        Value::U8(value) => value as usize,
-        Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
-        Value::U64(value) => value as usize,
-        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
-            return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
+            let expected_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            return Err(InterpreterError::TypeMismatch {
+                expected: expected_type.to_string(),
+                actual: typ,
+                location,
+            });
         }
     };
 
@@ -1889,9 +1927,10 @@ impl Context<'_, '_> {
         let local_id = func_meta.source_module;
         let location = func_meta.location;
         let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let pedantic_solving = self.def_interner.pedantic_solving;
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: false,
+            pedantic_solving,
             enabled_unstable_features,
             disable_required_unstable_features: false,
         };

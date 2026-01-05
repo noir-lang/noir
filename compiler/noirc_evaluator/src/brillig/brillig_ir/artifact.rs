@@ -15,9 +15,9 @@ pub(crate) enum BrilligParameter {
     SingleAddr(u32),
     /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
-    /// A slice parameter or return value. Holds the type of a slice item.
-    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
-    Slice(Vec<BrilligParameter>, usize),
+    /// A vector parameter or return value. Holds the type of a vector item.
+    /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
+    Vector(Vec<BrilligParameter>, usize),
 }
 
 /// The result of compiling and linking brillig artifacts.
