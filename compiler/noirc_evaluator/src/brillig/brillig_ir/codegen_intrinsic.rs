@@ -43,7 +43,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
             // We then cast back to the original type to satisfy typed memory.
             self.cast_instruction(destination_of_truncated_value, *intermediate_register);
-            self.deallocate_single_addr(intermediate_register);
 
             return;
         }
