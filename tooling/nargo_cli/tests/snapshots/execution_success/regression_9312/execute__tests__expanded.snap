@@ -4,9 +4,9 @@ expression: expanded_code
 ---
 fn main(a: bool) -> pub ((u32, Field), (u32, Field)) {
     let s0: [Field] = if a {
-        &[10_Field, 20_Field]
+        #[10_Field, 20_Field]
     } else {
-        &[30_Field, 40_Field, 50_Field]
+        #[30_Field, 40_Field, 50_Field]
     };
     let (s1, f): ([Field], Field) = s0.pop_back();
     let s2: [Field] = s0.push_back(60_Field);

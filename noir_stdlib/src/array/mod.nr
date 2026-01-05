@@ -28,7 +28,7 @@ impl<T, let N: u32> [T; N] {
     /// ```noir
     /// let array = [1, 2];
     /// let vector = array.as_vector();
-    /// assert_eq(vector, &[1, 2]);
+    /// assert_eq(vector, #[1, 2]);
     /// ```
     #[builtin(as_vector)]
     pub fn as_vector(self) -> [T] {}
@@ -39,7 +39,7 @@ impl<T, let N: u32> [T; N] {
     /// ```noir
     /// let array = [1, 2];
     /// let vector = array.as_slice();
-    /// assert_eq(vector, &[1, 2]);
+    /// assert_eq(vector, #[1, 2]);
     /// ```
     #[builtin(as_vector)]
     #[deprecated("This method has been renamed to `as_vector`")]

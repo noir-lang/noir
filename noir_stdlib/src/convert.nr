@@ -238,7 +238,7 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
         quote { i64 },
     ];
 
-    let mut impls = &[];
+    let mut impls = #[];
     for type1 in types {
         for type2 in types {
             let body = if type1 == type2 {

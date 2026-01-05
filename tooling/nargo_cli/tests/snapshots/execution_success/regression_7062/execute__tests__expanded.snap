@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(value: Field, index: u32) {
-    let mut args: [Field] = &[0_Field, 1_Field];
+    let mut args: [Field] = #[0_Field, 1_Field];
     args[index] = value;
     // Safety: comment added by `nargo expand`
     unsafe { store(args) };

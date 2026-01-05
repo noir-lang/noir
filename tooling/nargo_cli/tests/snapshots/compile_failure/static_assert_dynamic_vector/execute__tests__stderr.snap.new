@@ -1,0 +1,400 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+warning: unused variable dynamic_built_vector_pair
+  ┌─ src/main.nr:6:13
+  │
+6 │     let mut dynamic_built_vector_pair = #[];
+  │             ------------------------- unused variable
+  │
+
+warning: unused variable dynamic_two
+  ┌─ src/main.nr:3:5
+  │
+3 │     dynamic_two: Field, // == 2
+  │     ----------- unused variable
+  │
+
+warning: unused variable dynamic_one
+  ┌─ src/main.nr:2:5
+  │
+2 │     dynamic_one: Field, // == 1
+  │     ----------- unused variable
+  │
+
+error: Expected an expression but found '#['
+  ┌─ src/main.nr:6:41
+  │
+6 │     let mut dynamic_built_vector_pair = #[];
+  │                                         --
+  │
+
+error: Expected a path but found ']'
+  ┌─ src/main.nr:6:43
+  │
+6 │     let mut dynamic_built_vector_pair = #[];
+  │                                           -
+  │
+
+error: Expected a statement but found '
+    '
+  ┌─ src/main.nr:6:45
+  │  
+6 │       let mut dynamic_built_vector_pair = #[];
+  │ ╭────────────────────────────────────────────'
+7 │ │     if dynamic_one == 1 {
+  │ ╰────'
+  │  
+
+error: Expected a statement but found '
+    '
+  ┌─ src/main.nr:6:45
+  │  
+6 │       let mut dynamic_built_vector_pair = #[];
+  │ ╭────────────────────────────────────────────'
+7 │ │     if dynamic_one == 1 {
+  │ ╰────'
+  │  
+
+error: Expected a ; after `let` statement
+  ┌─ src/main.nr:6:39
+  │
+6 │     let mut dynamic_built_vector_pair = #[];
+  │                                       -
+  │
+
+error: Expected an item but found '
+    '
+  ┌─ src/main.nr:6:45
+  │  
+6 │       let mut dynamic_built_vector_pair = #[];
+  │ ╭────────────────────────────────────────────'
+7 │ │     if dynamic_one == 1 {
+  │ ╰────'
+  │  
+
+error: Expected an item but found 'if'
+  ┌─ src/main.nr:7:5
+  │
+7 │     if dynamic_one == 1 {
+  │     --
+  │
+
+error: Expected an item but found 'dynamic_one'
+  ┌─ src/main.nr:7:8
+  │
+7 │     if dynamic_one == 1 {
+  │        -----------
+  │
+
+error: Expected an item but found '=='
+  ┌─ src/main.nr:7:20
+  │
+7 │     if dynamic_one == 1 {
+  │                    --
+  │
+
+error: Expected an item but found '1'
+  ┌─ src/main.nr:7:23
+  │
+7 │     if dynamic_one == 1 {
+  │                       -
+  │
+
+error: Expected an item but found '{'
+  ┌─ src/main.nr:7:25
+  │
+7 │     if dynamic_one == 1 {
+  │                         -
+  │
+
+error: Expected an item but found 'dynamic_built_vector_pair'
+  ┌─ src/main.nr:8:9
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │         -------------------------
+  │
+
+error: Expected an item but found '='
+  ┌─ src/main.nr:8:35
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                   -
+  │
+
+error: Expected an item but found 'dynamic_built_vector_pair'
+  ┌─ src/main.nr:8:37
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                     -------------------------
+  │
+
+error: Expected an item but found '.'
+  ┌─ src/main.nr:8:62
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                                              -
+  │
+
+error: Expected an item but found 'push_back'
+  ┌─ src/main.nr:8:63
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                                               ---------
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:8:72
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                                                        -
+  │
+
+error: Expected an item but found 'dynamic_one'
+  ┌─ src/main.nr:8:73
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                                                         -----------
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:8:84
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                                                                    -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:8:85
+  │
+8 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
+  │                                                                                     -
+  │
+
+error: Expected an item but found '}'
+  ┌─ src/main.nr:9:5
+  │
+9 │     }
+  │     -
+  │
+
+error: Expected an item but found 'if'
+   ┌─ src/main.nr:10:5
+   │
+10 │     if dynamic_two == 2 {
+   │     --
+   │
+
+error: Expected an item but found 'dynamic_two'
+   ┌─ src/main.nr:10:8
+   │
+10 │     if dynamic_two == 2 {
+   │        -----------
+   │
+
+error: Expected an item but found '=='
+   ┌─ src/main.nr:10:20
+   │
+10 │     if dynamic_two == 2 {
+   │                    --
+   │
+
+error: Expected an item but found '2'
+   ┌─ src/main.nr:10:23
+   │
+10 │     if dynamic_two == 2 {
+   │                       -
+   │
+
+error: Expected an item but found '{'
+   ┌─ src/main.nr:10:25
+   │
+10 │     if dynamic_two == 2 {
+   │                         -
+   │
+
+error: Expected an item but found 'dynamic_built_vector_pair'
+   ┌─ src/main.nr:11:9
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │         -------------------------
+   │
+
+error: Expected an item but found '='
+   ┌─ src/main.nr:11:35
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                   -
+   │
+
+error: Expected an item but found 'dynamic_built_vector_pair'
+   ┌─ src/main.nr:11:37
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                     -------------------------
+   │
+
+error: Expected an item but found '.'
+   ┌─ src/main.nr:11:62
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                                              -
+   │
+
+error: Expected an item but found 'push_back'
+   ┌─ src/main.nr:11:63
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                                               ---------
+   │
+
+error: Expected an item but found '('
+   ┌─ src/main.nr:11:72
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                                                        -
+   │
+
+error: Expected an item but found 'dynamic_two'
+   ┌─ src/main.nr:11:73
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                                                         -----------
+   │
+
+error: Expected an item but found ')'
+   ┌─ src/main.nr:11:84
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                                                                    -
+   │
+
+error: Expected an item but found ';'
+   ┌─ src/main.nr:11:85
+   │
+11 │         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_two);
+   │                                                                                     -
+   │
+
+error: Expected an item but found '}'
+   ┌─ src/main.nr:12:5
+   │
+12 │     }
+   │     -
+   │
+
+error: Expected an item but found 'std'
+   ┌─ src/main.nr:14:5
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │     ---
+   │
+
+error: Expected an item but found '::'
+   ┌─ src/main.nr:14:8
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │        --
+   │
+
+error: Expected an item but found 'static_assert'
+   ┌─ src/main.nr:14:10
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │          -------------
+   │
+
+error: Expected an item but found '('
+   ┌─ src/main.nr:14:23
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                       -
+   │
+
+error: Expected an item but found 'dynamic_built_vector_pair'
+   ┌─ src/main.nr:14:24
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                        -------------------------
+   │
+
+error: Expected an item but found '.'
+   ┌─ src/main.nr:14:49
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                 -
+   │
+
+error: Expected an item but found 'len'
+   ┌─ src/main.nr:14:50
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                  ---
+   │
+
+error: Expected an item but found '('
+   ┌─ src/main.nr:14:53
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                     -
+   │
+
+error: Expected an item but found ')'
+   ┌─ src/main.nr:14:54
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                      -
+   │
+
+error: Expected an item but found '=='
+   ┌─ src/main.nr:14:56
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                        --
+   │
+
+error: Expected an item but found '3'
+   ┌─ src/main.nr:14:59
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                           -
+   │
+
+error: Expected an item but found ','
+   ┌─ src/main.nr:14:60
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                            -
+   │
+
+error: Expected an item but found '""'
+   ┌─ src/main.nr:14:62
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                              --
+   │
+
+error: Expected an item but found ')'
+   ┌─ src/main.nr:14:64
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                                -
+   │
+
+error: Expected an item but found ';'
+   ┌─ src/main.nr:14:65
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │                                                                 -
+   │
+
+error: Expected an item but found '}'
+   ┌─ src/main.nr:15:1
+   │
+15 │ }
+   │ -
+   │
+
+Aborting due to 52 previous errors

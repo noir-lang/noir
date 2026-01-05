@@ -60,7 +60,7 @@ impl<T> [T] {
     // Apply a function to each element of the vector, returning a new vector
     // containing the mapped elements.
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U] {
-        let mut ret = &[];
+        let mut ret = #[];
         for elem in self {
             ret = ret.push_back(f(elem));
         }
@@ -70,7 +70,7 @@ impl<T> [T] {
     // Apply a function to each element of the vector with its index, returning a
     // new vector containing the mapped elements.
     pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
-        let mut ret = &[];
+        let mut ret = #[];
         let mut index = 0;
         for elem in self {
             ret = ret.push_back(f(index, elem));
@@ -119,7 +119,7 @@ impl<T> [T] {
     // Returns a new vector containing only elements for which the given predicate
     // returns true.
     pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {
-        let mut ret = &[];
+        let mut ret = #[];
         for elem in self {
             if predicate(elem) {
                 ret = ret.push_back(elem);
@@ -168,81 +168,81 @@ impl<T> [T] {
 mod test {
     #[test]
     fn map_empty() {
-        assert_eq(&[].map(|x| x + 1), &[]);
+        assert_eq(#[].map(|x| x + 1), #[]);
     }
 
     #[test]
     fn mapi_empty() {
-        assert_eq(&[].mapi(|i, x| i * x + 1), &[]);
+        assert_eq(#[].mapi(|i, x| i * x + 1), #[]);
     }
 
     #[test]
     fn for_each_empty() {
-        let empty_vector: [Field] = &[];
+        let empty_vector: [Field] = #[];
         empty_vector.for_each(|_x| assert(false));
-        assert(empty_vector == &[]);
+        assert(empty_vector == #[]);
     }
 
     #[test]
     fn for_eachi_empty() {
-        let empty_vector: [Field] = &[];
+        let empty_vector: [Field] = #[];
         empty_vector.for_eachi(|_i, _x| assert(false));
-        assert(empty_vector == &[]);
+        assert(empty_vector == #[]);
     }
 
     #[test]
     fn map_example() {
-        let a = &[1, 2, 3];
+        let a = #[1, 2, 3];
         let b = a.map(|a| a * 2);
-        assert_eq(b, &[2, 4, 6]);
-        assert_eq(a, &[1, 2, 3]);
+        assert_eq(b, #[2, 4, 6]);
+        assert_eq(a, #[1, 2, 3]);
     }
 
     #[test]
     fn mapi_example() {
-        let a = &[1, 2, 3];
+        let a = #[1, 2, 3];
         let b = a.mapi(|i, a| i + a * 2);
-        assert_eq(b, &[2, 5, 8]);
-        assert_eq(a, &[1, 2, 3]);
+        assert_eq(b, #[2, 5, 8]);
+        assert_eq(a, #[1, 2, 3]);
     }
 
     #[test]
     fn for_each_example() {
-        let a = &[1, 2, 3];
-        let mut b = &[];
+        let a = #[1, 2, 3];
+        let mut b = #[];
         let b_ref = &mut b;
         a.for_each(|a| { *b_ref = b_ref.push_back(a * 2); });
-        assert_eq(b, &[2, 4, 6]);
+        assert_eq(b, #[2, 4, 6]);
     }
 
     #[test]
     fn for_eachi_example() {
-        let a = &[1, 2, 3];
-        let mut b = &[];
+        let a = #[1, 2, 3];
+        let mut b = #[];
         let b_ref = &mut b;
         a.for_eachi(|i, a| { *b_ref = b_ref.push_back(i + a * 2); });
-        assert_eq(b, &[2, 5, 8]);
+        assert_eq(b, #[2, 5, 8]);
     }
 
     #[test]
     fn len_empty() {
-        let empty: [Field] = &[];
+        let empty: [Field] = #[];
         assert_eq(empty.len(), 0);
     }
 
     #[test]
     fn len_single() {
-        assert_eq(&[42].len(), 1);
+        assert_eq(#[42].len(), 1);
     }
 
     #[test]
     fn len_multiple() {
-        assert_eq(&[1, 2, 3, 4, 5].len(), 5);
+        assert_eq(#[1, 2, 3, 4, 5].len(), 5);
     }
 
     #[test]
     fn push_back_empty() {
-        let empty: [Field] = &[];
+        let empty: [Field] = #[];
         let result = empty.push_back(42);
         assert_eq(result.len(), 1);
         assert_eq(result[0], 42);
@@ -250,15 +250,15 @@ mod test {
 
     #[test]
     fn push_back_non_empty() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let result = vector.push_back(4);
         assert_eq(result.len(), 4);
-        assert_eq(result, &[1, 2, 3, 4]);
+        assert_eq(result, #[1, 2, 3, 4]);
     }
 
     #[test]
     fn push_front_empty() {
-        let empty = &[];
+        let empty = #[];
         let result = empty.push_front(42);
         assert_eq(result.len(), 1);
         assert_eq(result[0], 42);
@@ -266,21 +266,21 @@ mod test {
 
     #[test]
     fn push_front_non_empty() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let result = vector.push_front(0);
         assert_eq(result.len(), 4);
-        assert_eq(result, &[0, 1, 2, 3]);
+        assert_eq(result, #[0, 1, 2, 3]);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn pop_back_empty() {
-        let vector: [Field] = &[];
+        let vector: [Field] = #[];
         let (_, _) = vector.pop_back();
     }
 
     #[test]
     fn pop_back_one() {
-        let vector = &[42];
+        let vector = #[42];
         let (result, elem) = vector.pop_back();
         assert_eq(result.len(), 0);
         assert_eq(elem, 42);
@@ -288,22 +288,22 @@ mod test {
 
     #[test]
     fn pop_back_multiple() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let (result, elem) = vector.pop_back();
         assert_eq(result.len(), 2);
-        assert_eq(result, &[1, 2]);
+        assert_eq(result, #[1, 2]);
         assert_eq(elem, 3);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn pop_front_empty() {
-        let vector: [Field] = &[];
+        let vector: [Field] = #[];
         let (_, _) = vector.pop_front();
     }
 
     #[test]
     fn pop_front_one() {
-        let vector = &[42];
+        let vector = #[42];
         let (elem, result) = vector.pop_front();
         assert_eq(result.len(), 0);
         assert_eq(elem, 42);
@@ -311,189 +311,189 @@ mod test {
 
     #[test]
     fn pop_front_multiple() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let (elem, result) = vector.pop_front();
         assert_eq(result.len(), 2);
-        assert_eq(result, &[2, 3]);
+        assert_eq(result, #[2, 3]);
         assert_eq(elem, 1);
     }
 
     #[test]
     fn insert_beginning() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let result = vector.insert(0, 0);
         assert_eq(result.len(), 4);
-        assert_eq(result, &[0, 1, 2, 3]);
+        assert_eq(result, #[0, 1, 2, 3]);
     }
 
     #[test]
     fn insert_middle() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let result = vector.insert(1, 99);
         assert_eq(result.len(), 4);
-        assert_eq(result, &[1, 99, 2, 3]);
+        assert_eq(result, #[1, 99, 2, 3]);
     }
 
     #[test]
     fn insert_end() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let result = vector.insert(3, 4);
         assert_eq(result.len(), 4);
-        assert_eq(result, &[1, 2, 3, 4]);
+        assert_eq(result, #[1, 2, 3, 4]);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn insert_end_out_of_bounds() {
-        let vector = &[1, 2];
+        let vector = #[1, 2];
         let _ = vector.insert(3, 4);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn remove_empty() {
-        let vector: [Field] = &[];
+        let vector: [Field] = #[];
         let (_, _) = vector.remove(0);
     }
 
     #[test]
     fn remove_beginning() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let (result, elem) = vector.remove(0);
         assert_eq(result.len(), 2);
-        assert_eq(result, &[2, 3]);
+        assert_eq(result, #[2, 3]);
         assert_eq(elem, 1);
     }
 
     #[test]
     fn remove_middle() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let (result, elem) = vector.remove(1);
         assert_eq(result.len(), 2);
-        assert_eq(result, &[1, 3]);
+        assert_eq(result, #[1, 3]);
         assert_eq(elem, 2);
     }
 
     #[test]
     fn remove_end() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let (result, elem) = vector.remove(2);
         assert_eq(result.len(), 2);
-        assert_eq(result, &[1, 2]);
+        assert_eq(result, #[1, 2]);
         assert_eq(elem, 3);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn remove_end_out_of_bounds() {
-        let vector = &[1, 2];
+        let vector = #[1, 2];
         let (_, _) = vector.remove(2);
     }
 
     #[test]
     fn fold_empty() {
-        let empty = &[];
+        let empty = #[];
         let result = empty.fold(10, |acc, x| acc + x);
         assert_eq(result, 10);
     }
 
     #[test]
     fn fold_single() {
-        let vector = &[5];
+        let vector = #[5];
         let result = vector.fold(10, |acc, x| acc + x);
         assert_eq(result, 15);
     }
 
     #[test]
     fn fold_multiple() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.fold(0, |acc, x| acc + x);
         assert_eq(result, 10);
     }
 
     #[test(should_fail_with = "Index out of bounds")]
     fn reduce_empty() {
-        let empty: [Field] = &[];
+        let empty: [Field] = #[];
         let _ = empty.reduce(|a, b| a + b);
     }
 
     #[test]
     fn reduce_single() {
-        let vector = &[42];
+        let vector = #[42];
         let result = vector.reduce(|a, b| a + b);
         assert_eq(result, 42);
     }
 
     #[test]
     fn reduce_multiple() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.reduce(|a, b| a + b);
         assert_eq(result, 10);
     }
 
     #[test]
     fn filter_empty() {
-        let empty = &[];
+        let empty = #[];
         let result = empty.filter(|x| x > 0);
         assert_eq(result.len(), 0);
     }
 
     #[test]
     fn filter_all_true() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.filter(|x| x > 0);
         assert_eq(result, vector);
     }
 
     #[test]
     fn filter_all_false() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.filter(|x| x > 10);
         assert_eq(result.len(), 0);
     }
 
     #[test]
     fn filter_some() {
-        let vector = &[1, 2, 3, 4, 5];
+        let vector = #[1, 2, 3, 4, 5];
         let result = vector.filter(|x| x % 2 == 0);
-        assert_eq(result, &[2, 4]);
+        assert_eq(result, #[2, 4]);
     }
 
     #[test]
     fn all_empty() {
-        let empty = &[];
+        let empty = #[];
         let result = empty.all(|x| x > 0);
         assert_eq(result, true);
     }
 
     #[test]
     fn all_true() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.all(|x| x > 0);
         assert_eq(result, true);
     }
 
     #[test]
     fn all_false() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.all(|x| x > 2);
         assert_eq(result, false);
     }
 
     #[test]
     fn any_empty() {
-        let empty = &[];
+        let empty = #[];
         let result = empty.any(|x| x > 0);
         assert_eq(result, false);
     }
 
     #[test]
     fn any_true() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.any(|x| x > 3);
         assert_eq(result, true);
     }
 
     #[test]
     fn any_false() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let result = vector.any(|x| x > 10);
         assert_eq(result, false);
     }
@@ -501,46 +501,46 @@ mod test {
     // utility method tests
     #[test]
     fn append_empty_to_empty() {
-        let empty1: [Field] = &[];
-        let empty2: [Field] = &[];
+        let empty1: [Field] = #[];
+        let empty2: [Field] = #[];
         let result = empty1.append(empty2);
         assert_eq(result.len(), 0);
     }
 
     #[test]
     fn append_empty_to_non_empty() {
-        let vector = &[1, 2, 3];
-        let empty = &[];
+        let vector = #[1, 2, 3];
+        let empty = #[];
         let result = vector.append(empty);
         assert_eq(result, vector);
     }
 
     #[test]
     fn append_non_empty_to_empty() {
-        let empty = &[];
-        let vector = &[1, 2, 3];
+        let empty = #[];
+        let vector = #[1, 2, 3];
         let result = empty.append(vector);
         assert_eq(result, vector);
     }
 
     #[test]
     fn append_two_non_empty() {
-        let vector1 = &[1, 2];
-        let vector2 = &[3, 4, 5];
+        let vector1 = #[1, 2];
+        let vector2 = #[3, 4, 5];
         let result = vector1.append(vector2);
-        assert_eq(result, &[1, 2, 3, 4, 5]);
+        assert_eq(result, #[1, 2, 3, 4, 5]);
     }
 
     #[test]
     fn as_array_single() {
-        let vector = &[42];
+        let vector = #[42];
         let array: [Field; 1] = vector.as_array();
         assert_eq(array[0], 42);
     }
 
     #[test]
     fn as_array_multiple() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let array: [Field; 3] = vector.as_array();
         assert_eq(array[0], 1);
         assert_eq(array[1], 2);
@@ -550,14 +550,14 @@ mod test {
     // complex scenarios
     #[test]
     fn chain_operations() {
-        let vector = &[1, 2, 3, 4, 5];
+        let vector = #[1, 2, 3, 4, 5];
         let result = vector.filter(|x| x % 2 == 0).map(|x| x * 2).fold(0, |acc, x| acc + x);
         assert_eq(result, 12); // (2*2) + (4*2) = 4 + 8 = 12
     }
 
     #[test]
     fn nested_operations() {
-        let vector = &[1, 2, 3, 4];
+        let vector = #[1, 2, 3, 4];
         let filtered = vector.filter(|x| x > 1);
         let mapped = filtered.map(|x| x * x);
         let sum = mapped.fold(0, |acc, x| acc + x);
@@ -566,16 +566,16 @@ mod test {
 
     #[test]
     fn single_element_operations() {
-        let single = &[42];
+        let single = #[42];
 
         // Test all operations on single element
         assert_eq(single.len(), 1);
 
         let pushed_back = single.push_back(99);
-        assert_eq(pushed_back, &[42, 99]);
+        assert_eq(pushed_back, #[42, 99]);
 
         let pushed_front = single.push_front(0);
-        assert_eq(pushed_front, &[0, 42]);
+        assert_eq(pushed_front, #[0, 42]);
 
         let (popped_back_vector, popped_back_elem) = single.pop_back();
         assert_eq(popped_back_vector.len(), 0);
@@ -586,7 +586,7 @@ mod test {
         assert_eq(popped_front_elem, 42);
 
         let inserted = single.insert(0, 0);
-        assert_eq(inserted, &[0, 42]);
+        assert_eq(inserted, #[0, 42]);
 
         let (removed_vector, removed_elem) = single.remove(0);
         assert_eq(removed_vector.len(), 0);
@@ -595,31 +595,31 @@ mod test {
 
     #[test]
     fn boundary_conditions() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
 
         // insert at boundaries
         let at_start = vector.insert(0, 0);
-        assert_eq(at_start, &[0, 1, 2, 3]);
+        assert_eq(at_start, #[0, 1, 2, 3]);
 
         let at_end = vector.insert(3, 4);
-        assert_eq(at_end, &[1, 2, 3, 4]);
+        assert_eq(at_end, #[1, 2, 3, 4]);
 
         // remove at boundaries
         let (removed_start, elem_start) = vector.remove(0);
-        assert_eq(removed_start, &[2, 3]);
+        assert_eq(removed_start, #[2, 3]);
         assert_eq(elem_start, 1);
 
         let (removed_end, elem_end) = vector.remove(2);
-        assert_eq(removed_end, &[1, 2]);
+        assert_eq(removed_end, #[1, 2]);
         assert_eq(elem_end, 3);
     }
 
     #[test]
     fn complex_predicates() {
-        let vector = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let vector = #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
         let even_greater_than_5 = vector.filter(|x| (x % 2 == 0) & (x > 5));
-        assert_eq(even_greater_than_5, &[6, 8, 10]);
+        assert_eq(even_greater_than_5, #[6, 8, 10]);
 
         let all_positive_and_less_than_20 = vector.all(|x| (x > 0) & (x < 20));
         assert_eq(all_positive_and_less_than_20, true);
@@ -630,7 +630,7 @@ mod test {
 
     #[test]
     fn identity_operations() {
-        let vector = &[1, 2, 3, 4, 5];
+        let vector = #[1, 2, 3, 4, 5];
 
         let mapped_identity = vector.map(|x| x);
         assert_eq(mapped_identity, vector);
@@ -644,7 +644,7 @@ mod test {
 
     #[test(should_fail)]
     fn as_array_size_mismatch() {
-        let vector = &[1, 2, 3];
+        let vector = #[1, 2, 3];
         let _: [Field; 5] = vector.as_array(); // size doesn't match
     }
 }

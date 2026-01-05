@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+warning: unused variable dynamic_one
+  ┌─ src/main.nr:2:5
+  │
+2 │     dynamic_one: Field, // == 1
+  │     ----------- unused variable
+  │
+
+error: Function expects 1 parameter but 0 were given
+  ┌─ src/main.nr:4:5
+  │
+4 │     assert_constant(#[dynamic_one]);
+  │     ----------------
+  │
+
+error: Type annotation needed
+  ┌─ src/main.nr:4:5
+  │
+4 │     assert_constant(#[dynamic_one]);
+  │     --------------- Could not determine the type of the generic argument `T` declared on the function `assert_constant`
+  │
+
+error: Expected an expression but found '#['
+  ┌─ src/main.nr:4:21
+  │
+4 │     assert_constant(#[dynamic_one]);
+  │                     --
+  │
+
+error: Expected a statement but found ')'
+  ┌─ src/main.nr:4:35
+  │
+4 │     assert_constant(#[dynamic_one]);
+  │                                   -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:5:1
+  │
+5 │ }
+  │ -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:5:1
+  │
+5 │ }
+  │ -
+  │
+
+Aborting due to 6 previous errors

@@ -32,7 +32,7 @@ struct Foo {
 }
 
 comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
-    let mut result = &[];
+    let mut result = #[];
     for my_field in fields {
         let name = my_field.0;
         result = result.push_back(quote { $name: Default::default(), });

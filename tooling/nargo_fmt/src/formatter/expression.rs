@@ -154,7 +154,7 @@ impl ChunkFormatter<'_, '_> {
 
         group.text(self.chunk(|formatter| {
             if is_vector {
-                formatter.write_token(Token::VectorStart);
+                formatter.write_token(Token::Pound);
             }
             formatter.write_left_bracket();
         }));

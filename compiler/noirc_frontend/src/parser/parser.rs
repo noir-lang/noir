@@ -354,42 +354,37 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn eat_attribute_start(&mut self) -> Option<bool> {
-        if let Token::AttributeStart { is_inner: false, is_tag } = self.token.token() {
-            // We have parsed the attribute start token `#[`.
+    /// Eats `#[`
+    fn eat_attribute_start(&mut self) -> Option<()> {
+        (*self.token.token() == Token::Pound && self.next_is(Token::LeftBracket)).then(|| {
+            self.bump();
+            self.bump();
+        })
+    }
+
+    /// Eats the ' token from an attribute's tag.
+    /// Returns true if a ' token was eaten.
+    fn eat_attribute_tag(&mut self) -> bool {
+        if *self.token.token() == Token::SingleQuote {
             // Disable the "skip whitespaces" flag only for tag attributes so that the next `self.bump()`
             // does not consume the whitespace following the upcoming token.
-            if *is_tag {
-                self.set_lexer_skip_whitespaces_flag(false);
-            }
-            let token = self.bump();
+            self.set_lexer_skip_whitespaces_flag(false);
+            self.bump();
             self.set_lexer_skip_whitespaces_flag(true);
-            match token.into_token() {
-                Token::AttributeStart { is_tag, .. } => Some(is_tag),
-                _ => unreachable!(),
-            }
+            true
         } else {
-            None
+            false
         }
     }
 
-    fn eat_inner_attribute_start(&mut self) -> Option<bool> {
-        if let Token::AttributeStart { is_inner: true, is_tag } = self.token.token() {
-            // We have parsed the inner attribute start token `#![`.
-            // Disable the "skip whitespaces" flag only for tag attributes so that the next `self.bump()`
-            // does not consume the whitespace following the upcoming token.
-            if *is_tag {
-                self.set_lexer_skip_whitespaces_flag(false);
-            }
-            let token = self.bump();
-            self.set_lexer_skip_whitespaces_flag(true);
-            match token.into_token() {
-                Token::AttributeStart { is_tag, .. } => Some(is_tag),
-                _ => unreachable!(),
-            }
-        } else {
-            None
-        }
+    /// Eats `#![`
+    fn eat_inner_attribute_start(&mut self) -> Option<()> {
+        (*self.token.token() == Token::Pound && self.next_is(Token::Bang)).then(|| {
+            self.bump();
+            self.bump();
+            // Need to eat_or_error here because we can't unbump
+            self.eat_or_error(Token::LeftBracket);
+        })
     }
 
     fn eat_comma(&mut self) -> bool {

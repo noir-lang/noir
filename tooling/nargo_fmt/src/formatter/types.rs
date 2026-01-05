@@ -55,19 +55,7 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersand or VectorStart in the lexer depending
-                // on whether it's right next to a `[` or not.
-                match &self.token {
-                    Token::Ampersand => {
-                        self.write_token(Token::Ampersand);
-                    }
-                    Token::VectorStart => {
-                        self.write_token(Token::VectorStart);
-                    }
-                    _ => {
-                        panic!("Expected Ampersand or VectorStart, found {:?}", self.token);
-                    }
-                }
+                self.write_token(Token::Ampersand);
                 if mutable {
                     self.write_keyword(Keyword::Mut);
                     self.write_space();

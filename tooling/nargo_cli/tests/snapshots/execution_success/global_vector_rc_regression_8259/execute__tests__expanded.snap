@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_C: [bool] = &[true, false, true];
+global G_C: [bool] = #[true, false, true];
 
 fn main(a: bool) {
     println(func_1(a, G_C));

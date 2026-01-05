@@ -16,7 +16,10 @@ impl Parser<'_> {
     /// InnerAttribute = '#![' SecondaryAttribute ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let start_location = self.current_token_location;
-        let is_tag = self.eat_inner_attribute_start()?;
+        self.eat_inner_attribute_start()?;
+
+        let is_tag = self.eat_attribute_tag();
+
         let attribute = if is_tag {
             self.parse_tag_attribute(start_location)
         } else {
@@ -81,7 +84,9 @@ impl Parser<'_> {
     ///     | integer
     pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Location)> {
         let start_location = self.current_token_location;
-        let is_tag = self.eat_attribute_start()?;
+        self.eat_attribute_start()?;
+        let is_tag = self.eat_attribute_tag();
+
         let attribute = if is_tag {
             self.parse_tag_attribute(start_location)
         } else {

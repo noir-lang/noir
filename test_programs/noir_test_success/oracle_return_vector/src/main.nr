@@ -21,7 +21,7 @@ unconstrained fn void_to_vector_and_array() -> ([Field], [Field; 3]) {
 #[test]
 unconstrained fn test_void_to_array_and_vector_memory_does_not_overlap() {
     let a = [1, 2, 3];
-    let v = &[4, 5];
+    let v = #[4, 5];
     let _ = OracleMock::mock("void_to_array_and_vector").returns((a, v));
     let res = void_to_array_and_vector();
     assert_eq(res.0, a);
@@ -32,7 +32,7 @@ unconstrained fn test_void_to_array_and_vector_memory_does_not_overlap() {
 // The array is allocated after the vector; the array data must not overwrite the vector.
 #[test]
 unconstrained fn test_void_to_vector_and_array_memory_does_not_overlap() {
-    let v = &[1, 2];
+    let v = #[1, 2];
     let a = [3, 4, 5];
     let _ = OracleMock::mock("void_to_vector_and_array").returns((v, a));
     let res = void_to_vector_and_array();

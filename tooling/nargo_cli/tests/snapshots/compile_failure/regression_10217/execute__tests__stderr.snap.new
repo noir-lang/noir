@@ -1,0 +1,190 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+warning: unused variable xs
+  ┌─ src/main.nr:2:9
+  │
+2 │     let xs = #[&mut x];
+  │         -- unused variable
+  │
+
+warning: unused variable x
+  ┌─ src/main.nr:1:13
+  │
+1 │ fn main(mut x: u32) {
+  │             - unused variable
+  │
+
+error: Expected an expression but found '#['
+  ┌─ src/main.nr:2:14
+  │
+2 │     let xs = #[&mut x];
+  │              --
+  │
+
+error: Expected a path but found '&'
+  ┌─ src/main.nr:2:16
+  │
+2 │     let xs = #[&mut x];
+  │                -
+  │
+
+error: Expected a statement but found '
+    '
+  ┌─ src/main.nr:2:24
+  │  
+2 │       let xs = #[&mut x];
+  │ ╭───────────────────────'
+3 │ │     println(xs);
+  │ ╰────'
+  │  
+
+error: Expected a statement but found '
+    '
+  ┌─ src/main.nr:2:24
+  │  
+2 │       let xs = #[&mut x];
+  │ ╭───────────────────────'
+3 │ │     println(xs);
+  │ ╰────'
+  │  
+
+error: Expected a ; after `let` statement
+  ┌─ src/main.nr:2:12
+  │
+2 │     let xs = #[&mut x];
+  │            -
+  │
+
+error: Expected an item but found '
+    '
+  ┌─ src/main.nr:2:24
+  │  
+2 │       let xs = #[&mut x];
+  │ ╭───────────────────────'
+3 │ │     println(xs);
+  │ ╰────'
+  │  
+
+error: Expected an item but found 'println'
+  ┌─ src/main.nr:3:5
+  │
+3 │     println(xs);
+  │     -------
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:12
+  │
+3 │     println(xs);
+  │            -
+  │
+
+error: Expected an item but found 'xs'
+  ┌─ src/main.nr:3:13
+  │
+3 │     println(xs);
+  │             --
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:3:15
+  │
+3 │     println(xs);
+  │               -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:3:16
+  │
+3 │     println(xs);
+  │                -
+  │
+
+error: Expected an item but found 'assert'
+  ┌─ src/main.nr:4:5
+  │
+4 │     assert(*xs[0] == 0);
+  │     ------
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:4:11
+  │
+4 │     assert(*xs[0] == 0);
+  │           -
+  │
+
+error: Expected an item but found '*'
+  ┌─ src/main.nr:4:12
+  │
+4 │     assert(*xs[0] == 0);
+  │            -
+  │
+
+error: Expected an item but found 'xs'
+  ┌─ src/main.nr:4:13
+  │
+4 │     assert(*xs[0] == 0);
+  │             --
+  │
+
+error: Expected an item but found '['
+  ┌─ src/main.nr:4:15
+  │
+4 │     assert(*xs[0] == 0);
+  │               -
+  │
+
+error: Expected an item but found '0'
+  ┌─ src/main.nr:4:16
+  │
+4 │     assert(*xs[0] == 0);
+  │                -
+  │
+
+error: Expected an item but found ']'
+  ┌─ src/main.nr:4:17
+  │
+4 │     assert(*xs[0] == 0);
+  │                 -
+  │
+
+error: Expected an item but found '=='
+  ┌─ src/main.nr:4:19
+  │
+4 │     assert(*xs[0] == 0);
+  │                   --
+  │
+
+error: Expected an item but found '0'
+  ┌─ src/main.nr:4:22
+  │
+4 │     assert(*xs[0] == 0);
+  │                      -
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:4:23
+  │
+4 │     assert(*xs[0] == 0);
+  │                       -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:4:24
+  │
+4 │     assert(*xs[0] == 0);
+  │                        -
+  │
+
+error: Expected an item but found '}'
+  ┌─ src/main.nr:5:1
+  │
+5 │ }
+  │ -
+  │
+
+Aborting due to 23 previous errors

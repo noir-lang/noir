@@ -233,8 +233,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a vector start if this is an array or vector type
-        if self.eat(Token::Ampersand) || self.eat(Token::VectorStart) {
+        if self.eat(Token::Ampersand) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(

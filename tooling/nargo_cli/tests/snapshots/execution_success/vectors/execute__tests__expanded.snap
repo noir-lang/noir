@@ -5,7 +5,7 @@ expression: expanded_code
 use std::vector;
 
 fn main(x: Field, y: pub Field) {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     assert(vector[0_u32] == 0_Field);
     assert(vector[0_u32] != 1_Field);
     vector[0_u32] = x;
@@ -14,7 +14,7 @@ fn main(x: Field, y: pub Field) {
     assert(vector_plus_10[2_u32] == 10_Field);
     assert(vector_plus_10[2_u32] != 8_Field);
     assert(vector_plus_10.len() == 3_u32);
-    let mut new_vector: [u32] = &[];
+    let mut new_vector: [u32] = #[];
     for i in 0_u32..5_u32 {
         new_vector = new_vector.push_back(i);
     }
@@ -36,21 +36,21 @@ fn main(x: Field, y: pub Field) {
     assert(removed_elem == 2_u32);
     assert(remove_vector[3_u32] == 3_u32);
     assert(remove_vector.len() == 4_u32);
-    let append: [Field] = &[1_Field, 2_Field].append(&[3_Field, 4_Field, 5_Field]);
+    let append: [Field] = #[1_Field, 2_Field].append(#[3_Field, 4_Field, 5_Field]);
     assert(append.len() == 5_u32);
     assert(append[0_u32] == 1_Field);
     assert(append[4_u32] == 5_Field);
-    let mapped: [Field] = &[1_Field, 2_Field].map(|x: Field| -> Field { x + 1_Field });
-    assert(mapped == &[2_Field, 3_Field]);
+    let mapped: [Field] = #[1_Field, 2_Field].map(|x: Field| -> Field { x + 1_Field });
+    assert(mapped == #[2_Field, 3_Field]);
     assert(
-        &[1_Field, 2_Field, 3_Field].fold(0_Field, |acc: Field, x: Field| -> Field { acc + x })
+        #[1_Field, 2_Field, 3_Field].fold(0_Field, |acc: Field, x: Field| -> Field { acc + x })
             == 6_Field,
     );
     assert(
-        &[1_Field, 2_Field, 3_Field].reduce(|acc: Field, x: Field| -> Field { acc + x }) == 6_Field,
+        #[1_Field, 2_Field, 3_Field].reduce(|acc: Field, x: Field| -> Field { acc + x }) == 6_Field,
     );
-    assert(&[2_u32, 4_u32, 6_u32].all(|x: u32| -> bool { x > 0_u32 }));
-    assert(&[2_u32, 4_u32, 6_u32].any(|x: u32| -> bool { x > 5_u32 }));
+    assert(#[2_u32, 4_u32, 6_u32].all(|x: u32| -> bool { x > 0_u32 }));
+    assert(#[2_u32, 4_u32, 6_u32].any(|x: u32| -> bool { x > 5_u32 }));
     regression_2083();
     regression_merge_vectors(x, y);
     regression_2370();
@@ -61,7 +61,7 @@ fn main(x: Field, y: pub Field) {
 }
 
 fn regression_2083() {
-    let y: [(Field, Field)] = &[(1_Field, 2_Field)];
+    let y: [(Field, Field)] = #[(1_Field, 2_Field)];
     let y: [(Field, Field)] = y.push_back((3_Field, 4_Field));
     let y: [(Field, Field)] = y.push_back((5_Field, 6_Field));
     assert(y[2_u32].1 == 6_Field);
@@ -138,7 +138,7 @@ fn merge_vectors_else(x: Field) {
 }
 
 fn merge_vectors_return(x: Field, y: Field) -> [Field] {
-    let vector: [Field] = &[0_Field; 2];
+    let vector: [Field] = #[0_Field; 2];
     if x != y {
         if x != 20_Field {
             vector.push_back(y)
@@ -151,7 +151,7 @@ fn merge_vectors_return(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_mutate(x: Field, y: Field) -> [Field] {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -162,7 +162,7 @@ fn merge_vectors_mutate(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_mutate_in_loop(x: Field, y: Field) -> [Field] {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         for i in 0_u32..5_u32 {
             vector = vector.push_back(i as Field);
@@ -174,7 +174,7 @@ fn merge_vectors_mutate_in_loop(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_mutate_two_ifs(x: Field, y: Field) -> [Field] {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -190,7 +190,7 @@ fn merge_vectors_mutate_two_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_mutate_between_ifs(x: Field, y: Field) -> [Field] {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -210,7 +210,7 @@ fn merge_vectors_mutate_between_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_push_then_pop(x: Field, y: Field) {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -230,7 +230,7 @@ fn merge_vectors_push_then_pop(x: Field, y: Field) {
 }
 
 fn merge_vectors_push_then_insert(x: Field, y: Field) -> [Field] {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -248,7 +248,7 @@ fn merge_vectors_push_then_insert(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_remove_between_ifs(x: Field, y: Field) -> [Field] {
-    let mut vector: [Field] = &[0_Field; 2];
+    let mut vector: [Field] = #[0_Field; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -268,8 +268,8 @@ fn merge_vectors_remove_between_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn regression_2370() {
-    let mut vector: [Field] = &[];
-    vector = &[1_Field, 2_Field, 3_Field];
+    let mut vector: [Field] = #[];
+    vector = #[1_Field, 2_Field, 3_Field];
 }
 
 fn regression_4418(x: Field) {
@@ -296,7 +296,7 @@ fn regression_vector_call_result(x: Field, y: Field) {
 }
 
 fn regression_4506() {
-    let vector: [Field] = &[1_Field, 2_Field, 3_Field];
+    let vector: [Field] = #[1_Field, 2_Field, 3_Field];
     assert(vector == vector);
 }
 
@@ -307,7 +307,7 @@ struct foo {
 }
 
 fn regression_vector_to_brillig(x: u32) {
-    let mut vector: [foo] = &[
+    let mut vector: [foo] = #[
         foo { a: 0_u32, b: 0_u32, c: [0_Field, 0_Field, 0_Field] },
         foo { a: 1_u32, b: 1_u32, c: [0_Field, 0_Field, 0_Field] },
     ];

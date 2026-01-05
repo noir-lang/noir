@@ -1,4 +1,4 @@
-global G_A: [Field] = &[];
+global G_A: [Field] = #[];
 fn main(a: bool, b: bool, c: Field) -> pub (Field, Field) {
     if a {
         (

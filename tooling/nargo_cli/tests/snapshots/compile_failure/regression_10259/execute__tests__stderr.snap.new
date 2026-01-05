@@ -1,0 +1,125 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+warning: unused variable xs
+   ┌─ src/main.nr:13:9
+   │
+13 │     let xs = #[x, x + 1, x + 2];
+   │         -- unused variable
+   │
+
+warning: unused variable x
+   ┌─ src/main.nr:12:9
+   │
+12 │ fn main(x: Field) {
+   │         - unused variable
+   │
+
+warning: unused function bar
+  ┌─ src/main.nr:5:4
+  │
+5 │ fn bar<T>(x: T) -> T {
+  │    --- unused function
+  │
+
+error: Expected an expression but found '#['
+   ┌─ src/main.nr:13:14
+   │
+13 │     let xs = #[x, x + 1, x + 2];
+   │              --
+   │
+
+error: Expected a ']' but found ','
+   ┌─ src/main.nr:13:17
+   │
+13 │     let xs = #[x, x + 1, x + 2];
+   │                 -
+   │
+
+error: Expected a statement but found 'unsafe'
+   ┌─ src/main.nr:15:5
+   │
+15 │     unsafe { bar(xs) };
+   │     ------
+   │
+
+error: Expected a statement but found 'unsafe'
+   ┌─ src/main.nr:15:5
+   │
+15 │     unsafe { bar(xs) };
+   │     ------
+   │
+
+error: Expected a ; after `let` statement
+   ┌─ src/main.nr:13:12
+   │
+13 │     let xs = #[x, x + 1, x + 2];
+   │            -
+   │
+
+error: Expected an item but found 'unsafe'
+   ┌─ src/main.nr:15:5
+   │
+15 │     unsafe { bar(xs) };
+   │     ------
+   │
+
+error: Expected an item but found '{'
+   ┌─ src/main.nr:15:12
+   │
+15 │     unsafe { bar(xs) };
+   │            -
+   │
+
+error: Expected an item but found 'bar'
+   ┌─ src/main.nr:15:14
+   │
+15 │     unsafe { bar(xs) };
+   │              ---
+   │
+
+error: Expected an item but found '('
+   ┌─ src/main.nr:15:17
+   │
+15 │     unsafe { bar(xs) };
+   │                 -
+   │
+
+error: Expected an item but found 'xs'
+   ┌─ src/main.nr:15:18
+   │
+15 │     unsafe { bar(xs) };
+   │                  --
+   │
+
+error: Expected an item but found ')'
+   ┌─ src/main.nr:15:20
+   │
+15 │     unsafe { bar(xs) };
+   │                    -
+   │
+
+error: Expected an item but found '}'
+   ┌─ src/main.nr:15:22
+   │
+15 │     unsafe { bar(xs) };
+   │                      -
+   │
+
+error: Expected an item but found ';'
+   ┌─ src/main.nr:15:23
+   │
+15 │     unsafe { bar(xs) };
+   │                       -
+   │
+
+error: Expected an item but found '}'
+   ┌─ src/main.nr:16:1
+   │
+16 │ }
+   │ -
+   │
+
+Aborting due to 14 previous errors

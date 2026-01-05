@@ -192,7 +192,7 @@ fn cannot_return_vector_from_main() {
     fn main() -> pub [Field] {
                      ^^^^^^^ Invalid type found in the entry point to a program
                      ~~~~~~~ Vector is not a valid entry point type. Found: [Field]
-        &[1,2]
+        #[1,2]
 
     }
         "#;

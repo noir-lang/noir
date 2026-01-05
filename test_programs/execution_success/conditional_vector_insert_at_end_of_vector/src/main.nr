@@ -4,7 +4,7 @@ struct foo {
 }
 
 fn main(cond: bool) -> pub u32 {
-    let mut vector = &[foo { a: 2, b: [3, 4] }];
+    let mut vector = #[foo { a: 2, b: [3, 4] }];
     if cond {
         vector = vector.push_back(foo { a: 5, b: [6, 7] });
     }

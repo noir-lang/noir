@@ -34,7 +34,7 @@ free_lambda: (<<fn(Field) -> Field>>, <<unconstrained fn(Field) -> Field>>), sen
 (<<fn(Field) -> Field>>, <<unconstrained fn(Field) -> Field>>)
 closured_lambda: (<<fn(Field) -> Field>>, <<unconstrained fn(Field) -> Field>>), sentinel: 8888
 (<<fn(Field) -> Field>>, <<unconstrained fn(Field) -> Field>>)
-vector_of_tuples: &[(11, 22), (33, 44)], sentinel: 8888
-&[(11, 22), (33, 44)]
-vector_of_tuples: &[(11, 22), (33, 44)], sentinel: 8888
-&[(11, 22), (33, 44)]
+vector_of_tuples: #[(11, 22), (33, 44)], sentinel: 8888
+#[(11, 22), (33, 44)]
+vector_of_tuples: #[(11, 22), (33, 44)], sentinel: 8888
+#[(11, 22), (33, 44)]

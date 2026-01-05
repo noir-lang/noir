@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+error: Expected an expression but found '#['
+   ┌─ src/main.nr:10:75
+   │
+10 │     let foo_dynamic = Foo { field: dynamic_one, array: [1, 2, 3], vector: #[] };
+   │                                                                           --
+   │
+
+error: Expected an identifier but found '#['
+   ┌─ src/main.nr:10:75
+   │
+10 │     let foo_dynamic = Foo { field: dynamic_one, array: [1, 2, 3], vector: #[] };
+   │                                                                           --
+   │
+
+error: Expected an identifier but found ']'
+   ┌─ src/main.nr:10:77
+   │
+10 │     let foo_dynamic = Foo { field: dynamic_one, array: [1, 2, 3], vector: #[] };
+   │                                                                             -
+   │
+
+Aborting due to 3 previous errors

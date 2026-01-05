@@ -257,7 +257,7 @@ vec.extend_from_array([<span class="number">2</span>, <span class="number">4</sp
 to exceed the maximum length.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> vec: BoundedVec&lt;Field, <span class="number">3</span>&gt; = BoundedVec::new();
-vec.extend_from_vector(&[<span class="number">2</span>, <span class="number">4</span>]);
+vec.extend_from_vector(#[<span class="number">2</span>, <span class="number">4</span>]);
 
 <span class="kw">assert</span>(vec.len == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);

@@ -283,7 +283,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// ```noir
     /// let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
-    /// vec.extend_from_vector(&[2, 4]);
+    /// vec.extend_from_vector(#[2, 4]);
     ///
     /// assert(vec.len == 2);
     /// assert(vec.get(0) == 2);
@@ -1230,7 +1230,7 @@ mod bounded_vec_tests {
         fn extend_from_vector() {
             let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
             vec.push(1);
-            vec.extend_from_vector(&[2, 3]);
+            vec.extend_from_vector(#[2, 3]);
 
             assert_eq(vec.len(), 3);
             assert_eq(vec.get(0), 1);
@@ -1266,7 +1266,7 @@ mod bounded_vec_tests {
         fn extend_vector_beyond_max_len() {
             let mut vec: BoundedVec<u32, 3> = BoundedVec::new();
             vec.push(1);
-            vec.extend_from_vector(&[2, 3, 4]); // S]should panic
+            vec.extend_from_vector(#[2, 3, 4]); // S]should panic
         }
 
         #[test(should_fail_with = "extend_from_bounded_vec out of bounds")]
@@ -1284,7 +1284,7 @@ mod bounded_vec_tests {
             vec.extend_from_array([]);
             assert_eq(vec.len(), original_len);
 
-            vec.extend_from_vector(&[]);
+            vec.extend_from_vector(#[]);
             assert_eq(vec.len(), original_len);
 
             let empty: BoundedVec<u32, 3> = BoundedVec::new();

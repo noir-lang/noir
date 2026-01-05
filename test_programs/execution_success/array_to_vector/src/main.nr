@@ -1,6 +1,6 @@
 // Converts an array into a vector.
 fn as_vector_push<T, let N: u32>(xs: [T; N]) -> [T] {
-    let mut vector = &[];
+    let mut vector = #[];
     for elem in xs {
         vector = vector.push_back(elem);
     }

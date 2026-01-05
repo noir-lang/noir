@@ -2,12 +2,12 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-Match { succeeded: true, match_ends: 4, leftover: &[] }
-Match { succeeded: true, match_ends: 4, leftover: &[] }
-Match { succeeded: true, match_ends: 5, leftover: &[] }
-Match { succeeded: true, match_ends: 6, leftover: &[] }
-Match { succeeded: true, match_ends: 0, leftover: &[49, 49, 49] }
-Match { succeeded: true, match_ends: 0, leftover: &[49, 49, 49] }
-Match { succeeded: true, match_ends: 1, leftover: &[49, 49] }
-Match { succeeded: true, match_ends: 2, leftover: &[49] }
-Match { succeeded: true, match_ends: 3, leftover: &[49] }
+Match { succeeded: true, match_ends: 4, leftover: #[] }
+Match { succeeded: true, match_ends: 4, leftover: #[] }
+Match { succeeded: true, match_ends: 5, leftover: #[] }
+Match { succeeded: true, match_ends: 6, leftover: #[] }
+Match { succeeded: true, match_ends: 0, leftover: #[49, 49, 49] }
+Match { succeeded: true, match_ends: 0, leftover: #[49, 49, 49] }
+Match { succeeded: true, match_ends: 1, leftover: #[49, 49] }
+Match { succeeded: true, match_ends: 2, leftover: #[49] }
+Match { succeeded: true, match_ends: 3, leftover: #[49] }

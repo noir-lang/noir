@@ -20,7 +20,7 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 }
 
 comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields: [(Quoted, Type, Quoted)] = &[
+    let fields: [(Quoted, Type, Quoted)] = #[
         (quote { x }, quote { i32 }.as_type(), quote { pub }),
         (quote { y }, quote { Field }.as_type(), quote { pub(crate) }),
     ];

@@ -111,8 +111,6 @@ impl<'a> Lexer<'a> {
             let start = self.position;
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
-        } else if self.peek_char_is('[') {
-            self.single_char_token(Token::VectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -175,11 +173,12 @@ impl<'a> Lexer<'a> {
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('$') => self.single_char_token(Token::DollarSign),
+            Some('#') => self.single_char_token(Token::Pound),
+            Some('\'') => self.single_char_token(Token::SingleQuote),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
-            Some('#') => self.eat_attribute_start(),
             // cSpell:disable
             Some(ch)
                 if ch.is_whitespace()
@@ -348,35 +347,6 @@ impl<'a> Lexer<'a> {
                 expected: "an alpha numeric character".to_owned(),
             }),
         }
-    }
-
-    fn eat_attribute_start(&mut self) -> SpannedTokenResult {
-        let start = self.position;
-
-        let is_inner = if self.peek_char_is('!') {
-            self.next_char();
-            true
-        } else {
-            false
-        };
-
-        if !self.peek_char_is('[') {
-            return Err(LexerErrorKind::UnexpectedCharacter {
-                location: self.location(Span::single_char(self.position)),
-                found: self.next_char(),
-                expected: "[".to_owned(),
-            });
-        }
-        self.next_char();
-
-        let is_tag = self.peek_char_is('\'');
-        if is_tag {
-            self.next_char();
-        }
-
-        let end = self.position;
-
-        Ok(Token::AttributeStart { is_inner, is_tag }.into_span(start, end))
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
@@ -976,21 +946,12 @@ mod tests {
     }
 
     #[test]
-    fn invalid_attribute() {
-        let input = "#";
-        let mut lexer = Lexer::new_with_dummy_file(input);
-
-        let token = lexer.next().unwrap();
-        assert!(token.is_err());
-    }
-
-    #[test]
     fn test_attribute_start() {
         let input = r#"#[something]"#;
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        let token = lexer.next_token().unwrap();
-        assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: false });
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::Pound);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::LeftBracket);
     }
 
     #[test]
@@ -998,8 +959,9 @@ mod tests {
         let input = r#"#['something]"#;
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        let token = lexer.next_token().unwrap();
-        assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: true });
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::Pound);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::LeftBracket);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::SingleQuote);
     }
 
     #[test]
@@ -1007,8 +969,9 @@ mod tests {
         let input = r#"#![something]"#;
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        let token = lexer.next_token().unwrap();
-        assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: false });
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::Pound);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::Bang);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::LeftBracket);
     }
 
     #[test]
@@ -1016,8 +979,10 @@ mod tests {
         let input = r#"#!['something]"#;
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        let token = lexer.next_token().unwrap();
-        assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: true });
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::Pound);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::Bang);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::LeftBracket);
+        assert_eq!(lexer.next_token().unwrap().token(), &Token::SingleQuote);
     }
 
     #[test]

@@ -1,8 +1,8 @@
 fn main(index: u32) {
-    let vector: [()] = &[(), (), ()];
+    let vector: [()] = #[(), (), ()];
     println(vector);
 
-    let mut vector: [()] = &[(), (), ()];
+    let mut vector: [()] = #[(), (), ()];
     vector[index] = ();
     println(vector);
 }

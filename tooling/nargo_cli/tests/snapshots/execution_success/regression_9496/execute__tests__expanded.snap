@@ -4,18 +4,18 @@ expression: expanded_code
 ---
 fn main(b: bool) -> pub (u32, u32, u32, u32) {
     // Safety: comment added by `nargo expand`
-    let x1: u32 = unsafe { push_0_get_1(if { b } { &[10_u32] } else { &[20_u32, 30_u32] }) };
+    let x1: u32 = unsafe { push_0_get_1(if { b } { #[10_u32] } else { #[20_u32, 30_u32] }) };
     // Safety: comment added by `nargo expand`
-    let x2: u32 = unsafe { pop_back(if { b } { &[10_u32] } else { &[20_u32, 30_u32] }) };
+    let x2: u32 = unsafe { pop_back(if { b } { #[10_u32] } else { #[20_u32, 30_u32] }) };
     // Safety: comment added by `nargo expand`
-    let x3: u32 = unsafe { pop_front(if { b } { &[10_u32] } else { &[20_u32, 30_u32] }) };
+    let x3: u32 = unsafe { pop_front(if { b } { #[10_u32] } else { #[20_u32, 30_u32] }) };
     // Safety: comment added by `nargo expand`
     let x4: u32 = unsafe {
         pop_front(
             if { b } {
-                &[10_u32, 20_u32, 30_u32]
+                #[10_u32, 20_u32, 30_u32]
             } else {
-                &[40_u32, 50_u32, 60_u32]
+                #[40_u32, 50_u32, 60_u32]
             },
         )
     };

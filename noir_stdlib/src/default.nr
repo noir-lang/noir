@@ -96,7 +96,7 @@ where
 
 impl<T> Default for [T] {
     fn default() -> [T] {
-        &[]
+        #[]
     }
 }
 

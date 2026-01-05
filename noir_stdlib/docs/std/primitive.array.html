@@ -133,7 +133,7 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 <p>Returns this array as a vector.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> vector = array.as_vector();
-<span class="kw">assert_eq</span>(vector, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
+<span class="kw">assert_eq</span>(vector, #[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
 </div><code id="as_slice" class="code-header">pub fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> [T]</code>
 
 <div class="padded-description"><div class="deprecated">
@@ -145,7 +145,7 @@ Deprecated: This method has been renamed to `as_vector`
 This method is deprecated in favor of <code>as_vector</code>.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> vector = array.as_slice();
-<span class="kw">assert_eq</span>(vector, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
+<span class="kw">assert_eq</span>(vector, #[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
 </div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
 
 <div class="padded-description"><div class="comments">

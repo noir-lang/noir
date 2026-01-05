@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_A: [Field] = &[];
+global G_A: [Field] = #[];
 
 fn main(a: u32) -> pub Field {
     if a == 10_u32 {

@@ -68,7 +68,7 @@ fn do_not_infer_partial_global_types() {
                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^ Globals must have a specified type
                                  ~~~~ Inferred type is `str<2>`
-        pub global NESTED_STR: [str<_>] = &["hi"];
+        pub global NESTED_STR: [str<_>] = #["hi"];
                                     ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^ Globals must have a specified type
                                           ~~~~~~~ Inferred type is `[str<2>]`
@@ -82,7 +82,7 @@ fn do_not_infer_partial_global_types() {
                                               ^ The placeholder `_` is not allowed in global definitions
                                                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
-            (&["hi"], [[]; 3]);
+            (#["hi"], [[]; 3]);
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
         pub global FOO: [i32; 3] = [1, 2, 3];
     "#;

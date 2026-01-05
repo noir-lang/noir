@@ -14,7 +14,7 @@ comptime fn add_to_registry(
     let functions_to_insert = if current_functions.is_some() {
         current_functions.unwrap().push_back(f)
     } else {
-        &[f]
+        #[f]
     };
     registry.insert(module, functions_to_insert);
 }

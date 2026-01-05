@@ -22,7 +22,7 @@ fn main(x: u32) {
     let lambdas: [fn(()); 1] = [|_: ()| {}];
     lambdas[0_u32](());
     lambdas[x - 1_u32](());
-    let lambdas: [fn(())] = &[|_: ()| {}];
+    let lambdas: [fn(())] = #[|_: ()| {}];
     lambdas[0_u32](());
     lambdas[x - 1_u32](());
 }
@@ -33,7 +33,7 @@ fn lambdas_in_array_literal(x: u32) {
 }
 
 fn lambdas_in_vector_literal(x: u32) {
-    let xs: [fn()] = &[|| println("hi"), || println("bye"), || println("big"), || println("wow")];
+    let xs: [fn()] = #[|| println("hi"), || println("bye"), || println("big"), || println("wow")];
     xs[x]();
 }
 
@@ -43,7 +43,7 @@ fn functions_in_array_literal(x: u32) {
 }
 
 fn functions_in_vector_literal(x: u32) {
-    let xs: [fn()] = &[baz, qux];
+    let xs: [fn()] = #[baz, qux];
     xs[x]();
 }
 

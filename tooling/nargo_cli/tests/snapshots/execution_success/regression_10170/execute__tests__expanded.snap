@@ -9,7 +9,7 @@ struct foo {
 }
 
 fn main(cond: bool) {
-    let mut vector: [u32] = &[0_u32, 1_u32];
+    let mut vector: [u32] = #[0_u32, 1_u32];
     if cond { vector = vector.push_back(10_u32); };
     for i in 0_u32..2_u32 {
         vector = vector.push_back(i);
@@ -17,7 +17,7 @@ fn main(cond: bool) {
         let (new_vector, _): ([u32], u32) = vector.pop_back();
         vector = new_vector;
     }
-    let mut vector: [foo] = &[
+    let mut vector: [foo] = #[
         foo { a: 0_u32, b: 0_u32, c: [0_Field, 0_Field, 0_Field] },
         foo { a: 1_u32, b: 1_u32, c: [0_Field, 0_Field, 0_Field] },
     ];
@@ -30,7 +30,7 @@ fn main(cond: bool) {
         let (new_vector, _): ([foo], foo) = vector.pop_back();
         vector = new_vector;
     }
-    let mut vector: [Field] = &[0_Field, 1_Field];
+    let mut vector: [Field] = #[0_Field, 1_Field];
     if !cond { vector = vector.push_back(10_Field); };
     let (new_vector, _): ([Field], Field) = vector.pop_back();
     vector = new_vector.push_back(11_Field);

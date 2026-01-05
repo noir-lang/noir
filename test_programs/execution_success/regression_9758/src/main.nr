@@ -1,5 +1,5 @@
 unconstrained fn main() -> pub bool {
-    let e = func_5(&[(&mut false), (&mut false)]);
+    let e = func_5(#[(&mut false), (&mut false)]);
     let e = e.push_back((&mut false));
     let e = func_5(e);
     !(*e[0])

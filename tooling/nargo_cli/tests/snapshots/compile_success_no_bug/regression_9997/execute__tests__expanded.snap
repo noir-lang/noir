@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(a: pub u32) -> pub Field {
     if a == 0_u32 {
-        let c: [&mut Field] = &[&mut 1_Field];
+        let c: [&mut Field] = #[&mut 1_Field];
         1_Field / { *c[3_u32] }
     } else {
         2_Field

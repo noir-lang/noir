@@ -26,10 +26,6 @@ pub enum BorrowedToken<'input> {
     RawStr(&'input str, u8),
     FmtStr(&'input [FmtStrFragment], u32 /* length */),
     Keyword(Keyword),
-    AttributeStart {
-        is_inner: bool,
-        is_tag: bool,
-    },
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
@@ -112,6 +108,8 @@ pub enum BorrowedToken<'input> {
     Assign,
     /// &&
     LogicalAnd,
+    /// '
+    SingleQuote,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -194,10 +192,6 @@ pub enum Token {
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Keyword(Keyword),
-    AttributeStart {
-        is_inner: bool,
-        is_tag: bool,
-    },
     LineComment(String, Option<DocStyle>),
     BlockComment(String, Option<DocStyle>),
     // A `quote { ... }` along with the tokens in its token stream.
@@ -243,10 +237,6 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// & followed immediately by '['
-    /// This is a lexer hack to distinguish vectors
-    /// from taking a reference to an array
-    VectorStart,
     /// ^
     Caret,
     /// <<
@@ -295,6 +285,8 @@ pub enum Token {
     DollarSign,
     /// &&
     LogicalAnd,
+    /// '
+    SingleQuote,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -323,9 +315,6 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
         Token::RawStr(b, hashes) => BorrowedToken::RawStr(b, *hashes),
         Token::Keyword(k) => BorrowedToken::Keyword(*k),
-        Token::AttributeStart { is_inner, is_tag } => {
-            BorrowedToken::AttributeStart { is_inner: *is_inner, is_tag: *is_tag }
-        }
         Token::LineComment(s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
@@ -348,7 +337,6 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
-        Token::VectorStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -373,6 +361,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Bang => BorrowedToken::Bang,
         Token::DollarSign => BorrowedToken::DollarSign,
         Token::LogicalAnd => BorrowedToken::LogicalAnd,
+        Token::SingleQuote => BorrowedToken::SingleQuote,
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(s) => BorrowedToken::Whitespace(s),
@@ -536,17 +525,6 @@ impl Display for Token {
                 write!(f, "r{h}{b:?}{h}")
             }
             Token::Keyword(k) => write!(f, "{k}"),
-            Token::AttributeStart { is_inner, is_tag } => {
-                write!(f, "#")?;
-                if is_inner {
-                    write!(f, "!")?;
-                }
-                write!(f, "[")?;
-                if is_tag {
-                    write!(f, "'")?;
-                }
-                Ok(())
-            }
             Token::LineComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "//!{s}"),
                 Some(DocStyle::Outer) => write!(f, "///{s}"),
@@ -586,7 +564,6 @@ impl Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::VectorStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -611,6 +588,7 @@ impl Display for Token {
             Token::Bang => write!(f, "!"),
             Token::DollarSign => write!(f, "$"),
             Token::LogicalAnd => write!(f, "&&"),
+            Token::SingleQuote => write!(f, "'"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),

@@ -78,7 +78,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         B: BuildHasher,
     {
         // docs:end:with_hasher
-        let _table = &[Slot::default()];
+        let _table = #[Slot::default()];
         let _len = 0;
         Self { _table, _len, _build_hasher }
     }
@@ -88,7 +88,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         B: BuildHasher,
     {
         // docs:end:with_hasher
-        let mut _table = &[];
+        let mut _table = #[];
         for _ in 0..capacity {
             _table = _table.push_back(Slot::default());
         }
@@ -100,7 +100,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     // docs:start:clear
     pub fn clear(&mut self) {
         // docs:end:clear
-        self._table = &[Slot::default()];
+        self._table = #[Slot::default()];
         self._len = 0;
     }
 
@@ -128,7 +128,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     // docs:start:entries
     pub fn entries(self) -> [(K, V)] {
         // docs:end:entries
-        let mut entries = &[];
+        let mut entries = #[];
 
         for slot in self._table {
             if slot.is_valid() {
@@ -152,7 +152,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     // docs:start:keys
     pub fn keys(self) -> [K] {
         // docs:end:keys
-        let mut keys = &[];
+        let mut keys = #[];
 
         for slot in self._table {
             if slot.is_valid() {
@@ -175,7 +175,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     // docs:start:values
     pub fn values(self) -> [V] {
         // docs:end:values
-        let mut values = &[];
+        let mut values = #[];
 
         for slot in self._table {
             if slot.is_valid() {

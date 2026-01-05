@@ -8,7 +8,7 @@ fn main() {
         let s1 = msg1.as_ctstring();
         let s2 = msg2.as_ctstring();
 
-        let s3 = &[s1, s2, s1].join("".as_ctstring());
+        let s3 = #[s1, s2, s1].join("".as_ctstring());
         assert_eq(s3, "msg1 (msg2 contains msg1) msg1".as_ctstring());
 
         let mut s4 = s1;

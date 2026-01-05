@@ -15,5 +15,5 @@ comptime fn baz(_f: FunctionDefinition, args: [CtString]) {
 }
 
 fn main() {
-    assert_eq(bar(), &[1, 2, 3])
+    assert_eq(bar(), #[1, 2, 3])
 }

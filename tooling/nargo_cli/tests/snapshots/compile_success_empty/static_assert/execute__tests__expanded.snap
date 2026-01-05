@@ -12,7 +12,7 @@ global GLOBAL_THREE: Field = 3;
 
 global GLOBAL_ARRAY_PAIR: [Field; 2] = [1, 2];
 
-global GLOBAL_VECTOR_PAIR: [Field] = &[1, 2];
+global GLOBAL_VECTOR_PAIR: [Field] = #[1, 2];
 
 pub struct Foo {
     field: Field,
@@ -22,7 +22,7 @@ pub struct Foo {
 
 fn main(dynamic_one: Field, dynamic_two: Field) {
     let dynamic_array_pair: [Field; 2] = [dynamic_one, dynamic_two];
-    let dynamic_vector_pair: [Field] = &[dynamic_one, dynamic_two];
+    let dynamic_vector_pair: [Field] = #[dynamic_one, dynamic_two];
     static_assert(true, "");
     static_assert((1_Field + 1_Field) == 2_Field, "");
     let x: Field = 2_Field;

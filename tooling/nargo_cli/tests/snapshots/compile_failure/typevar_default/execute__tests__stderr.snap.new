@@ -1,0 +1,83 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+error: Type provided when a numeric generic was expected
+  ┌─ src/main.nr:6:43
+  │
+6 │ fn vector_to_array<N>(vector: [Field]) -> [Field; N] {
+  │                                           ---------- the numeric generic is not of type `u32`
+  │
+
+error: Function expects 1 parameter but 0 were given
+  ┌─ src/main.nr:3:13
+  │
+3 │     let _ = vector_to_array(#[1, 2, 3]);
+  │             ----------------
+  │
+
+error: Type annotation needed
+  ┌─ src/main.nr:3:13
+  │
+3 │     let _ = vector_to_array(#[1, 2, 3]);
+  │             --------------- Could not determine the type of the generic argument `N` declared on the function `vector_to_array`
+  │
+
+error: Type provided when a numeric generic was expected
+  ┌─ src/main.nr:7:25
+  │
+7 │     let mut array = [0; N];
+  │                         - the numeric generic is not of type `u32`
+  │
+
+error: cannot find `N` in this scope
+  ┌─ src/main.nr:8:19
+  │
+8 │     for i in 0 .. N {
+  │                   - not found in this scope
+  │
+
+error: Expected an expression but found '#['
+  ┌─ src/main.nr:3:29
+  │
+3 │     let _ = vector_to_array(#[1, 2, 3]);
+  │                             --
+  │
+
+error: Expected a path but found '1'
+  ┌─ src/main.nr:3:31
+  │
+3 │     let _ = vector_to_array(#[1, 2, 3]);
+  │                               -
+  │
+
+error: Expected a statement but found ')'
+  ┌─ src/main.nr:3:39
+  │
+3 │     let _ = vector_to_array(#[1, 2, 3]);
+  │                                       -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:4:1
+  │
+4 │ }
+  │ -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:4:1
+  │
+4 │ }
+  │ -
+  │
+
+error: Expected a ; after `let` statement
+  ┌─ src/main.nr:3:28
+  │
+3 │     let _ = vector_to_array(#[1, 2, 3]);
+  │                            -
+  │
+
+Aborting due to 11 previous errors

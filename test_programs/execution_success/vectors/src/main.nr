@@ -1,7 +1,7 @@
 use std::vector;
 
 fn main(x: Field, y: pub Field) {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     assert(vector[0] == 0);
     assert(vector[0] != 1);
     vector[0] = x;
@@ -12,7 +12,7 @@ fn main(x: Field, y: pub Field) {
     assert(vector_plus_10[2] != 8);
     assert(vector_plus_10.len() == 3);
 
-    let mut new_vector = &[];
+    let mut new_vector = #[];
     for i in 0..5 {
         new_vector = new_vector.push_back(i);
     }
@@ -40,18 +40,18 @@ fn main(x: Field, y: pub Field) {
     assert(remove_vector[3] == 3);
     assert(remove_vector.len() == 4);
 
-    let append = &[1, 2].append(&[3, 4, 5]);
+    let append = #[1, 2].append(#[3, 4, 5]);
     assert(append.len() == 5);
     assert(append[0] == 1);
     assert(append[4] == 5);
 
-    let mapped = &[1, 2].map(|x| x + 1);
-    assert_eq(mapped, &[2, 3]);
+    let mapped = #[1, 2].map(|x| x + 1);
+    assert_eq(mapped, #[2, 3]);
 
-    assert_eq(&[1, 2, 3].fold(0, |acc, x| acc + x), 6);
-    assert_eq(&[1, 2, 3].reduce(|acc, x| acc + x), 6);
-    assert(&[2, 4, 6].all(|x| x > 0));
-    assert(&[2, 4, 6].any(|x| x > 5));
+    assert_eq(#[1, 2, 3].fold(0, |acc, x| acc + x), 6);
+    assert_eq(#[1, 2, 3].reduce(|acc, x| acc + x), 6);
+    assert(#[2, 4, 6].all(|x| x > 0));
+    assert(#[2, 4, 6].any(|x| x > 5));
 
     regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
@@ -66,7 +66,7 @@ fn main(x: Field, y: pub Field) {
 
 // Ensure that vectors of struct/tuple values work.
 fn regression_2083() {
-    let y = &[(1, 2)];
+    let y = #[(1, 2)];
     let y = y.push_back((3, 4)); // [(1, 2), (3, 4)]
     let y = y.push_back((5, 6)); // [(1, 2), (3, 4), (5, 6)]
     assert(y[2].1 == 6);
@@ -159,7 +159,7 @@ fn merge_vectors_else(x: Field) {
 
 // Test returning a merged vector without a mutation
 fn merge_vectors_return(x: Field, y: Field) -> [Field] {
-    let vector = &[0; 2];
+    let vector = #[0; 2];
     if x != y {
         if x != 20 {
             vector.push_back(y)
@@ -173,7 +173,7 @@ fn merge_vectors_return(x: Field, y: Field) -> [Field] {
 
 // Test mutating a vector inside of an if statement
 fn merge_vectors_mutate(x: Field, y: Field) -> [Field] {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -185,7 +185,7 @@ fn merge_vectors_mutate(x: Field, y: Field) -> [Field] {
 
 // Test mutating a vector inside of a loop in an if statement
 fn merge_vectors_mutate_in_loop(x: Field, y: Field) -> [Field] {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         for i in 0..5 {
             vector = vector.push_back(i as Field);
@@ -197,7 +197,7 @@ fn merge_vectors_mutate_in_loop(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_mutate_two_ifs(x: Field, y: Field) -> [Field] {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -216,7 +216,7 @@ fn merge_vectors_mutate_two_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_mutate_between_ifs(x: Field, y: Field) -> [Field] {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -242,7 +242,7 @@ fn merge_vectors_mutate_between_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_push_then_pop(x: Field, y: Field) {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -266,7 +266,7 @@ fn merge_vectors_push_then_pop(x: Field, y: Field) {
 }
 
 fn merge_vectors_push_then_insert(x: Field, y: Field) -> [Field] {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -289,7 +289,7 @@ fn merge_vectors_push_then_insert(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_vectors_remove_between_ifs(x: Field, y: Field) -> [Field] {
-    let mut vector = &[0; 2];
+    let mut vector = #[0; 2];
     if x != y {
         vector = vector.push_back(y);
         vector = vector.push_back(x);
@@ -315,8 +315,8 @@ fn merge_vectors_remove_between_ifs(x: Field, y: Field) -> [Field] {
 // Previously, we'd get a type error when trying to assign an array of a different size to
 // an existing array variable. Now, we infer the variable must be a vector.
 fn regression_2370() {
-    let mut vector = &[];
-    vector = &[1, 2, 3];
+    let mut vector = #[];
+    vector = #[1, 2, 3];
 }
 
 fn regression_4418(x: Field) {
@@ -344,7 +344,7 @@ fn regression_vector_call_result(x: Field, y: Field) {
 }
 
 fn regression_4506() {
-    let vector: [Field] = &[1, 2, 3];
+    let vector: [Field] = #[1, 2, 3];
     assert(vector == vector);
 }
 
@@ -354,7 +354,7 @@ struct foo {
     c: [Field; 3],
 }
 fn regression_vector_to_brillig(x: u32) {
-    let mut vector = &[foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }];
+    let mut vector = #[foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }];
     let mut foo1 = foo { a: 10, b: 10, c: [0, 0, 0] };
     foo1.c[x] = 7;
     vector = vector.push_back(foo1);

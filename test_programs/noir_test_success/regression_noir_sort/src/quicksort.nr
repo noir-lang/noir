@@ -27,7 +27,7 @@ unconstrained fn quicksort_loop<T, let N: u32>(
     high: u32,
     sortfn: unconstrained fn(T, T) -> bool,
 ) {
-    let mut stack: [(u32, u32)] = &[(low, high)];
+    let mut stack: [(u32, u32)] = #[(low, high)];
     // TODO(https://github.com/noir-lang/noir_sort/issues/22): use 'loop' once it's stabilized
     for _ in 0..2 * N {
         if stack.len() == 0 {

@@ -18,7 +18,7 @@ fn sum(values: [Field]) -> Field {
 }
 
 fn main(points: [Point; 3]) {
-    let mut serialized_points = &[];
+    let mut serialized_points = #[];
     for point in points {
         serialized_points = serialized_points.append(point.serialize().as_vector());
     }

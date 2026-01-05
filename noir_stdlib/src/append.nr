@@ -15,7 +15,7 @@ pub trait Append {
 
 impl<T> Append for [T] {
     fn empty() -> Self {
-        &[]
+        #[]
     }
 
     fn append(self, other: Self) -> Self {

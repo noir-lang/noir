@@ -12,7 +12,7 @@
 use std::mem::vector_refcount;
 
 fn main(i: u32) {
-    let mut vector = &[0, 1, 2];
+    let mut vector = #[0, 1, 2];
     assert_refcount(vector, 1, true);
 
     borrow(vector, vector_refcount(vector));
@@ -21,7 +21,7 @@ fn main(i: u32) {
 
     borrow_mut_two(&mut vector, &mut vector, vector_refcount(vector));
 
-    let mut u32_vector = &[0, 1, 2];
+    let mut u32_vector = #[0, 1, 2];
     let rc1 = vector_refcount(vector);
     let rc2 = vector_refcount(u32_vector);
     borrow_mut_two_separate(&mut vector, &mut u32_vector, rc1, rc2);
@@ -46,7 +46,7 @@ fn borrow_mut(vector: &mut [Field], rc_before_call: u32) {
 // Returns a new vector (a copy) to prevent SSA from optimizing away mutations.
 fn copy_mut(mut vector: [Field], rc_before_call: u32) -> [Field] {
     assert_refcount(vector, rc_before_call, true);
-    vector = &[4, vector[1], vector[2]];
+    vector = #[4, vector[1], vector[2]];
     println(vector[0]);
     vector
 }
@@ -92,7 +92,7 @@ fn assert_refcount<T>(vector: [T], mut expected: u32, expect_copy: bool) {
 }
 
 fn regression_7297() {
-    let mut vector: [Field] = &[0, 1, 2];
+    let mut vector: [Field] = #[0, 1, 2];
 
     let refcount_0 = vector_refcount(vector);
     borrow_mut_two(&mut vector, &mut vector, refcount_0);
@@ -124,7 +124,7 @@ fn regression_7297() {
 }
 
 unconstrained fn regression_10335(i: u32) {
-    let a: [Field] = &[0, 1, 2];
+    let a: [Field] = #[0, 1, 2];
     let mut b = a;
     b[i] = 3;
 

@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 190
+expression: stdout
+---
+&[(1, 2)]

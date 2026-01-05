@@ -3,7 +3,7 @@ fn main(
     dynamic_two: Field, // == 2
 ) {
     // length unknown at compile time
-    let mut dynamic_built_vector_pair = &[];
+    let mut dynamic_built_vector_pair = #[];
     if dynamic_one == 1 {
         dynamic_built_vector_pair = dynamic_built_vector_pair.push_back(dynamic_one);
     }

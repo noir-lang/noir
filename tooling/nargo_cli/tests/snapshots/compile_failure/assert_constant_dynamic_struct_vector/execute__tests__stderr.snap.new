@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+error: no such field dynamic_one defined in struct Foo
+   ┌─ src/main.nr:10:74
+   │
+10 │     let foo_dynamic_vector = Foo { field: 0, array: [1, 2, 3], vector: #[dynamic_one] };
+   │                                                                          -----------
+   │
+
+error: Expected an expression but found '#['
+   ┌─ src/main.nr:10:72
+   │
+10 │     let foo_dynamic_vector = Foo { field: 0, array: [1, 2, 3], vector: #[dynamic_one] };
+   │                                                                        --
+   │
+
+error: Expected an identifier but found '#['
+   ┌─ src/main.nr:10:72
+   │
+10 │     let foo_dynamic_vector = Foo { field: 0, array: [1, 2, 3], vector: #[dynamic_one] };
+   │                                                                        --
+   │
+
+error: Expected a `,` separating these two constructor fields
+   ┌─ src/main.nr:10:72
+   │
+10 │     let foo_dynamic_vector = Foo { field: 0, array: [1, 2, 3], vector: #[dynamic_one] };
+   │                                                                        --
+   │
+
+error: Expected an identifier but found ']'
+   ┌─ src/main.nr:10:85
+   │
+10 │     let foo_dynamic_vector = Foo { field: 0, array: [1, 2, 3], vector: #[dynamic_one] };
+   │                                                                                     -
+   │
+
+Aborting due to 5 previous errors

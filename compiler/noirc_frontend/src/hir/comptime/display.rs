@@ -285,7 +285,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::VectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -304,6 +303,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Pound
             | Token::Pipe
             | Token::Bang
+            | Token::SingleQuote
             | Token::DollarSign => {
                 write!(f, "{token}")
             }
@@ -312,7 +312,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::FmtStr(..)
             | Token::Whitespace(_)
             | Token::BlockComment(..)
-            | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;

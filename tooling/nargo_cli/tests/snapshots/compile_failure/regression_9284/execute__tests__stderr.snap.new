@@ -1,0 +1,190 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+warning: unused variable a
+  ┌─ src/main.nr:2:9
+  │
+2 │     let a = #[1, 2, 3];
+  │         - unused variable
+  │
+
+warning: unused function foo
+  ┌─ src/main.nr:8:4
+  │
+8 │ fn foo<T>(x: T) {
+  │    --- unused function
+  │
+
+error: Expected an expression but found '#['
+  ┌─ src/main.nr:2:13
+  │
+2 │     let a = #[1, 2, 3];
+  │             --
+  │
+
+error: Expected a path but found '1'
+  ┌─ src/main.nr:2:15
+  │
+2 │     let a = #[1, 2, 3];
+  │               -
+  │
+
+error: Expected a statement but found '
+    '
+  ┌─ src/main.nr:2:24
+  │  
+2 │       let a = #[1, 2, 3];
+  │ ╭───────────────────────'
+3 │ │     foo(f"A: {a} is not 1!");
+  │ ╰────'
+  │  
+
+error: Expected a statement but found '
+    '
+  ┌─ src/main.nr:2:24
+  │  
+2 │       let a = #[1, 2, 3];
+  │ ╭───────────────────────'
+3 │ │     foo(f"A: {a} is not 1!");
+  │ ╰────'
+  │  
+
+error: Expected a ; after `let` statement
+  ┌─ src/main.nr:2:11
+  │
+2 │     let a = #[1, 2, 3];
+  │           -
+  │
+
+error: Expected an item but found '
+    '
+  ┌─ src/main.nr:2:24
+  │  
+2 │       let a = #[1, 2, 3];
+  │ ╭───────────────────────'
+3 │ │     foo(f"A: {a} is not 1!");
+  │ ╰────'
+  │  
+
+error: Expected an item but found 'foo'
+  ┌─ src/main.nr:3:5
+  │
+3 │     foo(f"A: {a} is not 1!");
+  │     ---
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:8
+  │
+3 │     foo(f"A: {a} is not 1!");
+  │        -
+  │
+
+error: Expected an item but found 'f[String("A: "), Interpolation("a", Location { span: Span(Span { start: ByteIndex(50), end: ByteIndex(51) }), file: FileId(51) }), String(" is not 1!")]'
+  ┌─ src/main.nr:3:9
+  │
+3 │     foo(f"A: {a} is not 1!");
+  │         -------------------
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:3:28
+  │
+3 │     foo(f"A: {a} is not 1!");
+  │                            -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:3:29
+  │
+3 │     foo(f"A: {a} is not 1!");
+  │                             -
+  │
+
+error: Expected an item but found 'foo'
+  ┌─ src/main.nr:4:5
+  │
+4 │     foo(());
+  │     ---
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:4:8
+  │
+4 │     foo(());
+  │        -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:4:9
+  │
+4 │     foo(());
+  │         -
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:4:10
+  │
+4 │     foo(());
+  │          -
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:4:11
+  │
+4 │     foo(());
+  │           -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:4:12
+  │
+4 │     foo(());
+  │            -
+  │
+
+error: Expected an item but found 'foo'
+  ┌─ src/main.nr:5:5
+  │
+5 │     foo(a);
+  │     ---
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:5:8
+  │
+5 │     foo(a);
+  │        -
+  │
+
+error: Expected an item but found 'a'
+  ┌─ src/main.nr:5:9
+  │
+5 │     foo(a);
+  │         -
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:5:10
+  │
+5 │     foo(a);
+  │          -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:5:11
+  │
+5 │     foo(a);
+  │           -
+  │
+
+error: Expected an item but found '}'
+  ┌─ src/main.nr:6:1
+  │
+6 │ }
+  │ -
+  │
+
+Aborting due to 23 previous errors

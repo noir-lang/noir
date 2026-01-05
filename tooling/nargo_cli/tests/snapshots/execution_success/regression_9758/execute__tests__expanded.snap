@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main() -> pub bool {
-    let e: [&mut bool] = func_5(&[&mut false, &mut false]);
+    let e: [&mut bool] = func_5(#[&mut false, &mut false]);
     let e: [&mut bool] = e.push_back(&mut false);
     let e: [&mut bool] = func_5(e);
     !*e[0_u32]

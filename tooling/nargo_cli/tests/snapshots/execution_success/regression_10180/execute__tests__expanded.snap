@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_B: [(str<2>, Field)] = &[
+global G_B: [(str<2>, Field)] = #[
     ("SM", 193432430920915057603408161267722629873),
     ("QK", 28517051330822917784420357897851281178),
     ("XJ", -303354957477210748157621923488550325890),

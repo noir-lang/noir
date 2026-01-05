@@ -331,7 +331,6 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::RightBrace
             | Token::LeftBracket
             | Token::RightBracket
-            | Token::VectorStart
             | Token::Pipe
             | Token::Assign
             | Token::Arrow

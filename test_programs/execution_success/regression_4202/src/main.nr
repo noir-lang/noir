@@ -1,5 +1,5 @@
 fn main(input: [u32; 4]) {
-    let mut vector1: [u32] = &[1, 2, 3, 4];
+    let mut vector1: [u32] = #[1, 2, 3, 4];
     if vector1[0] == 3 {
         vector1[1] = 4;
     }

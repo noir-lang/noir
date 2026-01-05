@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 321
+expression: stderr
+---
+error: Invalid type found in the entry point to a program
+  ┌─ src/main.nr:2:22
+  │
+2 │     fn main() -> pub [Field]{
+  │                      ------- Vector is not a valid entry point type. Found: [Field]
+  │
+  = Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
+
+error: expected type [Field], found type ()
+  ┌─ src/main.nr:2:22
+  │  
+2 │       fn main() -> pub [Field]{
+  │                        ------- expected [Field] because of return type
+  │ ╭─────────────────────────────'
+3 │ │         #[1,2]
+4 │ │         
+5 │ │     }
+  │ ╰─────' () returned here
+  │  
+  = implicitly returns `()` as its body has no tail or `return` expression
+
+error: Expected a path but found '1'
+  ┌─ src/main.nr:3:11
+  │
+3 │         #[1,2]
+  │           -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:5:5
+  │
+5 │     }
+  │     -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:5:5
+  │
+5 │     }
+  │     -
+  │
+
+Aborting due to 5 previous errors
