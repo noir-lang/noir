@@ -254,7 +254,8 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="doccomment">//! Inherent type implementations collection and method declaration.
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="doccomment">//! Inherent type implementations collection and method declaration.
 //!
 //! This module handles the collection phase of impl blocks, where methods are declared
 //! and registered in their appropriate modules. This is distinct from elaboration, where
@@ -374,14 +375,15 @@
             <span class="self">self</span>.check_generics_appear_in_types(generics, <span class="kw-2">&amp;</span>[self_type], <span class="kw-2">&amp;</span>[]);
 
             <span class="self">self</span>.recover_generics(|this| {
-                this.declare_methods_on_struct(<span class="prelude-val">None</span>, unresolved, <span class="kw-2">*</span>location);
+                <span class="kw">let </span>no_trait_id = <span class="prelude-val">None</span>;
+                this.declare_methods_on_data_type(no_trait_id, unresolved, <span class="kw-2">*</span>location);
             });
         }
     }
 
     <span class="doccomment">/// Declares methods in the appropriate module and registers them in the interner.
     ///
-    /// This handles the cross-module strategy: methods are declared in the struct's module
+    /// This handles the cross-module strategy: methods are declared in the data type's module
     /// (for qualified calls) but will be resolved in the impl's module (for name resolution).
     ///
     /// # Parameters
@@ -397,34 +399,34 @@
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
     /// The self type should be resolved by [Self::define_function_metas] before this method is called.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>declare_methods_on_struct(
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>declare_methods_on_data_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
         functions: <span class="kw-2">&amp;mut </span>UnresolvedFunctions,
         location: Location,
     ) {
         <span class="kw">let </span>self_type = functions.self_type.as_ref();
-        <span class="kw">let </span>self_type =
-            self_type.expect(<span class="string">"Expected struct type to be set before declare_methods_on_struct"</span>);
+        <span class="kw">let </span>self_type = self_type
+            .expect(<span class="string">"Expected data type's self type to be set before declare_methods_on_data_type"</span>);
 
         <span class="kw">let </span>function_ids = functions.function_ids();
 
-        <span class="kw">if let </span>Type::DataType(struct_type, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>self_type {
-            <span class="kw">let </span>struct_ref = struct_type.borrow();
+        <span class="kw">if let </span>Type::DataType(data_type, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>self_type {
+            <span class="kw">let </span>data_ref = data_type.borrow();
 
             <span class="comment">// `impl`s are only allowed on types defined within the current crate
-            </span><span class="kw">if </span>trait_id.is_none() &amp;&amp; struct_ref.id.krate() != <span class="self">self</span>.crate_id {
-                <span class="kw">let </span>type_name = struct_ref.name.to_string();
+            </span><span class="kw">if </span>trait_id.is_none() &amp;&amp; data_ref.id.krate() != <span class="self">self</span>.crate_id {
+                <span class="kw">let </span>type_name = data_ref.name.to_string();
                 <span class="self">self</span>.push_err(DefCollectorErrorKind::ForeignImpl { location, type_name });
                 <span class="kw">return</span>;
             }
 
-            <span class="comment">// Grab the module defined by the struct type. Note that impls are a case
+            <span class="comment">// Grab the module defined by the data type. Note that impls are a case
             // where the module the methods are added to is not the same as the module
             // they are resolved in.
-            </span><span class="kw">let </span>module = <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, struct_ref.id.module_id());
+            </span><span class="kw">let </span>module = <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, data_ref.id.module_id());
 
-            <span class="comment">// Declare each method in the struct's module for qualified access (TypeName::method)
+            <span class="comment">// Declare each method in the data type's module for qualified access (TypeName::method)
             </span><span class="kw">for </span>(<span class="kw">_</span>, method_id, method) <span class="kw">in </span><span class="kw-2">&amp;</span>functions.functions {
                 <span class="kw">let </span>name = method.name_ident().clone();
                 <span class="kw">let </span>result = <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_id {

@@ -185,7 +185,13 @@
 <a href="#184" id="184">184</a>
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -276,8 +282,14 @@
         <span class="self">self</span>.push_definition(name, <span class="bool-val">false</span>, comptime, DefinitionKind::Function(func), location)
     }
 
-    <span class="kw">pub fn </span>set_function_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: FuncId, self_type: Type, trait_id: TraitId) {
-        <span class="self">self</span>.func_id_to_trait.insert(func, (self_type, trait_id));
+    <span class="comment">// Returns Some((overlapping_self_type, overlapping_trait_id)) if overlapping
+    </span><span class="kw">pub fn </span>set_function_trait(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        func: FuncId,
+        self_type: Type,
+        trait_id: TraitId,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Type, TraitId)&gt; {
+        <span class="self">self</span>.func_id_to_trait.insert(func, (self_type, trait_id))
     }
 
     <span class="kw">pub fn </span>get_function_trait(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>FuncId) -&gt; <span class="prelude-ty">Option</span>&lt;(Type, TraitId)&gt; {

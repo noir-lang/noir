@@ -2186,7 +2186,7 @@
     }
 
     <span class="kw">pub fn </span>update_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>Trait)) {
-        <span class="kw">let </span>value = <span class="self">self</span>.traits.get_mut(<span class="kw-2">&amp;</span>trait_id).unwrap();
+        <span class="kw">let </span>value = <span class="self">self</span>.get_trait_mut(trait_id);
         f(value);
     }
 

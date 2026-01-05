@@ -596,7 +596,8 @@
 <a href="#595" id="595">595</a>
 <a href="#596" id="596">596</a>
 <a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -763,7 +764,8 @@
             <span class="self">self</span>.add_trait_bound_to_scope(<span class="kw-2">*</span>location, <span class="kw-2">&amp;</span>extra_constraint.typ, bound, bound.trait_id);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>trait_constraints = <span class="self">self</span>.resolve_trait_constraints(<span class="kw-2">&amp;</span>func.def.where_clause);
+        <span class="kw">let </span><span class="kw-2">mut </span>trait_constraints =
+            <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>func.def.where_clause);
         <span class="kw">let </span><span class="kw-2">mut </span>extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, <span class="kw">_</span>)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);

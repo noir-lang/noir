@@ -909,7 +909,13 @@
 <a href="#908" id="908">908</a>
 <a href="#909" id="909">909</a>
 <a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -1172,6 +1178,8 @@
     },
     <span class="attr">#[error(<span class="string">"Type annotation needed on array literal"</span>)]
     </span>TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
+    <span class="attr">#[error(<span class="string">"Expecting another error: {message}"</span>)]
+    </span>ExpectingOtherError { message: String, location: Location },
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
@@ -1265,8 +1273,8 @@
             | TypeCheckError::NestedUnsafeBlock { location }
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
-            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } =&gt; <span class="kw-2">*</span>location,
-
+            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
+            | TypeCheckError::ExpectingOtherError { location, .. } =&gt; <span class="kw-2">*</span>location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } =&gt; ident.location(),
 
@@ -1706,6 +1714,10 @@
                 <span class="kw">let </span>array_or_vector = <span class="kw">if </span><span class="kw-2">*</span>is_array { <span class="string">"array" </span>} <span class="kw">else </span>{ <span class="string">"vector" </span>};
                 <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"Could not determine the type of the {array_or_vector}"</span>);
                 Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+            }
+            TypeCheckError::ExpectingOtherError { message, location } =&gt; {
+                <span class="kw">let </span>secondary = <span class="string">""</span>.to_string();
+                Diagnostic::simple_error(message.to_string(), secondary, <span class="kw-2">*</span>location)
             }
         }
     }

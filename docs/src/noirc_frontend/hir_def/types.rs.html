@@ -3270,7 +3270,15 @@
 <a href="#3269" id="3269">3269</a>
 <a href="#3270" id="3270">3270</a>
 <a href="#3271" id="3271">3271</a>
-<a href="#3272" id="3272">3272</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3272" id="3272">3272</a>
+<a href="#3273" id="3273">3273</a>
+<a href="#3274" id="3274">3274</a>
+<a href="#3275" id="3275">3275</a>
+<a href="#3276" id="3276">3276</a>
+<a href="#3277" id="3277">3277</a>
+<a href="#3278" id="3278">3278</a>
+<a href="#3279" id="3279">3279</a>
+<a href="#3280" id="3280">3280</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3340,12 +3348,12 @@
     <span class="doccomment">/// A tuple type with the given list of fields in the order they appear in source code.
     </span>Tuple(Vec&lt;Type&gt;),
 
-    <span class="doccomment">/// A user-defined struct type. The `Shared&lt;StructType&gt;` field here refers to
-    /// the shared definition for each instance of this struct type. The `Vec&lt;Type&gt;`
-    /// represents the generic arguments (if any) to this struct type.
+    <span class="doccomment">/// A user-defined struct or enum type. The `Shared&lt;DataType&gt;` field here refers to
+    /// the shared definition for each instance of this struct or enum type. The `Vec&lt;Type&gt;`
+    /// represents the generic arguments (if any) to this struct or enum type.
     </span>DataType(Shared&lt;DataType&gt;, Vec&lt;Type&gt;),
 
-    <span class="doccomment">/// A user-defined alias to another type. Similar to a Struct, this carries a shared
+    <span class="doccomment">/// A user-defined alias to another type. Similar to a struct, this carries a shared
     /// reference to the definition of the alias along with any generics that may have
     /// been applied to the alias.
     </span>Alias(Shared&lt;TypeAlias&gt;, Vec&lt;Type&gt;),
@@ -4300,6 +4308,14 @@
             }
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_named_generic(<span class="self">self</span>, name: Rc&lt;String&gt;) -&gt; Type {
+        Type::NamedGeneric(NamedGeneric { type_var: <span class="self">self</span>, name, implicit: <span class="bool-val">false </span>})
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_implicit_named_generic(<span class="self">self</span>, name: Rc&lt;String&gt;) -&gt; Type {
+        Type::NamedGeneric(NamedGeneric { type_var: <span class="self">self</span>, name, implicit: <span class="bool-val">true </span>})
     }
 }
 

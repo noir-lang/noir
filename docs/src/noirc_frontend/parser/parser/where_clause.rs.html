@@ -179,8 +179,7 @@
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#181" id="181">181</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{GenericTypeArgs, Path, TraitBound, UnresolvedTraitConstraint, UnresolvedType},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token},
@@ -253,7 +252,6 @@
         <span class="self">self</span>.expected_label(ParsingRuleLabel::TraitBound);
         TraitBound {
             trait_path: Path::plain(Vec::new(), <span class="self">self</span>.location_at_previous_token_end()),
-            trait_id: <span class="prelude-val">None</span>,
             trait_generics: GenericTypeArgs::default(),
         }
     }
@@ -262,7 +260,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_trait_bound(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitBound&gt; {
         <span class="kw">let </span>trait_path = <span class="self">self</span>.parse_path_no_turbofish()<span class="question-mark">?</span>;
         <span class="kw">let </span>trait_generics = <span class="self">self</span>.parse_generic_type_args();
-        <span class="prelude-val">Some</span>(TraitBound { trait_path, trait_generics, trait_id: <span class="prelude-val">None </span>})
+        <span class="prelude-val">Some</span>(TraitBound { trait_path, trait_generics })
     }
 }
 

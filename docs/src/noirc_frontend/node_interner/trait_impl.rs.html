@@ -459,7 +459,12 @@
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
 <a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::collections::HashSet;
@@ -467,7 +472,7 @@
 <span class="kw">use crate</span>::{
     GenericTypeVars, Shared, Type, TypeBindings,
     graph::CrateId,
-    hir::type_check::generics::TraitGenerics,
+    hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
     node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
@@ -545,14 +550,18 @@
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared&lt;TraitImpl&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Location&gt; {
+        location: Location,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;(), Location&gt;, TypeCheckError&gt; {
         <span class="self">self</span>.trait_implementations.insert(impl_id, trait_impl.clone());
 
         <span class="comment">// Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
         </span><span class="kw">if </span>object_type == Type::Error {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::ExpectingOtherError {
+                message: <span class="string">"collect_trait_impl: missing trait type"</span>.to_string(),
+                location,
+            });
         }
 
         <span class="comment">// Replace each generic with a fresh type variable
@@ -597,7 +606,7 @@
         ) {
             <span class="kw">let </span>existing_impl = <span class="self">self</span>.get_trait_implementation(existing);
             <span class="kw">let </span>existing_impl = existing_impl.borrow();
-            <span class="kw">return </span><span class="prelude-val">Err</span>(existing_impl.ident.location());
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(existing_impl.ident.location()));
         }
 
         <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span>trait_impl.borrow().methods {
@@ -611,7 +620,7 @@
 
         <span class="kw">let </span>entries = <span class="self">self</span>.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(()))
     }
 
     <span class="doccomment">/// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -739,7 +748,7 @@
 
             <span class="kw">let </span>generics_unify = trait_generics.iter().zip(<span class="kw-2">&amp;</span>impl_trait_generics.ordered).all(
                 |(trait_generic, impl_generic)| {
-                    <span class="kw">let </span>impl_generic = impl_generic.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
+                    <span class="kw">let </span>impl_generic = impl_generic.substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
                     trait_generic.try_unify(<span class="kw-2">&amp;</span>impl_generic, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
                 },
             );
@@ -891,13 +900,13 @@
 
     <span class="doccomment">/// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     </span><span class="kw">pub fn </span>remove_assumed_trait_implementations_for_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) {
-        <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+        <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, HashSet::new());
     }
 
     <span class="kw">fn </span>remove_assumed_trait_implementations_for_trait_and_parents(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_id: TraitId,
-        starting_trait_id: TraitId,
+        <span class="kw-2">mut </span>visited_trait_ids: HashSet&lt;TraitId&gt;,
     ) {
         <span class="kw">let </span>entries = <span class="self">self</span>.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(<span class="kw">_</span>, kind)| <span class="macro">matches!</span>(kind, TraitImplKind::Normal(<span class="kw">_</span>)));
@@ -908,13 +917,14 @@
         {
             <span class="kw">for </span>parent_trait_bound <span class="kw">in </span>trait_bounds {
                 <span class="comment">// Avoid looping forever in case there are cycles
-                </span><span class="kw">if </span>parent_trait_bound.trait_id == starting_trait_id {
+                </span><span class="kw">if </span>visited_trait_ids.contains(<span class="kw-2">&amp;</span>parent_trait_bound.trait_id) {
                     <span class="kw">continue</span>;
                 }
+                visited_trait_ids.insert(parent_trait_bound.trait_id);
 
                 <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(
                     parent_trait_bound.trait_id,
-                    starting_trait_id,
+                    visited_trait_ids.clone(),
                 );
             }
         }

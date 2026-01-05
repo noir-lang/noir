@@ -603,7 +603,14 @@
 <a href="#602" id="602">602</a>
 <a href="#603" id="603">603</a>
 <a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -819,6 +826,10 @@
         // and it'd lead to code duplication to add them. `CompilationError::is_error`
         // also isn't expected to be called too often.
         </span>CustomDiagnostic::from(<span class="self">self</span>).is_error()
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_expecting_other_error_error(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>should_be_filtered(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -1118,6 +1129,9 @@
 
         <span class="self">Self</span>::check_unused_items(context, crate_id, <span class="kw-2">&amp;mut </span>errors);
 
+        <span class="kw">if </span>errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
         errors
     }
 

@@ -915,7 +915,57 @@
 <a href="#914" id="914">914</a>
 <a href="#915" id="915">915</a>
 <a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -930,6 +980,7 @@
             errors::DefCollectorErrorKind,
         },
         resolution::errors::ResolverError,
+        type_check::TypeCheckError,
     },
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitImpl},
     node_interner::TraitImplId,
@@ -950,14 +1001,16 @@
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl) {
-        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
-        <span class="self">self</span>.current_trait_impl = trait_impl.impl_id;
+        <span class="kw">let </span>previous_local_module =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
+        <span class="kw">let </span>previous_current_trait_impl =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.current_trait_impl, trait_impl.impl_id);
 
         <span class="kw">let </span>self_type = trait_impl.methods.self_type.clone();
         <span class="kw">let </span>self_type =
             self_type.expect(<span class="string">"Expected struct type to be set before collect_trait_impl"</span>);
 
-        <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(self_type.clone());
+        <span class="kw">let </span>previous_self_type = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(self_type.clone()));
         <span class="kw">let </span>self_type_location = trait_impl.object_type.location;
 
         <span class="kw">if </span><span class="macro">matches!</span>(self_type, Type::Reference(..)) {
@@ -973,11 +1026,13 @@
         );
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_impl.trait_id {
-            <span class="self">self</span>.generics = trait_impl.resolved_generics.clone();
+            <span class="kw">let </span>previous_generics =
+                std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.generics, trait_impl.resolved_generics.clone());
 
-            <span class="kw">let </span>where_clause = <span class="self">self</span>.resolve_trait_constraints(<span class="kw-2">&amp;</span>trait_impl.where_clause);
+            <span class="kw">let </span>where_clause =
+                <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>trait_impl.where_clause);
 
-            <span class="comment">// Now solve the actual type of associated types
+            <span class="comment">// Now solve the actual types of the associated types
             // (before this we only declared them without knowing their type)
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_impl_id) = trait_impl.impl_id {
                 <span class="kw">let </span>unresolved_associated_types =
@@ -1000,7 +1055,11 @@
                         <span class="comment">// This too can happen if the associated type is specified directly in the impl trait generics,
                         // like `impl&lt;H&gt; BuildHasher&lt;H = H&gt;`, where `H` is a named generic but its resolution isn't delayed.
                         // This can't be done in code, but it could happen with unquoted types.
-                        </span><span class="kw">continue</span>;
+                        </span><span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                            message: <span class="string">"collect_trait_impl: missing associated type"</span>.to_string(),
+                            location: trait_impl.object_type.location,
+                        });
+                        <span class="kw">continue</span>;
                     };
                     <span class="kw">let </span>wildcard_allowed =
                         WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
@@ -1024,31 +1083,26 @@
 
             <span class="comment">// If there are bounds on the trait's associated types, check them now
             </span><span class="kw">let </span>associated_type_bounds = <span class="kw-2">&amp;</span>trait_.associated_type_bounds;
-            <span class="kw">if </span>!associated_type_bounds.is_empty() {
-                <span class="kw">let </span>associated_type_bounds = associated_type_bounds.clone();
-                <span class="kw">let </span>named_generics = <span class="self">self
-                    </span>.interner
-                    .get_associated_types_for_impl(trait_impl.impl_id.unwrap())
-                    .to_vec();
-                <span class="kw">for </span>named_generic <span class="kw">in </span>named_generics {
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(bounds) = associated_type_bounds.get(named_generic.name.as_str())
-                    <span class="kw">else </span>{
-                        <span class="kw">continue</span>;
-                    };
-                    <span class="kw">let </span>object_type = <span class="kw-2">&amp;</span>named_generic.typ;
-                    <span class="kw">for </span>bound <span class="kw">in </span>bounds {
-                        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.lookup_trait_implementation(
+            <span class="kw">let </span>associated_type_bounds = associated_type_bounds.clone();
+            <span class="kw">let </span>named_generics =
+                <span class="self">self</span>.interner.get_associated_types_for_impl(trait_impl.impl_id.unwrap()).to_vec();
+            <span class="kw">for </span>named_generic <span class="kw">in </span>named_generics {
+                <span class="kw">let </span><span class="prelude-val">Some</span>(bounds) = associated_type_bounds.get(named_generic.name.as_str()) <span class="kw">else </span>{
+                    <span class="kw">continue</span>;
+                };
+                <span class="kw">let </span>object_type = <span class="kw-2">&amp;</span>named_generic.typ;
+                <span class="kw">for </span>bound <span class="kw">in </span>bounds {
+                    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.lookup_trait_implementation(
+                        object_type,
+                        bound.trait_id,
+                        <span class="kw-2">&amp;</span>bound.trait_generics.ordered,
+                        <span class="kw-2">&amp;</span>bound.trait_generics.named,
+                    ) {
+                        <span class="self">self</span>.push_trait_constraint_error(
                             object_type,
-                            bound.trait_id,
-                            <span class="kw-2">&amp;</span>bound.trait_generics.ordered,
-                            <span class="kw-2">&amp;</span>bound.trait_generics.named,
-                        ) {
-                            <span class="self">self</span>.push_trait_constraint_error(
-                                object_type,
-                                error,
-                                named_generic.name.location(),
-                            );
-                        }
+                            error,
+                            named_generic.name.location(),
+                        );
                     }
                 }
             }
@@ -1058,13 +1112,19 @@
             <span class="self">self</span>.collect_trait_impl_methods(trait_id, trait_impl, <span class="kw-2">&amp;</span>where_clause);
 
             <span class="kw">let </span>location = trait_impl.object_type.location;
-            <span class="self">self</span>.declare_methods_on_struct(<span class="prelude-val">Some</span>(trait_id), <span class="kw-2">&amp;mut </span>trait_impl.methods, location);
+            <span class="self">self</span>.declare_methods_on_data_type(<span class="prelude-val">Some</span>(trait_id), <span class="kw-2">&amp;mut </span>trait_impl.methods, location);
 
             <span class="kw">let </span>trait_visibility = <span class="self">self</span>.interner.get_trait(trait_id).visibility;
 
             <span class="kw">let </span>methods = trait_impl.methods.function_ids();
             <span class="kw">for </span>func_id <span class="kw">in </span><span class="kw-2">&amp;</span>methods {
-                <span class="self">self</span>.interner.set_function_trait(<span class="kw-2">*</span>func_id, self_type.clone(), trait_id);
+                <span class="kw">if </span><span class="self">self</span>.interner.set_function_trait(<span class="kw-2">*</span>func_id, self_type.clone(), trait_id).is_some()
+                {
+                    <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                        message: <span class="string">"collect_trait_impl: overlapping function trait"</span>.to_string(),
+                        location,
+                    });
+                }
 
                 <span class="comment">// A trait impl method has the same visibility as its trait
                 </span><span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers_mut(func_id);
@@ -1084,9 +1144,11 @@
                     Ident::new(name, trait_impl.r#trait.location)
                 }
                 <span class="kw">_ </span>=&gt; {
-                    <span class="comment">// We don't error in this case because an error will be produced later on when
-                    // solving the trait impl trait type
-                    </span>Ident::new(trait_impl.r#trait.to_string(), trait_impl.r#trait.location)
+                    <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                        message: <span class="string">"collect_trait_impl: missing trait type"</span>.to_string(),
+                        location,
+                    });
+                    Ident::new(trait_impl.r#trait.to_string(), trait_impl.r#trait.location)
                 }
             };
 
@@ -1104,25 +1166,31 @@
 
             <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.type_var.clone());
 
-            <span class="kw">if let </span><span class="prelude-val">Err</span>(prev_location) = <span class="self">self</span>.interner.add_trait_implementation(
+            <span class="kw">match </span><span class="self">self</span>.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
-                trait_impl.impl_id.expect(<span class="string">"impl_id should be set in define_function_metas"</span>),
+                trait_impl.impl_id.expect(<span class="string">"ICE: impl_id should be set in define_function_metas"</span>),
                 generics,
                 resolved_trait_impl,
+                location,
             ) {
-                <span class="self">self</span>.push_err(DefCollectorErrorKind::OverlappingImpl {
-                    typ: self_type.clone(),
-                    location: self_type_location,
-                    prev_location,
-                });
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(())) =&gt; (),
+                <span class="prelude-val">Err</span>(error) =&gt; <span class="self">self</span>.push_err(error),
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(prev_location)) =&gt; {
+                    <span class="self">self</span>.push_err(DefCollectorErrorKind::OverlappingImpl {
+                        typ: self_type.clone(),
+                        location: self_type_location,
+                        prev_location,
+                    });
+                }
             }
+
+            <span class="self">self</span>.generics = previous_generics;
         }
 
-        <span class="self">self</span>.generics.clear();
-
-        <span class="self">self</span>.current_trait_impl = <span class="prelude-val">None</span>;
-        <span class="self">self</span>.self_type = <span class="prelude-val">None</span>;
+        <span class="self">self</span>.local_module = previous_local_module;
+        <span class="self">self</span>.current_trait_impl = previous_current_trait_impl;
+        <span class="self">self</span>.self_type = previous_self_type;
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_trait_impl_methods(
@@ -1131,7 +1199,8 @@
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
         trait_impl_where_clause: <span class="kw-2">&amp;</span>[TraitConstraint],
     ) {
-        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
+        <span class="kw">let </span>previous_local_module =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
 
         <span class="kw">let </span>impl_id = trait_impl.impl_id.expect(<span class="string">"impl_id should be set in define_function_metas"</span>);
 
@@ -1139,10 +1208,10 @@
         // for a particular method, the default implementation will be added at that slot.
         </span><span class="kw">let </span><span class="kw-2">mut </span>ordered_methods = Vec::new();
 
-        <span class="comment">// check whether the trait implementation is in the same crate as either the trait or the type
+        <span class="comment">// Check whether the trait implementation is in the same crate as either the trait or the type
         </span><span class="self">self</span>.check_trait_impl_crate_coherence(trait_id, trait_impl);
 
-        <span class="comment">// set of function ids that have a corresponding method in the trait
+        <span class="comment">// Set of function ids that have a corresponding method in the trait
         </span><span class="kw">let </span><span class="kw-2">mut </span>func_ids_in_trait = HashSet::default();
 
         <span class="comment">// Temporarily take ownership of the trait's methods so we can iterate over them
@@ -1168,7 +1237,14 @@
                     <span class="kw">let </span>location = default_impl.def.location;
                     <span class="self">self</span>.interner.push_function(func_id, <span class="kw-2">&amp;</span>default_impl.def, module, location);
                     <span class="self">self</span>.recover_generics(|this| {
-                        this.define_function_meta(<span class="kw-2">&amp;mut </span>default_impl_clone, func_id, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[]);
+                        <span class="kw">let </span>no_trait_id = <span class="prelude-val">None</span>;
+                        <span class="kw">let </span>no_extra_trait_constraints = <span class="kw-2">&amp;</span>[];
+                        this.define_function_meta(
+                            <span class="kw-2">&amp;mut </span>default_impl_clone,
+                            func_id,
+                            no_trait_id,
+                            no_extra_trait_constraints,
+                        );
                     });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
@@ -1229,6 +1305,8 @@
 
         trait_impl.methods.functions = ordered_methods;
         trait_impl.methods.trait_id = <span class="prelude-val">Some</span>(trait_id);
+
+        <span class="self">self</span>.local_module = previous_local_module;
     }
 
     <span class="doccomment">/// Issue an error if the impl is stricter than the trait.
@@ -1263,17 +1341,11 @@
 
         <span class="kw">let </span>override_meta = <span class="self">self</span>.interner.function_meta(func_id);
         <span class="comment">// Substitute each generic on the trait function with the corresponding generic on the impl function
-        </span><span class="kw">for </span>(
-            ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
-        ) <span class="kw">in </span>method.direct_generics.iter().zip(<span class="kw-2">&amp;</span>override_meta.direct_generics)
+        </span><span class="kw">for </span>(ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) <span class="kw">in
+            </span>method.direct_generics.iter().zip(<span class="kw-2">&amp;</span>override_meta.direct_generics)
         {
             <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
-            <span class="kw">let </span>arg = Type::NamedGeneric(NamedGeneric {
-                type_var: impl_fn_generic.clone(),
-                name: name.clone(),
-                implicit: <span class="bool-val">false</span>,
-            });
+            <span class="kw">let </span>arg = impl_fn_resolved_generic.clone().as_named_generic();
             bindings.insert(
                 trait_fn_generic.id(),
                 (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
@@ -1332,10 +1404,13 @@
         trait_id: TraitId,
         trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl,
     ) {
-        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
+        <span class="kw">let </span>previous_local_module =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
 
         <span class="kw">let </span>object_crate = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.resolved_object_type {
-            <span class="prelude-val">Some</span>(Type::DataType(struct_type, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Some</span>(struct_type.borrow().id.krate()),
+            <span class="prelude-val">Some</span>(Type::DataType(struct_or_enum_type, <span class="kw">_</span>)) =&gt; {
+                <span class="prelude-val">Some</span>(struct_or_enum_type.borrow().id.krate())
+            }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         };
 
@@ -1345,6 +1420,8 @@
                 location: trait_impl.object_type.location,
             });
         }
+
+        <span class="self">self</span>.local_module = previous_local_module;
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>take_unresolved_associated_types(
@@ -1356,7 +1433,7 @@
             <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
             <span class="kw">let </span>resolved_type =
                 typ.map(|typ| <span class="self">self</span>.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
-            <span class="kw">let </span>kind = Kind::Numeric(Box::new(resolved_type));
+            <span class="kw">let </span>kind = Kind::numeric(resolved_type);
             <span class="kw">let </span>location = expr.location;
             <span class="kw">let </span>typ = <span class="kw">match </span>UnresolvedTypeExpression::from_expr(expr, location) {
                 <span class="prelude-val">Ok</span>(expr) =&gt; UnresolvedTypeData::Expression(expr).with_location(location),
@@ -1370,7 +1447,7 @@
         <span class="kw">for </span>(name, typ) <span class="kw">in </span>trait_impl.associated_types.drain(..) {
             <span class="kw">let </span>location = name.location();
             <span class="kw">let </span>typ = typ.unwrap_or_else(|| UnresolvedTypeData::Error.with_location(location));
-            associated_types.push((name, typ, Kind::Any));
+            associated_types.push((name, typ, Kind::Normal));
         }
         associated_types
     }
@@ -1416,16 +1493,23 @@
         trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl,
     ) {
         <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = trait_impl.trait_id <span class="kw">else </span>{
+            <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                message:
+                    <span class="string">"check_trait_impl_where_clause_matches_trait_where_clause: missing trait ID"
+                        </span>.to_string(),
+                location: trait_impl.object_type.location,
+            });
             <span class="kw">return</span>;
         };
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(the_trait) = <span class="self">self</span>.interner.try_get_trait(trait_id) <span class="kw">else </span>{
+            <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                message: <span class="string">"check_trait_impl_where_clause_matches_trait_where_clause: missing trait"
+                    </span>.to_string(),
+                location: trait_impl.object_type.location,
+            });
             <span class="kw">return</span>;
         };
-
-        <span class="kw">if </span>the_trait.where_clause.is_empty() {
-            <span class="kw">return</span>;
-        }
 
         <span class="kw">let </span>impl_trait = the_trait.name.to_string();
 
@@ -1441,6 +1525,10 @@
             <span class="kw">let </span><span class="prelude-val">Some</span>(trait_constraint_trait) =
                 <span class="self">self</span>.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
             <span class="kw">else </span>{
+                <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                    message: <span class="string">"check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait"</span>.to_string(),
+                    location: trait_impl.object_type.location,
+                });
                 <span class="kw">continue</span>;
             };
             <span class="kw">let </span>trait_constraint_trait_name = trait_constraint_trait.name.to_string();
@@ -1455,7 +1543,7 @@
 
             <span class="comment">// If the trait bound is over a trait that has associated types, the ones that
             // aren't explicit will be in `named_generics` as implicitly added ones.
-            // If they are unbound, they won't be bound until monomorphization, in which cae
+            // If they are unbound, they won't be bound until monomorphization, in which case
             // the below trait implementation lookup will fail (an unbound named generic will
             // never unify in this case). In this case we replace them with fresh type variables
             // so they'll unify (the bindings aren't applied here so this is fine).
@@ -1519,20 +1607,28 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_parent_traits_are_implemented(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl) {
         <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = trait_impl.trait_id <span class="kw">else </span>{
+            <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                message: <span class="string">"check_parent_traits_are_implemented: missing trait ID"</span>.to_string(),
+                location: trait_impl.object_type.location,
+            });
             <span class="kw">return</span>;
         };
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(object_type) = <span class="kw-2">&amp;</span>trait_impl.resolved_object_type <span class="kw">else </span>{
+            <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                message: <span class="string">"check_parent_traits_are_implemented: missing object type"</span>.to_string(),
+                location: trait_impl.object_type.location,
+            });
             <span class="kw">return</span>;
         };
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(the_trait) = <span class="self">self</span>.interner.try_get_trait(trait_id) <span class="kw">else </span>{
+            <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                message: <span class="string">"check_parent_traits_are_implemented: missing trait"</span>.to_string(),
+                location: trait_impl.object_type.location,
+            });
             <span class="kw">return</span>;
         };
-
-        <span class="kw">if </span>the_trait.trait_bounds.is_empty() {
-            <span class="kw">return</span>;
-        }
 
         <span class="kw">let </span>impl_trait = the_trait.name.to_string();
 
@@ -1550,6 +1646,11 @@
         </span><span class="kw">for </span>parent_trait_bound <span class="kw">in </span>the_trait.trait_bounds.clone() {
             <span class="kw">let </span><span class="prelude-val">Some</span>(parent_trait) = <span class="self">self</span>.interner.try_get_trait(parent_trait_bound.trait_id)
             <span class="kw">else </span>{
+                <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                    message: <span class="string">"check_parent_traits_are_implemented: missing parent trait"
+                        </span>.to_string(),
+                    location: trait_impl.object_type.location,
+                });
                 <span class="kw">continue</span>;
             };
 
@@ -1601,7 +1702,8 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
     ) -&gt; Vec&lt;(TraitConstraint, Location)&gt; {
-        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
+        <span class="kw">let </span>previous_local_module =
+            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
 
         <span class="kw">let </span>(trait_id, trait_generics, path_location) =
             <span class="self">self</span>.resolve_trait_impl_trait_path(trait_impl);
@@ -1645,6 +1747,8 @@
             };
             <span class="self">self</span>.interner.add_trait_reference(trait_id, location, is_self_type_name);
         }
+
+        <span class="self">self</span>.local_module = previous_local_module;
 
         new_generics_trait_constraints
     }
@@ -1752,7 +1856,7 @@
         <span class="comment">// We need to resolve the where clause before any associated types to be
         // able to resolve trait as type syntax, eg. `&lt;T as Foo&gt;` in case there
         // is a where constraint for `T: Foo`.
-        </span><span class="kw">let </span>constraints = <span class="self">self</span>.resolve_trait_constraints(<span class="kw-2">&amp;</span>trait_impl.where_clause);
+        </span><span class="kw">let </span>constraints = <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>trait_impl.where_clause);
 
         <span class="comment">// Attach any trait constraints on the impl to the function
         </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, method) <span class="kw">in </span>trait_impl.methods.functions.iter_mut() {
@@ -1783,11 +1887,7 @@
         </span><span class="kw">let </span>associated_types_behind_type_vars = vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
             <span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
             <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            <span class="kw">let </span>typ = Type::NamedGeneric(NamedGeneric {
-                type_var: type_var.clone(),
-                name: std::rc::Rc::new(name.to_string()),
-                implicit: <span class="bool-val">false</span>,
-            });
+            <span class="kw">let </span>typ = type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()));
             <span class="kw">let </span>typ = <span class="self">self</span>.interner.push_quoted_type(typ);
             <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)

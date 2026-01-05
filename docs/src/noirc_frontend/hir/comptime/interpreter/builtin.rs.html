@@ -3268,12 +3268,7 @@
 <a href="#3267" id="3267">3267</a>
 <a href="#3268" id="3268">3268</a>
 <a href="#3269" id="3269">3269</a>
-<a href="#3270" id="3270">3270</a>
-<a href="#3271" id="3271">3271</a>
-<a href="#3272" id="3272">3272</a>
-<a href="#3273" id="3273">3273</a>
-<a href="#3274" id="3274">3274</a>
-<a href="#3275" id="3275">3275</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3270" id="3270">3270</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3296,8 +3291,7 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings,
-    TypeVariable,
+    Kind, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -3757,11 +3751,7 @@
 
     <span class="kw">let </span>type_var_kind = Kind::Normal;
     <span class="kw">let </span>type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    <span class="kw">let </span>typ = Type::NamedGeneric(NamedGeneric {
-        type_var: type_var.clone(),
-        name: name.clone(),
-        implicit: <span class="bool-val">false</span>,
-    });
+    <span class="kw">let </span>typ = type_var.clone().into_named_generic(name.clone());
     <span class="kw">let </span>new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 

@@ -373,9 +373,7 @@
 <a href="#372" id="372">372</a>
 <a href="#373" id="373">373</a>
 <a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -384,7 +382,6 @@
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::TraitId;
 <span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 
 <span class="kw">use super</span>::{
@@ -477,8 +474,7 @@
 </span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>TraitBound {
     <span class="kw">pub </span>trait_path: Path,
-    <span class="kw">pub </span>trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;, <span class="comment">// initially None, gets assigned during DC
-    </span><span class="kw">pub </span>trait_generics: GenericTypeArgs,
+    <span class="kw">pub </span>trait_generics: GenericTypeArgs,
 }
 
 <span class="attr">#[derive(Clone, Debug)]

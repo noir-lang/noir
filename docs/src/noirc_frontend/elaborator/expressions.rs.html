@@ -1728,8 +1728,7 @@
 <a href="#1727" id="1727">1727</a>
 <a href="#1728" id="1728">1728</a>
 <a href="#1729" id="1729">1729</a>
-<a href="#1730" id="1730">1730</a>
-<a href="#1731" id="1731">1731</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1730" id="1730">1730</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -3400,7 +3399,6 @@
             typ: path.typ,
             trait_bound: TraitBound {
                 trait_path: path.trait_path,
-                trait_id: <span class="prelude-val">None</span>,
                 trait_generics: path.trait_generics,
             },
         };
