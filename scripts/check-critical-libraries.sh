@@ -42,17 +42,17 @@ checkYarnInstalled() {
 # Run tests for a library directory
 runLibraryTests() {
     LIB_DIR=$1
-    
+
     (
         cd $LIB_DIR
-        
+
         # Check if library has package.json (needs yarn setup)
         if [ -f "package.json" ]; then
             echo "Detected package.json, setting up yarn dependencies..."
             checkYarnInstalled
             yarn install --frozen-lockfile 2>&1 || yarn install 2>&1
         fi
-        
+
         # Check for custom test script
         if [ -f "scripts/run.sh" ]; then
             echo "Running custom test script: scripts/run.sh"
@@ -72,10 +72,10 @@ runLibraryTests() {
 for REPO in ${REPOS_TO_CHECK[@]}; do
     echo "Checking $REPO"
     TMP_DIR=$(mktemp -d)
-    
+
     TAG=$(getLatestReleaseTagForRepo $REPO)
     git clone $REPO -c advice.detachedHead=false --depth 1 --branch $TAG $TMP_DIR
-    
+
     runLibraryTests $TMP_DIR
 
     rm -rf $TMP_DIR
