@@ -840,4 +840,28 @@ mod tests {
         let backend = Bn254BlackBoxSolver(false);
         assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
     }
+
+    #[test]
+    fn test_brillig_call_with_empty_witness_map() {
+        use acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
+
+        // Create a BrilligCall opcode with input and output witnesses
+        // Brillig calls are unconstrained and should be skipped during validation,
+        // so this should pass even with an empty witness map
+        let circuit = make_circuit(vec![Opcode::BrilligCall {
+            id: BrilligFunctionId(0),
+            inputs: vec![
+                BrilligInputs::Single(Witness(1).into()),
+                BrilligInputs::Single(Witness(2).into()),
+            ],
+            outputs: vec![BrilligOutputs::Simple(Witness(3))],
+            predicate: None,
+        }]);
+
+        // Empty witness map
+        let witness_map = WitnessMap::default();
+
+        let backend = Bn254BlackBoxSolver(false);
+        assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
 }
