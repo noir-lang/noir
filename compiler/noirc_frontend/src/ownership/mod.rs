@@ -397,9 +397,7 @@ impl Context {
             }
             // LValue::Clone isn't present before this pass and is only inserted after we already
             // handle the corresponding lvalue
-            LValue::Clone(_) => {
-                unreachable!("LValue::Clone should only be inserted by the ownership pass")
-            }
+            LValue::Clone(_) => unreachable!("LValue::Clone should only be inserted by this pass"),
         }
     }
 }
