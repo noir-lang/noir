@@ -25,16 +25,6 @@ const test_cases = [
   },
 ];
 
-let api: Barretenberg;
-
-before(async () => {
-  api = await Barretenberg.new({ threads: 1 });
-});
-
-after(async () => {
-  await api?.destroy();
-});
-
 test_cases.forEach((testInfo) => {
   const test_name = testInfo.case.split('/').pop();
 

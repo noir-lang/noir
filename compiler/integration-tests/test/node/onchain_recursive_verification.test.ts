@@ -80,6 +80,4 @@ it(`smart contract can verify a recursive proof`, async () => {
   const result = await contract.verify.staticCall(recursiveProof, recursivePublicInputs);
 
   expect(result).to.be.true;
-
-  await api.destroy();
 });
