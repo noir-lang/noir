@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767638604339,
+  "lastUpdate": 1767640037799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23190,48 +23190,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "366fa46a17d5b4f050f8a51c4110e41ef15bb5c2",
-          "message": "fix(examples): Fix the `browser` example (#10966)",
-          "timestamp": "2025-12-19T16:59:31Z",
-          "tree_id": "9e6ff38e49667a2021ccffe25e92a449da76ec18",
-          "url": "https://github.com/noir-lang/noir/commit/366fa46a17d5b4f050f8a51c4110e41ef15bb5c2"
-        },
-        "date": 1766164853560,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255658,
-            "range": "± 1044",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225381,
-            "range": "± 3032",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792231,
-            "range": "± 41104",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "dc2160106f49f8a4e0be75d581b9fcd03e1c58da",
           "message": "fix(examples): Update the `solidity_verifier` example (#10965)",
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2260554,
             "range": "± 2648",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77aeca0f369227940958d83d6e3e90e23d68a484",
+          "message": "chore: remove trailing spaces from bash scripts (#11075)",
+          "timestamp": "2026-01-05T19:04:20Z",
+          "tree_id": "ae3a80377344875f1938d7a7fcbf7006f45487ba",
+          "url": "https://github.com/noir-lang/noir/commit/77aeca0f369227940958d83d6e3e90e23d68a484"
+        },
+        "date": 1767640004965,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261669,
+            "range": "± 1032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235059,
+            "range": "± 2692",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792322,
+            "range": "± 4267",
             "unit": "ns/iter"
           }
         ]
