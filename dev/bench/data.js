@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767625857972,
+  "lastUpdate": 1767627799209,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23226,48 +23226,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d8bb0355d184c940f90af179d52f14fdf9ae80d7",
-          "message": "fix(examples): Update the `recursion` example to use `bb` version `3.0.0-nightly.20251104` (#10964)",
-          "timestamp": "2025-12-19T14:16:07Z",
-          "tree_id": "20b1cdc7ccb1da3c4693d890627c29892d5e29a4",
-          "url": "https://github.com/noir-lang/noir/commit/d8bb0355d184c940f90af179d52f14fdf9ae80d7"
-        },
-        "date": 1766155111235,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256571,
-            "range": "± 887",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225978,
-            "range": "± 4444",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793216,
-            "range": "± 19581",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25319,6 +25277,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791159,
             "range": "± 1178",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6979ab70a2d8b3e436cce08eb63d51f532068352",
+          "message": "chore: typos and some refactors, tests, etc. for traits and impl's (#10874)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-05T15:20:53Z",
+          "tree_id": "5ead6cb6450ef02db45fa116fcd7e311eb55dc35",
+          "url": "https://github.com/noir-lang/noir/commit/6979ab70a2d8b3e436cce08eb63d51f532068352"
+        },
+        "date": 1767627762640,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258443,
+            "range": "± 787",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227330,
+            "range": "± 2373",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2261756,
+            "range": "± 6237",
             "unit": "ns/iter"
           }
         ]
