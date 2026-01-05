@@ -3278,7 +3278,9 @@
 <a href="#3277" id="3277">3277</a>
 <a href="#3278" id="3278">3278</a>
 <a href="#3279" id="3279">3279</a>
-<a href="#3280" id="3280">3280</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3280" id="3280">3280</a>
+<a href="#3281" id="3281">3281</a>
+<a href="#3282" id="3282">3282</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -4896,7 +4898,9 @@
             | Type::Quoted(<span class="kw">_</span>)
             | Type::Vector(<span class="kw">_</span>)
             | Type::InfixExpr(..)
-            | Type::Error =&gt; <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main"</span>),
+            | Type::Error =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main: {self:?}"</span>)
+            }
         }
     }
 

@@ -390,14 +390,14 @@
             </span>Type::FieldElement
             | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Bool
-            | Type::Unit
             | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::TypeVariable(<span class="kw">_</span>)
             | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::InfixExpr(..)
             | Type::Error =&gt; <span class="prelude-val">None</span>,
 
-            Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
+            Type::Unit
+            | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             <span class="comment">// To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
             </span>| Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
