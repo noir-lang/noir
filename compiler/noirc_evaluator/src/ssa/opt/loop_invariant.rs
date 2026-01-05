@@ -428,21 +428,24 @@ impl<'f> LoopInvariantContext<'f> {
                 if hoist_invariant {
                     self.inserter.push_instruction(instruction_id, pre_header, false);
 
-                    // If we are hoisting a MakeArray instruction,
-                    // we need to issue an extra inc_rc in case they are mutated afterward.
+                    // If we are hoisting an instruction which returns an array,
+                    // we need to issue an extra inc_rc in case it is mutated afterward.
                     if insert_rc {
-                        let [result] =
-                            self.inserter.function.dfg.instruction_result(instruction_id);
-                        let inc_rc = Instruction::IncrementRc { value: result };
-                        let call_stack = self
-                            .inserter
-                            .function
-                            .dfg
-                            .get_instruction_call_stack_id(instruction_id);
-                        self.inserter
-                            .function
-                            .dfg
-                            .insert_instruction_and_results(inc_rc, *block, None, call_stack);
+                        let dfg = &self.inserter.function.dfg;
+                        let results: Vec<_> = dfg
+                            .instruction_results(instruction_id)
+                            .iter()
+                            .filter(|result| dfg.type_of_value(**result).contains_an_array())
+                            .copied()
+                            .collect();
+                        let call_stack = dfg.get_instruction_call_stack_id(instruction_id);
+                        for result in results {
+                            let inc_rc = Instruction::IncrementRc { value: result };
+                            self.inserter
+                                .function
+                                .dfg
+                                .insert_instruction_and_results(inc_rc, *block, None, call_stack);
+                        }
                     }
                 } else {
                     let dfg = &self.inserter.function.dfg;
@@ -691,11 +694,23 @@ impl<'f> LoopInvariantContext<'f> {
             return (true, false);
         }
 
-        match can_be_hoisted(&instruction, &self.inserter.function.dfg) {
-            Yes => (true, false),
+        // In Brillig, if the instruction returns an array, we need to insert an inc_rc
+        // to handle potential mutations.
+        let dfg = &self.inserter.function.dfg;
+        let returns_array = if dfg.runtime().is_brillig() {
+            let results = dfg.instruction_results(instruction_id);
+            results.iter().any(|r| dfg.type_of_value(*r).contains_an_array())
+        } else {
+            false
+        };
+
+        match can_be_hoisted(&instruction, dfg) {
+            Yes => (true, returns_array),
             No => (false, false),
             WithRefCount => (true, true),
-            WithPredicate => (block_context.can_hoist_control_dependent_instruction(), false),
+            WithPredicate => {
+                (block_context.can_hoist_control_dependent_instruction(), returns_array)
+            }
         }
     }
 
@@ -3611,5 +3626,43 @@ mod control_dependence {
           "#
         );
         assert_ssa_does_not_change(&src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn call_func_make_arr_inc_rc() {
+        for expr in &["make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]", "call f1() -> [u8; 4]"] {
+            let src = format!(
+                r#"
+        brillig(inline) impure fn main f0 {{
+          b0():
+            v2 = make_array [u8 0, u8 0, u8 0, u8 0] : [u8; 4]
+            v3 = allocate -> &mut [u8; 4]
+            store v2 at v3
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v6 = lt v0, u32 10
+            jmpif v6 then: b2, else: b3
+          b2():
+            v11 = {expr}
+            store v11 at v3
+            v13 = unchecked_add v0, u32 1
+            jmp b1(v13)
+          b3():
+            v7 = load v3 -> [u8; 4]
+            v9 = call black_box(v7) -> [u8; 4]
+            return
+        }}
+        brillig(inline) predicate_pure fn ret_arr f1 {{
+          b0():
+            v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
+            return v4
+        }}
+        "#
+            );
+            let ssa = Ssa::from_str(&src).unwrap();
+            let ssa = ssa.loop_invariant_code_motion();
+            let ssa_string = ssa.to_string();
+            assert!(ssa_string.contains("inc_rc"), "failed on {}", expr);
+        }
     }
 }
