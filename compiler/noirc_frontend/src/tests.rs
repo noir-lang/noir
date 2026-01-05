@@ -454,11 +454,10 @@ fn deeply_nested_expression_parser_overflow() {
         "
       fn main() {{
           comptime {{
-              let _ = {};
+              let _ = {expr};
           }}
       }}
-      ",
-        expr
+      "
     );
 
     let errors = get_program_errors(&src);
