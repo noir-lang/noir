@@ -32,13 +32,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             return;
         }
 
-        // If we are truncating a value down to a natively supported integer, we can just use the cast instruction
+        // If we are truncating a value down to a natively supported integer, we can just use the cast instruction.
+        //
+        // This is exploiting the fact that the cast instruction will automatically truncate the value when
+        // casting to a smaller bit size. We can then avoid the more expensive modulo operation.
         if IntegerBitSize::try_from(bit_size).is_ok() {
-            // We cast back and forth to ensure that the value is truncated.
+            // Allocate a temporary register to hold the intermediate casted value.
             let intermediate_register = self.allocate_single_addr(bit_size);
-
             self.cast_instruction(*intermediate_register, value_to_truncate);
+
+            // We then cast back to the original type to satisfy typed memory.
             self.cast_instruction(destination_of_truncated_value, *intermediate_register);
+            self.deallocate_single_addr(intermediate_register);
 
             return;
         }
