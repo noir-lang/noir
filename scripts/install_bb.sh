@@ -4,7 +4,7 @@ VERSION="3.0.0-nightly.20260102"
 
 BBUP_PATH=~/.bb/bbup
 
-if ! [ -f $BBUP_PATH ]; then 
+if ! [ -f $BBUP_PATH ]; then
     curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/next/barretenberg/bbup/install | bash
 fi
 

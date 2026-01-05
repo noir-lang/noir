@@ -15,7 +15,7 @@ setup_repo() {
     local temp_dir=$3
 
     local repo_url="https://github.com/$repo_slug"
-    
+
     # Sadly we cannot use depth=1 clones here as we need to be able to checkout
     # commit hashes as well as branches/releases
     git clone $repo_url $temp_dir
@@ -48,7 +48,7 @@ save_artifact() {
 if [ -z "${REPO_DIR:-}" ]; then
     TMP_DIR=$(mktemp -d)
     trap "rm -rf $TMP_DIR" EXIT
-    
+
     setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
 fi
 

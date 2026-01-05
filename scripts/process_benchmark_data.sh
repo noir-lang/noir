@@ -22,9 +22,9 @@ average_times() {
           current_time = substr($1, 0, seconds)
           return current_time;
         }
-        
+
         printf "Could not parse time: %" $1 > "/dev/stderr"
-        
+
         printf "ERROR"
         exit 1
     }
@@ -34,7 +34,7 @@ average_times() {
       sum += seconds;
       n++;
     }
-    END {   
+    END {
       if (n > 0)
         printf "%.3f\n", sum / n
       else

@@ -33,11 +33,11 @@ test_dirs=$(ls $artifacts_path)
 
 echo "{\"programs\": [" > gates_report.json
 
-# Bound for checking where to place last parentheses 
+# Bound for checking where to place last parentheses
 NUM_ARTIFACTS=$(ls -1q "$artifacts_path" | wc -l)
 
 ITER="1"
-for pathname in $test_dirs; do    
+for pathname in $test_dirs; do
     ARTIFACT_NAME=$(basename "$pathname")
     if [[ " ${excluded_dirs[@]} " =~ "$ARTIFACT_NAME" ]]; then
         ITER=$(( $ITER + 1 ))
@@ -51,13 +51,13 @@ for pathname in $test_dirs; do
 
     if (($ITER == $NUM_ARTIFACTS)); then
         echo "" >> gates_report.json
-    else 
+    else
         echo "," >> gates_report.json
     fi
 
     ITER=$(( $ITER + 1 ))
 done
 
-echo "]}" >> gates_report.json 
+echo "]}" >> gates_report.json
 
 
