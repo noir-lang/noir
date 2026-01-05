@@ -2834,7 +2834,62 @@
 <a href="#2833" id="2833">2833</a>
 <a href="#2834" id="2834">2834</a>
 <a href="#2835" id="2835">2835</a>
-<a href="#2836" id="2836">2836</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2836" id="2836">2836</a>
+<a href="#2837" id="2837">2837</a>
+<a href="#2838" id="2838">2838</a>
+<a href="#2839" id="2839">2839</a>
+<a href="#2840" id="2840">2840</a>
+<a href="#2841" id="2841">2841</a>
+<a href="#2842" id="2842">2842</a>
+<a href="#2843" id="2843">2843</a>
+<a href="#2844" id="2844">2844</a>
+<a href="#2845" id="2845">2845</a>
+<a href="#2846" id="2846">2846</a>
+<a href="#2847" id="2847">2847</a>
+<a href="#2848" id="2848">2848</a>
+<a href="#2849" id="2849">2849</a>
+<a href="#2850" id="2850">2850</a>
+<a href="#2851" id="2851">2851</a>
+<a href="#2852" id="2852">2852</a>
+<a href="#2853" id="2853">2853</a>
+<a href="#2854" id="2854">2854</a>
+<a href="#2855" id="2855">2855</a>
+<a href="#2856" id="2856">2856</a>
+<a href="#2857" id="2857">2857</a>
+<a href="#2858" id="2858">2858</a>
+<a href="#2859" id="2859">2859</a>
+<a href="#2860" id="2860">2860</a>
+<a href="#2861" id="2861">2861</a>
+<a href="#2862" id="2862">2862</a>
+<a href="#2863" id="2863">2863</a>
+<a href="#2864" id="2864">2864</a>
+<a href="#2865" id="2865">2865</a>
+<a href="#2866" id="2866">2866</a>
+<a href="#2867" id="2867">2867</a>
+<a href="#2868" id="2868">2868</a>
+<a href="#2869" id="2869">2869</a>
+<a href="#2870" id="2870">2870</a>
+<a href="#2871" id="2871">2871</a>
+<a href="#2872" id="2872">2872</a>
+<a href="#2873" id="2873">2873</a>
+<a href="#2874" id="2874">2874</a>
+<a href="#2875" id="2875">2875</a>
+<a href="#2876" id="2876">2876</a>
+<a href="#2877" id="2877">2877</a>
+<a href="#2878" id="2878">2878</a>
+<a href="#2879" id="2879">2879</a>
+<a href="#2880" id="2880">2880</a>
+<a href="#2881" id="2881">2881</a>
+<a href="#2882" id="2882">2882</a>
+<a href="#2883" id="2883">2883</a>
+<a href="#2884" id="2884">2884</a>
+<a href="#2885" id="2885">2885</a>
+<a href="#2886" id="2886">2886</a>
+<a href="#2887" id="2887">2887</a>
+<a href="#2888" id="2888">2888</a>
+<a href="#2889" id="2889">2889</a>
+<a href="#2890" id="2890">2890</a>
+<a href="#2891" id="2891">2891</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3521,17 +3576,22 @@
                     references.expressions.insert(result, expression);
                     references.aliases.insert(expression, aliases.clone());
 
+                    <span class="comment">// Similar to how we remember that we used a value in a `Store` instruction,
+                    // take note that it was used in the `ArraySet`. If this instruction is not
+                    // going to be removed at the end, we shall keep the stores to this value as well.
+                    //
+                    // We want to make sure to mark aliased references before we update the value's alias list to match the array itself.
+                    // This ordering is necessary because if the unified alias list becomes unknown we will not end up
+                    // inserting the value as a possible aliased reference across blocks.
+                    // This could also be done by checking whether the new unified aliases are unknown and marking the `value` explicitly as an alias.
+                    </span><span class="kw">for </span>alias <span class="kw">in </span>references.get_aliases_for_value(<span class="kw-2">*</span>value).iter() {
+                        <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
+
                     <span class="comment">// The value being stored in the array also needs its aliases updated to match the array itself
                     </span><span class="kw">let </span>value_expression = references.expressions.get(value).copied();
                     <span class="kw">let </span>value_expression = value_expression.unwrap_or(Expression::Other(<span class="kw-2">*</span>value));
                     references.aliases.insert(value_expression, aliases);
-
-                    <span class="comment">// Similar to how we remember that we used a value in a `Store` instruction,
-                    // take note that it was used in the `ArraySet`. If this instruction is not
-                    // going to be removed at the end, we shall keep the stores to this value as well.
-                    </span><span class="kw">for </span>alias <span class="kw">in </span>references.get_aliases_for_value(<span class="kw-2">*</span>value).iter() {
-                        <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
                 }
             }
             Instruction::Call { arguments, .. } =&gt; {
@@ -5666,6 +5726,56 @@
         b4():
           v14 = load v3 -&gt; Field
           return v14
+      }
+      "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>set_reference_in_array_from_separate_block() {
+        <span class="kw">let </span>src = <span class="string">"
+      brillig(inline) impure fn bar f2 {
+        b0(v0: [&amp;mut u1; 1]):
+          v1 = allocate -&gt; &amp;mut [&amp;mut u1; 1]
+          store v0 at v1
+          v2 = allocate -&gt; &amp;mut u1
+          store u1 1 at v2
+          v4 = load v1 -&gt; [&amp;mut u1; 1]
+          v6 = array_get v4, index u32 0 -&gt; &amp;mut u1
+          v7 = load v6 -&gt; u1
+          jmpif v7 then: b1, else: b2
+        b1():
+          v8 = load v1 -&gt; [&amp;mut u1; 1]
+          v9 = array_set v8, index u32 0, value v2
+          store v9 at v1
+          jmp b2()
+        b2():
+          v10 = load v1 -&gt; [&amp;mut u1; 1]
+          v11 = array_get v10, index u32 0 -&gt; &amp;mut u1
+          return v11
+      }
+      "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="comment">// We expect `store u1 1 at v2` to remain in place as it is used later as a value in an array set in b1
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+      brillig(inline) impure fn bar f0 {
+        b0(v0: [&amp;mut u1; 1]):
+          v1 = allocate -&gt; &amp;mut [&amp;mut u1; 1]
+          store v0 at v1
+          v2 = allocate -&gt; &amp;mut u1
+          store u1 1 at v2
+          v5 = array_get v0, index u32 0 -&gt; &amp;mut u1
+          v6 = load v5 -&gt; u1
+          jmpif v6 then: b1, else: b2
+        b1():
+          v7 = array_set v0, index u32 0, value v2
+          store v7 at v1
+          jmp b2()
+        b2():
+          v8 = load v1 -&gt; [&amp;mut u1; 1]
+          v9 = array_get v8, index u32 0 -&gt; &amp;mut u1
+          return v9
       }
       "</span>);
     }
