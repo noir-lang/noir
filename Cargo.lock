@@ -3310,6 +3310,7 @@ dependencies = [
  "jsonrpsee",
  "noir_greybox_fuzzer",
  "noirc_abi",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
@@ -3572,6 +3573,7 @@ dependencies = [
  "nargo",
  "noir_greybox_fuzzer",
  "noirc_abi",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
@@ -3616,7 +3618,6 @@ dependencies = [
  "fm",
  "nargo",
  "noirc_artifacts",
- "noirc_driver",
  "noirc_errors",
  "noirc_printable_type",
  "owo-colors",
@@ -3751,6 +3752,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "nargo",
  "noirc_abi",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
@@ -3765,6 +3767,7 @@ dependencies = [
  "acvm",
  "libfuzzer-sys",
  "noir_ssa_executor",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_evaluator",
  "noirc_frontend",
@@ -3790,7 +3793,6 @@ dependencies = [
  "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
- "noirc_evaluator",
  "noirc_frontend",
  "rust-embed",
  "serde",
@@ -3844,15 +3846,20 @@ version = "1.0.0-beta.17"
 name = "noirc_artifacts"
 version = "1.0.0-beta.17"
 dependencies = [
+ "acir",
  "acvm",
+ "base64",
  "codespan-reporting",
+ "flate2",
  "fm",
  "noirc_abi",
- "noirc_driver",
  "noirc_errors",
  "noirc_printable_type",
  "serde",
+ "serde_json",
  "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]
@@ -3880,12 +3887,12 @@ dependencies = [
  "fm",
  "iter-extended",
  "noirc_abi",
+ "noirc_artifacts",
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "rust-embed",
  "rustc-hash",
- "serde",
  "tracing",
 ]
 
@@ -3893,17 +3900,11 @@ dependencies = [
 name = "noirc_errors"
 version = "1.0.0-beta.17"
 dependencies = [
- "acvm",
- "base64",
  "codespan-reporting",
- "flate2",
  "fm",
- "noirc_printable_type",
  "noirc_span",
  "rustc-hash",
  "serde",
- "serde_json",
- "tracing",
 ]
 
 [[package]]
@@ -3920,6 +3921,7 @@ dependencies = [
  "indexmap 2.11.0",
  "insta",
  "iter-extended",
+ "noirc_artifacts",
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
@@ -3956,6 +3958,7 @@ dependencies = [
  "insta",
  "iter-extended",
  "noirc_arena",
+ "noirc_artifacts",
  "noirc_errors",
  "noirc_printable_type",
  "num-bigint",
@@ -5878,6 +5881,7 @@ dependencies = [
  "log",
  "noir_ssa_executor",
  "noir_ssa_fuzzer",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_evaluator",
  "noirc_frontend",

@@ -1,4 +1,4 @@
-use bb_proof_verification::{UltraHonkVerificationKey, UltraHonkZKProof, verify_ultrahonkzk_proof};
+use bb_proof_verification::{UltraHonkVerificationKey, UltraHonkZKProof, verify_honk_proof};
 
 fn main(
     verification_key: UltraHonkVerificationKey,
@@ -6,5 +6,5 @@ fn main(
     public_inputs: [Field; 2],
     key_hash: Field,
 ) {
-    verify_ultrahonkzk_proof(verification_key, proof, public_inputs, key_hash);
+    verify_honk_proof(verification_key, proof, public_inputs, key_hash);
 }

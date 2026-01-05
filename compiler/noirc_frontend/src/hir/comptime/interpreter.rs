@@ -954,7 +954,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
-        let method = infix.trait_method_id;
+        let method = infix
+            .trait_method_id
+            .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
         let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
@@ -1788,7 +1790,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 }
 
 /// Bounds check the given array and index pair.
-/// This will also ensure the given arguments are in fact an array and integer.
+/// This will also ensure the given arguments are in fact an array and u32.
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
@@ -1800,32 +1802,15 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
     };
 
     let index = match index {
-        Value::Field(value) => {
-            let u64: Option<u64> = value.try_to_unsigned();
-            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                let typ = Type::default_int_type();
-                InterpreterError::IntegerOutOfRangeForType { value, typ, location }
-            })?
-        }
-        Value::I8(value) => value as usize,
-        Value::I16(value) => value as usize,
-        Value::I32(value) => value as usize,
-        Value::I64(value) => value as usize,
-        Value::U1(value) => {
-            if value {
-                1_usize
-            } else {
-                0_usize
-            }
-        }
-        Value::U8(value) => value as usize,
-        Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
-        Value::U64(value) => value as usize,
-        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
-            return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
+            let expected_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            return Err(InterpreterError::TypeMismatch {
+                expected: expected_type.to_string(),
+                actual: typ,
+                location,
+            });
         }
     };
 
@@ -1942,9 +1927,10 @@ impl Context<'_, '_> {
         let local_id = func_meta.source_module;
         let location = func_meta.location;
         let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let pedantic_solving = self.def_interner.pedantic_solving;
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: false,
+            pedantic_solving,
             enabled_unstable_features,
             disable_required_unstable_features: false,
         };

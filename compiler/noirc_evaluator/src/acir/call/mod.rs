@@ -1,12 +1,13 @@
 use acvm::AcirField;
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
+use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
-use crate::errors::{RuntimeError, SsaReport};
+use crate::errors::RuntimeError;
 use crate::ssa::ir::value::Value;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,

@@ -89,8 +89,14 @@ impl NodeInterner {
         self.push_definition(name, false, comptime, DefinitionKind::Function(func), location)
     }
 
-    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
-        self.func_id_to_trait.insert(func, (self_type, trait_id));
+    // Returns Some((overlapping_self_type, overlapping_trait_id)) if overlapping
+    pub fn set_function_trait(
+        &mut self,
+        func: FuncId,
+        self_type: Type,
+        trait_id: TraitId,
+    ) -> Option<(Type, TraitId)> {
+        self.func_id_to_trait.insert(func, (self_type, trait_id))
     }
 
     pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {

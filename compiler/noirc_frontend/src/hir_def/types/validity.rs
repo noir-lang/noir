@@ -24,7 +24,7 @@ impl Type {
     /// panic in that function instead of a user-facing compiler error message.
     ///
     /// Returns `None` if this type and its nested types are all valid program inputs.
-    pub(crate) fn program_input_validity(&self) -> Option<InvalidType> {
+    pub(crate) fn program_input_validity(&self, allow_empty_arrays: bool) -> Option<InvalidType> {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
@@ -47,11 +47,13 @@ impl Type {
             | Type::Vector(_)
             | Type::TraitAsType(..) => Some(InvalidType::Primitive(self.clone())),
 
-            Type::CheckedCast { to, .. } => to.program_input_validity(),
+            Type::CheckedCast { to, .. } => to.program_input_validity(allow_empty_arrays),
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
-                if let Some(invalid_type) = alias.get_type(generics).program_input_validity() {
+                if let Some(invalid_type) =
+                    alias.get_type(generics).program_input_validity(allow_empty_arrays)
+                {
                     let alias_name = alias.name.clone();
                     Some(InvalidType::Alias { alias_name, invalid_type: Box::new(invalid_type) })
                 } else {
@@ -60,22 +62,24 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                if length_is_zero(length) {
-                    Some(InvalidType::EmptyArray(self.clone()))
+                if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
+                    Some(InvalidType::Primitive(self.clone()))
                 } else {
-                    length.program_input_validity().or_else(|| element.program_input_validity())
+                    length
+                        .program_input_validity(allow_empty_arrays)
+                        .or_else(|| element.program_input_validity(allow_empty_arrays))
                 }
             }
             Type::String(length) => {
-                if length_is_zero(length) {
+                if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
                     Some(InvalidType::EmptyString(self.clone()))
                 } else {
-                    length.program_input_validity()
+                    length.program_input_validity(allow_empty_arrays)
                 }
             }
             Type::Tuple(elements) => {
                 for element in elements {
-                    if let Some(invalid_type) = element.program_input_validity() {
+                    if let Some(invalid_type) = element.program_input_validity(allow_empty_arrays) {
                         return Some(invalid_type);
                     }
                 }
@@ -86,7 +90,8 @@ impl Type {
 
                 if let Some(fields) = definition.get_fields(generics) {
                     for (field_name, field, _) in fields {
-                        if let Some(invalid_type) = field.program_input_validity() {
+                        if let Some(invalid_type) = field.program_input_validity(allow_empty_arrays)
+                        {
                             let struct_name = definition.name.clone();
                             let mut fields_raw = definition.fields_raw().unwrap().iter();
                             let field = fields_raw.find(|field| field.name.as_str() == field_name);
@@ -104,9 +109,9 @@ impl Type {
                 }
             }
 
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.program_input_validity().or_else(|| rhs.program_input_validity())
-            }
+            Type::InfixExpr(lhs, _, rhs, _) => lhs
+                .program_input_validity(allow_empty_arrays)
+                .or_else(|| rhs.program_input_validity(allow_empty_arrays)),
         }
     }
 
@@ -247,6 +252,10 @@ impl Type {
     }
 }
 
-pub(crate) fn length_is_zero(length: &Type) -> bool {
-    length.evaluate_to_u32(Location::dummy()).unwrap_or(0) == 0
+pub(crate) fn length_is_valid_for_entry_point(length: &Type, allow_empty: bool) -> bool {
+    match length.evaluate_to_u32(Location::dummy()) {
+        Ok(0) => allow_empty, // Zero is invalid unless allow_empty
+        Ok(_) => true,        // Positive is always valid
+        Err(_) => false,      // Failed to evaluate (like -1) is invalid
+    }
 }

@@ -18,6 +18,7 @@ noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 noirc_driver.workspace = true
 noirc_abi.workspace = true
+noirc_artifacts.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 thiserror.workspace = true

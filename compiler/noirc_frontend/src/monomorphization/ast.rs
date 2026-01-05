@@ -1,10 +1,8 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
-use noirc_errors::{
-    Location,
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
-};
+use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
+use noirc_errors::Location;
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},

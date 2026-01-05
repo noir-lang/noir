@@ -252,7 +252,10 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| c + 1);
+                                self.set_capacity(context.dfg, old, new, |c| {
+                                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
+                                    c.checked_add(1).expect("Vector capacity overflow")
+                                });
                             }
                             SizeChange::Dec { old, new } => {
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
@@ -1154,5 +1157,43 @@ mod tests {
             return v26, v28, v18
         }
         "#);
+    }
+
+    // Regression test for https://github.com/noir-lang/noir/issues/10978
+    // The remove_if_else pass should panic due to a checked addition overflow
+    // when processing arrays with capacity u32::MAX.
+    #[test]
+    #[should_panic(expected = "Vector capacity overflow")]
+    fn regression_10978() {
+        // This is the SSA for the Noir program described in the issue,
+        // before the remove if-else pass.
+        let src = "
+       acir(inline) impure fn main f0 {
+        b0(v0: u1):
+            v2 = call f1() -> [Field; 4294967295]
+            v4, v5 = call as_vector(v2) -> (u32, [Field])
+            v9, v10 = call vector_push_back(u32 4294967295, v5, Field 1) -> (u32, [Field])
+            v11, v12 = call vector_push_back(v9, v10, Field 1) -> (u32, [Field])
+            enable_side_effects v0
+            v13 = not v0
+            enable_side_effects u1 1
+            v15 = cast v0 as u32
+            v16 = cast v13 as u32
+            v17 = unchecked_mul v15, v9
+            v18 = unchecked_mul v16, v11
+            v19 = unchecked_add v17, v18
+            v20 = if v0 then v10 else (if v13) v12
+            v22, v23 = call black_box(v19, v20) -> (u32, [Field])
+            return
+        }
+        brillig(inline) impure fn void_to_array f1 {
+        b0():
+            v1 = call void_to_array_oracle() -> [Field; 4294967295]
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.remove_if_else();
     }
 }
