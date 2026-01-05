@@ -10,7 +10,6 @@ use const_format::formatcp;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 use noir_artifact_cli::{Artifact, commands::execute_cmd, fs::witness::load_witness_from_file};
-use noirc_driver::CompiledProgram;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 static VERSION_STRING: &str = formatcp!("version = {}\n", PKG_VERSION,);
@@ -84,7 +83,7 @@ fn check_witness_file(
     contract_function: Option<&str>,
 ) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(artifact_path)?;
-    let program: CompiledProgram = match artifact {
+    let program = match artifact {
         Artifact::Program(program) => {
             if contract_function.is_some() {
                 return Err(eyre::eyre!(
