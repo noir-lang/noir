@@ -329,7 +329,10 @@ impl Context<'_, '_, '_> {
             1
         } else {
             let exponent_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
-            assert!(exponent_bit_size.is_power_of_two(), "ICE: exponent type bit size is expected to be a power of two");
+            assert!(
+                exponent_bit_size.is_power_of_two(),
+                "ICE: exponent type bit size is expected to be a power of two"
+            );
             exponent_bit_size.ilog2()
         };
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
