@@ -3631,9 +3631,8 @@ mod control_dependence {
 
     #[test]
     fn call_func_make_arr_inc_rc() {
-        let src = format!(
-            r#"
-        brillig(inline) impure fn main f0 {{
+        let src = r#"
+        brillig(inline) impure fn main f0 {
           b0():
             v2 = make_array [u8 0, u8 0, u8 0, u8 0] : [u8; 4]
             v3 = allocate -> &mut [u8; 4]
@@ -3651,14 +3650,13 @@ mod control_dependence {
             v7 = load v3 -> [u8; 4]
             v9 = call black_box(v7) -> [u8; 4]
             return
-        }}
-        brillig(inline) predicate_pure fn ret_arr f1 {{
+        }
+        brillig(inline) predicate_pure fn ret_arr f1 {
           b0():
             v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
             return u8 7, v4
-        }}
-        "#
-        );
+        }
+        "#;
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         let ssa_string = ssa.to_string();
