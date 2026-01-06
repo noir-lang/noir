@@ -39,7 +39,7 @@
     "mocha": "^11.7.5",
     "prettier": "3.7.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   },
   "resolutions": {
     "@types/estree": "1.0.6",
