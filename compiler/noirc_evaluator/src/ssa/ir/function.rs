@@ -50,6 +50,14 @@ impl RuntimeType {
         )
     }
 
+    pub(crate) fn is_inline_never(&self) -> bool {
+        matches!(
+            self,
+            RuntimeType::Acir(InlineType::InlineNever)
+                | RuntimeType::Brillig(InlineType::InlineNever)
+        )
+    }
+
     pub(crate) fn is_no_predicates(&self) -> bool {
         matches!(
             self,

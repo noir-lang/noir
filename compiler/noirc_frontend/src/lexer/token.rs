@@ -1013,6 +1013,7 @@ pub enum FunctionAttributeKind {
     Fold,
     NoPredicates,
     InlineAlways,
+    InlineNever,
     FuzzingHarness(FuzzingScope),
 }
 
@@ -1064,6 +1065,12 @@ impl FunctionAttributeKind {
         matches!(self, FunctionAttributeKind::InlineAlways)
     }
 
+    /// Check whether we have an `inline_never` attribute
+    /// This is used to indicate that a function should never be inlined.
+    pub fn is_inline_never(&self) -> bool {
+        matches!(self, FunctionAttributeKind::InlineNever)
+    }
+
     pub fn name(&self) -> &'static str {
         match self {
             FunctionAttributeKind::Foreign(_) => "foreign",
@@ -1073,6 +1080,7 @@ impl FunctionAttributeKind {
             FunctionAttributeKind::Fold => "fold",
             FunctionAttributeKind::NoPredicates => "no_predicates",
             FunctionAttributeKind::InlineAlways => "inline_always",
+            FunctionAttributeKind::InlineNever => "inline_never",
             FunctionAttributeKind::FuzzingHarness(_) => "fuzz",
         }
     }
@@ -1094,6 +1102,7 @@ impl Display for FunctionAttributeKind {
             FunctionAttributeKind::Fold => write!(f, "#[fold]"),
             FunctionAttributeKind::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttributeKind::InlineAlways => write!(f, "#[inline_always]"),
+            FunctionAttributeKind::InlineNever => write!(f, "#[inline_never]"),
             FunctionAttributeKind::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
         }
     }

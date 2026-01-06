@@ -42,10 +42,11 @@ impl InlineInfo {
     pub(crate) fn is_inline_target(&self, dfg: &DataFlowGraph) -> bool {
         self.is_brillig_entry_point
             || self.is_acir_entry_point
+            || dfg.runtime().is_inline_never()
             // We still want to attempt inlining recursive ACIR functions in case
-            // they have a compile-time completion point. 
+            // they have a compile-time completion point.
             // A recursive function is going to set `should_inline` to false as well,
-            // so we need to determine whether a function is an inline target 
+            // so we need to determine whether a function is an inline target
             // with auxiliary runtime information.
             || ((self.is_recursive || !self.should_inline) && !dfg.runtime().is_acir())
     }
@@ -240,12 +241,13 @@ fn compute_function_should_be_inlined(
     let is_simple_function = entry_block.successors().next().is_none()
         && instruction_weight < small_function_max_instructions;
 
-    let should_inline = is_simple_function
-        || net_cost < aggressiveness
-        || runtime.is_inline_always()
-        || should_inline_no_pred_function
-        || contains_static_assertion
-        || runtime.is_acir();
+    let should_inline = !runtime.is_inline_never()
+        && (is_simple_function
+            || net_cost < aggressiveness
+            || runtime.is_inline_always()
+            || should_inline_no_pred_function
+            || contains_static_assertion
+            || runtime.is_acir());
 
     info.should_inline = should_inline;
 }
@@ -597,6 +599,29 @@ mod tests {
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "inline_always functions should be inlined");
+    }
+
+    #[test]
+    fn inline_never_functions_are_not_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(!f1.should_inline, "inline_never functions should not be inlined");
     }
 
     #[test]

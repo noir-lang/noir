@@ -70,6 +70,30 @@ pub(super) fn inlining_attributes(
         | FunctionAttributeKind::Test(_)
         | FunctionAttributeKind::InlineAlways
         | FunctionAttributeKind::FuzzingHarness(_) => None,
+        FunctionAttributeKind::InlineNever => {
+            // This is checked in inline_never_attribute_on_constrained
+            None
+        }
+    }
+}
+
+/// The `#[inline_never]` attribute is only allowed on unconstrained functions
+pub(super) fn inline_never_attribute_on_constrained(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    if modifiers.is_unconstrained {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    let location = attribute.location;
+    match &attribute.kind {
+        FunctionAttributeKind::InlineNever => {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
+        }
+        _ => None,
     }
 }
 
