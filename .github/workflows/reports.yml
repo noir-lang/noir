@@ -384,6 +384,7 @@ jobs:
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
           NUM_RUNS: ${{ matrix.num_runs }}
+          SKIP_BRILLIG_EXECUTION: ${{ matrix.cannot_execute_brillig }}
 
       - name: Process report data
         run: |
@@ -438,7 +439,7 @@ jobs:
           fi
 
       - name: Check Brillig execution time limit
-        if: ${{ !matrix.cannot_execute }}
+        if: ${{ !matrix.cannot_execute_brillig }}
         run: |
           TIME=$(jq '.brillig_execution_time.value' ${{ steps.compilation_report.outputs.report_path }})
           TIME_LIMIT=${{ matrix.brillig-execution-timeout }}

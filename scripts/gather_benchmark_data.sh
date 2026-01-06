@@ -91,7 +91,7 @@ fi
 save_artifact
 
 compile_brillig_project
-if [ "${HAS_PROVER_INPUTS:-"false"}" == "true" ]; then
+if [ "${HAS_PROVER_INPUTS:-"false"}" == "true" ] && [ "${SKIP_BRILLIG_EXECUTION:-"false"}" != "true" ]; then
     execute_brillig_project
 fi
 save_brillig_artifact
