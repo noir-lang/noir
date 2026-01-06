@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767694882566,
+  "lastUpdate": 1767701368958,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a7337a814785b8fa7810cae0a2201925b878cfa0",
-          "message": "chore: schedule algolia crawls and alert on failure (#11004)",
-          "timestamp": "2025-12-23T13:23:42Z",
-          "tree_id": "ecc406e6cb29e725b5acf6c42ef5fdb0fcda9349",
-          "url": "https://github.com/noir-lang/noir/commit/a7337a814785b8fa7810cae0a2201925b878cfa0"
-        },
-        "date": 1766496367007,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259681,
-            "range": "± 477",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231268,
-            "range": "± 3441",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799495,
-            "range": "± 4512",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f8b7707ed227dff0a02331fe2dba1f514060f9c4",
           "message": "chore: Remove unnecessary step from algolia workflow (#11010)",
           "timestamp": "2025-12-23T14:30:03Z",
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785566,
             "range": "± 1795",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0cf6781ec3cd0dc673179cd340ca53645af6b943",
+          "message": "chore: remove trailing spaces from bash scripts (#11089)",
+          "timestamp": "2026-01-06T12:06:29Z",
+          "tree_id": "1019ddb894e5a9c725f488b54f83181015a1f4d6",
+          "url": "https://github.com/noir-lang/noir/commit/0cf6781ec3cd0dc673179cd340ca53645af6b943"
+        },
+        "date": 1767701336002,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257409,
+            "range": "± 695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231262,
+            "range": "± 2794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794200,
+            "range": "± 5361",
             "unit": "ns/iter"
           }
         ]
