@@ -19,13 +19,17 @@ impl<T> [T] {
 
     /// Remove the last element of the vector, returning the
     /// popped vector and the element in a tuple
-    #[builtin(vector_pop_back)]
-    pub fn pop_back(self) -> (Self, T) {}
+    pub fn pop_back(self) -> (Self, T) {
+        assert(self.len() != 0, "Attempt to pop_back from an empty vector");
+        vector_pop_back(self)
+    }
 
     /// Remove the first element of the vector, returning the
     /// element and the popped vector in a tuple
-    #[builtin(vector_pop_front)]
-    pub fn pop_front(self) -> (T, Self) {}
+    pub fn pop_front(self) -> (T, Self) {
+        assert(self.len() != 0, "Attempt to pop_front from an empty vector");
+        vector_pop_front(self)
+    }
 
     /// Insert an element at a specified index, shifting all elements
     /// after it to the right
@@ -35,8 +39,10 @@ impl<T> [T] {
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the altered vector and
     /// the removed element
-    #[builtin(vector_remove)]
-    pub fn remove(self, index: u32) -> (Self, T) {}
+    pub fn remove(self, index: u32) -> (Self, T) {
+        assert(self.len() != 0, "Attempt to remove from an empty vector");
+        vector_remove(self, index)
+    }
 
     /// Append each element of the `other` vector to the end of `self`.
     /// This returns a new vector and leaves both input vectors unchanged.
@@ -164,6 +170,15 @@ impl<T> [T] {
         ret
     }
 }
+
+#[builtin(vector_pop_back)]
+fn vector_pop_back<T>(vector: [T]) -> ([T], T) {}
+
+#[builtin(vector_pop_front)]
+fn vector_pop_front<T>(vector: [T]) -> (T, [T]) {}
+
+#[builtin(vector_remove)]
+fn vector_remove<T>(vector: [T], index: u32) -> ([T], T) {}
 
 mod test {
     #[test]
