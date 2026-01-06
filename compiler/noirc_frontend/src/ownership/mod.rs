@@ -313,6 +313,12 @@ impl Context {
     }
 
     fn handle_match(&mut self, match_expr: &mut crate::monomorphization::ast::Match) {
+        // Note: We don't need to explicitly handle `Match::variable_to_match` here.
+        // The matched variable is just a LocalId reference to a variable that was assigned earlier.
+        // Cloning for that variable happens at its use sites (e.g., when passed to the enum
+        // constructor or used after the match), not at the match expression itself.
+        // The match will only destructure the value; it doesn't "use" the variable in a way that
+        // requires additional cloning beyond what the last-use analysis already handles.
         for case in &mut match_expr.cases {
             self.handle_expression(&mut case.branch);
         }
