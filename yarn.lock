@@ -9789,9 +9789,9 @@ __metadata:
   linkType: hard
 
 "@types/path-browserify@npm:^1":
-  version: 1.0.2
-  resolution: "@types/path-browserify@npm:1.0.2"
-  checksum: 10/7b26df1a32827f7e588009386f62e0f900e8d349722b1b8b8c100cd2c4cc1e95c64099f5ec879cd131e69869088f336998a3ddb17085b68312414431a4eace01
+  version: 1.0.3
+  resolution: "@types/path-browserify@npm:1.0.3"
+  checksum: 10/f6e77f2e0b86dd0279562da23df16bd089d95fc51bc2aace413fbfb18c2e8dcbf7c5763f951436328c865d0220829c5382fdf7c87d6252c1aa6372588260f6aa
   languageName: node
   linkType: hard
 
