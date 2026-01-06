@@ -16,6 +16,6 @@
     "@types/node": "^22.13.10",
     "typescript": "^5.8.3",
     "vite": "^7.0.6",
-    "vite-plugin-node-polyfills": "0.17.0"
+    "vite-plugin-node-polyfills": "0.24.0"
   }
 }
