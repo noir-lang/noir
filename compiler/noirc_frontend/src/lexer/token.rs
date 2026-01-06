@@ -1058,19 +1058,6 @@ impl FunctionAttributeKind {
         matches!(self, FunctionAttributeKind::NoPredicates)
     }
 
-    /// Check whether we have an `inline_always` attribute
-    /// This is used to indicate that a function should always be inlined
-    /// regardless of the target runtime.
-    pub fn is_inline_always(&self) -> bool {
-        matches!(self, FunctionAttributeKind::InlineAlways)
-    }
-
-    /// Check whether we have an `inline_never` attribute
-    /// This is used to indicate that a function should never be inlined.
-    pub fn is_inline_never(&self) -> bool {
-        matches!(self, FunctionAttributeKind::InlineNever)
-    }
-
     pub fn name(&self) -> &'static str {
         match self {
             FunctionAttributeKind::Foreign(_) => "foreign",

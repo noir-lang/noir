@@ -43,8 +43,8 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
 }
 
 /// Validate inline-related attributes based on whether the function is constrained or unconstrained.
-/// - Constrained functions: disallow #[inline_never]
-/// - Unconstrained functions: disallow #[no_predicates] and #[fold]
+/// - Constrained functions: disallow `#[inline_never]`
+/// - Unconstrained functions: disallow `#[no_predicates]` and `#[fold]`
 pub(super) fn inlining_attributes(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
