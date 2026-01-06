@@ -7,8 +7,6 @@ BACKEND=${BACKEND:-bb}
 excluded_dirs=(
     "workspace"
     "workspace_default_member"
-    "verify_honk_proof"
-    "verify_rollup_honk_proof"
     # UltraCircuitBuilder (standalone Noir application) does not support CallData/ReturnData block constraints. Use MegaCircuitBuilder (Aztec app) or fall back to RAM and ROM operations.
     "databus"
     "databus_composite_calldata"
