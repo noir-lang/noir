@@ -50,6 +50,7 @@ projects:
     num_runs: 1
     compilation-timeout: 250
     brillig-compilation-timeout: 250
+    brillig-execution-timeout: 0.01
     compilation-memory-limit: 10000
   rollup-block-root:
     repo: AztecProtocol/aztec-packages
