@@ -607,7 +607,15 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
@@ -731,10 +739,18 @@
     </span><span class="kw">pub fn </span>new_integer(value: u128, bit_size: IntegerBitSize) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span>bit_size {
             IntegerBitSize::U1 =&gt; MemoryValue::U1(value != <span class="number">0</span>),
-            IntegerBitSize::U8 =&gt; MemoryValue::U8(value <span class="kw">as </span>u8),
-            IntegerBitSize::U16 =&gt; MemoryValue::U16(value <span class="kw">as </span>u16),
-            IntegerBitSize::U32 =&gt; MemoryValue::U32(value <span class="kw">as </span>u32),
-            IntegerBitSize::U64 =&gt; MemoryValue::U64(value <span class="kw">as </span>u64),
+            IntegerBitSize::U8 =&gt; {
+                MemoryValue::U8(value.try_into().expect(<span class="string">"{value} is out of 8 bits range"</span>))
+            }
+            IntegerBitSize::U16 =&gt; {
+                MemoryValue::U16(value.try_into().expect(<span class="string">"{value} is out of 16 bits range"</span>))
+            }
+            IntegerBitSize::U32 =&gt; {
+                MemoryValue::U32(value.try_into().expect(<span class="string">"{value} is out of 32 bits range"</span>))
+            }
+            IntegerBitSize::U64 =&gt; {
+                MemoryValue::U64(value.try_into().expect(<span class="string">"{value} is out of 64 bits range"</span>))
+            }
             IntegerBitSize::U128 =&gt; MemoryValue::U128(value),
         }
     }
