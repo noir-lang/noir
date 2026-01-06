@@ -685,17 +685,22 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(result, expression);
                     references.aliases.insert(expression, aliases.clone());
 
+                    // Similar to how we remember that we used a value in a `Store` instruction,
+                    // take note that it was used in the `ArraySet`. If this instruction is not
+                    // going to be removed at the end, we shall keep the stores to this value as well.
+                    //
+                    // We want to make sure to mark aliased references before we update the value's alias list to match the array itself.
+                    // This ordering is necessary because if the unified alias list becomes unknown we will not end up
+                    // inserting the value as a possible aliased reference across blocks.
+                    // This could also be done by checking whether the new unified aliases are unknown and marking the `value` explicitly as an alias.
+                    for alias in references.get_aliases_for_value(*value).iter() {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
+
                     // The value being stored in the array also needs its aliases updated to match the array itself
                     let value_expression = references.expressions.get(value).copied();
                     let value_expression = value_expression.unwrap_or(Expression::Other(*value));
                     references.aliases.insert(value_expression, aliases);
-
-                    // Similar to how we remember that we used a value in a `Store` instruction,
-                    // take note that it was used in the `ArraySet`. If this instruction is not
-                    // going to be removed at the end, we shall keep the stores to this value as well.
-                    for alias in references.get_aliases_for_value(*value).iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
                 }
             }
             Instruction::Call { arguments, .. } => {
@@ -2830,6 +2835,56 @@ mod tests {
         b4():
           v14 = load v3 -> Field
           return v14
+      }
+      ");
+    }
+
+    #[test]
+    fn set_reference_in_array_from_separate_block() {
+        let src = "
+      brillig(inline) impure fn bar f2 {
+        b0(v0: [&mut u1; 1]):
+          v1 = allocate -> &mut [&mut u1; 1]
+          store v0 at v1
+          v2 = allocate -> &mut u1
+          store u1 1 at v2
+          v4 = load v1 -> [&mut u1; 1]
+          v6 = array_get v4, index u32 0 -> &mut u1
+          v7 = load v6 -> u1
+          jmpif v7 then: b1, else: b2
+        b1():
+          v8 = load v1 -> [&mut u1; 1]
+          v9 = array_set v8, index u32 0, value v2
+          store v9 at v1
+          jmp b2()
+        b2():
+          v10 = load v1 -> [&mut u1; 1]
+          v11 = array_get v10, index u32 0 -> &mut u1
+          return v11
+      }
+      ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // We expect `store u1 1 at v2` to remain in place as it is used later as a value in an array set in b1
+        assert_ssa_snapshot!(ssa, @r"
+      brillig(inline) impure fn bar f0 {
+        b0(v0: [&mut u1; 1]):
+          v1 = allocate -> &mut [&mut u1; 1]
+          store v0 at v1
+          v2 = allocate -> &mut u1
+          store u1 1 at v2
+          v5 = array_get v0, index u32 0 -> &mut u1
+          v6 = load v5 -> u1
+          jmpif v6 then: b1, else: b2
+        b1():
+          v7 = array_set v0, index u32 0, value v2
+          store v7 at v1
+          jmp b2()
+        b2():
+          v8 = load v1 -> [&mut u1; 1]
+          v9 = array_get v8, index u32 0 -> &mut u1
+          return v9
       }
       ");
     }

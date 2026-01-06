@@ -200,15 +200,21 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         var: AcirVar,
     ) -> Result<AcirVar, InternalError> {
-        if self.var_to_expression(var)?.to_witness().is_some() {
+        let expression = self.var_to_expression(var)?;
+        if expression.to_witness().is_some() {
             // If called with a variable which is already a witness then return the same variable.
             return Ok(var);
         }
 
         let var_as_witness = self.var_to_witness(var)?;
-
         let witness_var = self.add_data(AcirVarData::Witness(var_as_witness));
-        self.mark_variables_equivalent(var, witness_var)?;
+
+        // Issue https://github.com/noir-lang/noir/issues/11045
+        // Do not mark witness_var as equivalent to a constant
+        if expression.to_const().is_none() {
+            self.mark_variables_equivalent(var, witness_var)?;
+        }
+        debug_assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
 
         Ok(witness_var)
     }

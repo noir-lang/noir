@@ -129,14 +129,14 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Unit
             | Type::Constant(_, _)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_)
             | Type::InfixExpr(..)
             | Type::Error => None,
 
-            Type::FmtString(_, _)
+            Type::Unit
+            | Type::FmtString(_, _)
             // To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
             | Type::Function(_, _, _, _)
