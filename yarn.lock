@@ -14297,7 +14297,7 @@ __metadata:
     prism-react-renderer: "npm:^2.1.0"
     react: "npm:^18.2.0"
     react-dom: "npm:^18.2.0"
-    react-spinners: "npm:^0.13.8"
+    react-spinners: "npm:^0.17.0"
     rehype-katex: "npm:^7.0.1"
     remark-math: "npm:^6.0.0"
     serve: "npm:^14.2.1"
@@ -23211,13 +23211,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-spinners@npm:^0.13.8":
-  version: 0.13.8
-  resolution: "react-spinners@npm:0.13.8"
+"react-spinners@npm:^0.17.0":
+  version: 0.17.0
+  resolution: "react-spinners@npm:0.17.0"
   peerDependencies:
-    react: ^16.0.0 || ^17.0.0 || ^18.0.0
-    react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0
-  checksum: 10/8564af7bf5b5be84665816fb815ebfc0a04cb899554c6e6a28a8d8ccfa75cbd8096bd99ec202f1fc9bcfee9133e9f5170484f42332f2fe58c6f7ade31f307a50
+    react: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10/ea7d3af013e2df950033eaad44e0b840c99bfc2d7f5fcdee7adb1e62863f99fb81f64b1260bac20ef103651e39f712f16373b31c7b0cbcdc3689ff4788608a56
   languageName: node
   linkType: hard
 
