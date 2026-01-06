@@ -26,7 +26,7 @@ fn main(x: u32) {
     lambdas[x - 1](());
 
     // Also check against vectors
-    let lambdas: [fn(()) -> ()] = &[|_: ()| {}];
+    let lambdas: [fn(()) -> ()] = [|_: ()| {}].as_vector();
     lambdas[0](());
     lambdas[x - 1](());
 }
@@ -37,7 +37,7 @@ fn lambdas_in_array_literal(x: u32) {
 }
 
 fn lambdas_in_vector_literal(x: u32) {
-    let xs = &[|| println("hi"), || println("bye"), || println("big"), || println("wow")];
+    let xs = [|| println("hi"), || println("bye"), || println("big"), || println("wow")].as_vector();
     (xs[x])();
 }
 
@@ -47,7 +47,7 @@ fn functions_in_array_literal(x: u32) {
 }
 
 fn functions_in_vector_literal(x: u32) {
-    let xs = &[baz, qux];
+    let xs = [baz, qux].as_vector();
     (xs[x])();
 }
 

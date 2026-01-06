@@ -900,9 +900,9 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// VectorExpression = '&' ArrayLiteral
+    /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::VectorStart) && self.next_is(Token::LeftBracket)) {
+        if !((self.at(Token::At) || self.at(Token::DeprecatedVectorStart)) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -1457,7 +1457,7 @@ mod tests {
 
     #[test]
     fn parses_empty_vector_expression() {
-        let src = "&[]";
+        let src = "@[]";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {

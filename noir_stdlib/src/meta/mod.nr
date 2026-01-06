@@ -98,8 +98,8 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     // docs:end:make_trait_impl
     let typ = s.as_type();
 
-    let mut impl_generics = &[];
-    let mut where_clause = &[];
+    let mut impl_generics = [].as_vector();
+    let mut where_clause = [].as_vector();
     for g in s.generics() {
         let (typ, numeric_type) = g;
         impl_generics = impl_generics.push_back(quote { $typ });

@@ -331,7 +331,6 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::RightBrace
             | Token::LeftBracket
             | Token::RightBracket
-            | Token::VectorStart
             | Token::Pipe
             | Token::Assign
             | Token::Arrow
@@ -355,6 +354,8 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::DoubleColon
             | Token::Bang
             | Token::DollarSign
+            | Token::At
+            | Token::DeprecatedVectorStart
             | Token::EOF
             | Token::Whitespace(_)
             | Token::UnquoteMarker(_)

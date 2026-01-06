@@ -20,5 +20,5 @@ comptime fn baz(_f: FunctionDefinition, args: [CtString]) {
 }
 
 fn main() {
-    assert(bar() == &[1_u8, 2_u8, 3_u8])
+    assert(bar() == [1_u8, 2_u8, 3_u8].as_vector())
 }

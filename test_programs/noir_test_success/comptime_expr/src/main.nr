@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn test_expr_as_repeated_element_vector() {
         comptime {
-            let expr = quote { &[1; 3] }.as_expr().unwrap();
+            let expr = quote { [1; 3].as_vector() }.as_expr().unwrap();
             let (expr, length) = expr.as_repeated_element_vector().unwrap();
             assert_eq(expr.as_integer().unwrap(), (1, false));
             assert_eq(length.as_integer().unwrap(), (3, false));
@@ -475,7 +475,7 @@ mod tests {
     #[test]
     fn test_expr_modify_for_repeated_element_vector() {
         comptime {
-            let expr = quote { &[1; 3] }.as_expr().unwrap();
+            let expr = quote { [1; 3].as_vector() }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (expr, length) = expr.as_repeated_element_vector().unwrap();
             assert_eq(expr.as_integer().unwrap(), (2, false));
@@ -486,7 +486,7 @@ mod tests {
     #[test]
     fn test_expr_as_vector() {
         comptime {
-            let expr = quote { &[1, 3, 5] }.as_expr().unwrap();
+            let expr = quote { [1, 3, 5].as_vector() }.as_expr().unwrap();
             let elems = expr.as_vector().unwrap();
             assert_eq(elems.len(), 3);
             assert_eq(elems[0].as_integer().unwrap(), (1, false));
@@ -498,7 +498,7 @@ mod tests {
     #[test]
     fn test_expr_modify_for_vector() {
         comptime {
-            let expr = quote { &[1, 3, 5] }.as_expr().unwrap();
+            let expr = quote { [1, 3, 5].as_vector() }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let elems = expr.as_vector().unwrap();
             assert_eq(elems.len(), 3);

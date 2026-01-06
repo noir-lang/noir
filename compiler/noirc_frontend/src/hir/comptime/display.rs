@@ -285,7 +285,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::VectorStart
+            | Token::DeprecatedVectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -304,6 +304,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Pound
             | Token::Pipe
             | Token::Bang
+            | Token::At
             | Token::DollarSign => {
                 write!(f, "{token}")
             }

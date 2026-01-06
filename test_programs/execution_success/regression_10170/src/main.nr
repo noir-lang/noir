@@ -5,7 +5,7 @@ struct foo {
 }
 fn main(cond: bool) {
     // Issue 10170
-    let mut vector = &[0, 1];
+    let mut vector = [0, 1].as_vector();
     if cond {
         vector = vector.push_back(10);
     }
@@ -17,7 +17,7 @@ fn main(cond: bool) {
     }
 
     // Same, but with nested vectors
-    let mut vector = &[foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }];
+    let mut vector = [foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }].as_vector();
     if cond {
         vector = vector.push_back(foo { a: 10, b: 10, c: [0, 0, 0] });
     }
@@ -29,7 +29,7 @@ fn main(cond: bool) {
     }
 
     // push after pop
-    let mut vector = &[0, 1];
+    let mut vector = [0, 1].as_vector();
     if !cond {
         vector = vector.push_back(10);
     }

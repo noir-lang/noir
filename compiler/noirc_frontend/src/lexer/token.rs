@@ -64,6 +64,10 @@ pub enum BorrowedToken<'input> {
     Percent,
     /// &
     Ampersand,
+    /// &
+    DeprecatedVectorStart,
+    /// @
+    At,
     /// ^
     Caret,
     /// <<
@@ -243,10 +247,10 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// & followed immediately by '['
-    /// This is a lexer hack to distinguish vectors
-    /// from taking a reference to an array
-    VectorStart,
+    /// &
+    DeprecatedVectorStart,
+    /// @
+    At,
     /// ^
     Caret,
     /// <<
@@ -348,7 +352,8 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
-        Token::VectorStart => BorrowedToken::Ampersand,
+        Token::DeprecatedVectorStart => BorrowedToken::DeprecatedVectorStart,
+        Token::At => BorrowedToken::At,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -586,7 +591,8 @@ impl Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::VectorStart => write!(f, "&"),
+            Token::DeprecatedVectorStart => write!(f, "&"),
+            Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),

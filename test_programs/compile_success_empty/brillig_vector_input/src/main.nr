@@ -14,7 +14,7 @@ unconstrained fn sum_vector(vector: [[Point; 2]]) -> Field {
 }
 
 fn main() {
-    let mut vector = &[];
+    let mut vector = [].as_vector();
     vector = vector.push_back([Point { x: 13, y: 14 }, Point { x: 20, y: 8 }]);
     // Safety: testing context
     unsafe {
