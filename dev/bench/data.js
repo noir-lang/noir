@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767691844909,
+  "lastUpdate": 1767693255050,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a1fed428ee97736dc5320cbe7e6e823ea3da2da3",
-          "message": "chore(comptime): Defensive assertions when mutating struct pointers (#10659)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-12-22T15:43:54Z",
-          "tree_id": "814077bf2586edce6a9d014772da13fa904a16a9",
-          "url": "https://github.com/noir-lang/noir/commit/a1fed428ee97736dc5320cbe7e6e823ea3da2da3"
-        },
-        "date": 1766419500670,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254769,
-            "range": "± 489",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225119,
-            "range": "± 2968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790260,
-            "range": "± 984",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2804648,
             "range": "± 4195",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0bf762690b7d58296976ae05a0beaf5b9eb3ddde",
+          "message": "fix: maximum recursion depth for the parser (#10955)",
+          "timestamp": "2026-01-06T09:33:23Z",
+          "tree_id": "cd10a8f81e03b183670f0e666c3dbdb3959ac1df",
+          "url": "https://github.com/noir-lang/noir/commit/0bf762690b7d58296976ae05a0beaf5b9eb3ddde"
+        },
+        "date": 1767693221566,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260287,
+            "range": "± 1976",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233554,
+            "range": "± 3468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792139,
+            "range": "± 17059",
             "unit": "ns/iter"
           }
         ]
