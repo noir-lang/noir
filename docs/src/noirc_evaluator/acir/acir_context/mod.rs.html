@@ -1663,7 +1663,13 @@
 <a href="#1662" id="1662">1662</a>
 <a href="#1663" id="1663">1663</a>
 <a href="#1664" id="1664">1664</a>
-<a href="#1665" id="1665">1665</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1865,15 +1871,21 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         var: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, InternalError&gt; {
-        <span class="kw">if </span><span class="self">self</span>.var_to_expression(var)<span class="question-mark">?</span>.to_witness().is_some() {
+        <span class="kw">let </span>expression = <span class="self">self</span>.var_to_expression(var)<span class="question-mark">?</span>;
+        <span class="kw">if </span>expression.to_witness().is_some() {
             <span class="comment">// If called with a variable which is already a witness then return the same variable.
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(var);
         }
 
         <span class="kw">let </span>var_as_witness = <span class="self">self</span>.var_to_witness(var)<span class="question-mark">?</span>;
-
         <span class="kw">let </span>witness_var = <span class="self">self</span>.add_data(AcirVarData::Witness(var_as_witness));
-        <span class="self">self</span>.mark_variables_equivalent(var, witness_var)<span class="question-mark">?</span>;
+
+        <span class="comment">// Issue https://github.com/noir-lang/noir/issues/11045
+        // Do not mark witness_var as equivalent to a constant
+        </span><span class="kw">if </span>expression.to_const().is_none() {
+            <span class="self">self</span>.mark_variables_equivalent(var, witness_var)<span class="question-mark">?</span>;
+        }
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.var_to_expression(witness_var)<span class="question-mark">?</span>.to_witness().is_some());
 
         <span class="prelude-val">Ok</span>(witness_var)
     }
