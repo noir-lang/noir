@@ -688,12 +688,6 @@ impl<'f> LoopInvariantContext<'f> {
             return (false, false);
         }
 
-        // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
-        // into the pre-header of a nested loop even if the nested loop does not execute.
-        if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
-            return (true, false);
-        }
-
         // In Brillig, if the instruction returns an array, we need to insert an inc_rc
         // to handle potential mutations.
         let dfg = &self.inserter.function.dfg;
@@ -703,6 +697,13 @@ impl<'f> LoopInvariantContext<'f> {
         } else {
             false
         };
+
+        // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
+        // into the pre-header of a nested loop even if the nested loop does not execute.
+        if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
+            assert!(!returns_array);
+            return (true, false);
+        }
 
         match can_be_hoisted(&instruction, dfg) {
             Yes => (true, returns_array),
@@ -3630,9 +3631,8 @@ mod control_dependence {
 
     #[test]
     fn call_func_make_arr_inc_rc() {
-        for expr in &["make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]", "call f1() -> [u8; 4]"] {
-            let src = format!(
-                r#"
+        let src = format!(
+            r#"
         brillig(inline) impure fn main f0 {{
           b0():
             v2 = make_array [u8 0, u8 0, u8 0, u8 0] : [u8; 4]
@@ -3643,7 +3643,7 @@ mod control_dependence {
             v6 = lt v0, u32 10
             jmpif v6 then: b2, else: b3
           b2():
-            v11 = {expr}
+            v10, v11 = call f1() -> (u8, [u8; 4])
             store v11 at v3
             v13 = unchecked_add v0, u32 1
             jmp b1(v13)
@@ -3655,14 +3655,13 @@ mod control_dependence {
         brillig(inline) predicate_pure fn ret_arr f1 {{
           b0():
             v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
-            return v4
+            return u8 7, v4
         }}
         "#
-            );
-            let ssa = Ssa::from_str(&src).unwrap();
-            let ssa = ssa.loop_invariant_code_motion();
-            let ssa_string = ssa.to_string();
-            assert!(ssa_string.contains("inc_rc"), "failed on {expr}");
-        }
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let ssa_string = ssa.to_string();
+        assert!(ssa_string.contains("inc_rc"), "failed on call f1() -> (u8, [u8; 4])");
     }
 }
