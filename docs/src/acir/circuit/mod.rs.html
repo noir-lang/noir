@@ -653,16 +653,24 @@
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
 
 </span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
 <span class="kw">pub mod </span>opcodes;
 
 <span class="kw">use crate</span>::{
+    SerializationFormat,
     circuit::opcodes::display_opcode,
     native_types::{Expression, Witness},
-    serialization::{deserialize_any_format, serialize_with_format_from_env},
+    serialization::{<span class="self">self</span>, deserialize_any_format, serialize_with_format},
 };
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">pub use </span>opcodes::Opcode;
@@ -921,24 +929,30 @@
 }
 
 <span class="kw">impl</span>&lt;F: Serialize + AcirField&gt; Program&lt;F&gt; {
-    <span class="doccomment">/// Serialize and compress the [Program] into bytes.
-    </span><span class="kw">fn </span>write&lt;W: Write&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, writer: W) -&gt; std::io::Result&lt;()&gt; {
-        <span class="kw">let </span>buf = serialize_with_format_from_env(<span class="self">self</span>)<span class="question-mark">?</span>;
-
+    <span class="doccomment">/// Compress a serialized [Program].
+    </span><span class="kw">fn </span>compress(buf: Vec&lt;u8&gt;) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>compressed: Vec&lt;u8&gt; = Vec::new();
         <span class="comment">// Compress the data, which should help with formats that uses field names.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(writer, Compression::default());
+        </span><span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(<span class="kw-2">&amp;mut </span>compressed, Compression::default());
         encoder.write_all(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
         encoder.finish()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(compressed)
     }
 
-    <span class="kw">pub fn </span>serialize_program(program: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Vec&lt;u8&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>program_bytes: Vec&lt;u8&gt; = Vec::new();
-        program.write(<span class="kw-2">&amp;mut </span>program_bytes).expect(<span class="string">"expected circuit to be serializable"</span>);
-        program_bytes
+    <span class="doccomment">/// Serialize and compress a [Program] into bytes, using the given format.
+    </span><span class="kw">pub fn </span>serialize_program_with_format(program: <span class="kw-2">&amp;</span><span class="self">Self</span>, format: serialization::Format) -&gt; Vec&lt;u8&gt; {
+        <span class="kw">let </span>program_bytes =
+            serialize_with_format(program, format).expect(<span class="string">"expected circuit to be serializable"</span>);
+        <span class="self">Self</span>::compress(program_bytes).expect(<span class="string">"expected circuit to compress"</span>)
     }
 
-    <span class="doccomment">/// Serialize and base64 encode program
+    <span class="doccomment">/// Serialize and compress a [Program] into bytes, using the format from the environment, or the default format.
+    </span><span class="kw">pub fn </span>serialize_program(program: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Vec&lt;u8&gt; {
+        <span class="kw">let </span>format = SerializationFormat::from_env().expect(<span class="string">"invalid format"</span>);
+        <span class="self">Self</span>::serialize_program_with_format(program, format.unwrap_or_default())
+    }
+
+    <span class="doccomment">/// Serialize, compress then base64 encode a [Program], using the format from the environment, or the default format,
     </span><span class="kw">pub fn </span>serialize_program_base64&lt;S&gt;(program: <span class="kw-2">&amp;</span><span class="self">Self</span>, s: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
     <span class="kw">where
         </span>S: Serializer,

@@ -634,7 +634,76 @@
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
 <a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
@@ -655,6 +724,7 @@
 <span class="kw">pub use </span>circuit::black_box_functions::BlackBoxFunc;
 <span class="kw">pub use </span>circuit::opcodes::InvalidInputBitSize;
 <span class="kw">pub use </span>parser::parse_opcodes;
+<span class="kw">pub use </span>serialization::Format <span class="kw">as </span>SerializationFormat;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>reflection {
@@ -711,6 +781,11 @@
     </span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
     </span><span class="kw">struct </span>ProgramWithoutBrillig&lt;F: AcirField&gt; {
         <span class="kw">pub </span>functions: Vec&lt;Circuit&lt;F&gt;&gt;,
+        <span class="doccomment">/// We want to ignore this field. By setting its type as `unit`
+        /// it will not be deserialized, but it will correctly maintain
+        /// the position of the others (although in this case it doesn't)
+        /// matter since it's the last field.
+        </span><span class="kw">pub </span>unconstrained_functions: (),
     }
 
     <span class="attr">#[test]
@@ -861,7 +936,10 @@
         </span><span class="kw">fn </span>add_preamble(source: <span class="kw-2">&amp;mut </span>String) {
             <span class="kw">let </span>inc = <span class="string">r#"#include "serde.hpp""#</span>;
             <span class="kw">let </span>pos = source.find(inc).expect(<span class="string">"serde.hpp missing"</span>);
-            source.insert_str(pos + inc.len(), <span class="string">"\n#include \"msgpack.hpp\""</span>);
+            source.insert_str(
+                pos + inc.len(),
+                <span class="string">"\n#include \"barretenberg/serialize/msgpack_impl.hpp\""</span>,
+            );
         }
 
         <span class="doccomment">/// Add helper functions to cut down repetition in the generated code.
@@ -875,7 +953,7 @@
             msgpack::object const&amp; o,
             std::string const&amp; name
         ) {
-            if(o.type != msgpack::type::MAP) {
+            if (o.type != msgpack::type::MAP) {
                 std::cerr &lt;&lt; o &lt;&lt; std::endl;
                 throw_or_abort("expected MAP for " + name);
             }
@@ -893,6 +971,7 @@
             }
             return kvmap;
         }
+
         template&lt;typename T&gt;
         static void conv_fld_from_kvmap(
             std::map&lt;std::string, msgpack::object const*&gt; const&amp; kvmap,
@@ -911,6 +990,26 @@
                 }
             } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
+            }
+        }
+
+        template&lt;typename T&gt;
+        static void conv_fld_from_array(
+            msgpack::object_array const&amp; array,
+            std::string const&amp; struct_name,
+            std::string const&amp; field_name,
+            T&amp; field,
+            uint32_t index
+        ) {
+            if (index &gt;= array.size) {
+                throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
+            }
+            auto element = array.ptr[index];
+            try {
+                element.convert(field);
+            } catch (const msgpack::type_error&amp;) {
+                std::cerr &lt;&lt; element &lt;&lt; std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         }
     };
@@ -997,13 +1096,24 @@
             // or we could reject the data if there was a new field we could
             // not recognize, or we could even handle aliases.
 
-            </span><span class="self">self</span>.msgpack_pack(name, <span class="kw-2">&amp;</span>{
+            // We treat unit fields as special, using them to ignore fields during deserialization:
+            // * in 'map' format we skip over them, never try to deserialize them from the map
+            // * in 'tuple' format we jump over their index, ignoring whatever is in that position
+            </span><span class="kw">fn </span>is_unit(field: <span class="kw-2">&amp;</span>Named&lt;Format&gt;) -&gt; bool {
+                <span class="macro">matches!</span>(field.value, Format::Unit)
+            }
+
+            <span class="kw">let </span>non_unit_field_count = fields.iter().filter(|f| !is_unit(f)).count();
+
+            <span class="self">self</span>.msgpack_pack(name, <span class="kw-2">&amp;</span>{
                 <span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">format!</span>(
                     <span class="string">"
-    packer.pack_map({});"</span>,
-                    fields.len()
+    packer.pack_map({non_unit_field_count});"</span>,
                 );
                 <span class="kw">for </span>field <span class="kw">in </span>fields {
+                    <span class="kw">if </span>is_unit(field) {
+                        <span class="kw">continue</span>;
+                    }
                     <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>field.name;
                     body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
                         <span class="string">r#"
@@ -1019,20 +1129,48 @@
                 // cSpell:disable
                 </span><span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">format!</span>(
                     <span class="string">r#"
-    auto name = "{name}";
-    auto kvmap = Helpers::make_kvmap(o, name);"#
+    std::string name = "{name}";
+    if (o.type == msgpack::type::MAP) {{
+        auto kvmap = Helpers::make_kvmap(o, name);"#
                 </span>);
                 <span class="comment">// cSpell:enable
                 </span><span class="kw">for </span>field <span class="kw">in </span>fields {
+                    <span class="kw">if </span>is_unit(field) {
+                        <span class="kw">continue</span>;
+                    }
                     <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>field.name;
                     <span class="kw">let </span>is_optional = <span class="macro">matches!</span>(field.value, Format::Option(<span class="kw">_</span>));
                     <span class="comment">// cSpell:disable
                     </span>body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
                         <span class="string">r#"
-    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
+        Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     </span>));
                     <span class="comment">// cSpell:enable
                 </span>}
+                body.push_str(
+                    <span class="string">"
+    } else if (o.type == msgpack::type::ARRAY) {
+        auto array = o.via.array; "</span>,
+                );
+                <span class="kw">for </span>(index, field) <span class="kw">in </span>fields.iter().enumerate() {
+                    <span class="kw">if </span>is_unit(field) {
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>field.name;
+                    <span class="comment">// cSpell:disable
+                    </span>body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                        <span class="string">r#"
+        Helpers::conv_fld_from_array(array, name, "{field_name}", {field_name}, {index});"#
+                    </span>));
+                    <span class="comment">// cSpell:enable
+                </span>}
+
+                body.push_str(
+                    <span class="string">r#"
+    } else {
+        throw_or_abort("expected MAP or ARRAY for " + name);
+    }"#</span>,
+                );
                 body
             });
         }
@@ -1102,9 +1240,9 @@
         packer.pack(tag);
     }} else {{
         std::visit([&amp;packer, tag](const auto&amp; arg) {{
-            std::map&lt;std::string, msgpack::object&gt; data;
-            data[tag] = msgpack::object(arg);
-            packer.pack(data);
+            packer.pack_map(1);
+            packer.pack(tag);
+            arg.msgpack_pack(packer);
         }}, value);
     }}"#
                 </span>)

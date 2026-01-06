@@ -388,10 +388,7 @@
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
+<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
 
 </span><span class="kw">use </span>num_enum::{IntoPrimitive, TryFromPrimitive};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -404,7 +401,7 @@
 </span><span class="attr">#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
 #[strum(serialize_all = <span class="string">"kebab-case"</span>)]
 #[repr(u8)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Format {
+</span><span class="kw">pub enum </span>Format {
     <span class="doccomment">/// Bincode without format marker.
     /// This does not actually appear in the data.
     </span>BincodeLegacy = <span class="number">0</span>,
@@ -416,6 +413,12 @@
     </span>MsgpackCompact = <span class="number">3</span>,
 }
 
+<span class="kw">impl </span>Default <span class="kw">for </span>Format {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::MsgpackCompact
+    }
+}
+
 <span class="kw">impl </span>Format {
     <span class="doccomment">/// Look for a `NOIR_SERIALIZATION_FORMAT` env var to turn on formatted serialization.
     ///
@@ -423,7 +426,7 @@
     /// 1. It has to be picked up in methods like `Program::serialize_program_base64` where no config is available.
     /// 2. At the moment this is mostly for testing, to be able to commit code that _can_ produce different formats,
     ///    but only activate it once a version of `bb` that can handle it is released.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_env() -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt;, String&gt; {
+    </span><span class="kw">pub fn </span>from_env() -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt;, String&gt; {
         <span class="kw">let </span><span class="prelude-val">Ok</span>(format) = std::env::var(FORMAT_ENV_VAR) <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         };
@@ -458,25 +461,33 @@
 ///
 /// Set `compact` to `true` if we want old readers to fail when a new field is added to a struct,
 /// that is, if we think that ignoring a new field could lead to incorrect behavior.
-</span><span class="attr">#[allow(dead_code)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>msgpack_serialize&lt;T: Serialize&gt;(
     value: <span class="kw-2">&amp;</span>T,
     compact: bool,
 ) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt; {
-    <span class="kw">if </span>compact {
-        <span class="comment">// The default behavior encodes struct fields as
-        </span>rmp_serde::to_vec(value).map_err(std::io::Error::other)
+    <span class="comment">// There are convenience methods to serialize structs as tuples or maps:
+    // * `rmp_serde::to_vec` uses tuples
+    // * `rmp_serde::to_vec_named` uses maps
+    // However it looks like the default `BytesMode` is not compatible with the C++ deserializer,
+    // so we have to use `rmp_serde::Serializer` directly.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
+
+    <span class="kw">let </span>serializer = rmp_serde::Serializer::new(<span class="kw-2">&amp;mut </span>buf)
+        .with_bytes(rmp_serde::config::BytesMode::ForceIterables);
+
+    <span class="kw">let </span>result = <span class="kw">if </span>compact {
+        value.serialize(<span class="kw-2">&amp;mut </span>serializer.with_struct_tuple())
     } <span class="kw">else </span>{
-        <span class="comment">// Or this to be able to configure the serialization:
-        // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
-        // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
-        // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
-        </span>rmp_serde::to_vec_named(value).map_err(std::io::Error::other)
+        value.serialize(<span class="kw-2">&amp;mut </span>serializer.with_struct_map())
+    };
+
+    <span class="kw">match </span>result {
+        <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(buf),
+        <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(std::io::Error::other(e)),
     }
 }
 
 <span class="doccomment">/// Deserialize a value using MessagePack, based on `serde`.
-</span><span class="attr">#[allow(dead_code)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>msgpack_deserialize&lt;T: <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;&gt;(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;T&gt; {
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
@@ -530,23 +541,6 @@
     <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[format.into()];
     res.append(<span class="kw-2">&amp;mut </span>buf);
     <span class="prelude-val">Ok</span>(res)
-}
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>serialize_with_format_from_env&lt;T&gt;(value: <span class="kw-2">&amp;</span>T) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt;
-<span class="kw">where
-    </span>T: Serialize,
-{
-    <span class="kw">match </span>Format::from_env() {
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(format)) =&gt; {
-            <span class="comment">// This will need a new `bb` even if it's the bincode format, because of the format byte.
-            </span>serialize_with_format(value, format)
-        }
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-            <span class="comment">// This is how the currently released `bb` expects the data.
-            </span>bincode_serialize(value)
-        }
-        <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(std::io::Error::other(e)),
-    }
 }
 
 <span class="attr">#[cfg(test)]

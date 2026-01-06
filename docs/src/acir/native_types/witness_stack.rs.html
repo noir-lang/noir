@@ -235,7 +235,18 @@
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Read;
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Read;
 
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>flate2::Compression;
@@ -244,6 +255,7 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>thiserror::Error;
 
+<span class="kw">use </span><span class="kw">crate</span>::SerializationFormat;
 <span class="kw">use </span><span class="kw">crate</span>::serialization;
 
 <span class="kw">use </span><span class="kw">super</span>::WitnessMap;
@@ -309,7 +321,17 @@
 <span class="kw">impl</span>&lt;F: AcirField + Serialize&gt; WitnessStack&lt;F&gt; {
     <span class="doccomment">/// Serialize and compress.
     </span><span class="kw">pub fn </span>serialize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, WitnessStackError&gt; {
-        <span class="kw">let </span>buf = serialization::serialize_with_format_from_env(<span class="self">self</span>)
+        <span class="kw">let </span>format = SerializationFormat::from_env()
+            .map_err(|err| SerializationError::Serialize(std::io::Error::other(err)))<span class="question-mark">?</span>;
+        <span class="self">self</span>.serialize_with_format(format.unwrap_or_default())
+    }
+
+    <span class="doccomment">/// Serialize and compress with a given format.
+    </span><span class="kw">pub fn </span>serialize_with_format(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        format: SerializationFormat,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, WitnessStackError&gt; {
+        <span class="kw">let </span>buf = serialization::serialize_with_format(<span class="self">self</span>, format)
             .map_err(|e| WitnessStackError(SerializationError::Serialize(e)))<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>deflater = GzEncoder::new(buf.as_slice(), Compression::best());
