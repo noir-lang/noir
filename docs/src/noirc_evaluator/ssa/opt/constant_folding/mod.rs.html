@@ -2478,7 +2478,31 @@
 <a href="#2477" id="2477">2477</a>
 <a href="#2478" id="2478">2478</a>
 <a href="#2479" id="2479">2479</a>
-<a href="#2480" id="2480">2480</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a>
+<a href="#2493" id="2493">2493</a>
+<a href="#2494" id="2494">2494</a>
+<a href="#2495" id="2495">2495</a>
+<a href="#2496" id="2496">2496</a>
+<a href="#2497" id="2497">2497</a>
+<a href="#2498" id="2498">2498</a>
+<a href="#2499" id="2499">2499</a>
+<a href="#2500" id="2500">2500</a>
+<a href="#2501" id="2501">2501</a>
+<a href="#2502" id="2502">2502</a>
+<a href="#2503" id="2503">2503</a>
+<a href="#2504" id="2504">2504</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2944,37 +2968,45 @@
         block: BasicBlockId,
     ) {
         <span class="kw">if </span><span class="self">self</span>.use_constraint_info {
-            <span class="comment">// If the instruction was a constraint, then create a link between the two `ValueId`s
-            // to map from the more complex to the simpler value.
-            </span><span class="kw">if let </span>Instruction::Constrain(lhs, rhs, <span class="kw">_</span>) = instruction {
-                <span class="comment">// These `ValueId`s should be fully resolved now.
-                </span><span class="self">self</span>.constraint_simplification_mappings.cache(
-                    dfg,
-                    side_effects_enabled_var,
-                    block,
-                    <span class="kw-2">*</span>lhs,
-                    <span class="kw-2">*</span>rhs,
-                );
+            <span class="kw">match </span>instruction {
+                <span class="comment">// If the instruction was a constraint, then create a link between the two `ValueId`s
+                // to map from the more complex to the simpler value.
+                </span>Instruction::Constrain(lhs, rhs, <span class="kw">_</span>) =&gt; {
+                    <span class="comment">// These `ValueId`s should be fully resolved now.
+                    </span><span class="self">self</span>.constraint_simplification_mappings.cache(
+                        dfg,
+                        side_effects_enabled_var,
+                        block,
+                        <span class="kw-2">*</span>lhs,
+                        <span class="kw-2">*</span>rhs,
+                    );
+                }
+
+                <span class="comment">// If we have an array get whose value is from an array set on the same array at the same index,
+                // we can simplify that array get to the value of the previous array set.
+                //
+                // For example:
+                // v3 = array_set v0, index v1, value v2
+                // v4 = array_get v3, index v1 -&gt; Field
+                //
+                // We know that `v4` can be simplified to `v2`.
+                // Thus, even if the index is dynamic (meaning the array get would have side effects),
+                // we can simplify the operation when we take into account the predicate.
+                </span>Instruction::ArraySet { index, value, .. } =&gt; {
+                    <span class="kw">let </span>array_get =
+                        Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index };
+
+                    <span class="comment">// If we encounter an array_get for this address, we know what the result will be.
+                    </span><span class="self">self</span>.cached_instruction_results.cache(
+                        dom,
+                        array_get,
+                        <span class="prelude-val">Some</span>(side_effects_enabled_var),
+                        block,
+                        <span class="macro">vec!</span>[<span class="kw-2">*</span>value],
+                    );
+                }
+                <span class="kw">_ </span>=&gt; (),
             }
-        }
-
-        <span class="comment">// If we have an array get whose value is from an array set on the same array at the same index,
-        // we can simplify that array get to the value of the previous array set.
-        //
-        // For example:
-        // v3 = array_set v0, index v1, value v2
-        // v4 = array_get v3, index v1 -&gt; Field
-        //
-        // We know that `v4` can be simplified to `v2`.
-        // Thus, even if the index is dynamic (meaning the array get would have side effects),
-        // we can simplify the operation when we take into account the predicate.
-        </span><span class="kw">if let </span>Instruction::ArraySet { index, value, .. } = instruction {
-            <span class="kw">let </span>predicate = <span class="self">self</span>.use_constraint_info.then_some(side_effects_enabled_var);
-
-            <span class="kw">let </span>array_get = Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index };
-
-            <span class="comment">// If we encounter an array_get for this address, we know what the result will be.
-            </span><span class="self">self</span>.cached_instruction_results.cache(dom, array_get, predicate, block, <span class="macro">vec!</span>[<span class="kw-2">*</span>value]);
         }
 
         <span class="self">self</span>.cached_instruction_results
@@ -4956,6 +4988,22 @@
         });
 
         <span class="macro">assert!</span>(execution_result.is_ok());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>bug_array_get_from_array_set_ignores_predicate_without_constraint_info() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 0
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -&gt; Field
+            return v6
+        }
+        "</span>;
+
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 }
 </code></pre></div></section></main></body></html>
