@@ -337,7 +337,9 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -454,6 +456,8 @@
     </span>AssociatedTraitConstantDefaultValuesAreNotSupported,
     <span class="attr">#[error(<span class="string">"`mut` on a binding cannot be repeated"</span>)]
     </span>MutOnABindingCannotBeRepeated,
+    <span class="attr">#[error(<span class="string">"Maximum recursion depth exceeded while parsing expression"</span>)]
+    </span>MaximumRecursionDepthExceeded,
     <span class="attr">#[error(<span class="string">"missing condition for `if` expression"</span>)]
     </span>MissingIfCondition,
 }
