@@ -585,6 +585,7 @@ impl<'context> Elaborator<'context> {
                         self.crate_id,
                         location.file,
                         local_module,
+                        &mut self.errors,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
