@@ -68,12 +68,12 @@ pub enum Type {
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
-    /// A user-defined struct type. The `Shared<StructType>` field here refers to
-    /// the shared definition for each instance of this struct type. The `Vec<Type>`
-    /// represents the generic arguments (if any) to this struct type.
+    /// A user-defined struct or enum type. The `Shared<DataType>` field here refers to
+    /// the shared definition for each instance of this struct or enum type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this struct or enum type.
     DataType(Shared<DataType>, Vec<Type>),
 
-    /// A user-defined alias to another type. Similar to a Struct, this carries a shared
+    /// A user-defined alias to another type. Similar to a struct, this carries a shared
     /// reference to the definition of the alias along with any generics that may have
     /// been applied to the alias.
     Alias(Shared<TypeAlias>, Vec<Type>),
@@ -1029,6 +1029,14 @@ impl TypeVariable {
             _ => false,
         }
     }
+
+    pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
+    }
+
+    pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
+    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1608,7 +1616,9 @@ impl Type {
             | Type::Quoted(_)
             | Type::Vector(_)
             | Type::InfixExpr(..)
-            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+            | Type::Error => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
         }
     }
 

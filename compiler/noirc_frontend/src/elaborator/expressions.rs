@@ -1669,7 +1669,6 @@ impl Elaborator<'_> {
             typ: path.typ,
             trait_bound: TraitBound {
                 trait_path: path.trait_path,
-                trait_id: None,
                 trait_generics: path.trait_generics,
             },
         };

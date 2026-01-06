@@ -165,7 +165,8 @@ impl Elaborator<'_> {
             self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound, bound.trait_id);
         }
 
-        let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
+        let mut trait_constraints =
+            self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);

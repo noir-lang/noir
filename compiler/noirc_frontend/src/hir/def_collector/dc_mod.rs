@@ -216,6 +216,7 @@ impl ModCollector<'_> {
                     krate,
                     self.file_id,
                     self.module_id,
+                    &mut errors,
                 );
 
             let module = ModuleId { krate, local_id: self.module_id };
@@ -1493,6 +1494,7 @@ pub(crate) fn collect_trait_impl_items(
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
+    errors: &mut Vec<CompilationError>,
 ) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
@@ -1524,6 +1526,12 @@ pub(crate) fn collect_trait_impl_items(
                 associated_constants.push((name, typ, expr));
             }
             TraitImplItemKind::Type { name, alias } => {
+                if alias.is_none() {
+                    let ident = name.clone();
+                    let error = ResolverError::AssociatedTypeInImplWithoutBody { ident };
+                    errors.push(error.into());
+                }
+
                 associated_types.push((name, alias));
             }
         }
