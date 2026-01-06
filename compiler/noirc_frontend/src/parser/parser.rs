@@ -79,6 +79,10 @@ impl TokenStream<'_> {
     }
 }
 
+/// Maximum recursion depth for parsing nested expressions.
+/// This limit prevents stack overflow when parsing deeply nested expressions.
+pub(super) const MAX_PARSER_RECURSION_DEPTH: u32 = 100;
+
 pub struct Parser<'a> {
     pub(crate) errors: Vec<ParserError>,
     tokens: TokenStream<'a>,
@@ -105,6 +109,14 @@ pub struct Parser<'a> {
     /// let x = unsafe { call() };
     /// ```
     statement_comments: Option<String>,
+
+    /// Current recursion depth for parsing nested expressions.
+    /// Used to prevent stack overflow from deeply nested expressions.
+    recursion_depth: u32,
+
+    /// Set to true when recovering from a recursion depth overflow.
+    /// Used to suppress cascading errors during stack unwinding.
+    recovering_from_depth_overflow: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -136,6 +148,8 @@ impl<'a> Parser<'a> {
             current_token_comments: String::new(),
             next_token_comments: String::new(),
             statement_comments: None,
+            recursion_depth: 0,
+            recovering_from_depth_overflow: false,
         };
         parser.read_two_first_tokens();
         parser
@@ -509,6 +523,41 @@ impl<'a> Parser<'a> {
 
     fn at_eof(&self) -> bool {
         self.token.token() == &Token::EOF
+    }
+
+    /// Skips tokens until we reach a recovery point (`;`, `}`, or EOF).
+    /// This is used to recover from fatal parsing errors like exceeding
+    /// the maximum recursion depth.
+    ///
+    /// The method tracks brace nesting to properly skip nested blocks,
+    /// ensuring we don't stop at a `}` that belongs to an inner block.
+    pub(super) fn skip_to_recovery_point(&mut self) {
+        let mut brace_depth = 0;
+
+        loop {
+            match self.token.token() {
+                Token::EOF => break,
+                Token::Semicolon if brace_depth == 0 => {
+                    // Don't consume the semicolon - let the caller handle it
+                    break;
+                }
+                Token::LeftBrace => {
+                    brace_depth += 1;
+                    self.bump();
+                }
+                Token::RightBrace => {
+                    if brace_depth == 0 {
+                        // Don't consume - this closes a block we didn't open
+                        break;
+                    }
+                    brace_depth -= 1;
+                    self.bump();
+                }
+                _ => {
+                    self.bump();
+                }
+            }
+        }
     }
 
     fn location_since(&self, start_location: Location) -> Location {

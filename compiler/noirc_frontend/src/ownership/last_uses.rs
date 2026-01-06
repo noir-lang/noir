@@ -378,6 +378,11 @@ impl LastUseContext {
     }
 
     fn track_variables_in_match(&mut self, match_expr: &ast::Match) {
+        // Note: We don't track `variable_to_match` as a use here because it's just a LocalId
+        // that references a variable defined earlier. The last-use analysis for that variable
+        // happens at its actual use sites (when it's assigned and when it's used after the match).
+        // The match expression itself only destructures the value and binds new variables
+        // (the case arguments), which we do track below.
         let match_id = self.next_if_or_match_id();
 
         for (i, case) in match_expr.cases.iter().enumerate() {
@@ -463,7 +468,10 @@ impl LastUseContext {
             ast::LValue::Dereference { reference, element_type: _ } => {
                 self.track_variables_in_lvalue(reference, true);
             }
-            ast::LValue::Clone(_) => todo!(),
+            // LValue::Clone is only inserted by the ownership pass, which runs after last-use analysis
+            ast::LValue::Clone(_) => {
+                unreachable!("LValue::Clone should only be inserted by the ownership pass")
+            }
         }
     }
 }
