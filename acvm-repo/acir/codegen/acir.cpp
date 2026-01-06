@@ -198,9 +198,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -440,9 +440,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -620,9 +620,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -734,9 +734,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -849,9 +849,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -1431,9 +1431,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -1695,9 +1695,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -1851,9 +1851,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -2596,9 +2596,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -2917,9 +2917,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -3561,9 +3561,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -3837,9 +3837,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -4013,9 +4013,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -4146,9 +4146,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -4458,9 +4458,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -4624,9 +4624,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -4787,9 +4787,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
@@ -5062,9 +5062,9 @@ namespace Acir {
                 packer.pack(tag);
             } else {
                 std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
+                    packer.pack_map(1);
+                    packer.pack(tag);
+                    arg.msgpack_pack(packer);
                 }, value);
             }
         }
