@@ -34,6 +34,8 @@
 //! Most of this logic is contained in this file except for the last use analysis which is in the
 //! `last_uses` module. That module contains a separate pass run on each function before this pass
 //! to find the last use of each local variable to identify where moves can occur.
+use std::collections::HashSet;
+
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{
@@ -75,7 +77,7 @@ impl Function {
 
 struct Context {
     /// This contains each instance of a variable we should move instead of cloning.
-    variables_to_move: HashMap<LocalId, Vec<IdentId>>,
+    variables_to_move: HashMap<LocalId, HashSet<IdentId>>,
 }
 
 impl Context {
@@ -85,6 +87,9 @@ impl Context {
             .is_some_and(|instances_to_move| instances_to_move.contains(&variable))
     }
 
+    /// Find the last use of variables, then insert clones for everything but the last use.
+    ///
+    /// Has no effect on constrained code.
     fn handle_ownership_in_function(&mut self, function: &mut Function) {
         if !function.unconstrained {
             return;
@@ -126,7 +131,7 @@ impl Context {
         }
     }
 
-    /// Handle the rhs of a `&expr` unary expression.
+    /// Handle the RHS of a `&expr` unary expression.
     /// Variables and field accesses in these expressions are exempt from clones.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
