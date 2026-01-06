@@ -23,7 +23,7 @@ setup_repo() {
 }
 
 compile_project() {
-    echo "Compiling program"
+    echo "Compiling program (ACIR)"
     for ((i = 1; i <= NUM_RUNS; i++)); do
       NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
     done
@@ -32,7 +32,7 @@ compile_project() {
 }
 
 execute_project() {
-    echo "Executing program"
+    echo "Executing program (ACIR)"
     for ((i = 1; i <= NUM_RUNS; i++)); do
       NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings >> /dev/null
     done
@@ -41,8 +41,31 @@ execute_project() {
 }
 
 save_artifact() {
-    echo "Copying artifact"
+    echo "Copying artifact (ACIR)"
     mv ./target/*.json $OUTPUT_DIR/artifact.json
+}
+
+compile_brillig_project() {
+    echo "Compiling program (Brillig)"
+    for ((i = 1; i <= NUM_RUNS; i++)); do
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings 2>> /dev/null
+    done
+
+    mv ./tmp/* $OUTPUT_DIR/brillig_compilation.jsonl
+}
+
+execute_brillig_project() {
+    echo "Executing program (Brillig)"
+    for ((i = 1; i <= NUM_RUNS; i++)); do
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings >> /dev/null
+    done
+
+    mv ./tmp/* $OUTPUT_DIR/brillig_execution.jsonl
+}
+
+save_brillig_artifact() {
+    echo "Copying artifact (Brillig)"
+    mv ./target/*.json $OUTPUT_DIR/brillig_artifact.json
 }
 
 if [ -z "${REPO_DIR:-}" ]; then
@@ -66,5 +89,11 @@ if [ "${HAS_PROVER_INPUTS:-"false"}" == "true" ]; then
     execute_project
 fi
 save_artifact
+
+compile_brillig_project
+if [ "${HAS_PROVER_INPUTS:-"false"}" == "true" ]; then
+    execute_brillig_project
+fi
+save_brillig_artifact
 
 echo "Completed gathering benchmarks"
