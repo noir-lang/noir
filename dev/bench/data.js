@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767704752095,
+  "lastUpdate": 1767704755201,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4953,105 +4953,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4566208cf96799a13bd2aeac5a74b6c2a2272d62",
-          "message": "fix(ssa): Override the vector capacity if we have already determined a constant length (#10963)",
-          "timestamp": "2025-12-23T19:49:11Z",
-          "tree_id": "51c38c9dbfe95888bdeb5cf0b5704f7be5be09b7",
-          "url": "https://github.com/noir-lang/noir/commit/4566208cf96799a13bd2aeac5a74b6c2a2272d62"
-        },
-        "date": 1766521180349,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.254,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.632,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 2.258,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.438,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.39,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.55,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.486,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 390,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 394,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 20.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 84.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.362,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.924,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.641,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9896,6 +9797,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.885,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "078c7463a3a7a69d56f24fd39a42af19b863c958",
+          "message": "fix: don't allow unknown witnesses in CircuitSimulator write op (#11077)",
+          "timestamp": "2026-01-06T12:32:34Z",
+          "tree_id": "630cbcd70c2c62c5e138ad81324d6b8744c20863",
+          "url": "https://github.com/noir-lang/noir/commit/078c7463a3a7a69d56f24fd39a42af19b863c958"
+        },
+        "date": 1767704721205,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.47,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.396,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.518,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.442,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.41,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.57,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.494,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 387,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 398,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.594,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 23.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 85.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.408,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.959,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.685,
             "unit": "s"
           }
         ]
