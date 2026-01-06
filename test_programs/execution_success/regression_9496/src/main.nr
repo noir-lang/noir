@@ -1,12 +1,44 @@
 fn main(b: bool) -> pub (u32, u32, u32, u32) {
     // safety:
-    let x1 = unsafe { push_0_get_1(if { b } { [10].as_vector() } else { [20, 30].as_vector() }) };
+    let x1 = unsafe {
+        push_0_get_1(
+            if { b } {
+                [10].as_vector()
+            } else {
+                [20, 30].as_vector()
+            },
+        )
+    };
     // safety:
-    let x2 = unsafe { pop_back(if { b } { [10].as_vector() } else { [20, 30].as_vector() }) };
+    let x2 = unsafe {
+        pop_back(
+            if { b } {
+                [10].as_vector()
+            } else {
+                [20, 30].as_vector()
+            },
+        )
+    };
     // safety:
-    let x3 = unsafe { pop_front(if { b } { [10].as_vector() } else { [20, 30].as_vector() }) };
+    let x3 = unsafe {
+        pop_front(
+            if { b } {
+                [10].as_vector()
+            } else {
+                [20, 30].as_vector()
+            },
+        )
+    };
     // safety:
-    let x4 = unsafe { pop_front(if { b } { [10, 20, 30].as_vector() } else { [40, 50, 60].as_vector() }) };
+    let x4 = unsafe {
+        pop_front(
+            if { b } {
+                [10, 20, 30].as_vector()
+            } else {
+                [40, 50, 60].as_vector()
+            },
+        )
+    };
     (x1, x2, x3, x4)
 }
 

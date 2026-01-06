@@ -37,7 +37,8 @@ fn lambdas_in_array_literal(x: u32) {
 }
 
 fn lambdas_in_vector_literal(x: u32) {
-    let xs = [|| println("hi"), || println("bye"), || println("big"), || println("wow")].as_vector();
+    let xs =
+        [|| println("hi"), || println("bye"), || println("big"), || println("wow")].as_vector();
     (xs[x])();
 }
 

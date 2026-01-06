@@ -354,7 +354,8 @@ struct foo {
     c: [Field; 3],
 }
 fn regression_vector_to_brillig(x: u32) {
-    let mut vector = [foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }].as_vector();
+    let mut vector =
+        [foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }].as_vector();
     let mut foo1 = foo { a: 10, b: 10, c: [0, 0, 0] };
     foo1.c[x] = 7;
     vector = vector.push_back(foo1);

@@ -20,7 +20,8 @@ comptime fn mutate_struct_fields(s: TypeDefinition) {
     let fields = [
         (quote {x}, quote {i32}.as_type(), quote { pub }),
         (quote {y}, quote {Field}.as_type(), quote { pub(crate) }),
-    ].as_vector();
+    ]
+        .as_vector();
     s.set_fields(fields);
 
     let fields = s.fields([]);

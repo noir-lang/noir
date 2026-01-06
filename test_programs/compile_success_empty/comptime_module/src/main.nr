@@ -188,7 +188,8 @@ fn child_modules_test2() {
             quote [baz],
             quote [module1],
             quote [my_module],
-        ].as_vector();
+        ]
+            .as_vector();
         assert_eq(children, expected);
     }
 }

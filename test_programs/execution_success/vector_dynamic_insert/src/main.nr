@@ -21,7 +21,8 @@ fn insert_dynamic_array(x: u32, array: [Field; 5]) {
     let mut vector = [array, array, array].as_vector();
     vector = vector.insert(x - 3, value_to_insert);
     assert_eq(vector.len(), 4);
-    let expected = [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5], [1, 2, 3, 4, 10], [1, 2, 3, 4, 5]].as_vector();
+    let expected =
+        [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5], [1, 2, 3, 4, 10], [1, 2, 3, 4, 5]].as_vector();
     for i in 0..3 {
         for j in 0..5 {
             assert_eq(vector[i][j], expected[i][j]);
