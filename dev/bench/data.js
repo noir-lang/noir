@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767727221472,
+  "lastUpdate": 1767728756608,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f9553b6232dc48aa22a550077879ea477e206ce4",
-          "message": "fix(elaborator): Filter skipped interpreter error when calling macro arguments   (#11019)",
-          "timestamp": "2026-01-02T12:44:54Z",
-          "tree_id": "a4dfbb475aa246f60fd69aceb25e0e17c71b3053",
-          "url": "https://github.com/noir-lang/noir/commit/f9553b6232dc48aa22a550077879ea477e206ce4"
-        },
-        "date": 1767359225668,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257306,
-            "range": "± 644",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226714,
-            "range": "± 2350",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2262678,
-            "range": "± 3728",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2262216,
             "range": "± 3305",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea2c41b5b2678312f6d26098810fd8caaff585d4",
+          "message": "chore!: Use `msgpack-compact` format by default (#7810)\n\nCo-authored-by: federicobarbacovi <171914500+federicobarbacovi@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-06T19:24:16Z",
+          "tree_id": "7b47ac103a8b38665d9079a127e493ce3800fe3f",
+          "url": "https://github.com/noir-lang/noir/commit/ea2c41b5b2678312f6d26098810fd8caaff585d4"
+        },
+        "date": 1767728721815,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253671,
+            "range": "± 1408",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222336,
+            "range": "± 5626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794219,
+            "range": "± 19801",
             "unit": "ns/iter"
           }
         ]
