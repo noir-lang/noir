@@ -17,5 +17,9 @@
     "moduleResolution": "Node",
     "allowJs": true,
   },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
   "exclude": ["node_modules"]
 }
