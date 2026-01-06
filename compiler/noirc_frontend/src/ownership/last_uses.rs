@@ -352,8 +352,11 @@ impl LastUseContext {
     }
 
     fn track_variables_in_while(&mut self, while_expr: &ast::While) {
+        self.push_loop_scope();
+        // The condition is evaluate on every iteration of the loop and thus must be included in the loop scope.
         self.track_variables_in_expression(&while_expr.condition);
-        self.track_variables_in_loop(&while_expr.body);
+        self.track_variables_in_expression(&while_expr.body);
+        self.pop_loop_scope();
     }
 
     fn track_variables_in_loop(&mut self, loop_body: &Expression) {
