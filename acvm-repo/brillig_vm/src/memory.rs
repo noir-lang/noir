@@ -122,10 +122,18 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
         match bit_size {
             IntegerBitSize::U1 => MemoryValue::U1(value != 0),
-            IntegerBitSize::U8 => MemoryValue::U8(value as u8),
-            IntegerBitSize::U16 => MemoryValue::U16(value as u16),
-            IntegerBitSize::U32 => MemoryValue::U32(value as u32),
-            IntegerBitSize::U64 => MemoryValue::U64(value as u64),
+            IntegerBitSize::U8 => {
+                MemoryValue::U8(value.try_into().expect("{value} is out of 8 bits range"))
+            }
+            IntegerBitSize::U16 => {
+                MemoryValue::U16(value.try_into().expect("{value} is out of 16 bits range"))
+            }
+            IntegerBitSize::U32 => {
+                MemoryValue::U32(value.try_into().expect("{value} is out of 32 bits range"))
+            }
+            IntegerBitSize::U64 => {
+                MemoryValue::U64(value.try_into().expect("{value} is out of 64 bits range"))
+            }
             IntegerBitSize::U128 => MemoryValue::U128(value),
         }
     }
