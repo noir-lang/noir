@@ -12738,13 +12738,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"clsx@npm:^1.2.1":
-  version: 1.2.1
-  resolution: "clsx@npm:1.2.1"
-  checksum: 10/5ded6f61f15f1fa0350e691ccec43a28b12fb8e64c8e94715f2a937bc3722d4c3ed41d6e945c971fc4dcc2a7213a43323beaf2e1c28654af63ba70c9968a8643
-  languageName: node
-  linkType: hard
-
 "clsx@npm:^2.0.0":
   version: 2.0.0
   resolution: "clsx@npm:2.0.0"
@@ -14288,7 +14281,7 @@ __metadata:
     "@mdx-js/react": "npm:^3.1.1"
     "@types/prettier": "npm:^3.0.0"
     axios: "npm:^1.13.2"
-    clsx: "npm:^1.2.1"
+    clsx: "npm:^2.1.1"
     docusaurus-plugin-llms: "npm:^0.2.2"
     docusaurus-plugin-typedoc: "npm:1.4.2"
     eslint-plugin-prettier: "npm:^5.5.4"
