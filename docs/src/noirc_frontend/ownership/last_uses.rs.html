@@ -467,7 +467,15 @@
 <a href="#466" id="466">466</a>
 <a href="#467" id="467">467</a>
 <a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains the last use analysis pass which is run on each function before
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains the last use analysis pass which is run on each function before
 //! the ownership pass when the experimental ownership scheme is enabled. This pass does
 //! not run without this experimental flag - and if it did its results would go unused.
 //!
@@ -847,7 +855,12 @@
     }
 
     <span class="kw">fn </span>track_variables_in_match(<span class="kw-2">&amp;mut </span><span class="self">self</span>, match_expr: <span class="kw-2">&amp;</span>ast::Match) {
-        <span class="kw">let </span>match_id = <span class="self">self</span>.next_if_or_match_id();
+        <span class="comment">// Note: We don't track `variable_to_match` as a use here because it's just a LocalId
+        // that references a variable defined earlier. The last-use analysis for that variable
+        // happens at its actual use sites (when it's assigned and when it's used after the match).
+        // The match expression itself only destructures the value and binds new variables
+        // (the case arguments), which we do track below.
+        </span><span class="kw">let </span>match_id = <span class="self">self</span>.next_if_or_match_id();
 
         <span class="kw">for </span>(i, case) <span class="kw">in </span>match_expr.cases.iter().enumerate() {
             <span class="kw">for </span>(argument, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>case.arguments {
@@ -932,7 +945,10 @@
             ast::LValue::Dereference { reference, element_type: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.track_variables_in_lvalue(reference, <span class="bool-val">true</span>);
             }
-            ast::LValue::Clone(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+            <span class="comment">// LValue::Clone is only inserted by the ownership pass, which runs after last-use analysis
+            </span>ast::LValue::Clone(<span class="kw">_</span>) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"LValue::Clone should only be inserted by the ownership pass"</span>)
+            }
         }
     }
 }

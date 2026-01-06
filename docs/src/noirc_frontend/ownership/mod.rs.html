@@ -439,7 +439,13 @@
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -754,7 +760,13 @@
     }
 
     <span class="kw">fn </span>handle_match(<span class="kw-2">&amp;mut </span><span class="self">self</span>, match_expr: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::monomorphization::ast::Match) {
-        <span class="kw">for </span>case <span class="kw">in </span><span class="kw-2">&amp;mut </span>match_expr.cases {
+        <span class="comment">// Note: We don't need to explicitly handle `Match::variable_to_match` here.
+        // The matched variable is just a LocalId reference to a variable that was assigned earlier.
+        // Cloning for that variable happens at its use sites (e.g., when passed to the enum
+        // constructor or used after the match), not at the match expression itself.
+        // The match will only destructure the value; it doesn't "use" the variable in a way that
+        // requires additional cloning beyond what the last-use analysis already handles.
+        </span><span class="kw">for </span>case <span class="kw">in </span><span class="kw-2">&amp;mut </span>match_expr.cases {
             <span class="self">self</span>.handle_expression(<span class="kw-2">&amp;mut </span>case.branch);
         }
 
