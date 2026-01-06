@@ -464,43 +464,44 @@ impl Context {
         block: BasicBlockId,
     ) {
         if self.use_constraint_info {
-            // If the instruction was a constraint, then create a link between the two `ValueId`s
-            // to map from the more complex to the simpler value.
-            if let Instruction::Constrain(lhs, rhs, _) = instruction {
-                // These `ValueId`s should be fully resolved now.
-                self.constraint_simplification_mappings.cache(
-                    dfg,
-                    side_effects_enabled_var,
-                    block,
-                    *lhs,
-                    *rhs,
-                );
-            }
-        }
+            match instruction {
+                // If the instruction was a constraint, then create a link between the two `ValueId`s
+                // to map from the more complex to the simpler value.
+                Instruction::Constrain(lhs, rhs, _) => {
+                    // These `ValueId`s should be fully resolved now.
+                    self.constraint_simplification_mappings.cache(
+                        dfg,
+                        side_effects_enabled_var,
+                        block,
+                        *lhs,
+                        *rhs,
+                    );
+                }
 
-        // If we have an array get whose value is from an array set on the same array at the same index,
-        // we can simplify that array get to the value of the previous array set.
-        //
-        // For example:
-        // v3 = array_set v0, index v1, value v2
-        // v4 = array_get v3, index v1 -> Field
-        //
-        // We know that `v4` can be simplified to `v2`.
-        // Thus, even if the index is dynamic (meaning the array get would have side effects),
-        // we can simplify the operation when we take into account the predicate.
-        if self.use_constraint_info {
-            if let Instruction::ArraySet { index, value, .. } = instruction {
-                let array_get =
-                    Instruction::ArrayGet { array: instruction_results[0], index: *index };
+                // If we have an array get whose value is from an array set on the same array at the same index,
+                // we can simplify that array get to the value of the previous array set.
+                //
+                // For example:
+                // v3 = array_set v0, index v1, value v2
+                // v4 = array_get v3, index v1 -> Field
+                //
+                // We know that `v4` can be simplified to `v2`.
+                // Thus, even if the index is dynamic (meaning the array get would have side effects),
+                // we can simplify the operation when we take into account the predicate.
+                Instruction::ArraySet { index, value, .. } => {
+                    let array_get =
+                        Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
-                // If we encounter an array_get for this address, we know what the result will be.
-                self.cached_instruction_results.cache(
-                    dom,
-                    array_get,
-                    Some(side_effects_enabled_var),
-                    block,
-                    vec![*value],
-                );
+                    // If we encounter an array_get for this address, we know what the result will be.
+                    self.cached_instruction_results.cache(
+                        dom,
+                        array_get,
+                        Some(side_effects_enabled_var),
+                        block,
+                        vec![*value],
+                    );
+                }
+                _ => (),
             }
         }
 
