@@ -24,6 +24,8 @@ updates:
       # Keep compatible with our minimum supported Node version (22.x)
       - dependency-name: "@types/node"
         versions: [">=23.0.0"]
+      # Ignore updates for @aztec/bb.js as it's managed separately
+      - dependency-name: "@aztec/bb.js"
     groups:
       # group updates for linter
       linter:
