@@ -42,7 +42,6 @@ impl InlineInfo {
     pub(crate) fn is_inline_target(&self, dfg: &DataFlowGraph) -> bool {
         self.is_brillig_entry_point
             || self.is_acir_entry_point
-            || dfg.runtime().is_inline_never()
             // We still want to attempt inlining recursive ACIR functions in case
             // they have a compile-time completion point.
             // A recursive function is going to set `should_inline` to false as well,

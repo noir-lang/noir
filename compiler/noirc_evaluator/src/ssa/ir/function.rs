@@ -53,8 +53,8 @@ impl RuntimeType {
     pub(crate) fn is_inline_never(&self) -> bool {
         matches!(
             self,
-            RuntimeType::Acir(InlineType::InlineNever)
-                | RuntimeType::Brillig(InlineType::InlineNever)
+            // This attribute is only allowed on Brillig functions
+            RuntimeType::Brillig(InlineType::InlineNever)
         )
     }
 

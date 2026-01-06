@@ -445,9 +445,6 @@ impl Elaborator<'_> {
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
         self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
-        self.run_lint(|_| {
-            lints::inline_never_attribute_on_constrained(func, modifiers).map(Into::into)
-        });
         self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
         self.run_lint(|_| {
