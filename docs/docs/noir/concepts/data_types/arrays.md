@@ -74,7 +74,7 @@ let element = array[0][0];
 However, multidimensional vectors are not supported. For example, the following code will error at compile time:
 
 ```rust
-let vector : [[Field]] = &[];
+let vector : [[Field]] = @[];
 ```
 
 ## Dynamic Indexing
