@@ -365,7 +365,33 @@
 <a href="#364" id="364">364</a>
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
@@ -472,7 +498,7 @@
                     <span class="self">self</span>.mark_solvable(w);
                     <span class="bool-val">true
                 </span>} <span class="kw">else </span>{
-                    <span class="self">self</span>.try_solve(<span class="kw-2">&amp;</span>Opcode::AssertZero(op.value.clone()))
+                    <span class="self">self</span>.can_solve_expression(<span class="kw-2">&amp;</span>op.value)
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } =&gt; {
@@ -730,6 +756,32 @@
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
         <span class="macro">assert_eq!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit), <span class="prelude-val">Some</span>(<span class="number">0</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_some_when_write_has_a_single_unknown_witness_in_its_value() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert_eq!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit), <span class="prelude-val">Some</span>(<span class="number">1</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_none_when_write_has_known_witnesses_in_its_value() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0, w1, w2]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert_eq!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit), <span class="prelude-val">None</span>);
     }
 }
 </code></pre></div></section></main></body></html>
