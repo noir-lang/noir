@@ -411,7 +411,7 @@
 
         <span class="kw">let </span>function_ids = functions.function_ids();
 
-        <span class="kw">if let </span>Type::DataType(data_type, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>self_type {
+        <span class="kw">if let </span>Type::DataType(data_type, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>self_type.follow_bindings() {
             <span class="kw">let </span>data_ref = data_type.borrow();
 
             <span class="comment">// `impl`s are only allowed on types defined within the current crate
