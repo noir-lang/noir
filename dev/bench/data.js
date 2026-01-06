@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767693836130,
+  "lastUpdate": 1767693838240,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4953,105 +4953,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a1fed428ee97736dc5320cbe7e6e823ea3da2da3",
-          "message": "chore(comptime): Defensive assertions when mutating struct pointers (#10659)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-12-22T15:43:54Z",
-          "tree_id": "814077bf2586edce6a9d014772da13fa904a16a9",
-          "url": "https://github.com/noir-lang/noir/commit/a1fed428ee97736dc5320cbe7e6e823ea3da2da3"
-        },
-        "date": 1766420084863,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.204,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.404,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 2.522,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.522,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.43,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.51,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.454,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 411,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 393,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.55,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 23.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 83.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.384,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.961,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.567,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9896,6 +9797,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.633,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0bf762690b7d58296976ae05a0beaf5b9eb3ddde",
+          "message": "fix: maximum recursion depth for the parser (#10955)",
+          "timestamp": "2026-01-06T09:33:23Z",
+          "tree_id": "cd10a8f81e03b183670f0e666c3dbdb3959ac1df",
+          "url": "https://github.com/noir-lang/noir/commit/0bf762690b7d58296976ae05a0beaf5b9eb3ddde"
+        },
+        "date": 1767693803752,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.476,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.648,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.526,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.53,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.492,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 418,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 396,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.544,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 22.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 87.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.408,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.993,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.603,
             "unit": "s"
           }
         ]
