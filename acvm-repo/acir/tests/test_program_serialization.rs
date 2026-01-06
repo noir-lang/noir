@@ -21,7 +21,7 @@ use brillig::{
 
 fn assert_deserialization(expected: &Program<FieldElement>, bytes: [Vec<u8>; 3]) {
     for (i, bytes) in bytes.iter().enumerate() {
-        let program = Program::deserialize_program(&bytes)
+        let program = Program::deserialize_program(bytes)
             .map_err(|e| format!("failed to deserialize format {i}: {e:?}"))
             .unwrap();
         assert_eq!(&program, expected, "incorrect deserialized program for format {i}");
