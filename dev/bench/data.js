@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767702786869,
+  "lastUpdate": 1767703295600,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "70ea6888991f7a16d10e8d5b50adb33aa1234fe7",
-          "message": "chore(ci): Rename package names of slice tests to match their dir name (#11011)",
-          "timestamp": "2025-12-23T17:41:40Z",
-          "tree_id": "0b823b9369cb9beec965939890020c400af0dd2a",
-          "url": "https://github.com/noir-lang/noir/commit/70ea6888991f7a16d10e8d5b50adb33aa1234fe7"
-        },
-        "date": 1766512981742,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256232,
-            "range": "± 5896",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226481,
-            "range": "± 3808",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792838,
-            "range": "± 11758",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788213,
             "range": "± 7688",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "81aeeff7dc7dbed169b93519844ac72c4bcda036",
+          "message": "chore(deps-dev): bump the linter group with 2 updates (#11082)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-06T12:08:49Z",
+          "tree_id": "2df91ed6a499075cea25fbe8c0e1abcdc4a45873",
+          "url": "https://github.com/noir-lang/noir/commit/81aeeff7dc7dbed169b93519844ac72c4bcda036"
+        },
+        "date": 1767703260718,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248090,
+            "range": "± 1165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221722,
+            "range": "± 3205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786182,
+            "range": "± 1567",
             "unit": "ns/iter"
           }
         ]
