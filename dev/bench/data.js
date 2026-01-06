@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767649907287,
+  "lastUpdate": 1767690480643,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23190,48 +23190,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "39aeb7ff52e147754dd959b807abbb57ebdc201e",
-          "message": "chore(frontend): Add various regressions for skipping comptime eval on static errors (#10974)",
-          "timestamp": "2025-12-22T14:53:08Z",
-          "tree_id": "652a8f257813816c4f6eef18d95cb76526838122",
-          "url": "https://github.com/noir-lang/noir/commit/39aeb7ff52e147754dd959b807abbb57ebdc201e"
-        },
-        "date": 1766416443683,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258093,
-            "range": "± 1266",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229006,
-            "range": "± 6242",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2263426,
-            "range": "± 2395",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "a1fed428ee97736dc5320cbe7e6e823ea3da2da3",
           "message": "chore(comptime): Defensive assertions when mutating struct pointers (#10659)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796105,
             "range": "± 25534",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e91e68446df6d9819b14d81126cba6c5bdb26213",
+          "message": "fix: do not mark witness as equivalent to a constant (#11072)",
+          "timestamp": "2026-01-06T08:46:39Z",
+          "tree_id": "8af36f2ee41cf36095ada30466ebbc80ff9e7484",
+          "url": "https://github.com/noir-lang/noir/commit/e91e68446df6d9819b14d81126cba6c5bdb26213"
+        },
+        "date": 1767690448209,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269424,
+            "range": "± 755",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 242158,
+            "range": "± 3896",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2804648,
+            "range": "± 4195",
             "unit": "ns/iter"
           }
         ]
