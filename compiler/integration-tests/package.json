@@ -14,7 +14,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint ./test --max-warnings 0"
   },
   "dependencies": {
-    "@aztec/bb.js": "3.0.0-nightly.20260102",
+    "@aztec/bb.js": "3.0.0-rc.5",
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noir_wasm": "workspace:*",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
