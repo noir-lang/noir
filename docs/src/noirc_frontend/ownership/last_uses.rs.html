@@ -475,7 +475,10 @@
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
 <a href="#476" id="476">476</a>
-<a href="#477" id="477">477</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains the last use analysis pass which is run on each function before
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains the last use analysis pass which is run on each function before
 //! the ownership pass when the experimental ownership scheme is enabled. This pass does
 //! not run without this experimental flag - and if it did its results would go unused.
 //!
@@ -829,8 +832,11 @@
     }
 
     <span class="kw">fn </span>track_variables_in_while(<span class="kw-2">&amp;mut </span><span class="self">self</span>, while_expr: <span class="kw-2">&amp;</span>ast::While) {
-        <span class="self">self</span>.track_variables_in_expression(<span class="kw-2">&amp;</span>while_expr.condition);
-        <span class="self">self</span>.track_variables_in_loop(<span class="kw-2">&amp;</span>while_expr.body);
+        <span class="self">self</span>.push_loop_scope();
+        <span class="comment">// The condition is evaluated on every iteration of the loop and thus must be included in the loop scope.
+        </span><span class="self">self</span>.track_variables_in_expression(<span class="kw-2">&amp;</span>while_expr.condition);
+        <span class="self">self</span>.track_variables_in_expression(<span class="kw-2">&amp;</span>while_expr.body);
+        <span class="self">self</span>.pop_loop_scope();
     }
 
     <span class="kw">fn </span>track_variables_in_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_body: <span class="kw-2">&amp;</span>Expression) {
