@@ -707,7 +707,6 @@ impl<'f> LoopInvariantContext<'f> {
         match can_be_hoisted(&instruction, dfg) {
             Yes => (true, returns_array),
             No => (false, false),
-            WithRefCount => (true, true),
             WithPredicate => {
                 (block_context.can_hoist_control_dependent_instruction(), returns_array)
             }
@@ -806,7 +805,6 @@ enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
-    WithRefCount,
 }
 
 impl From<bool> for CanBeHoistedResult {
@@ -882,13 +880,7 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before hoisted.
         // An ACIR it is always safe to hoist MakeArray.
-        MakeArray { .. } => {
-            if dfg.runtime().is_acir() {
-                Yes
-            } else {
-                WithRefCount
-            }
-        }
+        MakeArray { .. } => Yes,
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
@@ -2426,8 +2418,8 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
-    /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
+    /// Test that `MakeArray` can be hoisted in both ACIR and Brillig.
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::Yes)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
