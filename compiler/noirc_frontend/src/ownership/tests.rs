@@ -4,7 +4,10 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::get_monomorphized;
+use crate::{
+    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+    test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
+};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -22,7 +25,7 @@ fn last_use_in_if_branches() {
     fn eq(lhs: [Field; 2], rhs: [Field; 2]) -> bool {
         (lhs[0] == rhs[0]) & (lhs[1] == rhs[1])
     }
-    
+
     fn len(arr: [Field; 2]) -> u32 {
         2
     }
@@ -378,6 +381,62 @@ fn handle_reference_expression_cases() {
     }
     unconstrained fn lambda$f2(x$l8: [Field; 1]) -> [Field; 1] {
         x$l8
+    }
+    ");
+}
+
+#[test]
+fn clone_nested_array_in_lvalue() {
+    let src = "
+    unconstrained fn main(i: u32, j: u32) -> pub u32 {
+        let mut a = [[1, 2], [3, 4]];
+        a[i][j] = 5;
+        a[0][0]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // A clone is inserted in the lvalue position, because the array could be aliased somewhere else,
+    // and even if it was cloned, the RC was only increased for the outer array, not the nested one.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
+        let mut a$l2 = [[1, 2], [3, 4]];
+        a$l2[i$l0].clone()[j$l1] = 5;
+        a$l2[0][0]
+    }
+    ");
+}
+
+#[test]
+fn array_len_does_not_clone() {
+    // Punting the builtin array_len, because these snippets don't have access to stdlib;
+    // trying to use `a.len()` would result in a panic.
+    let src = "
+    #[builtin(array_len)]
+    fn len<T, let N: u32>(a: [T; N]) -> u32 { }
+
+    unconstrained fn main() -> pub u32 {
+        let a = [1, 2, 3];
+        let x = len(a);
+        let y = len(a);
+        x + y
+    }
+    ";
+
+    let program = get_monomorphized_with_error_filter(src, |err| {
+        matches!(
+            err,
+            CompilationError::ResolverError(ResolverError::LowLevelFunctionOutsideOfStdlib { .. })
+        )
+    })
+    .unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub u32 {
+        let a$l0 = [1, 2, 3];
+        let x$l1 = len$array_len(a$l0);
+        let y$l2 = len$array_len(a$l0);
+        (x$l1 + y$l2)
     }
     ");
 }
