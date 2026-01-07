@@ -381,3 +381,24 @@ fn handle_reference_expression_cases() {
     }
     ");
 }
+
+#[test]
+fn clone_nested_array_in_lvalue() {
+    let src = "
+    unconstrained fn main(i: u32, j: u32) -> pub u32 {
+        let mut a = [[1, 2], [3, 4]];
+        a[i][j] = 5;
+        a[0][0]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // TODO(#11105): A clone is inserted in the lvalue; does it have to be?
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
+        let mut a$l2 = [[1, 2], [3, 4]];
+        a$l2[i$l0].clone()[j$l1] = 5;
+        a$l2[0][0]
+    }
+    ");
+}
