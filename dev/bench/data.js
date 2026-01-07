@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767737166254,
+  "lastUpdate": 1767799804219,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fdfb7df77df3bf3a19393160905e2f1533ce8ad8",
-          "message": "chore: remove the parity lib tests (#11021)",
-          "timestamp": "2026-01-02T13:39:34Z",
-          "tree_id": "65aee7842edc36e421228a999302f25c4ff3fde6",
-          "url": "https://github.com/noir-lang/noir/commit/fdfb7df77df3bf3a19393160905e2f1533ce8ad8"
-        },
-        "date": 1767361322403,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264438,
-            "range": "± 576",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235865,
-            "range": "± 7583",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793313,
-            "range": "± 4956",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793104,
             "range": "± 3333",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e1bd2c70f7adf6347a1ab5aa5da2729c641abd12",
+          "message": "fix: do not discard terms that cannot be added to intermediate variables (#11087)",
+          "timestamp": "2026-01-07T15:08:47Z",
+          "tree_id": "7d0f9c21fd6e99df91cdcf79637bbb6ea230334b",
+          "url": "https://github.com/noir-lang/noir/commit/e1bd2c70f7adf6347a1ab5aa5da2729c641abd12"
+        },
+        "date": 1767799770543,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253114,
+            "range": "± 1148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221761,
+            "range": "± 3679",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790800,
+            "range": "± 1304",
             "unit": "ns/iter"
           }
         ]
