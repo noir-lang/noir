@@ -469,7 +469,7 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::Vector(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
-                write!(f, "&[{}]", values.join(", "))
+                write!(f, "@[{}]", values.join(", "))
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
             Value::TypeDefinition(id) => {

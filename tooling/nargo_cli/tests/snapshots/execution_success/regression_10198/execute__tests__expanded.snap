@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(index: u32) {
-    let vector: [()] = [(), (), ()].as_vector();
+    let vector: [()] = @[(), (), ()];
     println(vector);
-    let mut vector: [()] = [(), (), ()].as_vector();
+    let mut vector: [()] = @[(), (), ()];
     vector[index] = ();
     println(vector);
 }

@@ -1037,7 +1037,7 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
             string.push(']');
         }
         Value::Vector(values, _) => {
-            string.push_str("&[");
+            string.push_str("@[");
             for (index, value) in values.iter().enumerate() {
                 if index > 0 {
                     string.push_str(", ");

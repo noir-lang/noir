@@ -11,7 +11,7 @@ comptime fn foo(_: FunctionDefinition, vector: [u8], _str1: CtString, _str2: CtS
 }
 
 fn bar() -> [u8] {
-    &[1_u8, 2_u8, 3_u8]
+    @[1_u8, 2_u8, 3_u8]
 }
 
 #[varargs]
