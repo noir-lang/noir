@@ -19,6 +19,7 @@ pub use brillig;
 pub use circuit::black_box_functions::BlackBoxFunc;
 pub use circuit::opcodes::InvalidInputBitSize;
 pub use parser::parse_opcodes;
+pub use serialization::Format as SerializationFormat;
 
 #[cfg(test)]
 mod reflection {
@@ -75,6 +76,11 @@ mod reflection {
     #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
     struct ProgramWithoutBrillig<F: AcirField> {
         pub functions: Vec<Circuit<F>>,
+        /// We want to ignore this field. By setting its type as `unit`
+        /// it will not be deserialized, but it will correctly maintain
+        /// the position of the others (although in this case it doesn't)
+        /// matter since it's the last field.
+        pub unconstrained_functions: (),
     }
 
     #[test]
@@ -225,7 +231,10 @@ mod reflection {
         fn add_preamble(source: &mut String) {
             let inc = r#"#include "serde.hpp""#;
             let pos = source.find(inc).expect("serde.hpp missing");
-            source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
+            source.insert_str(
+                pos + inc.len(),
+                "\n#include \"barretenberg/serialize/msgpack_impl.hpp\"",
+            );
         }
 
         /// Add helper functions to cut down repetition in the generated code.
@@ -239,7 +248,7 @@ mod reflection {
             msgpack::object const& o,
             std::string const& name
         ) {
-            if(o.type != msgpack::type::MAP) {
+            if (o.type != msgpack::type::MAP) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP for " + name);
             }
@@ -257,6 +266,7 @@ mod reflection {
             }
             return kvmap;
         }
+
         template<typename T>
         static void conv_fld_from_kvmap(
             std::map<std::string, msgpack::object const*> const& kvmap,
@@ -275,6 +285,26 @@ mod reflection {
                 }
             } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
+            }
+        }
+
+        template<typename T>
+        static void conv_fld_from_array(
+            msgpack::object_array const& array,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field,
+            uint32_t index
+        ) {
+            if (index >= array.size) {
+                throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
+            }
+            auto element = array.ptr[index];
+            try {
+                element.convert(field);
+            } catch (const msgpack::type_error&) {
+                std::cerr << element << std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         }
     };
@@ -361,13 +391,24 @@ mod reflection {
             // or we could reject the data if there was a new field we could
             // not recognize, or we could even handle aliases.
 
+            // We treat unit fields as special, using them to ignore fields during deserialization:
+            // * in 'map' format we skip over them, never try to deserialize them from the map
+            // * in 'tuple' format we jump over their index, ignoring whatever is in that position
+            fn is_unit(field: &Named<Format>) -> bool {
+                matches!(field.value, Format::Unit)
+            }
+
+            let non_unit_field_count = fields.iter().filter(|f| !is_unit(f)).count();
+
             self.msgpack_pack(name, &{
                 let mut body = format!(
                     "
-    packer.pack_map({});",
-                    fields.len()
+    packer.pack_map({non_unit_field_count});",
                 );
                 for field in fields {
+                    if is_unit(field) {
+                        continue;
+                    }
                     let field_name = &field.name;
                     body.push_str(&format!(
                         r#"
@@ -383,20 +424,48 @@ mod reflection {
                 // cSpell:disable
                 let mut body = format!(
                     r#"
-    auto name = "{name}";
-    auto kvmap = Helpers::make_kvmap(o, name);"#
+    std::string name = "{name}";
+    if (o.type == msgpack::type::MAP) {{
+        auto kvmap = Helpers::make_kvmap(o, name);"#
                 );
                 // cSpell:enable
                 for field in fields {
+                    if is_unit(field) {
+                        continue;
+                    }
                     let field_name = &field.name;
                     let is_optional = matches!(field.value, Format::Option(_));
                     // cSpell:disable
                     body.push_str(&format!(
                         r#"
-    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
+        Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     ));
                     // cSpell:enable
                 }
+                body.push_str(
+                    "
+    } else if (o.type == msgpack::type::ARRAY) {
+        auto array = o.via.array; ",
+                );
+                for (index, field) in fields.iter().enumerate() {
+                    if is_unit(field) {
+                        continue;
+                    }
+                    let field_name = &field.name;
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+        Helpers::conv_fld_from_array(array, name, "{field_name}", {field_name}, {index});"#
+                    ));
+                    // cSpell:enable
+                }
+
+                body.push_str(
+                    r#"
+    } else {
+        throw_or_abort("expected MAP or ARRAY for " + name);
+    }"#,
+                );
                 body
             });
         }
@@ -466,9 +535,9 @@ mod reflection {
         packer.pack(tag);
     }} else {{
         std::visit([&packer, tag](const auto& arg) {{
-            std::map<std::string, msgpack::object> data;
-            data[tag] = msgpack::object(arg);
-            packer.pack(data);
+            packer.pack_map(1);
+            packer.pack(tag);
+            arg.msgpack_pack(packer);
         }}, value);
     }}"#
                 )

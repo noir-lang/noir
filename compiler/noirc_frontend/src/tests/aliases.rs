@@ -395,3 +395,41 @@ fn regression_10415_without_alias() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_10429() {
+    let src = r#"
+    struct Struct {}
+
+    type Alias = Struct;
+
+    impl Alias {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10429_with_trait() {
+    let src = r#"
+    struct Struct {}
+
+    type Alias = Struct;
+
+    trait Foo {
+        fn foo() -> Self;
+    }
+
+    impl Foo for Alias {
+        fn foo() -> Self {
+            Struct {}
+        }
+    }
+
+    fn main() {
+        let _alias: Alias = <Alias as Foo>::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}

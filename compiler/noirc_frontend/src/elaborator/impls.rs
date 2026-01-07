@@ -154,7 +154,7 @@ impl Elaborator<'_> {
 
         let function_ids = functions.function_ids();
 
-        if let Type::DataType(data_type, _) = &self_type {
+        if let Type::DataType(data_type, _) = &self_type.follow_bindings() {
             let data_ref = data_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
