@@ -393,7 +393,8 @@ fn clone_nested_array_in_lvalue() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // TODO(#11105): A clone is inserted in the lvalue; does it have to be?
+    // A clone is inserted in the lvalue position, because the array could be aliased somewhere else,
+    // and even if it was cloned, the RC was only increased for the outer array, not the nested one.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
         let mut a$l2 = [[1, 2], [3, 4]];

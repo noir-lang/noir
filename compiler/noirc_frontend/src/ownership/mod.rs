@@ -136,9 +136,6 @@ impl Context {
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
-    ///
-    /// # Returns
-    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
     fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
             Expression::Ident(_) => (),
@@ -286,7 +283,7 @@ impl Context {
 
     fn handle_index(&mut self, index_expr: &mut Expression) {
         let Expression::Index(index) = index_expr else {
-            panic!("handle_index should only be called with Index nodes");
+            panic!("handle_index given non-index expression: {index_expr}");
         };
 
         // Don't clone the collection, cloning only the resulting element is cheaper.
