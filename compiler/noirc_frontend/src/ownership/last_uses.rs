@@ -67,7 +67,7 @@ impl Branches {
                 Branches::Direct(ident_id) => acc.push(ident_id),
                 Branches::IfOrMatch(_, cases) => {
                     for case in cases.into_values() {
-                        go(case, acc)
+                        go(case, acc);
                     }
                 }
             }
