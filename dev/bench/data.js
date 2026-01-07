@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767807530639,
+  "lastUpdate": 1767808624412,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "eba31f6a8999233ea09c80306fb55a79506e8e6a",
-          "message": "chore: add testing group to dependabot (#11022)",
-          "timestamp": "2026-01-02T14:37:31Z",
-          "tree_id": "193864237597bdadf15342099aa86bb861927220",
-          "url": "https://github.com/noir-lang/noir/commit/eba31f6a8999233ea09c80306fb55a79506e8e6a"
-        },
-        "date": 1767364798821,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262191,
-            "range": "± 900",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235125,
-            "range": "± 4929",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794212,
-            "range": "± 6001",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789798,
             "range": "± 12855",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6f95f40e434faaa666464919051315a6e967b4d9",
+          "message": "fix: apply index side effects recursively (#11103)",
+          "timestamp": "2026-01-07T17:35:26Z",
+          "tree_id": "0e469e45193ea0c70eeff7d02c235f4813423f9d",
+          "url": "https://github.com/noir-lang/noir/commit/6f95f40e434faaa666464919051315a6e967b4d9"
+        },
+        "date": 1767808590033,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254100,
+            "range": "± 482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223296,
+            "range": "± 3538",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794392,
+            "range": "± 1844",
             "unit": "ns/iter"
           }
         ]
