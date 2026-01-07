@@ -180,13 +180,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
-            // Check that the sequence of value types fit an integer number of
-            // times inside the given size.
-            assert!(
-                0 == size % value_types.len(),
-                "array/vector does not contain a whole number of elements"
-            );
-
             // We want to send vectors to foreign functions truncated to their semantic length.
             let mut vector_length: Option<usize> = None;
 
