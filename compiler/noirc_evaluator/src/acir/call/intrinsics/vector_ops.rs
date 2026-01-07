@@ -359,10 +359,24 @@ impl Context<'_> {
         let vector_length = self.convert_value(arguments[0], dfg).into_var()?;
         let vector_contents = arguments[1];
 
+        // Check that the vector length is not zero
+        let zero = self.acir_context.add_constant(FieldElement::zero());
+        let assert_message = self.acir_context.generate_assertion_message_payload(
+            "Attempt to pop_front from an empty vector".to_string(),
+        );
+        self.acir_context.assert_neq_var(
+            vector_length,
+            zero,
+            self.current_side_effects_enabled_var,
+            Some(assert_message),
+        )?;
+
         let vector_typ = dfg.type_of_value(vector_contents);
         let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
         // Check if we're trying to pop from a known empty vector.
+        // Note that this is different from the previous check as this only considers static
+        // vectors and arrays, not dynamic ones where the length is not known at compile time.
         if self.has_zero_length(vector_contents, dfg) {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "cannot pop from a vector with length 0".to_string();
