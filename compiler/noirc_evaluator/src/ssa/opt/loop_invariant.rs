@@ -693,7 +693,7 @@ impl<'f> LoopInvariantContext<'f> {
         let dfg = &self.inserter.function.dfg;
         let returns_array = if dfg.runtime().is_brillig() {
             let results = dfg.instruction_results(instruction_id);
-            results.iter().any(|r| dfg.type_of_value(*r).contains_an_array())
+            results.iter().any(|r| dfg.type_of_value(*r).is_array())
         } else {
             false
         };
