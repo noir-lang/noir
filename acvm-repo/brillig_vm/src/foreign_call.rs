@@ -139,7 +139,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             (
                 ValueOrArray::HeapArray(HeapArray { pointer, size }),
                 HeapValueType::Array { value_types, size: type_size },
-            ) if *type_size == size => {
+            ) => {
+                // The array's flattened size must match the expected size
+                assert_eq!(*type_size * value_types.len(), size);
+
                 let start = self.memory.read_ref(pointer);
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
@@ -195,13 +198,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
-                        HeapValueType::Array { value_types, size } => {
+                        HeapValueType::Array { value_types, size: type_size } => {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                *size,
+                                *type_size,
                                 value_types,
                             )
                         }
@@ -317,7 +320,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) => {
-                    if size != type_size {
+                    if value_types.len() * type_size != *size {
                         return Err(format!(
                             "Destination array size of {size} does not match the type size of {type_size}"
                         ));

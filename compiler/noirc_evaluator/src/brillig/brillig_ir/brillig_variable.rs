@@ -153,7 +153,7 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: typ.element_size() * *size as usize,
+            size: *size as usize,
         },
         Type::Vector(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
@@ -169,5 +169,51 @@ pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
         // instrumentation to work properly)
         Type::Function => 32,
         typ => typ.bit_size(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use acvm::acir::brillig::HeapValueType;
+
+    use crate::{
+        brillig::brillig_ir::brillig_variable::type_to_heap_value_type, ssa::ir::types::Type,
+    };
+
+    #[test]
+    fn type_to_heap_value_type_flattened_size() {
+        // typ = [(u32, bool); 3]
+        let typ = Type::Array(Arc::new(vec![Type::unsigned(32), Type::bool()]), 3);
+        let typ = type_to_heap_value_type(&typ);
+        assert_eq!(typ.flattened_size(), Some(6));
+
+        let HeapValueType::Array { value_types: _, size } = typ else {
+            panic!("Expected array type");
+        };
+        assert_eq!(size, 3);
+
+        // typ = [[u32; 4]; 2]
+        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), 4);
+        let typ = Type::Array(Arc::new(vec![arr]), 2);
+        let typ = type_to_heap_value_type(&typ);
+        assert_eq!(typ.flattened_size(), Some(8));
+
+        let HeapValueType::Array { value_types: _, size } = typ else {
+            panic!("Expected array type");
+        };
+        assert_eq!(size, 2);
+
+        // typ = [([u32; 4], bool); 2]
+        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), 4);
+        let typ = Type::Array(Arc::new(vec![arr, Type::bool()]), 2);
+        let typ = type_to_heap_value_type(&typ);
+        assert_eq!(typ.flattened_size(), Some(10));
+
+        let HeapValueType::Array { value_types: _, size } = typ else {
+            panic!("Expected array type");
+        };
+        assert_eq!(size, 2);
     }
 }
