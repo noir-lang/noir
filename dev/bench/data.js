@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767803676068,
+  "lastUpdate": 1767803830943,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e7fbc7f0a2df7f3bcbf723cc85e59d748cd08118",
-          "message": "chore: add compatibilty for node 24 in acvm_js test suite (#10706)",
-          "timestamp": "2026-01-02T14:20:00Z",
-          "tree_id": "749d352b4eeda68481f89640e6df70fe0a6189bb",
-          "url": "https://github.com/noir-lang/noir/commit/e7fbc7f0a2df7f3bcbf723cc85e59d748cd08118"
-        },
-        "date": 1767363752009,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257256,
-            "range": "± 1162",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227481,
-            "range": "± 4361",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2258621,
-            "range": "± 6818",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792473,
             "range": "± 12187",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a8731e96b428a9eb57c50cfade197de2716b8c39",
+          "message": "fix(ci): Mark keccak tests with oracles as failing (#11121)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-07T16:34:05Z",
+          "tree_id": "df47d4432dc2d55c7727fe0bd9b20f501dea1d7f",
+          "url": "https://github.com/noir-lang/noir/commit/a8731e96b428a9eb57c50cfade197de2716b8c39"
+        },
+        "date": 1767803796529,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252141,
+            "range": "± 655",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221274,
+            "range": "± 5778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789742,
+            "range": "± 5100",
             "unit": "ns/iter"
           }
         ]
