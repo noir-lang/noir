@@ -4,7 +4,10 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::get_monomorphized;
+use crate::{
+    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+    test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
+};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -400,6 +403,40 @@ fn clone_nested_array_in_lvalue() {
         let mut a$l2 = [[1, 2], [3, 4]];
         a$l2[i$l0].clone()[j$l1] = 5;
         a$l2[0][0]
+    }
+    ");
+}
+
+#[test]
+fn array_len_does_not_clone() {
+    // Punting the builtin array_len, because these snippets don't have access to stdlib;
+    // trying to use `a.len()` would result in a panic.
+    let src = "
+    #[builtin(array_len)]
+    fn len<T, let N: u32>(a: [T; N]) -> u32 { }
+
+    unconstrained fn main() -> pub u32 {
+        let a = [1, 2, 3];
+        let x = len(a);
+        let y = len(a);
+        x + y
+    }
+    ";
+
+    let program = get_monomorphized_with_error_filter(src, |err| {
+        matches!(
+            err,
+            CompilationError::ResolverError(ResolverError::LowLevelFunctionOutsideOfStdlib { .. })
+        )
+    })
+    .unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub u32 {
+        let a$l0 = [1, 2, 3];
+        let x$l1 = len$array_len(a$l0);
+        let y$l2 = len$array_len(a$l0);
+        (x$l1 + y$l2)
     }
     ");
 }
