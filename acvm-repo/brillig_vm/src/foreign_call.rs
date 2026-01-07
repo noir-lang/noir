@@ -9,9 +9,8 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
 use crate::{
-    FREE_MEMORY_POINTER_ADDRESS, MemoryValue, VM, VMStatus,
+    MemoryValue, VM, VMStatus,
     memory::{ArrayAddress, VectorAddress},
-    offsets,
 };
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
@@ -20,7 +19,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// This method performs the following steps:
     /// 1. Checks if the foreign call results are already available. If not, it resolves the input
     ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
-    ///    For vectors, the preceding `u32` length field is used to truncate the slice input to its semantic length.
+    ///    For vectors, the preceding `u32` length field is used to truncate the vector input to its semantic length.
     /// 2. If results are available, it writes them to memory, ensuring that the returned data
     ///    matches the expected types and sizes:
     ///     * Nested arrays are reconstructed from flat outputs when necessary.
@@ -66,9 +65,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             // they can then make another call to the VM that starts at this opcode
             // but has the necessary results to proceed with execution.
 
-            // With slices we might have more items in the HeapVector than the semantic length
+            // With vectors we might have more items in the HeapVector than the semantic length
             // indicated by the field preceding the pointer to the vector in the inputs.
-            // This happens when SSA merges slices of different length, which can result in
+            // This happens when SSA merges vectors of different length, which can result in
             // a vector that has room for the longer of the two, partially filled with items
             // from the shorter. There are ways to deal with this on the receiver side,
             // but it is cumbersome, and the cleanest solution is not to send the extra empty
@@ -80,12 +79,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 .zip(input_value_types)
                 .map(|(input, input_type)| {
                     let mut input = self.get_memory_values(*input, input_type);
-                    // Truncate slices to their semantic length, which we remember from the preceding field.
+                    // Truncate vectors to their semantic length, which we remember from the preceding field.
                     match input_type {
                         HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
-                            // If we have a single u32 we may have a slice representation, so store this input.
+                            // If we have a single u32 we may have a vector representation, so store this input.
                             // On the next iteration, if we have a vector then we know we have the dynamic length
-                            // for that slice.
+                            // for that vector.
                             let ForeignCallParam::Single(length) = input else {
                                 unreachable!("expected u32; got {input:?}");
                             };
@@ -174,7 +173,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         size: usize,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
-        assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
+        assert!(start.is_direct(), "read_vector_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
@@ -358,7 +357,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 "Not all values were written to memory"
                             );
                         } else {
-                            self.write_values_to_memory(*pointer, true, values, value_types)?;
+                            self.write_values_to_memory(*pointer, values, value_types)?;
                         }
                     } else {
                         // foreign call returning flattened values into a nested type, so the sizes do not match
@@ -377,8 +376,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         );
                     }
                 }
+                // We didn't know the length of vectors when we allocated the destination variable, so we pointed
+                // the vector at the start of the free memory; with this technique we can only handle a single vector.
+                // Write the data where the destination points at. It is up to the follow up bytecode to initialize
+                // the meta-data, or move the data somewhere else.
                 (
-                    ValueOrArray::MemoryAddress(vector_pointer),
+                    ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
                     HeapValueType::Vector { value_types },
                 ) => {
                     if HeapValueType::all_simple(value_types) {
@@ -391,31 +394,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 "Returned data does not match vector element size".to_string()
                             );
                         }
-
-                        // We write the data to the current free memory pointer.
-                        let free_memory_addr = self.memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
-
-                        // Store the address itself back in the destination.
-                        self.memory.write_ref(*vector_pointer, free_memory_addr);
-
-                        // Set the size in the size address and write the data.
-                        // The RC and the capacity will be initialized in codegen after the call.
-                        let vector_address = VectorAddress::from(free_memory_addr);
-                        self.memory.write(vector_address.size_addr(), values.len().into());
-                        self.write_values_to_memory(
-                            vector_address.items_start(),
-                            false,
-                            values,
-                            value_types,
-                        )?;
-
-                        // Increase the free memory pointer by the amount of space taken by the vector, including metadata,
-                        // so the next vector can go to after where this was written.
-                        let total_size = offsets::VECTOR_META_COUNT + values.len();
-                        self.memory.write_ref(
-                            FREE_MEMORY_POINTER_ADDRESS,
-                            free_memory_addr.offset(total_size),
-                        );
+                        // Set the size in the size address.
+                        // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
+                        // instead we expect the post-call codegen will copy it to the heap.
+                        self.memory.write(*size_addr, values.len().into());
+                        self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
                         unimplemented!("deflattening heap vectors from foreign calls");
                     }
@@ -452,11 +435,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         Ok(())
     }
 
-    /// Write an array or slice either directly to an address, or indirectly to a destination pointed at by that address.
+    /// Write the `values` of an array or vector to an address stored under the `pointer`.
     fn write_values_to_memory(
         &mut self,
-        address: MemoryAddress,
-        is_pointer: bool,
+        pointer: MemoryAddress,
         values: &[F],
         value_types: &[HeapValueType],
     ) -> Result<(), String> {
@@ -469,7 +451,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             .cycle();
 
         // Convert the destination pointer to an address.
-        let destination = if is_pointer { self.memory.read_ref(address) } else { address };
+        let destination = self.memory.read_ref(pointer);
 
         // Write to the destination memory.
         let memory_values: Option<Vec<_>> = values

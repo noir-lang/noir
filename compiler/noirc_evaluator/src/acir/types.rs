@@ -70,9 +70,9 @@ impl From<&SsaType> for AcirType {
 ///
 /// Dynamic arrays might result from other operations. For example:
 /// - setting the value of an array element with a dynamic index
-/// - pushing back to a slice where it's length is not known at compile time
-/// - inserting to a slice with a dynamic index
-/// - removing from a slice at a dynamic index
+/// - pushing back to a vector where it's length is not known at compile time
+/// - inserting to a vector with a dynamic index
+/// - removing from a vector at a dynamic index
 #[derive(Clone)]
 pub(super) struct AcirDynamicArray {
     /// Identification for the Acir dynamic array
@@ -201,34 +201,34 @@ impl AcirVar {
     }
 }
 
-/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
+/// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
 /// (recursively) and returns a flat list of all the contained numeric types.
-/// Panics if `self` is not an array or slice type or if a function or reference type
+/// Panics if `self` is not an array or vector type or if a function or reference type
 /// is found along the way.
 pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
-        SsaType::Array(..) | SsaType::Slice(..) => {
+        SsaType::Array(..) | SsaType::Vector(..) => {
             let mut flat_types = Vec::new();
             collect_flat_numeric_types(typ, &mut flat_types);
             flat_types
         }
-        _ => panic!("Called flat_numeric_types on a non-array/slice type"),
+        _ => panic!("Called flat_numeric_types on a non-array/vector type"),
     }
 }
 
-/// Returns the fully flattened numeric types for one element of a slice/array,
+/// Returns the fully flattened numeric types for one element of a vector/array,
 /// recursively flattening nested arrays.
-/// For example, for Slice([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
+/// For example, for Vector([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
 pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
-        SsaType::Slice(element_types) | SsaType::Array(element_types, _) => {
+        SsaType::Vector(element_types) | SsaType::Array(element_types, _) => {
             let mut flat_types = Vec::new();
             for element_typ in element_types.iter() {
                 collect_fully_flattened_numeric_types(element_typ, &mut flat_types);
             }
             flat_types
         }
-        _ => panic!("Called flat_element_types on a non-array/slice type"),
+        _ => panic!("Called flat_element_types on a non-array/vector type"),
     }
 }
 
@@ -247,8 +247,8 @@ fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<Num
                 }
             }
         }
-        SsaType::Slice(_) => {
-            panic!("Cannot fully flatten a slice type - slices have dynamic length")
+        SsaType::Vector(_) => {
+            panic!("Cannot fully flatten a vector type - vectors have dynamic length")
         }
         _ => panic!("Called collect_fully_flattened_numeric_types on unsupported type"),
     }
@@ -261,11 +261,11 @@ fn collect_flat_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) 
         SsaType::Numeric(numeric_type) => {
             flat_types.push(*numeric_type);
         }
-        SsaType::Array(types, _) | SsaType::Slice(types) => {
+        SsaType::Array(types, _) | SsaType::Vector(types) => {
             for typ in types.iter() {
                 collect_flat_numeric_types(typ, flat_types);
             }
         }
-        _ => panic!("Called collect_flat_numeric_types on non-array/slice/number type"),
+        _ => panic!("Called collect_flat_numeric_types on non-array/vector/number type"),
     }
 }

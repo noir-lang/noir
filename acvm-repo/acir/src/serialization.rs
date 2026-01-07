@@ -1,8 +1,5 @@
 //! Serialization formats we consider using for the bytecode and the witness stack.
 
-use crate::proto::convert::ProtoSchema;
-use acir_field::AcirField;
-use noir_protobuf::ProtoCodec;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -14,7 +11,7 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 #[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
-pub(crate) enum Format {
+pub enum Format {
     /// Bincode without format marker.
     /// This does not actually appear in the data.
     BincodeLegacy = 0,
@@ -24,7 +21,12 @@ pub(crate) enum Format {
     Msgpack = 2,
     /// Msgpack with tuple structs.
     MsgpackCompact = 3,
-    Protobuf = 4,
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Self::MsgpackCompact
+    }
 }
 
 impl Format {
@@ -34,7 +36,7 @@ impl Format {
     /// 1. It has to be picked up in methods like `Program::serialize_program_base64` where no config is available.
     /// 2. At the moment this is mostly for testing, to be able to commit code that _can_ produce different formats,
     ///    but only activate it once a version of `bb` that can handle it is released.
-    pub(crate) fn from_env() -> Result<Option<Self>, String> {
+    pub fn from_env() -> Result<Option<Self>, String> {
         let Ok(format) = std::env::var(FORMAT_ENV_VAR) else {
             return Ok(None);
         };
@@ -69,62 +71,42 @@ pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
 ///
 /// Set `compact` to `true` if we want old readers to fail when a new field is added to a struct,
 /// that is, if we think that ignoring a new field could lead to incorrect behavior.
-#[allow(dead_code)]
 pub(crate) fn msgpack_serialize<T: Serialize>(
     value: &T,
     compact: bool,
 ) -> std::io::Result<Vec<u8>> {
-    if compact {
-        // The default behavior encodes struct fields as
-        rmp_serde::to_vec(value).map_err(std::io::Error::other)
+    // There are convenience methods to serialize structs as tuples or maps:
+    // * `rmp_serde::to_vec` uses tuples
+    // * `rmp_serde::to_vec_named` uses maps
+    // However it looks like the default `BytesMode` is not compatible with the C++ deserializer,
+    // so we have to use `rmp_serde::Serializer` directly.
+    let mut buf = Vec::new();
+
+    let serializer = rmp_serde::Serializer::new(&mut buf)
+        .with_bytes(rmp_serde::config::BytesMode::ForceIterables);
+
+    let result = if compact {
+        value.serialize(&mut serializer.with_struct_tuple())
     } else {
-        // Or this to be able to configure the serialization:
-        // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
-        // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
-        // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
-        rmp_serde::to_vec_named(value).map_err(std::io::Error::other)
+        value.serialize(&mut serializer.with_struct_map())
+    };
+
+    match result {
+        Ok(()) => Ok(buf),
+        Err(e) => Err(std::io::Error::other(e)),
     }
 }
 
 /// Deserialize a value using MessagePack, based on `serde`.
-#[allow(dead_code)]
 pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
-/// Serialize a value using `protobuf`.
-///
-/// This format is forwards and backwards compatible, but requires code generation based on `.proto` schemas.
-#[allow(dead_code)]
-pub(crate) fn proto_serialize<F, T, R>(value: &T) -> Vec<u8>
-where
-    F: AcirField,
-    R: prost::Message,
-    ProtoSchema<F>: ProtoCodec<T, R>,
-{
-    ProtoSchema::<F>::serialize_to_vec(value)
-}
-
-/// Deserialize a value using `protobuf`.
-#[allow(dead_code)]
-pub(crate) fn proto_deserialize<F, T, R>(buf: &[u8]) -> std::io::Result<T>
-where
-    F: AcirField,
-    R: prost::Message + Default,
-    ProtoSchema<F>: ProtoCodec<T, R>,
-{
-    ProtoSchema::<F>::deserialize_from_slice(buf)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-}
-
 /// Deserialize any of the supported formats. Try go guess the format based on the first byte,
 /// but fall back to the legacy `bincode` format if anything fails.
-pub(crate) fn deserialize_any_format<F, T, R>(buf: &[u8]) -> std::io::Result<T>
+pub(crate) fn deserialize_any_format<T>(buf: &[u8]) -> std::io::Result<T>
 where
     T: for<'a> Deserialize<'a>,
-    F: AcirField,
-    R: prost::Message + Default,
-    ProtoSchema<F>: ProtoCodec<T, R>,
 {
     // Unfortunately as long as we have to deal with legacy bincode format we might be able
     // to deserialize any other format as pure coincidence, when it was just legacy data.
@@ -148,11 +130,6 @@ where
                         return Ok(value);
                     }
                 }
-                Format::Protobuf => {
-                    if let Ok(value) = proto_deserialize(&buf[1..]) {
-                        return Ok(value);
-                    }
-                }
             }
         }
     }
@@ -160,44 +137,20 @@ where
     bincode_result
 }
 
-pub(crate) fn serialize_with_format<F, T, R>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
+pub(crate) fn serialize_with_format<T>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
 where
-    F: AcirField,
     T: Serialize,
-    R: prost::Message,
-    ProtoSchema<F>: ProtoCodec<T, R>,
 {
     // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
         Format::BincodeLegacy => return bincode_serialize(value),
         Format::Bincode => bincode_serialize(value)?,
-        Format::Protobuf => proto_serialize(value),
         Format::Msgpack => msgpack_serialize(value, false)?,
         Format::MsgpackCompact => msgpack_serialize(value, true)?,
     };
     let mut res = vec![format.into()];
     res.append(&mut buf);
     Ok(res)
-}
-
-pub(crate) fn serialize_with_format_from_env<F, T, R>(value: &T) -> std::io::Result<Vec<u8>>
-where
-    F: AcirField,
-    T: Serialize,
-    R: prost::Message,
-    ProtoSchema<F>: ProtoCodec<T, R>,
-{
-    match Format::from_env() {
-        Ok(Some(format)) => {
-            // This will need a new `bb` even if it's the bincode format, because of the format byte.
-            serialize_with_format(value, format)
-        }
-        Ok(None) => {
-            // This is how the currently released `bb` expects the data.
-            bincode_serialize(value)
-        }
-        Err(e) => Err(std::io::Error::other(e)),
-    }
 }
 
 #[cfg(test)]

@@ -68,9 +68,9 @@ impl TypeDefinition {
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
 
-    /// Sets the fields of this type to the given fields list.
+    /// Sets the fields of this type to the given fields vector.
     /// All existing fields of the type will be overridden with the given fields.
-    /// Each element of the fields list corresponds to the name and type of a field.
+    /// Each element of the fields vector corresponds to the name and type of a field.
     /// Each name is expected to be a single identifier.
     #[builtin(type_def_set_fields)]
     // docs:start:set_fields

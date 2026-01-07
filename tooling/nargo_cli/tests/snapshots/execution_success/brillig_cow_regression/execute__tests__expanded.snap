@@ -155,33 +155,33 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     let mut offset: u32 = 0_u32;
     for j in 0_u32..MAX_NOTE_HASHES_PER_TX {
         {
-            let i_4520: u32 = offset + j;
-            tx_effects_hash_inputs[i_4520] = new_note_hashes[j];
+            let i_4517: u32 = offset + j;
+            tx_effects_hash_inputs[i_4517] = new_note_hashes[j];
         }
     }
     offset = offset + MAX_NOTE_HASHES_PER_TX;
     for j in 0_u32..MAX_NULLIFIERS_PER_TX {
         {
-            let i_4522: u32 = offset + j;
-            tx_effects_hash_inputs[i_4522] = new_nullifiers[j];
+            let i_4519: u32 = offset + j;
+            tx_effects_hash_inputs[i_4519] = new_nullifiers[j];
         }
     }
     offset = offset + MAX_NULLIFIERS_PER_TX;
     for j in 0_u32..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
         {
-            let i_4524: u32 = offset + (j * 2_u32);
-            tx_effects_hash_inputs[i_4524] = public_data_update_requests[j].leaf_slot;
+            let i_4521: u32 = offset + (j * 2_u32);
+            tx_effects_hash_inputs[i_4521] = public_data_update_requests[j].leaf_slot;
         };
         {
-            let i_4525: u32 = (offset + (j * 2_u32)) + 1_u32;
-            tx_effects_hash_inputs[i_4525] = public_data_update_requests[j].new_value;
+            let i_4522: u32 = (offset + (j * 2_u32)) + 1_u32;
+            tx_effects_hash_inputs[i_4522] = public_data_update_requests[j].new_value;
         }
     }
     offset = offset + (MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2_u32);
     for j in 0_u32..MAX_L2_TO_L1_MSGS_PER_TX {
         {
-            let i_4527: u32 = offset + j;
-            tx_effects_hash_inputs[i_4527] = l2ToL1Msgs[j];
+            let i_4524: u32 = offset + j;
+            tx_effects_hash_inputs[i_4524] = l2ToL1Msgs[j];
         }
     }
     offset = offset + MAX_L2_TO_L1_MSGS_PER_TX;
@@ -191,21 +191,21 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     let new_contracts: [NewContractData; 1] = kernel_data.new_contracts;
     tx_effects_hash_inputs[offset] = new_contracts[0_u32].contract_address;
     {
-        let i_4530: u32 = offset + 1_u32;
-        tx_effects_hash_inputs[i_4530] = new_contracts[0_u32].portal_contract_address;
+        let i_4527: u32 = offset + 1_u32;
+        tx_effects_hash_inputs[i_4527] = new_contracts[0_u32].portal_contract_address;
     };
     offset = offset + (MAX_NEW_CONTRACTS_PER_TX * 2_u32);
     for j in 0_u32..NUM_FIELDS_PER_SHA256 {
         {
-            let i_4532: u32 = offset + j;
-            tx_effects_hash_inputs[i_4532] = encryptedLogsHash[j];
+            let i_4529: u32 = offset + j;
+            tx_effects_hash_inputs[i_4529] = encryptedLogsHash[j];
         }
     }
     offset = offset + (NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256);
     for j in 0_u32..NUM_FIELDS_PER_SHA256 {
         {
-            let i_4534: u32 = offset + j;
-            tx_effects_hash_inputs[i_4534] = unencryptedLogsHash[j];
+            let i_4531: u32 = offset + j;
+            tx_effects_hash_inputs[i_4531] = unencryptedLogsHash[j];
         }
     }
     offset = offset + (NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256);
@@ -215,8 +215,8 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
         let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0_u32..32_u32 {
             {
-                let i_4539: u32 = (offset * 32_u32) + byte_index;
-                hash_input_flattened[i_4539] = input_as_bytes[byte_index];
+                let i_4536: u32 = (offset * 32_u32) + byte_index;
+                hash_input_flattened[i_4536] = input_as_bytes[byte_index];
             }
         }
     }
@@ -225,11 +225,11 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
             tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0_u32..16_u32 {
             {
-                let i_4543: u32 = (
+                let i_4540: u32 = (
                     (TX_EFFECT_HASH_FULL_FIELDS * 32_u32) + (log_field_index * 16_u32)
                 )
                     + byte_index;
-                hash_input_flattened[i_4543] = input_as_bytes[byte_index];
+                hash_input_flattened[i_4540] = input_as_bytes[byte_index];
             }
         }
     }

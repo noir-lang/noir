@@ -402,7 +402,7 @@ pub enum Type {
         length: Box<Type>,
         element: Box<Type>,
     },
-    Slice {
+    Vector {
         element: Box<Type>,
     },
     String {
@@ -494,7 +494,7 @@ pub enum PrimitiveTypeKind {
     Str,
     Fmtstr,
     Array,
-    Slice,
+    Vector,
     Expr,
     Quoted,
     Type,
@@ -527,7 +527,7 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::Str => "str",
             PrimitiveTypeKind::Fmtstr => "fmtstr",
             PrimitiveTypeKind::Array => "array",
-            PrimitiveTypeKind::Slice => "slice",
+            PrimitiveTypeKind::Vector => "vector",
             PrimitiveTypeKind::Expr => "Expr",
             PrimitiveTypeKind::Quoted => "Quoted",
             PrimitiveTypeKind::Type => "Type",

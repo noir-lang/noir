@@ -187,13 +187,13 @@ fn allows_multiple_underscore_parameters() {
 }
 
 #[test]
-fn cannot_return_slice_from_main() {
+fn cannot_return_vector_from_main() {
     let src = r#"
-    fn main() -> pub [Field]{
-       ^^^^ Invalid type found in the entry point to a program
-       ~~~~ Slice is not a valid entry point type. Found: [Field]
+    fn main() -> pub [Field] {
+                     ^^^^^^^ Invalid type found in the entry point to a program
+                     ~~~~~~~ Vector is not a valid entry point type. Found: [Field]
         &[1,2]
-        
+
     }
         "#;
     check_errors(src);
@@ -209,6 +209,19 @@ fn builtin_function_with_body() {
            ^^^ Builtin and low-level function declarations cannot have a body
            ~~~ This function body should be removed
         let x = 1;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_parameter_name() {
+    let src = r#"
+    fn main(x: i32, x: i32) {
+                    ^ duplicate definitions of x found
+                    ~ second definition found here
+            ~ first definition found here
+        let _ = x;
     }
     "#;
     check_errors(src);
@@ -242,4 +255,152 @@ fn non_entry_point_main() {
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn call_type_variable_of_kind_any() {
+    // Regression for https://github.com/noir-lang/noir/issues/10719
+    let src = "
+        trait Foo {
+            type Bar;
+
+            fn bar(self) -> Self::Bar;
+        }
+
+        impl Foo for () {
+            type Bar = fn() -> fn() -> ();
+
+            fn bar(self) -> Self::Bar {
+                || {
+                    || {
+                        ()
+                    }
+                }
+            }
+        }
+
+        struct Baz<T> {
+            inner: T,
+        }
+
+        impl<T> Foo for Baz<T>
+        where
+            T: Foo,
+        {
+            type Bar = <T as Foo>::Bar;
+
+            fn bar(self) -> Self::Bar {
+                self.inner.bar()
+            }
+        }
+
+        fn main() {
+            let _: () = (Baz { inner: () }.bar()())();
+        }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_returning_empty_unit_array() {
+    let src = r#"
+    fn main() -> pub [(); 0] {
+                     ^^^^^^^ Invalid type found in the entry point to a program
+                     ~~~~~~~ Unit is not a valid entry point type
+        [(); 0]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_returning_non_empty_unit_array() {
+    let src = r#"
+    fn main() -> pub [(); 1] {
+                     ^^^^^^^ Invalid type found in the entry point to a program
+                     ~~~~~~~ Unit is not a valid entry point type
+        [()]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_error_on_returning_empty_array() {
+    let src = r#"
+    fn main() -> pub [u32; 0] {
+        []
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_error_on_returning_empty_array_with_empty_nested_array() {
+    let src = r#"
+    fn main() -> pub [[u32; 0]; 0] {
+        []
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_error_on_returning_non_empty_array_with_empty_nested_array() {
+    let src = r#"
+    fn main() -> pub [[u32; 0]; 1] {
+        [[]]
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_error_on_returning_empty_array_with_tuple_of_empty_arrays() {
+    let src = r#"
+    fn main() -> pub [([u32; 0], [u32; 0]); 0] {
+        []
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_taking_string_with_zero_length() {
+    let src = r#"
+    fn main(_s: str<0>) {
+                ^^^^^^ Invalid type found in the entry point to a program
+                ~~~~~~ Empty string is not a valid entry point type. Found: str<0>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_taking_string_with_non_eval_length() {
+    let src = r#"
+    fn main(_s: str<-1>) {
+                ^^^^^^^ Invalid type found in the entry point to a program
+                ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
+                    ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `numeric u32` which has a minimum size of `0`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_returning_string_with_non_eval_length() {
+    let src = r#"
+    unconstrained fn main() -> pub str<-1> {
+                                   ^^^^^^^ Invalid type found in the entry point to a program
+                                   ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
+                                       ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `numeric u32` which has a minimum size of `0`
+        negative_str()
+    }
+
+    #[oracle(negative_str)]
+    unconstrained fn negative_str() -> str<-1> {}
+                                           ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `numeric u32` which has a minimum size of `0`
+    "#;
+    check_errors(src);
 }

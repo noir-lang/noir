@@ -11,24 +11,21 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{
-    acir::ssa::Artifacts,
-    brillig::BrilligOptions,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation, PublicInputs},
+        circuit::{AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs},
         native_types::Witness,
     },
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::{
-    call_stack::CallStackId,
-    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+use noirc_artifacts::{
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
+    ssa::SsaReport,
 };
+use noirc_errors::call_stack::CallStackId;
 
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -87,9 +84,6 @@ pub struct SsaEvaluatorOptions {
 
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
-
-    /// Width of expressions to be used for ACIR
-    pub expression_width: ExpressionWidth,
 
     /// Dump the unoptimized SSA to the supplied path if it exists
     pub emit_ssa: Option<PathBuf>,
@@ -163,7 +157,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Dead Instruction Elimination",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
+        SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
@@ -342,7 +336,7 @@ pub fn optimize_ssa_builder_into_acir(
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(&brillig, &options.brillig_options)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
@@ -517,7 +511,7 @@ pub fn convert_generated_acir_into_circuit(
             OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-    let location_tree = generated_acir.call_stacks.to_location_tree();
+    let location_tree = LocationTree::from(&generated_acir.call_stacks);
     let mut debug_info = DebugInfo::new(
         brillig_locations,
         acir_location_map,

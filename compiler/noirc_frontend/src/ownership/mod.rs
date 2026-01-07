@@ -9,7 +9,7 @@
 //! count. These operations are equivalent on arrays. Cloning may be applied to any value and only
 //! increments the reference counts of any arrays contained within (but not behind references or
 //! inside nested arrays). This document also focuses on arrays but all reference count operations
-//! on arrays are also performed on slices.
+//! on arrays are also performed on vectors.
 //!
 //! Arrays in brillig have copy on write semantics which relies on us incrementing their
 //! reference counts when they are shared in multiple places. Note that while Noir has references,
@@ -239,7 +239,7 @@ impl Context {
 
             Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
-            Literal::Array(array) | Literal::Slice(array) => {
+            Literal::Array(array) | Literal::Vector(array) => {
                 for element in array.contents.iter_mut() {
                     self.handle_expression(element);
                 }
@@ -313,6 +313,12 @@ impl Context {
     }
 
     fn handle_match(&mut self, match_expr: &mut crate::monomorphization::ast::Match) {
+        // Note: We don't need to explicitly handle `Match::variable_to_match` here.
+        // The matched variable is just a LocalId reference to a variable that was assigned earlier.
+        // Cloning for that variable happens at its use sites (e.g., when passed to the enum
+        // constructor or used after the match), not at the match expression itself.
+        // The match will only destructure the value; it doesn't "use" the variable in a way that
+        // requires additional cloning beyond what the last-use analysis already handles.
         for case in &mut match_expr.cases {
             self.handle_expression(&mut case.branch);
         }
@@ -425,7 +431,7 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
         | Type::Function(..)
         | Type::Reference(..) => false,
 
-        Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
+        Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Vector(_) => true,
 
         Type::Tuple(elements) => elements.iter().any(contains_array_or_str_type),
     }

@@ -11,7 +11,7 @@ pub fn verify_signature(
 }
 
 #[foreign(ecdsa_secp256r1)]
-pub fn _verify_signature(
+fn _verify_signature(
     public_key_x: [u8; 32],
     public_key_y: [u8; 32],
     signature: [u8; 64],

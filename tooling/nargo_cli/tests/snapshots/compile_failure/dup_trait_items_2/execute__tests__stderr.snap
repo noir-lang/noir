@@ -18,4 +18,13 @@ error: Duplicate definitions of trait associated item with name SomeConst found
   │       --------- Second trait associated item found here
   │
 
-Aborting due to 1 previous error
+error: Duplicate definitions of trait associated item with name SomeConst found
+  ┌─ src/main.nr:2:7
+  │
+2 │   let SomeConst: u32;
+  │       --------- First trait associated item found here
+3 │   let SomeConst: Field;
+  │       --------- Second trait associated item found here
+  │
+
+Aborting due to 2 previous errors

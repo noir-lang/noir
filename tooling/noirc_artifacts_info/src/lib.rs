@@ -1,4 +1,3 @@
-use acvm::acir::circuit::ExpressionWidth;
 use iter_extended::vecmap;
 use noirc_artifacts::program::ProgramArtifact;
 use prettytable::{Row, row, table};
@@ -13,8 +12,6 @@ pub struct InfoReport {
 #[derive(Debug, Serialize)]
 pub struct ProgramInfo {
     pub package_name: String,
-    #[serde(skip)]
-    pub expression_width: Option<ExpressionWidth>,
     pub functions: Vec<FunctionInfo>,
     #[serde(skip)]
     pub unconstrained_functions_opcodes: usize,
@@ -23,16 +20,10 @@ pub struct ProgramInfo {
 
 impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
-        let expression_width = if let Some(expression_width) = program_info.expression_width {
-            format!("{expression_width:?}")
-        } else {
-            "N/A".to_string()
-        };
         let mut main = vecmap(program_info.functions, |function| {
             row![
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
-                format!("{}", expression_width),
                 Fc->format!("{}", function.opcodes),
                 Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
@@ -41,7 +32,6 @@ impl From<ProgramInfo> for Vec<Row> {
             row![
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
-                format!("N/A", ),
                 Fc->format!("N/A"),
                 Fc->format!("{}", function.opcodes),
             ]
@@ -59,7 +49,6 @@ pub struct FunctionInfo {
 pub fn count_opcodes_and_gates_in_program(
     compiled_program: ProgramArtifact,
     package_name: String,
-    expression_width: Option<ExpressionWidth>,
 ) -> ProgramInfo {
     let functions = compiled_program
         .bytecode
@@ -89,7 +78,6 @@ pub fn count_opcodes_and_gates_in_program(
 
     ProgramInfo {
         package_name,
-        expression_width,
         functions,
         unconstrained_functions_opcodes,
         unconstrained_functions: unconstrained_info,

@@ -7,6 +7,7 @@ use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::QuotedType;
 use crate::ast::DocComment;
@@ -25,7 +26,7 @@ use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
-use crate::Generics;
+use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
 use crate::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
@@ -244,6 +245,8 @@ pub struct NodeInterner {
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
+    pub(crate) pedantic_solving: bool,
+
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
@@ -294,6 +297,14 @@ pub struct NodeInterner {
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
     pub primitive_docs: HashMap<String, Vec<DocComment>>,
+
+    /// Tracks expressions that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored expressions.
+    pub(crate) exprs_with_errors: HashSet<ExprId>,
+
+    /// Tracks statements that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored statements.
+    pub(crate) stmts_with_errors: HashSet<StmtId>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -478,6 +489,7 @@ impl Default for NodeInterner {
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
+            pedantic_solving: false,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -488,6 +500,8 @@ impl Default for NodeInterner {
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
             primitive_docs: HashMap::default(),
+            exprs_with_errors: HashSet::default(),
+            stmts_with_errors: HashSet::default(),
         }
     }
 }
@@ -537,8 +551,8 @@ impl NodeInterner {
         &mut self,
         type_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
-        generics: Generics,
-        associated_types: Generics,
+        generics: ResolvedGenerics,
+        associated_types: ResolvedGenerics,
         associated_constant_ids: HashMap<String, DefinitionId>,
     ) {
         let new_trait = Trait {
@@ -569,7 +583,7 @@ impl NodeInterner {
         name: Ident,
         span: Span,
         attributes: Vec<SecondaryAttribute>,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
@@ -587,7 +601,7 @@ impl NodeInterner {
     pub fn push_type_alias(
         &mut self,
         typ: &UnresolvedTypeAlias,
-        generics: Generics,
+        generics: ResolvedGenerics,
     ) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
@@ -626,7 +640,7 @@ impl NodeInterner {
     }
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let value = self.traits.get_mut(&trait_id).unwrap();
+        let value = self.get_trait_mut(trait_id);
         f(value);
     }
 
@@ -639,7 +653,7 @@ impl NodeInterner {
         &mut self,
         type_id: TypeAliasId,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
@@ -1026,7 +1040,7 @@ impl NodeInterner {
             .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
-    /// Looks up a methods that apply to the given type but are defined in traits.
+    /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
@@ -1071,16 +1085,30 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
+    /// Attempts to retrieve the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.infix_operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn try_get_operator_trait_method(&self, operator: BinaryOpKind) -> Option<TraitItemId> {
+        let trait_id = *self.infix_operator_traits.get(&operator)?;
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        Some(TraitItemId { trait_id, item_id: self.function_definition_id(func_id) })
+    }
+
     /// Retrieves the trait id for a given binary operator.
     /// All binary operators correspond to a trait - although multiple may correspond
     /// to the same trait (such as `==` and `!=`).
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitItemId {
-        let trait_id = self.infix_operator_traits[&operator];
-        let the_trait = self.get_trait(trait_id);
-        let func_id = *the_trait.method_ids.values().next().unwrap();
-        TraitItemId { trait_id, item_id: self.function_definition_id(func_id) }
+        self.try_get_operator_trait_method(operator).unwrap_or_else(|| {
+            panic!(
+                "get_operator_trait_method: missing trait method: {operator:?}, {:?}",
+                self.infix_operator_traits
+            )
+        })
     }
 
     /// Retrieves the trait id for a given unary operator.
@@ -1468,7 +1496,7 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
-    Slice,
+    Vector,
     Bool,
     String,
     FmtString,
@@ -1486,7 +1514,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Slice(_) => Some(Slice),
+        Type::Vector(_) => Some(Vector),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(var) => {
             if var.is_integer() || var.is_integer_or_field() {

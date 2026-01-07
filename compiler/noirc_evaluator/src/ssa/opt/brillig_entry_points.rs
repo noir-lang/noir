@@ -98,7 +98,7 @@ impl Ssa {
         let brillig_entry_points =
             get_brillig_entry_points_with_reachability(&self.functions, self.main_id, &call_graph);
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
-        let (calls_to_update, mut new_functions_map) =
+        let (calls_to_update, new_functions_map) =
             build_calls_to_update(&mut self, functions_to_clone_map, &brillig_entry_points);
 
         // Now we want to actually rewrite the appropriate call sites
@@ -118,9 +118,8 @@ impl Ssa {
                 entry_point
             } else {
                 new_functions_map
-                    .entry(entry_point)
-                    .or_default()
-                    .get(&function_to_update)
+                    .get(&entry_point)
+                    .and_then(|m| m.get(&function_to_update))
                     .copied()
                     .unwrap_or(function_to_update)
             };
@@ -168,17 +167,19 @@ fn resolve_cloned_function_call_sites(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
 
-            let Some(new_func_id) = new_functions_map.get(func_id) else {
+            let Some(new_func_id) = new_functions_map.get(func_id).copied() else {
                 continue;
             };
-            let new_function_value_id = function.dfg.import_function(*new_func_id);
+
+            let arguments = arguments.to_vec();
+            let new_function_value_id = function.dfg.import_function(new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
         }
@@ -297,12 +298,12 @@ fn collect_callsites_to_rewrite(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
 
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
             let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
@@ -314,7 +315,7 @@ fn collect_callsites_to_rewrite(
                 function_to_update: function.id(),
                 instruction: instruction_id,
                 new_func_to_call: *new_id,
-                call_args: arguments,
+                call_args: arguments.to_vec(),
             };
             new_calls_to_update.insert(new_call);
         }

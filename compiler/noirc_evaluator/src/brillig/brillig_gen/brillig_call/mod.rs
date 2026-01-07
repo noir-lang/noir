@@ -1,5 +1,5 @@
 pub(super) mod brillig_black_box;
-pub(super) mod brillig_slice_ops;
+pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
 use acvm::brillig_vm::offsets;
@@ -37,16 +37,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
     ///
     /// # Panics
-    /// If there is a vector among the output variables _and_ it's followed by another array or vector:
+    /// If there is a vector among the output variables _and_ it's followed by another vector:
     /// when we allocate memory for a vector, we don't know its length, so it just points at the current
-    /// free memory pointer without increasing it; anything else that needs the free memory pointer would
-    /// risk pointing at the same memory region.
+    /// free memory pointer without increasing it; a second vector gets allocated at the same memory slot.
     fn allocate_external_call_results(
         &mut self,
         results: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Vec<BrilligVariable> {
         let mut variables = Vec::new();
+        let mut vector_allocated = None;
 
         for result in results {
             let result = *result;
@@ -72,18 +72,26 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                     variable
                 }
-                Type::Slice(_) => {
-                    // Not initializing the vector pointer to any particular value; it's output only.
-                    // The foreign call handler is expected to write the vector data to the free memory pointer,
-                    // storing its value back into this variable. The caller of this method will also generate
-                    // code to initialize the vector metadata after the foreign call has been handled.
-                    // The free memory pointer doesn't need adjustment in codegen, the VM takes care of it.
-                    self.variables.define_variable(
+                Type::Vector(_) => {
+                    let variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         result,
                         dfg,
-                    )
+                    );
+
+                    // Set its pointer to the free memory address, and expect the VM to write the data where the vector points to.
+                    // We can only support one vector output this way, otherwise the next vector would overwrite it.
+                    // The vector also has to be the last output of the function, there cannot be any arrays following it.
+                    assert!(
+                        vector_allocated.is_none(),
+                        "a previous vector has already been allocated at the free memory pointer"
+                    );
+                    // Remember the position of single vector we allocated; we will initialize it to the free memory pointer
+                    // after we have dealt with any other arrays in the output, otherwise they could overwrite it.
+                    vector_allocated = Some(variables.len());
+
+                    variable
                 }
                 _ => {
                     unreachable!("ICE: unsupported return type for black box call {typ:?}")
@@ -91,6 +99,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             };
             variables.push(variable);
         }
+
+        if let Some(idx) = vector_allocated {
+            let variable = &variables[idx];
+            let vector = variable.extract_vector();
+            self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+        }
+
         variables
     }
 
@@ -98,7 +113,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// # Panics
     /// - If the provided `typ` is not an array.
-    /// - If any slice types are encountered within the nested structure, since slices
+    /// - If any vector types are encountered within the nested structure, since vectors
     ///   require runtime size information and cannot be allocated statically here.
     fn allocate_foreign_call_result_array(&mut self, typ: &Type, array: BrilligArray) {
         let Type::Array(types, size) = typ else {
@@ -138,8 +153,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             inner_array.pointer,
                         );
                     }
-                    Type::Slice(_) => unreachable!(
-                        "ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
+                    Type::Vector(_) => unreachable!(
+                        "ICE: unsupported vector type in allocate_nested_array(), expects an array or a numeric type"
                     ),
                     _ => (),
                 }
@@ -169,14 +184,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
     }
 
-    /// Increase or decrease the slice length by 1.
+    /// Increase or decrease the vector length by 1.
     ///
-    /// Slices have a tuple structure (slice length, slice contents) to enable logic
-    /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
-    /// This method codegens an update to the slice length.
+    /// Vectors have a tuple structure (vector length, vector contents) to enable logic
+    /// that uses dynamic vector lengths (such as with merging vectors in the flattening pass).
+    /// This method codegens an update to the vector length.
     ///
-    /// The binary operation performed on the slice length is always an addition or subtraction of `1`.
-    /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
+    /// The binary operation performed on the vector length is always an addition or subtraction of `1`.
+    /// This is because the vector length holds the user length (length as displayed by a `.len()` call),
     /// and not a flattened length used internally to represent arrays of tuples.
     /// The length inside of `RegisterOrMemory::HeapVector` represents the entire flattened number
     /// of fields in the vector.
@@ -184,7 +199,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Note that when we subtract a value, we expect that there is a constraint in SSA
     /// to check that the length isn't already 0. We could add a constraint opcode here,
     /// but if it's in SSA, there is a chance it can be optimized out.
-    fn update_slice_length(
+    fn update_vector_length(
         &mut self,
         target_len: SingleAddrVariable,
         source_len: SingleAddrVariable,
@@ -218,21 +233,21 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Convert the SSA slice operations to brillig slice operations
-    fn convert_ssa_slice_intrinsic_call(
+    /// Convert the SSA vector operations to brillig vector operations
+    fn convert_ssa_vector_intrinsic_call(
         &mut self,
         dfg: &DataFlowGraph,
         intrinsic: &Value,
         instruction_id: InstructionId,
         arguments: &[ValueId],
     ) {
-        // Slice operations always look like `... = call slice_<op> source_len, source_vector, ...`
+        // Vector operations always look like `... = call vector_<op> source_len, source_vector, ...`
         let source_len = self.convert_ssa_value(arguments[0], dfg);
         let source_len = source_len.extract_single_addr();
 
-        let slice_id = arguments[1];
-        let element_size = dfg.type_of_value(slice_id).element_size();
-        let source_vector = self.convert_ssa_value(slice_id, dfg).extract_vector();
+        let vector_id = arguments[1];
+        let element_size = dfg.type_of_value(vector_id).element_size();
+        let source_vector = self.convert_ssa_value(vector_id, dfg).extract_vector();
 
         let results = dfg.instruction_results(instruction_id);
 
@@ -249,8 +264,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         };
 
         match intrinsic {
-            Value::Intrinsic(Intrinsic::SlicePushBack) => {
-                // target_len, target_slice = slice_push_back source_len, source_slice, ...elements
+            Value::Intrinsic(Intrinsic::VectorPushBack) => {
+                // target_len, target_vector = vector_push_back source_len, source_vector, ...elements
                 let target_len = get_target_len(self, 0);
                 let target_vector = get_target_vector(self, 1);
 
@@ -259,16 +274,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 });
 
                 // target_len = source_len + 1
-                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
+                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_push_back_operation(
+                self.vector_push_back_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     &item_values,
                 );
             }
-            Value::Intrinsic(Intrinsic::SlicePushFront) => {
+            Value::Intrinsic(Intrinsic::VectorPushFront) => {
                 let target_len = get_target_len(self, 0);
                 let target_vector = get_target_vector(self, 1);
 
@@ -276,16 +291,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
+                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_push_front_operation(
+                self.vector_push_front_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     &item_values,
                 );
             }
-            Value::Intrinsic(Intrinsic::SlicePopBack) => {
+            Value::Intrinsic(Intrinsic::VectorPopBack) => {
                 let target_len = get_target_len(self, 0);
                 let target_vector = get_target_vector(self, 1);
 
@@ -298,17 +313,17 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     )
                 });
 
-                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
+                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_pop_back_operation(
+                self.vector_pop_back_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     &pop_variables,
                 );
             }
-            Value::Intrinsic(Intrinsic::SlicePopFront) => {
-                // ...elements, target_len, target_vector = slice_pop_front len, vector
+            Value::Intrinsic(Intrinsic::VectorPopFront) => {
+                // ...elements, target_len, target_vector = vector_pop_front len, vector
                 let target_len = get_target_len(self, element_size);
                 let target_vector = get_target_vector(self, element_size + 1);
 
@@ -321,16 +336,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     )
                 });
 
-                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
+                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_pop_front_operation(
+                self.vector_pop_front_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     &pop_variables,
                 );
             }
-            Value::Intrinsic(Intrinsic::SliceInsert) => {
+            Value::Intrinsic(Intrinsic::VectorInsert) => {
                 let target_len = get_target_len(self, 0);
                 let target_vector = get_target_vector(self, 1);
 
@@ -352,11 +367,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
+                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_insert_operation(target_vector, source_vector, *converted_index, &items);
+                self.vector_insert_operation(
+                    target_vector,
+                    source_vector,
+                    *converted_index,
+                    &items,
+                );
             }
-            Value::Intrinsic(Intrinsic::SliceRemove) => {
+            Value::Intrinsic(Intrinsic::VectorRemove) => {
                 let target_len = get_target_len(self, 0);
                 let target_vector = get_target_vector(self, 1);
 
@@ -383,16 +403,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     )
                 });
 
-                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
+                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_remove_operation(
+                self.vector_remove_operation(
                     target_vector,
                     source_vector,
                     *converted_index,
                     &removed_items,
                 );
             }
-            _ => unreachable!("ICE: Slice operation not supported"),
+            _ => unreachable!("ICE: Vector operation not supported"),
         }
     }
 }

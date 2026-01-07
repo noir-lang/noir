@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -31,7 +31,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./target/release/nargo
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -57,7 +57,7 @@ jobs:
         run: nargo doc
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stdlib-docs
           path: ./noir_stdlib/target/docs
@@ -73,7 +73,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: gh-pages
 
@@ -81,7 +81,7 @@ jobs:
         run: rm -rf ./stdlib
 
       - name: Download stdlib docs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: stdlib-docs
           path: ./stdlib
@@ -96,5 +96,9 @@ jobs:
           # This could _potentially_ clash with pushing benchmarks to this branch at the same time.
           # In practice, this will complete much sooner than the benchmarks are generated.
           git add ./stdlib/*
-          git commit -m "update noirdoc"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "update noirdoc"
+            git push
+          fi

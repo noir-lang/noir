@@ -9,7 +9,7 @@ use crate::hir::type_check::TypeCheckError;
 use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
-use crate::{Generics, Type};
+use crate::{ResolvedGenerics, Type};
 
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, resolve_import};
@@ -97,7 +97,7 @@ pub struct UnresolvedTraitImpl {
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
-    pub resolved_generics: Generics,
+    pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
@@ -214,6 +214,18 @@ impl CompilationError {
         // and it'd lead to code duplication to add them. `CompilationError::is_error`
         // also isn't expected to be called too often.
         CustomDiagnostic::from(self).is_error()
+    }
+
+    pub(crate) fn is_expecting_other_error_error(&self) -> bool {
+        matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
+    }
+
+    pub(crate) fn should_be_filtered(&self) -> bool {
+        let CompilationError::InterpreterError(error) = self else {
+            return false;
+        };
+
+        error.should_be_filtered()
     }
 }
 
@@ -505,6 +517,9 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
+        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
         errors
     }
 

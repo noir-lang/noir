@@ -166,7 +166,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_literal_slice(&mut self, _: &ArrayLiteral, _: Span) -> bool {
+    fn visit_literal_vector(&mut self, _: &ArrayLiteral, _: Span) -> bool {
         true
     }
 
@@ -383,7 +383,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_slice_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+    fn visit_vector_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
         true
     }
 
@@ -1000,8 +1000,8 @@ impl Literal {
                     array_literal.accept(span, visitor);
                 }
             }
-            Literal::Slice(array_literal) => {
-                if visitor.visit_literal_slice(array_literal, span) {
+            Literal::Vector(array_literal) => {
+                if visitor.visit_literal_vector(array_literal, span) {
                     array_literal.accept(span, visitor);
                 }
             }
@@ -1425,8 +1425,8 @@ impl UnresolvedType {
                     unresolved_type.accept(visitor);
                 }
             }
-            UnresolvedTypeData::Slice(unresolved_type) => {
-                if visitor.visit_slice_type(unresolved_type, self.location.span) {
+            UnresolvedTypeData::Vector(unresolved_type) => {
+                if visitor.visit_vector_type(unresolved_type, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }

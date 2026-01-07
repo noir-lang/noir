@@ -182,13 +182,13 @@ impl<'f> Validator<'f> {
                 if !array_type.contains_an_array() {
                     panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
                 }
-                assert!(!array_type.is_nested_slice(), "ICE: Nested slice type is not supported");
+                assert!(!array_type.is_nested_vector(), "ICE: Nested vector type is not supported");
                 let instruction_results = dfg.instruction_results(instruction);
                 for result in instruction_results {
                     let return_type = dfg.type_of_value(*result);
                     assert!(
-                        !return_type.is_nested_slice(),
-                        "ICE: Nested slice type is not supported"
+                        !return_type.is_nested_vector(),
+                        "ICE: Nested vector type is not supported"
                     );
                 }
             }
@@ -219,17 +219,17 @@ impl<'f> Validator<'f> {
                         }
                         composite_type
                     }
-                    Type::Slice(composite_type) => {
+                    Type::Vector(composite_type) => {
                         if composite_type.is_empty() {
                             if !elements.is_empty() {
                                 panic!(
-                                    "MakeArray slice has non-zero {} elements but composite type is empty",
+                                    "MakeArray vector has non-zero {} elements but composite type is empty",
                                     elements.len(),
                                 );
                             }
                         } else if elements.len() % composite_type.len() != 0 {
                             panic!(
-                                "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
+                                "MakeArray vector has {} elements but composite type has {} types which don't divide the number of elements",
                                 elements.len(),
                                 composite_type.len()
                             );
@@ -237,7 +237,7 @@ impl<'f> Validator<'f> {
                         composite_type
                     }
                     _ => {
-                        panic!("MakeArray must return an array or slice type, not {result_type}");
+                        panic!("MakeArray must return an array or vector type, not {result_type}");
                     }
                 };
 
@@ -266,6 +266,10 @@ impl<'f> Validator<'f> {
                         address_value_type, value_type
                     );
                 }
+            }
+            Instruction::EnableSideEffectsIf { condition } => {
+                let condition_type = dfg.type_of_value(*condition);
+                assert_u1(&condition_type, "enable_side_effects condition");
             }
             _ => (),
         }
@@ -378,22 +382,23 @@ impl<'f> Validator<'f> {
                     "ArrayAsStrUnchecked array length must match string length"
                 );
             }
-            Intrinsic::AsSlice => {
-                // fn as_slice(self: [T; N]) -> [T] {}
-                let argument_type = self.assert_one_argument(arguments, "AsSlice");
-                let (array_types, _array_length) = assert_array(&argument_type, "AsSlice argument");
+            Intrinsic::AsVector => {
+                // fn as_vector(self: [T; N]) -> [T] {}
+                let argument_type = self.assert_one_argument(arguments, "AsVector");
+                let (array_types, _array_length) =
+                    assert_array(&argument_type, "AsVector argument");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 2, "Expected two results for AsSlice",);
+                assert_eq!(results.len(), 2, "Expected two results for AsVector",);
 
                 let length_type = self.function.dfg.type_of_value(results[0]);
-                assert_u32(&length_type, "AsSlice length");
+                assert_u32(&length_type, "AsVector length");
 
-                let slice_type = self.function.dfg.type_of_value(results[1]);
-                let slice_types = assert_slice(&slice_type, "AsSlice return");
+                let vector_type = self.function.dfg.type_of_value(results[1]);
+                let vector_types = assert_vector(&vector_type, "AsVector return");
                 assert_eq!(
-                    array_types, slice_types,
-                    "AsSlice input array element types must match output slice element types"
+                    array_types, vector_types,
+                    "AsVector input array element types must match output vector element types"
                 );
             }
             Intrinsic::AssertConstant => {
@@ -409,117 +414,118 @@ impl<'f> Validator<'f> {
 
                 self.assert_no_results(instruction, "StaticAssert");
             }
-            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront => {
+            Intrinsic::VectorPushBack | Intrinsic::VectorPushFront => {
                 // fn push_back(self: [T], elem: T) -> Self {}
                 // fn push_front(self: [T], elem: T) -> Self {}
-                assert!(arguments.len() >= 2, "SlicePush must have at least two arguments");
+                assert!(arguments.len() >= 2, "VectorPush must have at least two arguments");
 
-                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
-                assert_u32(&slice_length_type, "SlicePush self length");
+                let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&vector_length_type, "VectorPush self length");
 
-                let slice_type = self.function.dfg.type_of_value(arguments[1]);
-                let slice_element_types = assert_slice(&slice_type, "SlicePush self slice");
+                let vector_type = self.function.dfg.type_of_value(arguments[1]);
+                let vector_element_types = assert_vector(&vector_type, "VectorPush self vector");
 
-                let (returned_slice_length_type, returned_slice_type) =
-                    self.assert_two_results(instruction, "SlicePush");
-                assert_u32(&returned_slice_length_type, "SlicePush returned length");
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SlicePush returned slice");
+                let (returned_vector_length_type, returned_vector_type) =
+                    self.assert_two_results(instruction, "VectorPush");
+                assert_u32(&returned_vector_length_type, "VectorPush returned length");
+                let returned_vector_element_types =
+                    assert_vector(&returned_vector_type, "VectorPush returned vector");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SlicePush self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    "VectorPush self vector element types must match returned vector element types"
                 );
             }
-            Intrinsic::SlicePopBack => {
+            Intrinsic::VectorPopBack => {
                 // fn pop_back(self: [T]) -> (Self, T) {}
-                let (slice_length_type, slice_type) =
-                    self.assert_two_arguments(arguments, "SlicePopBack");
-                assert_u32(&slice_length_type, "SlicePopBack self length");
-                let slice_element_types = assert_slice(&slice_type, "SlicePopBack self slice");
+                let (vector_length_type, vector_type) =
+                    self.assert_two_arguments(arguments, "VectorPopBack");
+                assert_u32(&vector_length_type, "VectorPopBack self length");
+                let vector_element_types = assert_vector(&vector_type, "VectorPopBack self vector");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert!(results.len() >= 2, "Expected at least two results for SlicePopBack");
+                assert!(results.len() >= 2, "Expected at least two results for VectorPopBack");
 
-                let returned_slice_length_type = self.function.dfg.type_of_value(results[0]);
-                assert_u32(&returned_slice_length_type, "SlicePopBack returned length");
+                let returned_vector_length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&returned_vector_length_type, "VectorPopBack returned length");
 
-                let returned_slice_type = self.function.dfg.type_of_value(results[1]);
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SlicePopBack returned slice");
+                let returned_vector_type = self.function.dfg.type_of_value(results[1]);
+                let returned_vector_element_types =
+                    assert_vector(&returned_vector_type, "VectorPopBack returned vector");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SlicePopBack self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    "VectorPopBack self vector element types must match returned vector element types"
                 );
             }
-            Intrinsic::SlicePopFront => {
+            Intrinsic::VectorPopFront => {
                 // fn pop_front(self: [T]) -> (T, Self) {}
-                let (slice_length_type, slice_type) =
-                    self.assert_two_arguments(arguments, "SlicePopFront");
-                assert_u32(&slice_length_type, "SlicePopFront self length");
-                let slice_element_types = assert_slice(&slice_type, "SlicePopFront self slice");
+                let (vector_length_type, vector_type) =
+                    self.assert_two_arguments(arguments, "VectorPopFront");
+                assert_u32(&vector_length_type, "VectorPopFront self length");
+                let vector_element_types =
+                    assert_vector(&vector_type, "VectorPopFront self vector");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert!(results.len() >= 2, "Expected at least two results for SlicePopFront");
+                assert!(results.len() >= 2, "Expected at least two results for VectorPopFront");
 
-                let returned_slice_type =
+                let returned_vector_type =
                     self.function.dfg.type_of_value(results[results.len() - 1]);
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SlicePopFront returned slice");
+                let returned_vector_element_types =
+                    assert_vector(&returned_vector_type, "VectorPopFront returned vector");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SlicePopFront self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    "VectorPopFront self vector element types must match returned vector element types"
                 );
 
-                let returned_slice_length_type =
+                let returned_vector_length_type =
                     self.function.dfg.type_of_value(results[results.len() - 2]);
-                assert_u32(&returned_slice_length_type, "SlicePopFront returned length");
+                assert_u32(&returned_vector_length_type, "VectorPopFront returned length");
             }
-            Intrinsic::SliceInsert => {
+            Intrinsic::VectorInsert => {
                 // fn insert(self: [T], index: u32, elem: T) -> Self {}
-                assert!(arguments.len() >= 3, "SliceInsert must have at least three arguments");
+                assert!(arguments.len() >= 3, "VectorInsert must have at least three arguments");
 
-                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
-                assert_u32(&slice_length_type, "SliceInsert self length");
+                let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&vector_length_type, "VectorInsert self length");
 
-                let slice_type = self.function.dfg.type_of_value(arguments[1]);
-                let slice_element_types = assert_slice(&slice_type, "SliceInsert self slice");
+                let vector_type = self.function.dfg.type_of_value(arguments[1]);
+                let vector_element_types = assert_vector(&vector_type, "VectorInsert self vector");
 
                 let index_type = self.function.dfg.type_of_value(arguments[2]);
-                assert_u32(&index_type, "SliceInsert index");
+                assert_u32(&index_type, "VectorInsert index");
 
-                let (returned_slice_length_type, returned_slice_type) =
-                    self.assert_two_results(instruction, "SliceInsert");
-                assert_u32(&returned_slice_length_type, "SliceInsert returned length");
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SliceInsert returned slice");
+                let (returned_vector_length_type, returned_vector_type) =
+                    self.assert_two_results(instruction, "VectorInsert");
+                assert_u32(&returned_vector_length_type, "VectorInsert returned length");
+                let returned_vector_element_types =
+                    assert_vector(&returned_vector_type, "VectorInsert returned vector");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SliceInsert self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    "VectorInsert self vector element types must match returned vector element types"
                 );
             }
-            Intrinsic::SliceRemove => {
+            Intrinsic::VectorRemove => {
                 // fn remove(self: [T], index: u32) -> (Self, T) {}
-                let (slice_length_type, slice_type, index_type) =
-                    self.assert_three_arguments(arguments, "SliceRemove");
+                let (vector_length_type, vector_type, index_type) =
+                    self.assert_three_arguments(arguments, "VectorRemove");
 
-                assert_u32(&slice_length_type, "SliceRemove self length");
+                assert_u32(&vector_length_type, "VectorRemove self length");
 
-                let slice_element_types = assert_slice(&slice_type, "SliceRemove self slice");
+                let vector_element_types = assert_vector(&vector_type, "VectorRemove self vector");
 
-                assert_u32(&index_type, "SliceRemove index");
+                assert_u32(&index_type, "VectorRemove index");
 
                 let results = self.function.dfg.instruction_results(instruction);
-                assert!(results.len() >= 2, "Expected at least two results for SliceRemove");
+                assert!(results.len() >= 2, "Expected at least two results for VectorRemove");
 
-                let returned_slice_length_type = self.function.dfg.type_of_value(results[0]);
-                assert_u32(&returned_slice_length_type, "SliceRemove returned length");
+                let returned_vector_length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&returned_vector_length_type, "VectorRemove returned length");
 
-                let returned_slice_type = self.function.dfg.type_of_value(results[1]);
-                let returned_slice_element_types =
-                    assert_slice(&returned_slice_type, "SliceRemove returned slice");
+                let returned_vector_type = self.function.dfg.type_of_value(results[1]);
+                let returned_vector_element_types =
+                    assert_vector(&returned_vector_type, "VectorRemove returned vector");
                 assert_eq!(
-                    slice_element_types, returned_slice_element_types,
-                    "SliceRemove self slice element types must match returned slice element types"
+                    vector_element_types, returned_vector_element_types,
+                    "VectorRemove self vector element types must match returned vector element types"
                 );
             }
             Intrinsic::ApplyRangeConstraint => {
@@ -602,15 +608,15 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "ArrayRefCount");
                 assert_u32(&result_type, "ArrayRefCount result");
             }
-            Intrinsic::SliceRefCount => {
-                // fn slice_refcount<T>(slice: [T]) -> u32 {}
-                let (slice_length_type, slice_type) =
-                    self.assert_two_arguments(arguments, "SliceRefCount");
-                assert_u32(&slice_length_type, "SliceRefCount length");
-                assert_slice(&slice_type, "SliceRefCount slice");
+            Intrinsic::VectorRefCount => {
+                // fn vector_refcount<T>(vector: [T]) -> u32 {}
+                let (vector_length_type, vector_type) =
+                    self.assert_two_arguments(arguments, "VectorRefCount");
+                assert_u32(&vector_length_type, "VectorRefCount length");
+                assert_vector(&vector_type, "VectorRefCount vector");
 
-                let result_type = self.assert_one_result(instruction, "SliceRefCount");
-                assert_u32(&result_type, "SliceRefCount result");
+                let result_type = self.assert_one_result(instruction, "VectorRefCount");
+                assert_u32(&result_type, "VectorRefCount result");
             }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
@@ -906,16 +912,75 @@ impl<'f> Validator<'f> {
         (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
     }
 
-    /// Validates that acir functions are not called from unconstrained code.
+    /// Validates that ACIR functions are not called from unconstrained code.
     fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
         if self.function.runtime().is_brillig() {
             if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
                 if let Value::Function(func_id) = &self.function.dfg[*func] {
                     let called_function = &self.ssa.functions[func_id];
                     if called_function.runtime().is_acir() {
-                        panic!("Call to acir function {} from unconstrained code", func_id);
+                        panic!(
+                            "Call to ACIR function '{} {}' from unconstrained '{} {}'",
+                            called_function.name(),
+                            called_function.id(),
+                            self.function.name(),
+                            self.function.id(),
+                        );
                     }
                 }
+            }
+        }
+    }
+
+    /// Check the inputs and outputs of function calls going from ACIR to Brillig:
+    /// * cannot pass references from constrained to unconstrained code
+    /// * cannot return functions
+    /// * cannot call oracles directly
+    fn check_calls_in_constrained(&self, instruction: InstructionId) {
+        if !self.function.runtime().is_acir() {
+            return;
+        }
+        let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
+            return;
+        };
+        let callee_id = match &self.function.dfg[*func] {
+            Value::Function(func_id) => func_id,
+            Value::ForeignFunction(oracle) => {
+                panic!(
+                    "Trying to call foreign function '{oracle}' from ACIR function '{} {}'",
+                    self.function.name(),
+                    self.function.id()
+                );
+            }
+            _ => return,
+        };
+        let called_function = &self.ssa.functions[callee_id];
+        if called_function.runtime().is_acir() {
+            return;
+        }
+        for arg_id in arguments {
+            let typ = self.function.dfg.type_of_value(*arg_id);
+            if typ.contains_reference() {
+                // If we don't panic here, we would have a different, more obscure panic later on.
+                panic!(
+                    "Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}",
+                    self.function.name(),
+                    self.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
+            }
+        }
+        for result_id in self.function.dfg.instruction_results(instruction) {
+            let typ = self.function.dfg.type_of_value(*result_id);
+            if typ.contains_function() {
+                panic!(
+                    "Trying to return a function value to ACIR function '{} {}' from unconstrained '{} {}' in {result_id}: {typ}",
+                    self.function.name(),
+                    self.function.id(),
+                    called_function.name(),
+                    called_function.id()
+                )
             }
         }
     }
@@ -958,8 +1023,16 @@ impl<'f> Validator<'f> {
             TerminatorInstruction::Jmp { destination, .. } => {
                 assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
             }
-
-            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => (),
+            TerminatorInstruction::Return { return_values, .. } => {
+                if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
+                    assert_eq!(
+                        *return_values,
+                        vec![return_data_id],
+                        "Databus return_data does not match return terminator"
+                    );
+                }
+            }
+            TerminatorInstruction::Unreachable { .. } => (),
         }
     }
 
@@ -972,6 +1045,7 @@ impl<'f> Validator<'f> {
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
+                self.check_calls_in_constrained(*instruction);
             }
             self.validate_block_terminator(block);
         }
@@ -1021,9 +1095,9 @@ fn assert_u64(typ: &Type, object: &str) {
     }
 }
 
-fn assert_slice<'a>(typ: &'a Type, object: &str) -> &'a Arc<Vec<Type>> {
-    let Type::Slice(elements) = typ else {
-        panic!("{object} must be a slice");
+fn assert_vector<'a>(typ: &'a Type, object: &str) -> &'a Arc<Vec<Type>> {
+    let Type::Vector(elements) = typ else {
+        panic!("{object} must be a vector");
     };
     elements
 }
@@ -1537,9 +1611,9 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
+        expected = "MakeArray vector has 3 elements but composite type has 2 types which don't divide the number of elements"
     )]
-    fn make_array_slice_returns_incorrect_length() {
+    fn make_array_vector_returns_incorrect_length() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -1551,7 +1625,7 @@ mod tests {
     }
 
     #[test]
-    fn make_array_slice_empty_composite_type() {
+    fn make_array_vector_empty_composite_type() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -1644,7 +1718,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Call to acir function f1 from unconstrained code")]
+    #[should_panic(expected = "Call to ACIR function 'foo f1' from unconstrained 'main f0'")]
     fn disallows_calling_acir_from_brillig() {
         let src = "
         brillig(inline) fn main f0 {
@@ -1657,6 +1731,70 @@ mod tests {
             v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
             v5 = array_get v4, index v0 -> Field
             return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to call foreign function 'oracle_call' from ACIR function 'main f0'"
+    )]
+    fn disallows_calling_an_oracle_from_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call oracle_call()
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &mut u32"
+    )]
+    fn disallows_passing_refs_from_acir_to_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Trying to return a function value to ACIR function 'main f0' from unconstrained 'foo f1' in v2: function"
+    )]
+    fn disallows_returning_functions_from_brillig_to_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1, v2 = call f1() -> (function, function)
+            v3 = call v1(v0) -> u32
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return f2, f3
+        }
+        acir(inline) fn identity f2 {
+          b0(v0: u32):
+            return v0
+        }
+        brillig(inline) fn identity f3 {
+          b0(v0: u32):
+            return v0
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
@@ -1681,8 +1819,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "AsSlice argument must be an array")]
-    fn as_slice_length_on_slice_type() {
+    #[should_panic(expected = "AsVector argument must be an array")]
+    fn as_vector_length_on_vector_type() {
         let src = "
         acir(inline) fn main f0 {
             b0():
@@ -1693,7 +1831,7 @@ mod tests {
 
         acir(inline) fn foo f1 {
             b0(v0: [Field]):
-              v2, v3 = call as_slice(v0) -> (u32, [Field])
+              v2, v3 = call as_vector(v0) -> (u32, [Field])
               return v2
         }
         ";
@@ -1701,12 +1839,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "AsSlice argument must be an array")]
-    fn as_slice_length_on_numeric_type() {
+    #[should_panic(expected = "AsVector argument must be an array")]
+    fn as_vector_length_on_numeric_type() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             return v2
         }
         ";
@@ -1715,13 +1853,13 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "assertion `left == right` failed: Expected AsSlice to have 1 arguments, got 0\n  left: 0\n right: 1"
+        expected = "assertion `left == right` failed: Expected AsVector to have 1 arguments, got 0\n  left: 0\n right: 1"
     )]
-    fn as_slice_wrong_number_of_arguments() {
+    fn as_vector_wrong_number_of_arguments() {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v1, v2 = call as_slice() -> (u32, [Field])
+            v1, v2 = call as_vector() -> (u32, [Field])
             return v1
         }
         ";
@@ -1749,6 +1887,50 @@ mod tests {
             v2 = array_get v0, index v1 -> u32
             return v2
         }";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn return_data_matches_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Databus return_data does not match return terminator")]
+    fn return_data_does_not_match_return_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            return v0, v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_return_data_does_with_unreachable_terminator() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          return_data: v4
+          b0(v0: u32, v1: u64):
+            v4 = make_array [Field 0, Field 0] : [Field; 2]
+            unreachable
+        }
+        ";
         let _ = Ssa::from_str(src).unwrap();
     }
 
@@ -1803,5 +1985,18 @@ mod tests {
         let ssa = builder.finish();
 
         Validator::new(&ssa.functions[&main_id], &ssa).run();
+    }
+
+    #[test]
+    #[should_panic(expected = "enable_side_effects condition must be u1, not u32")]
+    fn enable_side_effects_with_non_bool() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u32):
+            enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 }
