@@ -701,8 +701,7 @@ impl<'f> LoopInvariantContext<'f> {
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
-            assert!(!returns_array);
-            return (true, false);
+            return (true, returns_array);
         }
 
         match can_be_hoisted(&instruction, dfg) {
@@ -3657,7 +3656,7 @@ mod control_dependence {
             return u8 7, v4
         }
         "#;
-        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         let ssa_string = ssa.to_string();
         assert!(ssa_string.contains("inc_rc"), "failed on call f1() -> (u8, [u8; 4])");
