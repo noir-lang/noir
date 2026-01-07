@@ -5,9 +5,10 @@ pub mod brillig;
 pub mod opcodes;
 
 use crate::{
+    SerializationFormat,
     circuit::opcodes::display_opcode,
     native_types::{Expression, Witness},
-    serialization::{deserialize_any_format, serialize_with_format_from_env},
+    serialization::{self, deserialize_any_format, serialize_with_format},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -266,24 +267,30 @@ impl<F: AcirField> Circuit<F> {
 }
 
 impl<F: Serialize + AcirField> Program<F> {
-    /// Serialize and compress the [Program] into bytes.
-    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = serialize_with_format_from_env(self)?;
-
+    /// Compress a serialized [Program].
+    fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
+        let mut compressed: Vec<u8> = Vec::new();
         // Compress the data, which should help with formats that uses field names.
-        let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
+        let mut encoder = flate2::write::GzEncoder::new(&mut compressed, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
-        Ok(())
+        Ok(compressed)
     }
 
+    /// Serialize and compress a [Program] into bytes, using the given format.
+    pub fn serialize_program_with_format(program: &Self, format: serialization::Format) -> Vec<u8> {
+        let program_bytes =
+            serialize_with_format(program, format).expect("expected circuit to be serializable");
+        Self::compress(program_bytes).expect("expected circuit to compress")
+    }
+
+    /// Serialize and compress a [Program] into bytes, using the format from the environment, or the default format.
     pub fn serialize_program(program: &Self) -> Vec<u8> {
-        let mut program_bytes: Vec<u8> = Vec::new();
-        program.write(&mut program_bytes).expect("expected circuit to be serializable");
-        program_bytes
+        let format = SerializationFormat::from_env().expect("invalid format");
+        Self::serialize_program_with_format(program, format.unwrap_or_default())
     }
 
-    /// Serialize and base64 encode program
+    /// Serialize, compress then base64 encode a [Program], using the format from the environment, or the default format,
     pub fn serialize_program_base64<S>(program: &Self, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

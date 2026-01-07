@@ -15,7 +15,7 @@
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.13.10",
     "typescript": "^5.8.3",
-    "vite": "^7.0.6",
+    "vite": "^7.3.0",
     "vite-plugin-node-polyfills": "0.24.0"
   }
 }
