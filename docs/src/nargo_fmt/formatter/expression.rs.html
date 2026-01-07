@@ -2815,7 +2815,7 @@
 
         group.text(<span class="self">self</span>.chunk(|formatter| {
             <span class="kw">if </span>is_vector {
-                formatter.write_token(Token::VectorStart);
+                formatter.write_token(Token::At);
             }
             formatter.write_left_bracket();
         }));
@@ -4096,8 +4096,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_standard_vector() {
-        <span class="kw">let </span>src = <span class="string">"global x = &amp; [ 1 , 2 , 3 , ] ;"</span>;
-        <span class="kw">let </span>expected = <span class="string">"global x = &amp;[1, 2, 3];\n"</span>;
+        <span class="kw">let </span>src = <span class="string">"global x = @ [ 1 , 2 , 3 , ] ;"</span>;
+        <span class="kw">let </span>expected = <span class="string">"global x = @[1, 2, 3];\n"</span>;
         assert_format(src, expected);
     }
 

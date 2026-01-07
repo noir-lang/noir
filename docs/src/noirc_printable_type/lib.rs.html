@@ -949,7 +949,7 @@
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             };
             <span class="kw">if </span><span class="kw-2">*</span>is_vector {
-                output.push(<span class="string">'&amp;'</span>);
+                output.push(<span class="string">'@'</span>);
             }
             output.push(<span class="string">'['</span>);
             <span class="kw">let </span><span class="kw-2">mut </span>values = array_elements.iter().peekable();

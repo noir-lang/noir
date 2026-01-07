@@ -1690,7 +1690,7 @@
                 <span class="self">self</span>.push(<span class="string">']'</span>);
             }
             HirLiteral::Vector(hir_array_literal) =&gt; {
-                <span class="self">self</span>.push_str(<span class="string">"&amp;["</span>);
+                <span class="self">self</span>.push_str(<span class="string">"@["</span>);
                 <span class="self">self</span>.show_hir_array_literal(hir_array_literal);
                 <span class="self">self</span>.push(<span class="string">']'</span>);
             }

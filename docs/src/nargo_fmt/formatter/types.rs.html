@@ -424,8 +424,8 @@
                     Token::Ampersand =&gt; {
                         <span class="self">self</span>.write_token(Token::Ampersand);
                     }
-                    Token::VectorStart =&gt; {
-                        <span class="self">self</span>.write_token(Token::VectorStart);
+                    Token::DeprecatedVectorStart =&gt; {
+                        <span class="self">self</span>.write_token(Token::DeprecatedVectorStart);
                     }
                     <span class="kw">_ </span>=&gt; {
                         <span class="macro">panic!</span>(<span class="string">"Expected Ampersand or VectorStart, found {:?}"</span>, <span class="self">self</span>.token);

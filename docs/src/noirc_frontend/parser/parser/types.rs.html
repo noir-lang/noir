@@ -829,7 +829,7 @@
         }
 
         <span class="comment">// The `&amp;` may be lexed as a vector start if this is an array or vector type
-        </span><span class="kw">if </span><span class="self">self</span>.eat(Token::Ampersand) || <span class="self">self</span>.eat(Token::VectorStart) {
+        </span><span class="kw">if </span><span class="self">self</span>.eat(Token::Ampersand) || <span class="self">self</span>.eat(Token::DeprecatedVectorStart) {
             <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
 
             <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Reference(

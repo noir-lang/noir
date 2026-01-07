@@ -1014,7 +1014,8 @@
 <a href="#1013" id="1013">1013</a>
 <a href="#1014" id="1014">1014</a>
 <a href="#1015" id="1015">1015</a>
-<a href="#1016" id="1016">1016</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1301,7 +1302,7 @@
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::VectorStart
+            | Token::DeprecatedVectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd =&gt; {
@@ -1320,6 +1321,7 @@
             | Token::Pound
             | Token::Pipe
             | Token::Bang
+            | Token::At
             | Token::DollarSign =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"{token}"</span>)
             }
@@ -1484,7 +1486,7 @@
             }
             Value::Vector(values, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>values = vecmap(values, |value| value.display(<span class="self">self</span>.interner).to_string());
-                <span class="macro">write!</span>(f, <span class="string">"&amp;[{}]"</span>, values.join(<span class="string">", "</span>))
+                <span class="macro">write!</span>(f, <span class="string">"@[{}]"</span>, values.join(<span class="string">", "</span>))
             }
             Value::Quoted(tokens) =&gt; display_quoted(tokens, <span class="number">0</span>, <span class="self">self</span>.interner, f),
             Value::TypeDefinition(id) =&gt; {

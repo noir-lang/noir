@@ -963,7 +963,7 @@
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }
             Literal::Vector(array) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"&amp;["</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"@["</span>)<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_comma_separated(<span class="kw-2">&amp;</span>array.contents, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }

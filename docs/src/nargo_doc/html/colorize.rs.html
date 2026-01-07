@@ -283,7 +283,8 @@
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
 <a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     lexer::Lexer,
     token::{FmtStrFragment, LocatedToken, Token},
 };
@@ -438,7 +439,8 @@
         | Token::Slash
         | Token::Percent
         | Token::Ampersand
-        | Token::VectorStart
+        | Token::DeprecatedVectorStart
+        | Token::At
         | Token::Caret
         | Token::ShiftLeft
         | Token::ShiftRight

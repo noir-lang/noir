@@ -2299,7 +2299,9 @@
 <a href="#2298" id="2298">2298</a>
 <a href="#2299" id="2299">2299</a>
 <a href="#2300" id="2300">2300</a>
-<a href="#2301" id="2301">2301</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2301" id="2301">2301</a>
+<a href="#2302" id="2302">2302</a>
+<a href="#2303" id="2303">2303</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -3201,9 +3203,11 @@
         <span class="prelude-val">Some</span>(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    <span class="doccomment">/// VectorExpression = '&amp;' ArrayLiteral
+    <span class="doccomment">/// VectorExpression = '@' ArrayLiteral
     </span><span class="kw">fn </span>parse_vector_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteralOrError&gt; {
-        <span class="kw">if </span>!(<span class="self">self</span>.at(Token::VectorStart) &amp;&amp; <span class="self">self</span>.next_is(Token::LeftBracket)) {
+        <span class="kw">if </span>!((<span class="self">self</span>.at(Token::At) || <span class="self">self</span>.at(Token::DeprecatedVectorStart))
+            &amp;&amp; <span class="self">self</span>.next_is(Token::LeftBracket))
+        {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
@@ -3758,7 +3762,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_empty_vector_expression() {
-        <span class="kw">let </span>src = <span class="string">"&amp;[]"</span>;
+        <span class="kw">let </span>src = <span class="string">"@[]"</span>;
         <span class="kw">let </span>expr = parse_expression_no_errors(src);
         <span class="kw">let </span>ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         <span class="kw">else </span>{
