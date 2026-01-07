@@ -229,7 +229,6 @@ fn pure_builtin_args_do_not_get_cloned() {
     brillig(inline) fn main f0 {
       b0():
         v2 = make_array [u32 1, u32 2] : [u32; 2]
-        inc_rc v2
         v3 = make_array [u32 1, u32 2] : [u32]
         v4 = make_array [u32 1, u32 2] : [u32]
         return u32 3
