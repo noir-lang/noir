@@ -22,7 +22,7 @@ fn last_use_in_if_branches() {
     fn eq(lhs: [Field; 2], rhs: [Field; 2]) -> bool {
         (lhs[0] == rhs[0]) & (lhs[1] == rhs[1])
     }
-    
+
     fn len(arr: [Field; 2]) -> u32 {
         2
     }

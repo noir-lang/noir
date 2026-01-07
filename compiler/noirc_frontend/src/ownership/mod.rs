@@ -168,6 +168,10 @@ impl Context {
         }
     }
 
+    /// Handle an [Expression::ExtractTupleField] by moving the cloning to limit its scope to the
+    /// innermost item it needs to be applied to.
+    ///
+    /// Panics if called on a different kind of expression.
     fn handle_extract_expression(&mut self, expr: &mut Expression) {
         let Expression::ExtractTupleField(tuple, index) = expr else {
             panic!("handle_extract_expression given non-extract expression {expr}");
@@ -189,6 +193,7 @@ impl Context {
 
     /// Traverse an expression comprised of only identifiers, tuple field extractions, and
     /// dereferences returning whether we should clone the result and the type of that result.
+    ///
     /// Returns None if a different expression variant was found.
     fn handle_extract_expression_rec(&mut self, expr: &mut Expression) -> Option<(bool, Type)> {
         match expr {
@@ -427,6 +432,8 @@ fn clone_expr(expr: &mut Expression) {
     *expr = Expression::Clone(Box::new(old_expr));
 }
 
+/// Returns `true` if the type contains an `Array`, `Vector` or `String`,
+/// directly or as part of a `Tuple`, but _not_ through a reference.
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {
         Type::Field
@@ -442,6 +449,9 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
     }
 }
 
+/// Returns the element types of a [Type::Tuple], or a reference to a tuple.
+///
+/// Returns `None` for any other type.
 fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
         Type::Tuple(elements) => Some(elements),
