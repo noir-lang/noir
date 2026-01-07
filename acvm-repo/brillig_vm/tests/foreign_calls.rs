@@ -609,11 +609,11 @@ fn foreign_call_opcode_nested_arrays_and_vectors_input() {
             destination_value_types: vec![HeapValueType::field()],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: outer_array.len(),
+                size: outer_array.len(), // This is the flattened array length
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: input_array_value_types,
-                size: outer_array.len(),
+                size: 2, // This is the non-flattened array length
             }],
         },
     ])
