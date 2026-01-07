@@ -429,7 +429,7 @@ fn clone_expr(expr: &mut Expression) {
     *expr = Expression::Clone(Box::new(old_expr));
 }
 
-/// Returns `true` if the type contains an `Array`, `Vector` or `String`,
+/// Returns `true` if the type contains an `Array`, `Vector`, `String` or `FmtString`,
 /// directly or as part of a `Tuple`, but _not_ through a reference.
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {

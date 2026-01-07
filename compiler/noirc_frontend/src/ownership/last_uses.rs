@@ -1,6 +1,5 @@
 //! This module contains the last use analysis pass which is run on each function before
-//! the ownership pass when the experimental ownership scheme is enabled. This pass does
-//! not run without this experimental flag - and if it did its results would go unused.
+//! the ownership pass.
 //!
 //! The purpose of this pass is to find which instance of a variable is the variable's
 //! last use. Note that a variable may have multiple last uses. This can happen if the
@@ -110,7 +109,7 @@ struct LastUseContext {
 
     next_id: u32,
 
-    /// Stores the location of each variable's last use
+    /// Stores the location of each variable's last use.
     ///
     /// Map from each local variable to the last instance of that variable. Separate uses of
     /// the same variable are differentiated by that identifier's `IdentId` which is always
