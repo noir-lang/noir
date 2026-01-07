@@ -663,7 +663,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     | FunctionAttributeKind::FuzzingHarness(..)
                     | FunctionAttributeKind::Fold
                     | FunctionAttributeKind::NoPredicates
-                    | FunctionAttributeKind::InlineAlways => {
+                    | FunctionAttributeKind::InlineAlways
+                    | FunctionAttributeKind::InlineNever => {
                         self.push(';');
                     }
                 },
