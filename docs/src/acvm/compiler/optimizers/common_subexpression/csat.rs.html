@@ -558,7 +558,48 @@
 <a href="#557" id="557">557</a>
 <a href="#558" id="558">558</a>
 <a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -960,6 +1001,9 @@
                 );
                 <span class="self">self</span>.mark_solvable(intermediate_var.<span class="number">1</span>);
                 added_vars.push(intermediate_var);
+            } <span class="kw">else </span>{
+                <span class="comment">// Put back the single term that couldn't form an intermediate variable
+                </span>opcode.linear_combinations.extend(intermediate_opcode.linear_combinations);
             }
             <span class="comment">// The intermediate opcode is not full, but the opcode still has too many terms
             </span><span class="kw">if </span>not_full &amp;&amp; opcode.linear_combinations.len() &gt; <span class="self">self</span>.width {
@@ -1116,6 +1160,44 @@
             expr,
             <span class="kw-2">&amp;mut </span>num_witness,
         );
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Could not reduce the expression"</span>)]
+    </span><span class="kw">fn </span>single_solvable_term_in_intermediate_opcode_is_preserved() {
+        <span class="comment">// Test the case when len() is 1 in the line: 'if intermediate_opcode.linear_combinations.len() &gt; 1 {'
+        // Setup: width is 3, 4 terms [a, b, c, d], only 'a' is solvable.
+        //
+        // Because only 'a' is solvable, the intermediate_opcode will be [a], so its len is 1.
+        // In this case, 'a' should be added back to the opcode which makes it larger than the width and trigger the panic.
+
+        </span><span class="kw">let </span>a = Witness(<span class="number">0</span>); <span class="comment">// solvable
+        </span><span class="kw">let </span>b = Witness(<span class="number">1</span>); <span class="comment">// unsolvable
+        </span><span class="kw">let </span>c = Witness(<span class="number">2</span>); <span class="comment">// unsolvable
+        </span><span class="kw">let </span>d = Witness(<span class="number">3</span>); <span class="comment">// unsolvable
+
+        </span><span class="kw">let </span>opcode = Expression {
+            mul_terms: <span class="macro">vec!</span>[],
+            linear_combinations: <span class="macro">vec!</span>[
+                (FieldElement::one(), a),
+                (FieldElement::one(), b),
+                (FieldElement::one(), c),
+                (FieldElement::one(), d),
+            ],
+            q_c: FieldElement::zero(),
+        };
+
+        <span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables: IndexMap&lt;
+            Expression&lt;FieldElement&gt;,
+            (FieldElement, Witness),
+        &gt; = IndexMap::new();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>num_witness = <span class="number">4</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>optimizer = CSatTransformer::new(<span class="number">3</span>);
+        optimizer.mark_solvable(a);
+
+        <span class="kw">let _ </span>= optimizer.transform(opcode, <span class="kw-2">&amp;mut </span>intermediate_variables, <span class="kw-2">&amp;mut </span>num_witness);
     }
 }
 </code></pre></div></section></main></body></html>
