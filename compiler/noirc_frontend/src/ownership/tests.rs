@@ -381,3 +381,34 @@ fn handle_reference_expression_cases() {
     }
     ");
 }
+
+#[test]
+fn while_condition_with_array_last_use() {
+    // The arrays last use should be in the while condition
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        while check(arr) {
+            break;
+        }
+    }
+
+    fn check(a: [Field; 3]) -> bool {
+        false
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // `arr` should be cloned in the while condition since it's evaluated multiple times
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        while check$f1(arr$l0.clone()) {
+            break
+        }
+    }
+    unconstrained fn check$f1(a$l1: [Field; 3]) -> bool {
+        false
+    }
+    ");
+}
