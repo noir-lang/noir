@@ -1,7 +1,7 @@
 #pragma once
 
 #include "serde.hpp"
-#include "msgpack.hpp"
+#include "barretenberg/serialize/msgpack_impl.hpp"
 #include "bincode.hpp"
 
 namespace Witnesses {
@@ -10,7 +10,7 @@ namespace Witnesses {
             msgpack::object const& o,
             std::string const& name
         ) {
-            if(o.type != msgpack::type::MAP) {
+            if (o.type != msgpack::type::MAP) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP for " + name);
             }
@@ -28,6 +28,7 @@ namespace Witnesses {
             }
             return kvmap;
         }
+
         template<typename T>
         static void conv_fld_from_kvmap(
             std::map<std::string, msgpack::object const*> const& kvmap,
@@ -46,6 +47,26 @@ namespace Witnesses {
                 }
             } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
+            }
+        }
+
+        template<typename T>
+        static void conv_fld_from_array(
+            msgpack::object_array const& array,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field,
+            uint32_t index
+        ) {
+            if (index >= array.size) {
+                throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
+            }
+            auto element = array.ptr[index];
+            try {
+                element.convert(field);
+            } catch (const msgpack::type_error&) {
+                std::cerr << element << std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         }
     };
@@ -106,10 +127,18 @@ namespace Witnesses {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "StackItem";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
+            std::string name = "StackItem";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "index", index, 0);
+                Helpers::conv_fld_from_array(array, name, "witness", witness, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
@@ -126,9 +155,16 @@ namespace Witnesses {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "WitnessStack";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
+            std::string name = "WitnessStack";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "stack", stack, 0);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
