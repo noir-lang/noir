@@ -24,8 +24,6 @@
 //!   area for future optimization. E.g. the program `a.b.c; a.e.f` will result in `a` being
 //!   cloned in its entirety in the first statement. Note that this is lessened in the overall
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
-use std::collections::HashSet;
-
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use rustc_hash::FxHashMap as HashMap;
@@ -62,10 +60,10 @@ pub(super) enum Branches {
 
 impl Branches {
     /// Collect all IdentIds from this tree
-    fn flatten_uses(self) -> HashSet<IdentId> {
+    fn flatten_uses(self) -> Vec<IdentId> {
         match self {
-            Branches::None => HashSet::new(),
-            Branches::Direct(ident_id) => HashSet::from_iter(std::iter::once(ident_id)),
+            Branches::None => Vec::new(),
+            Branches::Direct(ident_id) => vec![ident_id],
             Branches::IfOrMatch(_, cases) => {
                 cases.into_values().flat_map(Self::flatten_uses).collect()
             }
@@ -153,7 +151,7 @@ impl Context {
     /// A variable may have multiple last uses if it was last used within a conditional expression.
     pub(super) fn find_last_uses_of_variables(
         function: &Function,
-    ) -> HashMap<LocalId, HashSet<IdentId>> {
+    ) -> HashMap<LocalId, Vec<IdentId>> {
         let mut context = LastUseContext {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
@@ -266,7 +264,7 @@ impl LastUseContext {
         }
     }
 
-    fn get_variables_to_move(self) -> HashMap<LocalId, HashSet<IdentId>> {
+    fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         self.last_uses
             .into_iter()
             .map(|(definition, (_, last_uses))| (definition, last_uses.flatten_uses()))
