@@ -676,3 +676,71 @@ fn xor_u8() {
     ASSERT w2 = w3
     ");
 }
+
+#[test]
+fn div_divisor_overflow_with_side_effects_enabled() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8):
+        enable_side_effects u1 1
+        v1 = div v0, u8 256
+        return v0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT 0 = 1
+    ASSERT w1 = w0
+    ");
+}
+
+#[test]
+fn div_divisor_overflow_without_side_effects_enabled() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8):
+        enable_side_effects u1 0
+        v1 = div v0, u8 256
+        return v0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT w1 = w0
+    ");
+}
+
+#[test]
+fn div_divisor_overflow_with_dynamic_side_effects_enabled() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u1):
+        enable_side_effects v1
+        v2 = div v0, u8 256
+        return v0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT w1 = 0
+    ASSERT w2 = w0
+    ");
+}
