@@ -1362,7 +1362,8 @@
 <a href="#1361" id="1361">1361</a>
 <a href="#1362" id="1362">1362</a>
 <a href="#1363" id="1363">1363</a>
-<a href="#1364" id="1364">1364</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap, HashSet};
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap, HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::FormatStringFragment;
@@ -2027,7 +2028,8 @@
                     | FunctionAttributeKind::FuzzingHarness(..)
                     | FunctionAttributeKind::Fold
                     | FunctionAttributeKind::NoPredicates
-                    | FunctionAttributeKind::InlineAlways =&gt; {
+                    | FunctionAttributeKind::InlineAlways
+                    | FunctionAttributeKind::InlineNever =&gt; {
                         <span class="self">self</span>.push(<span class="string">';'</span>);
                     }
                 },

@@ -906,7 +906,20 @@
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1018,6 +1031,8 @@
     </span>NoPredicatesAttributeOnEntryPoint { ident: Ident, location: Location },
     <span class="attr">#[error(<span class="string">"#[fold] attribute is only allowed on constrained functions"</span>)]
     </span>FoldAttributeOnUnconstrained { ident: Ident, location: Location },
+    <span class="attr">#[error(<span class="string">"#[inline_never] attribute is only allowed on unconstrained functions"</span>)]
+    </span>InlineNeverAttributeOnConstrained { ident: Ident, location: Location },
     <span class="attr">#[error(<span class="string">"The unquote operator '$' can only be used within a quote expression"</span>)]
     </span>UnquoteUsedOutsideQuote { location: Location },
     <span class="attr">#[error(<span class="string">"Invalid syntax in macro call"</span>)]
@@ -1172,6 +1187,7 @@
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
@@ -1521,6 +1537,16 @@
                 );
 
                 diag.add_note(<span class="string">"The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point"</span>.to_owned());
+                diag
+            }
+            ResolverError::InlineNeverAttributeOnConstrained { ident, location } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"misplaced #[inline_never] attribute on constrained function {ident}. Only allowed on unconstrained functions"</span>),
+                    <span class="string">"misplaced #[inline_never] attribute"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                );
+
+                diag.add_note(<span class="string">"The `#[inline_never]` attribute prevents inlining of unconstrained functions"</span>.to_owned());
                 diag
             }
             ResolverError::UnquoteUsedOutsideQuote { location } =&gt; {

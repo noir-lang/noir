@@ -429,13 +429,7 @@
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
+<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lint checks for function attributes, visibility, and usage restrictions.
 
 </span><span class="kw">use crate</span>::{
     NamedGeneric, Type, TypeBinding,
@@ -479,34 +473,28 @@
     })
 }
 
-<span class="doccomment">/// Inline attributes are only relevant for constrained functions
-/// as all unconstrained functions are not inlined and so
-/// associated attributes are disallowed.
+<span class="doccomment">/// Validate inline-related attributes based on whether the function is constrained or unconstrained.
+/// - Constrained functions: disallow `#[inline_never]`
+/// - Unconstrained functions: disallow `#[no_predicates]` and `#[fold]`
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>inlining_attributes(
     func: <span class="kw-2">&amp;</span>FuncMeta,
     modifiers: <span class="kw-2">&amp;</span>FunctionModifiers,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
-    <span class="kw">if </span>!modifiers.is_unconstrained {
-        <span class="kw">return </span><span class="prelude-val">None</span>;
-    }
-
     <span class="kw">let </span>attribute = modifiers.attributes.function()<span class="question-mark">?</span>;
     <span class="kw">let </span>location = attribute.location;
+    <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
+
     <span class="kw">match </span><span class="kw-2">&amp;</span>attribute.kind {
-        FunctionAttributeKind::NoPredicates =&gt; {
-            <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
+        FunctionAttributeKind::NoPredicates <span class="kw">if </span>modifiers.is_unconstrained =&gt; {
             <span class="prelude-val">Some</span>(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold =&gt; {
-            <span class="kw">let </span>ident = func_meta_name_ident(func, modifiers);
+        FunctionAttributeKind::Fold <span class="kw">if </span>modifiers.is_unconstrained =&gt; {
             <span class="prelude-val">Some</span>(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Foreign(<span class="kw">_</span>)
-        | FunctionAttributeKind::Builtin(<span class="kw">_</span>)
-        | FunctionAttributeKind::Oracle(<span class="kw">_</span>)
-        | FunctionAttributeKind::Test(<span class="kw">_</span>)
-        | FunctionAttributeKind::InlineAlways
-        | FunctionAttributeKind::FuzzingHarness(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+        FunctionAttributeKind::InlineNever <span class="kw">if </span>!modifiers.is_unconstrained =&gt; {
+            <span class="prelude-val">Some</span>(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
+        }
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
     }
 }
 

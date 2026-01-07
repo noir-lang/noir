@@ -819,7 +819,8 @@
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -939,6 +940,7 @@
                 | FunctionAttributeKind::Fold
                 | FunctionAttributeKind::NoPredicates
                 | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::InlineNever
                 | FunctionAttributeKind::FuzzingHarness(..) =&gt; (),
             }
         }

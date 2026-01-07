@@ -698,7 +698,12 @@
 <a href="#697" id="697">697</a>
 <a href="#698" id="698">698</a>
 <a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
@@ -1120,6 +1125,8 @@
     </span>Inline,
     <span class="doccomment">/// Functions marked as inline always will always be inlined, even in brillig contexts.
     </span>InlineAlways,
+    <span class="doccomment">/// Functions marked as inline never will never be inlined
+    </span>InlineNever,
     <span class="doccomment">/// Functions marked as foldable will not be inlined and compiled separately into ACIR
     </span>Fold,
     <span class="doccomment">/// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -1146,6 +1153,7 @@
             FunctionAttributeKind::Fold =&gt; InlineType::Fold,
             FunctionAttributeKind::NoPredicates =&gt; InlineType::NoPredicates,
             FunctionAttributeKind::InlineAlways =&gt; InlineType::InlineAlways,
+            FunctionAttributeKind::InlineNever =&gt; InlineType::InlineNever,
             <span class="kw">_ </span>=&gt; InlineType::default(),
         })
     }
@@ -1156,6 +1164,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             InlineType::Inline =&gt; <span class="bool-val">false</span>,
             InlineType::InlineAlways =&gt; <span class="bool-val">false</span>,
+            InlineType::InlineNever =&gt; <span class="bool-val">false</span>,
             InlineType::Fold =&gt; <span class="bool-val">true</span>,
             InlineType::NoPredicates =&gt; <span class="bool-val">false</span>,
         }
@@ -1164,7 +1173,7 @@
     <span class="doccomment">/// Produce an `InlineType` which we can use with an unconstrained version of a function.
     </span><span class="kw">pub fn </span>into_unconstrained(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span><span class="self">self </span>{
-            InlineType::Inline | InlineType::InlineAlways =&gt; <span class="self">self</span>,
+            InlineType::Inline | InlineType::InlineAlways | InlineType::InlineNever =&gt; <span class="self">self</span>,
             InlineType::Fold =&gt; {
                 <span class="comment">// The #[fold] attribute is about creating separate ACIR circuits for proving,
                 // not relevant in Brillig. Leaving it violates some expectations that each
@@ -1189,6 +1198,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             InlineType::Inline =&gt; <span class="macro">write!</span>(f, <span class="string">"inline"</span>),
             InlineType::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_always"</span>),
+            InlineType::InlineNever =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_never"</span>),
             InlineType::Fold =&gt; <span class="macro">write!</span>(f, <span class="string">"fold"</span>),
             InlineType::NoPredicates =&gt; <span class="macro">write!</span>(f, <span class="string">"no_predicates"</span>),
         }

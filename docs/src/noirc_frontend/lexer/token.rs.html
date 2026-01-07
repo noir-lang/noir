@@ -1399,11 +1399,7 @@
 <a href="#1398" id="1398">1398</a>
 <a href="#1399" id="1399">1399</a>
 <a href="#1400" id="1400">1400</a>
-<a href="#1401" id="1401">1401</a>
-<a href="#1402" id="1402">1402</a>
-<a href="#1403" id="1403">1403</a>
-<a href="#1404" id="1404">1404</a>
-<a href="#1405" id="1405">1405</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1401" id="1401">1401</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -2418,6 +2414,7 @@
     Fold,
     NoPredicates,
     InlineAlways,
+    InlineNever,
     FuzzingHarness(FuzzingScope),
 }
 
@@ -2462,13 +2459,6 @@
         <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::NoPredicates)
     }
 
-    <span class="doccomment">/// Check whether we have an `inline_always` attribute
-    /// This is used to indicate that a function should always be inlined
-    /// regardless of the target runtime.
-    </span><span class="kw">pub fn </span>is_inline_always(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::InlineAlways)
-    }
-
     <span class="kw">pub fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
         <span class="kw">match </span><span class="self">self </span>{
             FunctionAttributeKind::Foreign(<span class="kw">_</span>) =&gt; <span class="string">"foreign"</span>,
@@ -2478,6 +2468,7 @@
             FunctionAttributeKind::Fold =&gt; <span class="string">"fold"</span>,
             FunctionAttributeKind::NoPredicates =&gt; <span class="string">"no_predicates"</span>,
             FunctionAttributeKind::InlineAlways =&gt; <span class="string">"inline_always"</span>,
+            FunctionAttributeKind::InlineNever =&gt; <span class="string">"inline_never"</span>,
             FunctionAttributeKind::FuzzingHarness(<span class="kw">_</span>) =&gt; <span class="string">"fuzz"</span>,
         }
     }
@@ -2499,6 +2490,7 @@
             FunctionAttributeKind::Fold =&gt; <span class="macro">write!</span>(f, <span class="string">"#[fold]"</span>),
             FunctionAttributeKind::NoPredicates =&gt; <span class="macro">write!</span>(f, <span class="string">"#[no_predicates]"</span>),
             FunctionAttributeKind::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"#[inline_always]"</span>),
+            FunctionAttributeKind::InlineNever =&gt; <span class="macro">write!</span>(f, <span class="string">"#[inline_never]"</span>),
             FunctionAttributeKind::FuzzingHarness(scope) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[fuzz{scope}]"</span>),
         }
     }

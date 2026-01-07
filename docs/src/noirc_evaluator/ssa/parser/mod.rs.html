@@ -1318,7 +1318,10 @@
 <a href="#1317" id="1317">1317</a>
 <a href="#1318" id="1318">1318</a>
 <a href="#1319" id="1319">1319</a>
-<a href="#1320" id="1320">1320</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Debug, Formatter},
     str::FromStr,
     sync::Arc,
@@ -1583,6 +1586,8 @@
             <span class="prelude-val">Ok</span>(InlineType::Inline)
         } <span class="kw">else if </span><span class="self">self</span>.eat_keyword(Keyword::InlineAlways)<span class="question-mark">? </span>{
             <span class="prelude-val">Ok</span>(InlineType::InlineAlways)
+        } <span class="kw">else if </span><span class="self">self</span>.eat_keyword(Keyword::InlineNever)<span class="question-mark">? </span>{
+            <span class="prelude-val">Ok</span>(InlineType::InlineNever)
         } <span class="kw">else if </span><span class="self">self</span>.eat_keyword(Keyword::Fold)<span class="question-mark">? </span>{
             <span class="prelude-val">Ok</span>(InlineType::Fold)
         } <span class="kw">else if </span><span class="self">self</span>.eat_keyword(Keyword::NoPredicates)<span class="question-mark">? </span>{
@@ -1591,6 +1596,7 @@
             <span class="self">self</span>.expected_one_of_tokens(<span class="kw-2">&amp;</span>[
                 Token::Keyword(Keyword::Inline),
                 Token::Keyword(Keyword::InlineAlways),
+                Token::Keyword(Keyword::InlineNever),
                 Token::Keyword(Keyword::Fold),
                 Token::Keyword(Keyword::NoPredicates),
             ])

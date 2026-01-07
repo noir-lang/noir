@@ -620,7 +620,31 @@
 <a href="#619" id="619">619</a>
 <a href="#620" id="620">620</a>
 <a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
 
 <span class="kw">use </span>im::HashMap;
 <span class="kw">use </span>petgraph::graph::NodeIndex <span class="kw">as </span>PetGraphIndex;
@@ -665,9 +689,9 @@
         <span class="self">self</span>.is_brillig_entry_point
             || <span class="self">self</span>.is_acir_entry_point
             <span class="comment">// We still want to attempt inlining recursive ACIR functions in case
-            // they have a compile-time completion point. 
+            // they have a compile-time completion point.
             // A recursive function is going to set `should_inline` to false as well,
-            // so we need to determine whether a function is an inline target 
+            // so we need to determine whether a function is an inline target
             // with auxiliary runtime information.
             </span>|| ((<span class="self">self</span>.is_recursive || !<span class="self">self</span>.should_inline) &amp;&amp; !dfg.runtime().is_acir())
     }
@@ -862,12 +886,13 @@
     <span class="kw">let </span>is_simple_function = entry_block.successors().next().is_none()
         &amp;&amp; instruction_weight &lt; small_function_max_instructions;
 
-    <span class="kw">let </span>should_inline = is_simple_function
-        || net_cost &lt; aggressiveness
-        || runtime.is_inline_always()
-        || should_inline_no_pred_function
-        || contains_static_assertion
-        || runtime.is_acir();
+    <span class="kw">let </span>should_inline = !runtime.is_inline_never()
+        &amp;&amp; (is_simple_function
+            || net_cost &lt; aggressiveness
+            || runtime.is_inline_always()
+            || should_inline_no_pred_function
+            || contains_static_assertion
+            || runtime.is_acir());
 
     info.should_inline = should_inline;
 }
@@ -1219,6 +1244,29 @@
 
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(f1.should_inline, <span class="string">"inline_always functions should be inlined"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>inline_never_functions_are_not_inlined() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, i64::MAX);
+
+        <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
+        <span class="macro">assert!</span>(!f1.should_inline, <span class="string">"inline_never functions should not be inlined"</span>);
     }
 
     <span class="attr">#[test]

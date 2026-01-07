@@ -328,7 +328,10 @@
 <a href="#327" id="327">327</a>
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Position, Span, Spanned};
@@ -464,6 +467,7 @@
     Div,
     Inline,
     InlineAlways,
+    InlineNever,
     Else,
     EnableSideEffects,
     Eq,
@@ -540,6 +544,7 @@
             <span class="string">"impure" </span>=&gt; Keyword::Impure,
             <span class="string">"inline" </span>=&gt; Keyword::Inline,
             <span class="string">"inline_always" </span>=&gt; Keyword::InlineAlways,
+            <span class="string">"inline_never" </span>=&gt; Keyword::InlineNever,
             <span class="string">"Field" </span>=&gt; Keyword::Field,
             <span class="string">"fold" </span>=&gt; Keyword::Fold,
             <span class="string">"fn" </span>=&gt; Keyword::Fn,
@@ -622,6 +627,7 @@
             Keyword::Indices =&gt; <span class="macro">write!</span>(f, <span class="string">"indices"</span>),
             Keyword::Inline =&gt; <span class="macro">write!</span>(f, <span class="string">"inline"</span>),
             Keyword::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_always"</span>),
+            Keyword::InlineNever =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_never"</span>),
             Keyword::Jmp =&gt; <span class="macro">write!</span>(f, <span class="string">"jmp"</span>),
             Keyword::Jmpif =&gt; <span class="macro">write!</span>(f, <span class="string">"jmpif"</span>),
             Keyword::Load =&gt; <span class="macro">write!</span>(f, <span class="string">"load"</span>),
