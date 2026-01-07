@@ -1038,7 +1038,7 @@ fn comptime_uhashmap_of_vectors() {
     }
 
     pub fn example_umap<T>() -> UHashMap<u32, T> {
-        let _table = &[];
+        let _table = @[];
         let _len = 0;
         UHashMap { _table, _len }
     }
@@ -1085,14 +1085,14 @@ fn comptime_uhashmap_of_vectors_attribute() {
     impl<K, V> UHashMap<K, V> {
         fn default_umap(zeroed_value: (K, V)) -> UHashMap<K, V>
         {
-            let _table = &[Slot::default_slot(zeroed_value)];
+            let _table = @[Slot::default_slot(zeroed_value)];
             let _len = 0;
             UHashMap { _table, _len }
         }
     }
 
     comptime fn empty_function_definition_vector() -> [FunctionDefinition] {
-        &[]
+        @[]
     }
 
     comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =

@@ -209,7 +209,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 return None;
             };
             if *is_vector {
-                output.push('&');
+                output.push('@');
             }
             output.push('[');
             let mut values = array_elements.iter().peekable();

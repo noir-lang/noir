@@ -54,7 +54,7 @@ fn constrain_not_equal() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -134,7 +134,7 @@ fn truncate_u16_to_6_bits() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -188,7 +188,7 @@ fn truncate_field_to_6_bits() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -198,7 +198,7 @@ fn truncate_field_to_6_bits() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -239,7 +239,7 @@ fn truncate_field_to_64_bits() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -249,7 +249,7 @@ fn truncate_field_to_64_bits() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -292,7 +292,7 @@ fn truncate_field_to_128_bits() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -302,7 +302,7 @@ fn truncate_field_to_128_bits() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 

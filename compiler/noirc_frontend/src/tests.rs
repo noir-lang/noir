@@ -370,9 +370,9 @@ fn regression_10553() {
     let src = r#"
     pub fn println<T>(_input: T) { }
     fn main() {
-        let x = &[false];
+        let x = @[false];
         let s = f"{x}";
-        let _ = &[s];
+        let _ = @[s];
                 ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
         println(s);
     }
@@ -385,8 +385,8 @@ fn regression_10554() {
     let src = r#"
     pub fn println<T>(_input: T) { }
     fn main() {
-        let x = &[false];
-        let t = &[x];
+        let x = @[false];
+        let t = @[x];
                 ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
         let s = f"{t}";
         println(s);
