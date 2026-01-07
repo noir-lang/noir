@@ -70,4 +70,26 @@ num_opcodes() {
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"num_opcodes\", value: \""$num_opcodes"\" | tonumber, unit: \"opcodes\"}" --null-input
 }
 
-jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(execution_time)$(artifact_size)$(num_opcodes)"
+brillig_compilation_time() {
+  TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_compilation.jsonl"))
+
+  AVG_TIME=$(average_times "${TIMES[@]}")
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+}
+
+brillig_execution_time() {
+  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_execution.jsonl"))
+
+  AVG_TIME=$(average_times "${TIMES[@]}")
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+}
+
+brillig_artifact_size() {
+  ARTIFACT_SIZE=$(wc -c <"$INPUT_DIR/brillig_artifact.json" | awk '{printf "%.1f\n", $1/1000}')
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
+}
+
+jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(execution_time)$(artifact_size)$(num_opcodes)$(brillig_compilation_time)$(brillig_execution_time)$(brillig_artifact_size)"
