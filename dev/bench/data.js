@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767810014551,
+  "lastUpdate": 1767810020567,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "265bbb5a9994a4f5e18cb276e82470f6d07c330e",
-          "message": "chore(deps-dev): bump @types/node to 22.19.3 (#10993)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-01-02T14:00:54Z",
-          "tree_id": "7cd4cecb35cc37887efaaec639a86fba93110078",
-          "url": "https://github.com/noir-lang/noir/commit/265bbb5a9994a4f5e18cb276e82470f6d07c330e"
-        },
-        "date": 1767366198564,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 269.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 304.89,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 256.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 335.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 334.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 335.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 523.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 464.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 333.88,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.01,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.06,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "5535e683ac3cfa7c90ea15183b8c212ed26c7a36",
           "message": "chore(deps-dev): bump memfs from 4.17.2 to 4.51.1 (#10704)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-01-02T14:58:05Z",
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8d4e50bc2cff127e6d536e5142588fe48c27a0f2"
         },
         "date": 1767807495528,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 269.05,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 304.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 256.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 335.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 334.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 335.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 523.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 464.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 333.87,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.01,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.08,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6f95f40e434faaa666464919051315a6e967b4d9",
+          "message": "fix: apply index side effects recursively (#11103)",
+          "timestamp": "2026-01-07T17:35:26Z",
+          "tree_id": "0e469e45193ea0c70eeff7d02c235f4813423f9d",
+          "url": "https://github.com/noir-lang/noir/commit/6f95f40e434faaa666464919051315a6e967b4d9"
+        },
+        "date": 1767809981538,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
