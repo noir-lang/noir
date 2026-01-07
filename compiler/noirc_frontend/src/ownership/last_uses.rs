@@ -59,15 +59,22 @@ pub(super) enum Branches {
 }
 
 impl Branches {
-    /// Collect all IdentIds from this tree
+    /// Collect all `IdentId`s from this tree.
     fn flatten_uses(self) -> Vec<IdentId> {
-        match self {
-            Branches::None => Vec::new(),
-            Branches::Direct(ident_id) => vec![ident_id],
-            Branches::IfOrMatch(_, cases) => {
-                cases.into_values().flat_map(Self::flatten_uses).collect()
+        fn go(branches: Branches, acc: &mut Vec<IdentId>) {
+            match branches {
+                Branches::None => {}
+                Branches::Direct(ident_id) => acc.push(ident_id),
+                Branches::IfOrMatch(_, cases) => {
+                    for case in cases.into_values() {
+                        go(case, acc)
+                    }
+                }
             }
         }
+        let mut acc = Vec::new();
+        go(self, &mut acc);
+        acc
     }
 
     fn get_if_or_match_id(&self) -> Option<IfOrMatchId> {
@@ -90,12 +97,12 @@ impl Branches {
 /// This is used by the context to keep track of where we currently are within a function.
 type BranchesPath = Vec<(IfOrMatchId, BranchId)>;
 
-/// The Id of an `if` or `match`, used to distinguish multiple sequential ifs/matches
+/// The ID of an `if` or `match`, used to distinguish multiple sequential ifs/matches
 /// from each other.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct IfOrMatchId(u32);
 
-/// The Id for a single branch of an if or match
+/// The ID for a single branch of an if or match.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct BranchId(u32);
 

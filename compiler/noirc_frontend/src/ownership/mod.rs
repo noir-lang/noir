@@ -126,7 +126,7 @@ impl Context {
         }
     }
 
-    /// Handle the rhs of a `&expr` unary expression.
+    /// Handle the RHS of a `&expr` unary expression.
     /// Variables and field accesses in these expressions are exempt from clones.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
