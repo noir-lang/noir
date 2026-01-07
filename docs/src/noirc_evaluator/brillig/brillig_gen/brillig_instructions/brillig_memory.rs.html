@@ -488,8 +488,7 @@
 <a href="#487" id="487">487</a>
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
@@ -915,40 +914,39 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
         <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-        <span class="kw">if </span>!<span class="self">self</span>.variables.is_allocated(<span class="kw-2">&amp;</span>result_id) {
-            <span class="comment">// Allocate memory for the array or vector. It will consist of a single register,
-            // and the initialization below will further set up its memory layout.
-            </span><span class="kw">let </span>new_variable = <span class="self">self</span>.variables.define_variable(
-                <span class="self">self</span>.function_context,
-                <span class="self">self</span>.brillig_context,
-                result_id,
-                dfg,
-            );
+        <span class="macro">assert!</span>(!<span class="self">self</span>.variables.is_allocated(<span class="kw-2">&amp;</span>result_id), <span class="string">"ICE: array already allocated"</span>);
 
-            <span class="comment">// Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
-            </span><span class="kw">match </span>new_variable {
-                BrilligVariable::BrilligArray(brillig_array) =&gt; {
-                    <span class="macro">debug_assert_eq!</span>(array.len(), brillig_array.size);
-                    <span class="self">self</span>.brillig_context.codegen_initialize_array(brillig_array);
-                }
-                BrilligVariable::BrilligVector(vector) =&gt; {
-                    <span class="comment">// The size of a vector is expected to be at an address (could be the result of push/pop increments/decrements).
-                    // (This is different from the semantic length variable).
-                    </span><span class="kw">let </span>size =
-                        <span class="self">self</span>.brillig_context.make_usize_constant_instruction(array.len().into());
+        <span class="comment">// Allocate memory for the array or vector. It will consist of a single register,
+        // and the initialization below will further set up its memory layout.
+        </span><span class="kw">let </span>new_variable = <span class="self">self</span>.variables.define_variable(
+            <span class="self">self</span>.function_context,
+            <span class="self">self</span>.brillig_context,
+            result_id,
+            dfg,
+        );
 
-                    <span class="self">self</span>.brillig_context.codegen_initialize_vector(vector, <span class="kw-2">*</span>size, <span class="prelude-val">None</span>);
-                }
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot initialize array value created as {new_variable:?}"</span>),
-            };
+        <span class="comment">// Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
+        </span><span class="kw">match </span>new_variable {
+            BrilligVariable::BrilligArray(brillig_array) =&gt; {
+                <span class="macro">debug_assert_eq!</span>(array.len(), brillig_array.size);
+                <span class="self">self</span>.brillig_context.codegen_initialize_array(brillig_array);
+            }
+            BrilligVariable::BrilligVector(vector) =&gt; {
+                <span class="comment">// The size of a vector is expected to be at an address (could be the result of push/pop increments/decrements).
+                // (This is different from the semantic length variable).
+                </span><span class="kw">let </span>size = <span class="self">self</span>.brillig_context.make_usize_constant_instruction(array.len().into());
 
-            <span class="comment">// Get a pointer to where the items need to be written.
-            </span><span class="kw">let </span>items_pointer =
-                <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
+                <span class="self">self</span>.brillig_context.codegen_initialize_vector(vector, <span class="kw-2">*</span>size, <span class="prelude-val">None</span>);
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot initialize array value created as {new_variable:?}"</span>),
+        };
 
-            <span class="comment">// Write the items.
-            </span><span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
-        }
+        <span class="comment">// Get a pointer to where the items need to be written.
+        </span><span class="kw">let </span>items_pointer =
+            <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
+
+        <span class="comment">// Write the items.
+        </span><span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {

@@ -1285,7 +1285,21 @@
 <a href="#1284" id="1284">1284</a>
 <a href="#1285" id="1285">1285</a>
 <a href="#1286" id="1286">1286</a>
-<a href="#1287" id="1287">1287</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1894,6 +1908,7 @@
     <span class="doccomment">/// Applies predication logic on the result in case the read under a false predicate
     /// returns a value with a larger type that may later trigger an overflow.
     /// Ensures values read under false predicate are zeroed out if types don’t align.
+    /// This is done recursively for nested arrays.
     </span><span class="kw">fn </span>apply_index_side_effects(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
@@ -1901,22 +1916,35 @@
         <span class="kw-2">mut </span>index_side_effect: bool,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
-        <span class="kw">if let </span>AcirValue::Var(value_var, typ) = <span class="kw-2">&amp;</span>value {
-            <span class="kw">let </span>array_typ = dfg.type_of_value(array);
-            <span class="kw">if let </span>Type::Numeric(numeric_type) = array_typ.first() {
-                <span class="kw">if </span>numeric_type.bit_size::&lt;FieldElement&gt;() &lt;= typ.bit_size::&lt;FieldElement&gt;() {
-                    <span class="comment">// first element is compatible
-                    </span>index_side_effect = <span class="bool-val">false</span>;
+        <span class="kw">match </span><span class="kw-2">&amp;</span>value {
+            AcirValue::Var(acir_var, typ) =&gt; {
+                <span class="kw">let </span>array_typ = dfg.type_of_value(array);
+                <span class="kw">if let </span>Type::Numeric(numeric_type) = array_typ.first() {
+                    <span class="kw">if </span>numeric_type.bit_size::&lt;FieldElement&gt;() &lt;= typ.bit_size::&lt;FieldElement&gt;() {
+                        <span class="comment">// first element is compatible
+                        </span>index_side_effect = <span class="bool-val">false</span>;
+                    }
+                }
+
+                <span class="kw">if </span>index_side_effect {
+                    value = AcirValue::Var(
+                        <span class="self">self</span>.acir_context
+                            .mul_var(<span class="kw-2">*</span>acir_var, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>,
+                        <span class="kw-2">*</span>typ,
+                    );
                 }
             }
-
-            <span class="kw">if </span>index_side_effect {
-                value = AcirValue::Var(
-                    <span class="self">self</span>.acir_context.mul_var(<span class="kw-2">*</span>value_var, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>,
-                    <span class="kw-2">*</span>typ,
-                );
+            AcirValue::Array(vector) =&gt; {
+                <span class="kw">let </span>new_values = try_vecmap(vector.iter(), |val| {
+                    <span class="self">self</span>.apply_index_side_effects(array, val.clone(), index_side_effect, dfg)
+                })<span class="question-mark">?</span>;
+                value = AcirValue::Array(im::Vector::from(new_values));
+            }
+            AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: Nested dynamic arrays are not supported"</span>)
             }
         }
+
         <span class="prelude-val">Ok</span>(value)
     }
 

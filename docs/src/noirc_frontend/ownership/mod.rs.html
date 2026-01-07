@@ -445,7 +445,14 @@
 <a href="#444" id="444">444</a>
 <a href="#445" id="445">445</a>
 <a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -573,14 +580,11 @@
         }
     }
 
-    <span class="doccomment">/// Handle the rhs of a `&amp;expr` unary expression.
+    <span class="doccomment">/// Handle the RHS of a `&amp;expr` unary expression.
     /// Variables and field accesses in these expressions are exempt from clones.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
-    ///
-    /// # Returns
-    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
     </span><span class="kw">fn </span>handle_reference_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) {
         <span class="kw">match </span>expr {
             Expression::Ident(<span class="kw">_</span>) =&gt; (),
@@ -610,7 +614,11 @@
         }
     }
 
-    <span class="kw">fn </span>handle_extract_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) {
+    <span class="doccomment">/// Handle an [Expression::ExtractTupleField] by moving the cloning to limit its scope to the
+    /// innermost item it needs to be applied to.
+    ///
+    /// Panics if called on a different kind of expression.
+    </span><span class="kw">fn </span>handle_extract_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) {
         <span class="kw">let </span>Expression::ExtractTupleField(tuple, index) = expr <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"handle_extract_expression given non-extract expression {expr}"</span>);
         };
@@ -631,6 +639,7 @@
 
     <span class="doccomment">/// Traverse an expression comprised of only identifiers, tuple field extractions, and
     /// dereferences returning whether we should clone the result and the type of that result.
+    ///
     /// Returns None if a different expression variant was found.
     </span><span class="kw">fn </span>handle_extract_expression_rec(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;(bool, Type)&gt; {
         <span class="kw">match </span>expr {
@@ -723,7 +732,7 @@
 
     <span class="kw">fn </span>handle_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index_expr: <span class="kw-2">&amp;mut </span>Expression) {
         <span class="kw">let </span>Expression::Index(index) = index_expr <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"handle_index should only be called with Index nodes"</span>);
+            <span class="macro">panic!</span>(<span class="string">"handle_index given non-index expression: {index_expr}"</span>);
         };
 
         <span class="comment">// Don't clone the collection, cloning only the resulting element is cheaper.
@@ -869,7 +878,9 @@
     <span class="kw-2">*</span>expr = Expression::Clone(Box::new(old_expr));
 }
 
-<span class="kw">fn </span>contains_array_or_str_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<span class="doccomment">/// Returns `true` if the type contains an `Array`, `Vector`, `String` or `FmtString`,
+/// directly or as part of a `Tuple`, but _not_ through a reference.
+</span><span class="kw">fn </span>contains_array_or_str_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">match </span>typ {
         Type::Field
         | Type::Integer(..)
@@ -884,7 +895,10 @@
     }
 }
 
-<span class="kw">fn </span>unwrap_tuple_type(typ: Type) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
+<span class="doccomment">/// Returns the element types of a [Type::Tuple], or a reference to a tuple.
+///
+/// Returns `None` for any other type.
+</span><span class="kw">fn </span>unwrap_tuple_type(typ: Type) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
     <span class="kw">match </span>typ {
         Type::Tuple(elements) =&gt; <span class="prelude-val">Some</span>(elements),
         <span class="comment">// array accesses will automatically dereference so we do too
