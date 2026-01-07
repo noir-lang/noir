@@ -165,14 +165,14 @@ impl Expr {
     #[deprecated("This method has been renamed to `as_repeated_element_vector`")]
     pub comptime fn as_repeated_element_slice(self) -> Option<(Expr, Expr)> {}
 
-    /// If this expression is a vector literal `[elem1, ..., elemN].as_vector()`,
+    /// If this expression is a vector literal `@[elem1, ..., elemN]`,
     /// return each element of the vector.
     #[builtin(expr_as_vector)]
     // docs:start:as_vector
     pub comptime fn as_vector(self) -> Option<[Expr]> {}
     // docs:end:as_vector
 
-    /// If this expression is a vector literal `[elem1, ..., elemN].as_vector()`,
+    /// If this expression is a vector literal `@[elem1, ..., elemN]`,
     /// return each element of the vector.
     /// This method is deprecated in favor of `as_vector`
     #[builtin(expr_as_vector)]
@@ -238,8 +238,8 @@ impl Expr {
     ///
     /// This happens recursively for every expression within `self`.
     ///
-    /// For example, calling `modify` on `([1].as_vector(), [2, 3].as_vector())` with an `f` that returns `Option::some`
-    /// for expressions that are integers, doubling them, would return `([2].as_vector(), [4, 6].as_vector())`.
+    /// For example, calling `modify` on `(@[1], @[2, 3])` with an `f` that returns `Option::some`
+    /// for expressions that are integers, doubling them, would return `(@[2], @[4, 6])`.
     // docs:start:modify
     pub comptime fn modify<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         // docs:end:modify
@@ -636,12 +636,12 @@ comptime fn new_repeated_element_array(expr: Expr, length: Expr) -> Expr {
 }
 
 comptime fn new_repeated_element_vector(expr: Expr, length: Expr) -> Expr {
-    quote { [$expr; $length].as_vector() }.as_expr().unwrap()
+    quote { @[$expr; $length] }.as_expr().unwrap()
 }
 
 comptime fn new_vector(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
-    quote { [$exprs].as_vector()}.as_expr().unwrap()
+    quote { @[$exprs] }.as_expr().unwrap()
 }
 
 comptime fn new_tuple(exprs: [Expr]) -> Expr {
