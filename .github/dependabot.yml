@@ -45,6 +45,10 @@ updates:
       typedoc:
         patterns:
           - "typedoc*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
       testing:
         patterns:
           - "chai"
