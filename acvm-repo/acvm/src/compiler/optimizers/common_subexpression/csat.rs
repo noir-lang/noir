@@ -400,6 +400,9 @@ impl CSatTransformer {
                 );
                 self.mark_solvable(intermediate_var.1);
                 added_vars.push(intermediate_var);
+            } else {
+                // Put back the single term that couldn't form an intermediate variable
+                opcode.linear_combinations.extend(intermediate_opcode.linear_combinations);
             }
             // The intermediate opcode is not full, but the opcode still has too many terms
             if not_full && opcode.linear_combinations.len() > self.width {
@@ -556,5 +559,43 @@ mod tests {
             expr,
             &mut num_witness,
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not reduce the expression")]
+    fn single_solvable_term_in_intermediate_opcode_is_preserved() {
+        // Test the case when len() is 1 in the line: 'if intermediate_opcode.linear_combinations.len() > 1 {'
+        // Setup: width is 3, 4 terms [a, b, c, d], only 'a' is solvable.
+        //
+        // Because only 'a' is solvable, the intermediate_opcode will be [a], so its len is 1.
+        // In this case, 'a' should be added back to the opcode which makes it larger than the width and trigger the panic.
+
+        let a = Witness(0); // solvable
+        let b = Witness(1); // unsolvable
+        let c = Witness(2); // unsolvable
+        let d = Witness(3); // unsolvable
+
+        let opcode = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (FieldElement::one(), a),
+                (FieldElement::one(), b),
+                (FieldElement::one(), c),
+                (FieldElement::one(), d),
+            ],
+            q_c: FieldElement::zero(),
+        };
+
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
+
+        let mut num_witness = 4;
+
+        let mut optimizer = CSatTransformer::new(3);
+        optimizer.mark_solvable(a);
+
+        let _ = optimizer.transform(opcode, &mut intermediate_variables, &mut num_witness);
     }
 }
