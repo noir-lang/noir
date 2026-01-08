@@ -19,7 +19,7 @@ impl TypeDefinition {
     // docs:end:as_type
 
     /// Return this type applied to the given generic arguments.
-    /// For example, given `type Foo<A, B> { ... })` could be applied to `&[quote[i32].as_type(), quote[Field].as_type()]`
+    /// For example, given `type Foo<A, B> { ... })` could be applied to `[quote[i32].as_type(), quote[Field].as_type()].as_vector()`
     /// to return `Foo<i32, Field>`.
     ///
     /// If an incorrect number of generic arguments are given, this function will return None.

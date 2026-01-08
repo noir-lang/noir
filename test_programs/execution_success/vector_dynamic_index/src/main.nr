@@ -4,7 +4,7 @@ fn main(x: u32) {
 }
 
 fn regression_dynamic_vector_index(x: u32, y: u32) {
-    let mut vector = &[];
+    let mut vector = [].as_vector();
     for i in 0..5 {
         vector = vector.push_back(i as Field);
     }

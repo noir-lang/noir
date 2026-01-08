@@ -619,7 +619,7 @@ impl ItemPrinter<'_, '_> {
                 self.push(']');
             }
             HirLiteral::Vector(hir_array_literal) => {
-                self.push_str("&[");
+                self.push_str("@[");
                 self.show_hir_array_literal(hir_array_literal);
                 self.push(']');
             }

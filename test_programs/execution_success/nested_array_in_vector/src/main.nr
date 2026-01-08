@@ -13,7 +13,7 @@ fn main(y: u32) {
     let foo_two = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] } };
     let foo_three = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };
     let foo_four = Foo { a: 10, b: [11, 12, 23], bar: Bar { inner: [109, 110, 111] } };
-    let mut x = &[foo_one];
+    let mut x = [foo_one].as_vector();
     x = x.push_back(foo_two);
     x = x.push_back(foo_three);
     x = x.push_back(foo_four);

@@ -8,7 +8,9 @@ use strum_macros::EnumString;
 const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
 /// A marker byte for the serialization format.
-#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+#[derive(
+    Debug, Default, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq,
+)]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub enum Format {
@@ -20,13 +22,8 @@ pub enum Format {
     /// Msgpack with named structs.
     Msgpack = 2,
     /// Msgpack with tuple structs.
+    #[default]
     MsgpackCompact = 3,
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Self::MsgpackCompact
-    }
 }
 
 impl Format {
