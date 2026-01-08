@@ -64,10 +64,12 @@ impl std::fmt::Display for ElementsLength {
 /// Represents the number of value/memory slots required to represent an array or vector.
 /// The semi-flattened length can be computed by multiplying the semantic length by
 /// the elements length.
+///
 /// For example in the array `[(u8, u16, [u32; 4]); 8]`:
 /// - The semantic length is 8
 /// - The elements length is 3
 /// - The semi-flattened length is 24 (8 * 3)
+///
 /// Note that this is different from the fully flattened length, which would be 8 * (1 + 1 + 4) = 48.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
