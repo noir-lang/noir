@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767818071661,
+  "lastUpdate": 1767870423414,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "d08a41c82a2eca4cfd5facb197c851ac808343a1",
-          "message": "fix: address race condition in parallel noir_js build (#11028)",
-          "timestamp": "2026-01-02T16:13:53Z",
-          "tree_id": "957074742e93f542e2d6e622f1e1729971952a8c",
-          "url": "https://github.com/noir-lang/noir/commit/d08a41c82a2eca4cfd5facb197c851ac808343a1"
-        },
-        "date": 1767372008587,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260660,
-            "range": "± 1238",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233874,
-            "range": "± 3537",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793987,
-            "range": "± 2591",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "fff676f6cd3ddbddee69e756019ed50836875128",
           "message": "chore(ci): do not fail CI if there are no changes to stdlib docs (#11029)",
           "timestamp": "2026-01-02T16:29:34Z",
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2263874,
             "range": "± 5835",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e21400f33888a8c61cd9e101054a5c6e8ce58e9",
+          "message": "chore: add explicit regression test for `bound_constraint_with_offset` (#11120)",
+          "timestamp": "2026-01-08T10:45:49Z",
+          "tree_id": "9b4b9bcd12d510b82bd5dc2744486d47f3641ddf",
+          "url": "https://github.com/noir-lang/noir/commit/3e21400f33888a8c61cd9e101054a5c6e8ce58e9"
+        },
+        "date": 1767870389663,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255480,
+            "range": "± 1329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224479,
+            "range": "± 4100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798238,
+            "range": "± 19049",
             "unit": "ns/iter"
           }
         ]
