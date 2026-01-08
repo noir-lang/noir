@@ -2659,7 +2659,20 @@
 <a href="#2658" id="2658">2658</a>
 <a href="#2659" id="2659">2659</a>
 <a href="#2660" id="2660">2660</a>
-<a href="#2661" id="2661">2661</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2661" id="2661">2661</a>
+<a href="#2662" id="2662">2662</a>
+<a href="#2663" id="2663">2663</a>
+<a href="#2664" id="2664">2664</a>
+<a href="#2665" id="2665">2665</a>
+<a href="#2666" id="2666">2666</a>
+<a href="#2667" id="2667">2667</a>
+<a href="#2668" id="2668">2668</a>
+<a href="#2669" id="2669">2669</a>
+<a href="#2670" id="2670">2670</a>
+<a href="#2671" id="2671">2671</a>
+<a href="#2672" id="2672">2672</a>
+<a href="#2673" id="2673">2673</a>
+<a href="#2674" id="2674">2674</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -2815,7 +2828,13 @@
 
         group.text(<span class="self">self</span>.chunk(|formatter| {
             <span class="kw">if </span>is_vector {
-                formatter.write_token(Token::At);
+                <span class="kw">if </span>formatter.is_at(Token::DeprecatedVectorStart) {
+                    <span class="comment">// Support the old vector syntax `&amp;[1, 2, 3]`
+                    </span>formatter.bump();
+                    formatter.write(<span class="string">"@"</span>);
+                } <span class="kw">else </span>{
+                    formatter.write_token(Token::At);
+                }
             }
             formatter.write_left_bracket();
         }));
@@ -4097,6 +4116,13 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_standard_vector() {
         <span class="kw">let </span>src = <span class="string">"global x = @ [ 1 , 2 , 3 , ] ;"</span>;
+        <span class="kw">let </span>expected = <span class="string">"global x = @[1, 2, 3];\n"</span>;
+        assert_format(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_old_vector_syntax() {
+        <span class="kw">let </span>src = <span class="string">"global x = &amp;[ 1 , 2 , 3 , ] ;"</span>;
         <span class="kw">let </span>expected = <span class="string">"global x = @[1, 2, 3];\n"</span>;
         assert_format(src, expected);
     }
