@@ -13,7 +13,7 @@
 //! dispatch functions for them in the `defunctionalize` pass.
 //!
 //! The pass also automatically wraps direct calls to oracle functions from constrained functions,
-//! which, after creating wrapper for function values, would only present an inconvenience for users
+//! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
 use std::collections::HashMap;
@@ -86,7 +86,7 @@ impl ProxyContext {
             // Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
             // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
-            // If this is a direct from ACIR to an Oracle, we want to create a proxy.
+            // If this is a direct call from ACIR to an Oracle, we want to create a proxy.
             if !self.in_unconstrained {
                 if let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
