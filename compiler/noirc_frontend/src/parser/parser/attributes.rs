@@ -50,6 +50,7 @@ impl Parser<'_> {
     ///     | 'fold'
     ///     | 'foreign' '(' AttributeValue ')'
     ///     | 'inline_always'
+    ///     | 'inline_never'
     ///     | 'no_predicates'
     ///     | 'oracle' '(' AttributeValue ')'
     ///     | 'recursive'
@@ -251,6 +252,12 @@ impl Parser<'_> {
             }
             "inline_always" => {
                 let kind = FunctionAttributeKind::InlineAlways;
+                let attr = FunctionAttribute { kind, location };
+                let attr = Attribute::Function(attr);
+                self.parse_no_args_attribute(ident, arguments, attr)
+            }
+            "inline_never" => {
+                let kind = FunctionAttributeKind::InlineNever;
                 let attr = FunctionAttribute { kind, location };
                 let attr = Attribute::Function(attr);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -686,6 +693,13 @@ mod tests {
     fn parses_attribute_inline_always() {
         let src = "#[inline_always]";
         let expected = FunctionAttributeKind::InlineAlways;
+        parse_function_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_attribute_inline_never() {
+        let src = "#[inline_never]";
+        let expected = FunctionAttributeKind::InlineNever;
         parse_function_attribute_no_errors(src, expected);
     }
 

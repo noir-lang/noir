@@ -158,6 +158,11 @@ impl<'a> Context<'a> {
                             "All ACIR functions marked with #[no_predicates] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute"
                         );
                     }
+                    InlineType::InlineNever => {
+                        panic!(
+                            "ACIR function marked with #[inline_never]. This attribute is only allowed on unconstrained functions"
+                        );
+                    }
                     InlineType::Fold => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`

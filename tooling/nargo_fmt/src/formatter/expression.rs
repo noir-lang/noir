@@ -154,7 +154,7 @@ impl ChunkFormatter<'_, '_> {
 
         group.text(self.chunk(|formatter| {
             if is_vector {
-                formatter.write_token(Token::VectorStart);
+                formatter.write_token(Token::At);
             }
             formatter.write_left_bracket();
         }));
@@ -1435,8 +1435,8 @@ mod tests {
 
     #[test]
     fn format_standard_vector() {
-        let src = "global x = & [ 1 , 2 , 3 , ] ;";
-        let expected = "global x = &[1, 2, 3];\n";
+        let src = "global x = @ [ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
         assert_format(src, expected);
     }
 

@@ -42,34 +42,28 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     })
 }
 
-/// Inline attributes are only relevant for constrained functions
-/// as all unconstrained functions are not inlined and so
-/// associated attributes are disallowed.
+/// Validate inline-related attributes based on whether the function is constrained or unconstrained.
+/// - Constrained functions: disallow `#[inline_never]`
+/// - Unconstrained functions: disallow `#[no_predicates]` and `#[fold]`
 pub(super) fn inlining_attributes(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if !modifiers.is_unconstrained {
-        return None;
-    }
-
     let attribute = modifiers.attributes.function()?;
     let location = attribute.location;
+    let ident = func_meta_name_ident(func, modifiers);
+
     match &attribute.kind {
-        FunctionAttributeKind::NoPredicates => {
-            let ident = func_meta_name_ident(func, modifiers);
+        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
             Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold => {
-            let ident = func_meta_name_ident(func, modifiers);
+        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
             Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Foreign(_)
-        | FunctionAttributeKind::Builtin(_)
-        | FunctionAttributeKind::Oracle(_)
-        | FunctionAttributeKind::Test(_)
-        | FunctionAttributeKind::InlineAlways
-        | FunctionAttributeKind::FuzzingHarness(_) => None,
+        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+            Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
+        }
+        _ => None,
     }
 }
 
