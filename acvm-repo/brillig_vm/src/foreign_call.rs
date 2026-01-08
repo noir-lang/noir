@@ -184,14 +184,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 "array/vector does not contain a whole number of elements"
             );
 
-            // We want to send vectors to foreign functions truncated to their semantic length.
-            let mut vector_length: Option<usize> = None;
-
             (0..size)
                 .zip(value_types.iter().cycle())
-                .map(|(i, value_type)| {
+                .flat_map(|(i, value_type)| {
                     let value_address = start.offset(i);
-                    let values = match value_type {
+                    match value_type {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
@@ -218,27 +215,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 value_types,
                             )
                         }
-                    };
-                    (value_type, values)
-                })
-                .flat_map(|(value_type, mut values)| {
-                    match value_type {
-                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
-                            vector_length = Some(values[0].to_usize());
-                        }
-                        HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
-                                values.truncate(length * type_size);
-                            }
-                            vector_length = None;
-                        }
-                        _ => {
-                            // Otherwise we are not dealing with a u32 followed by a vector.
-                            vector_length = None;
-                        }
                     }
-                    values
                 })
                 .collect::<Vec<_>>()
         }
