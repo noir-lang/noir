@@ -118,7 +118,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         single_address.address,
                         MemoryAddress::direct(current_calldata_pointer),
                     );
-                    current_calldata_pointer += 1;
                 }
                 (
                     BrilligVariable::BrilligArray(array),
@@ -129,24 +128,20 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     let deflattened_address =
                         self.deflatten_array(item_type, *item_count, array.pointer, false);
                     self.mov_instruction(array.pointer, *deflattened_address);
-
-                    let flattened_size = Self::flattened_size(argument);
-                    current_calldata_pointer += flattened_size.0;
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
                     BrilligParameter::Vector(item_type, item_count),
                 ) => {
-                    let flattened_size = Self::flattened_size(argument);
                     self.usize_const_instruction(vector.pointer, current_calldata_pointer.into());
                     let deflattened_address =
                         self.deflatten_array(item_type, *item_count, vector.pointer, true);
                     self.mov_instruction(vector.pointer, *deflattened_address);
-
-                    current_calldata_pointer += flattened_size.0;
                 }
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
+
+            current_calldata_pointer += Self::flattened_size(argument).0;
         }
 
         stack_start
@@ -272,7 +267,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                                 *target_index,
                                 *movement_register,
                             );
-                            source_offset += 1;
                         }
                         BrilligParameter::Array(
                             nested_array_item_type,
@@ -296,13 +290,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                                 *target_index,
                                 *deflattened_nested_array_pointer,
                             );
-
-                            source_offset += Self::flattened_size(subitem).0;
                         }
                         BrilligParameter::Vector(..) => {
                             unreachable!("ICE: Cannot deflatten vectors")
                         }
                     }
+
+                    source_offset += Self::flattened_size(subitem).0;
                 }
             }
         } else {
@@ -360,7 +354,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         MemoryAddress::direct(return_data_index),
                         returned_variable.extract_single_addr().address,
                     );
-                    return_data_index += 1;
                 }
                 BrilligParameter::Array(item_type, item_count) => {
                     let deflattened_items_pointer =
@@ -374,13 +367,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         pointer_to_return_data.address,
                         *deflattened_items_pointer,
                     );
-
-                    return_data_index += Self::flattened_size(return_param).0;
                 }
                 BrilligParameter::Vector(..) => {
                     unreachable!("ICE: Cannot return vectors from brillig entrypoints")
                 }
             }
+
+            return_data_index += Self::flattened_size(return_param).0;
         }
 
         let return_pointer = self.make_usize_constant_instruction(return_data_offset.into());

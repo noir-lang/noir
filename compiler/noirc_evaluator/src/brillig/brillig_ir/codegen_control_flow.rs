@@ -380,7 +380,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                                 *target_index,
                                 *movement_register,
                             );
-                            target_offset += 1;
                         }
                         BrilligParameter::Array(
                             nested_array_item_type,
@@ -414,11 +413,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                                 *flattened_nested_array_pointer,
                                 *deflattened_nested_array_items,
                             );
-
-                            target_offset += Self::flattened_size(subitem).0;
                         }
                         BrilligParameter::Vector(..) => unreachable!("ICE: Cannot flatten vectors"),
                     }
+
+                    target_offset += Self::flattened_size(subitem).0;
                 }
             }
         } else {
