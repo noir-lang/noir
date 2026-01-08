@@ -157,3 +157,30 @@ fn simple_closure_with_no_captured_variables() {
     }
     ");
 }
+
+#[test]
+fn tuple_pattern_becomes_separate_params() {
+    let src = r#"
+    fn main() -> pub u32 {
+        let ab = (1, 2);
+        let cd = (3, 4);
+        foo(ab, cd)
+    }
+
+    fn foo((a, b): (u32, u32), cd: (u32, u32)) -> u32 {
+        a + b + cd.0 + cd.1
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let ab$l0 = (1, 2);
+        let cd$l1 = (3, 4);
+        foo$f1(ab$l0, cd$l1)
+    }
+    fn foo$f1(a$l2: u32, b$l3: u32, cd$l4: (u32, u32)) -> u32 {
+        (((a$l2 + b$l3) + cd$l4.0) + cd$l4.1)
+    }
+    ");
+}
