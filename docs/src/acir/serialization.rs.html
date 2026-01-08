@@ -385,10 +385,7 @@
 <a href="#384" id="384">384</a>
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
+<a href="#387" id="387">387</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
 
 </span><span class="kw">use </span>num_enum::{IntoPrimitive, TryFromPrimitive};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -398,7 +395,9 @@
 <span class="kw">const </span>FORMAT_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"NOIR_SERIALIZATION_FORMAT"</span>;
 
 <span class="doccomment">/// A marker byte for the serialization format.
-</span><span class="attr">#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+</span><span class="attr">#[derive(
+    Debug, Default, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq,
+)]
 #[strum(serialize_all = <span class="string">"kebab-case"</span>)]
 #[repr(u8)]
 </span><span class="kw">pub enum </span>Format {
@@ -410,13 +409,8 @@
     <span class="doccomment">/// Msgpack with named structs.
     </span>Msgpack = <span class="number">2</span>,
     <span class="doccomment">/// Msgpack with tuple structs.
+    </span><span class="attr">#[default]
     </span>MsgpackCompact = <span class="number">3</span>,
-}
-
-<span class="kw">impl </span>Default <span class="kw">for </span>Format {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::MsgpackCompact
-    }
 }
 
 <span class="kw">impl </span>Format {

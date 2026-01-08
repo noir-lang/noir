@@ -703,7 +703,8 @@
 <a href="#702" id="702">702</a>
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
@@ -864,8 +865,9 @@
 
         <span class="comment">// Create C++ class definitions.
         </span><span class="kw">let </span><span class="kw-2">mut </span>source = Vec::new();
-        <span class="kw">let </span>config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
-            .with_encodings(<span class="macro">vec!</span>[serde_generate::Encoding::Bincode])
+        <span class="comment">// Barretenberg doesn't want to support the serde_generate::Encoding::Bincode encoding any more, only the custom msgpack.
+        </span><span class="kw">let </span>config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
+            .with_encodings(<span class="macro">vec!</span>[])
             .with_custom_code(msgpack_code);
         <span class="kw">let </span>generator = serde_generate::cpp::CodeGenerator::new(<span class="kw-2">&amp;</span>config);
         generator.output(<span class="kw-2">&amp;mut </span>source, registry).expect(<span class="string">"failed to generate C++ code"</span>);
