@@ -965,7 +965,30 @@
 <a href="#964" id="964">964</a>
 <a href="#965" id="965">965</a>
 <a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -982,7 +1005,7 @@
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
-    hir_def::traits::{NamedType, ResolvedTraitBound, TraitImpl},
+    hir_def::traits::{NamedType, TraitImpl},
     node_interner::TraitImplId,
 };
 <span class="kw">use crate</span>::{
@@ -1000,7 +1023,37 @@
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl) {
+    <span class="doccomment">/// Collects and validates a trait implementation.
+    ///
+    /// This is the main entry point for processing a trait impl block like:
+    /// ```noir
+    /// impl&lt;A&gt; MyTrait&lt;A&gt; for MyStruct where A: OtherTrait {
+    ///     fn method(&amp;self) { ... }
+    /// }
+    /// ```
+    ///
+    /// # Prerequisites
+    ///
+    /// Before calling this function, [`Self::prepare_trait_impl_for_function_meta_definition`]
+    /// must have been called to:
+    /// - Resolve the trait path and set `trait_impl.trait_id`
+    /// - Set up generics and assign `trait_impl.impl_id`
+    /// - Register associated types
+    /// - Resolve the self type (`trait_impl.methods.self_type`)
+    ///
+    /// The function validates and verifies self, generics and associated types,
+    /// processes impl methods via [`Self::collect_trait_impl_methods`],
+    /// register the trait impl in the interner.
+    ///
+    /// # Errors
+    ///
+    /// This function may emit the following errors:
+    /// - `ReferenceInTraitImpl`: Self type cannot be a reference
+    /// - `TraitMissingMethod`: Required trait method not implemented
+    /// - `MethodNotInTrait`: Impl contains method not in trait
+    /// - `ImplIsStricterThanTrait`: Method where clause is more restrictive than trait
+    /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl) {
         <span class="kw">let </span>previous_local_module =
             std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
         <span class="kw">let </span>previous_current_trait_impl =
@@ -1520,21 +1573,40 @@
             <span class="kw-2">&amp;mut </span>bindings,
         );
 
-        <span class="comment">// Check that each of the trait's where clause constraints is satisfied
-        </span><span class="kw">for </span>trait_constraint <span class="kw">in </span>the_trait.where_clause.clone() {
+        <span class="self">self</span>.check_trait_bounds_are_satisfied(
+            the_trait.where_clause.clone(),
+            <span class="kw-2">&amp;</span>impl_trait,
+            <span class="kw-2">&amp;</span>trait_impl.object_type.location,
+            <span class="kw-2">&amp;mut </span>bindings,
+        );
+    }
+
+    <span class="doccomment">/// Checks that each trait constraint in the given list is satisfied.
+    ///
+    /// This is used both for checking:
+    /// 1. The trait's where clause constraints are satisfied by the impl
+    /// 2. The trait's parent trait bounds are satisfied by the impl
+    </span><span class="kw">fn </span>check_trait_bounds_are_satisfied(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        constraints: Vec&lt;TraitConstraint&gt;,
+        impl_trait: <span class="kw-2">&amp;</span>str,
+        error_location: <span class="kw-2">&amp;</span>Location,
+        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+    ) {
+        <span class="kw">for </span>trait_constraint <span class="kw">in </span>constraints {
             <span class="kw">let </span><span class="prelude-val">Some</span>(trait_constraint_trait) =
                 <span class="self">self</span>.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
             <span class="kw">else </span>{
                 <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
                     message: <span class="string">"check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait"</span>.to_string(),
-                    location: trait_impl.object_type.location,
+                    location: <span class="kw-2">*</span>error_location,
                 });
                 <span class="kw">continue</span>;
             };
             <span class="kw">let </span>trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
             <span class="kw">let </span><span class="kw-2">mut </span>trait_constraint = trait_constraint.clone();
-            trait_constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
+            trait_constraint.apply_bindings(bindings);
 
             <span class="kw">let </span>trait_constraint_type = trait_constraint.typ;
             <span class="kw">let </span>trait_bound = trait_constraint.trait_bound;
@@ -1553,10 +1625,7 @@
             // `bindings` is passed here because these implicitly added named generics might
             // have a constraint on them later on and we want to remember what type they ended
             // up being.
-            </span><span class="self">self</span>.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
-                <span class="kw-2">&amp;mut </span>named_generics,
-                <span class="kw-2">&amp;mut </span>bindings,
-            );
+            </span><span class="self">self</span>.bind_to_fresh_variable(<span class="kw-2">&amp;mut </span>named_generics, bindings);
 
             <span class="kw">match </span><span class="self">self</span>.interner.try_lookup_trait_implementation(
                 <span class="kw-2">&amp;</span>trait_constraint_type,
@@ -1572,10 +1641,10 @@
                     <span class="kw">let </span>missing_trait =
                         <span class="macro">format!</span>(<span class="string">"{}{}"</span>, trait_constraint_trait_name, trait_bound.trait_generics);
                     <span class="self">self</span>.push_err(ResolverError::TraitNotImplemented {
-                        impl_trait: impl_trait.clone(),
+                        impl_trait: impl_trait.to_string(),
                         missing_trait,
                         type_missing_trait: trait_constraint_type.to_string(),
-                        location: trait_impl.object_type.location,
+                        location: <span class="kw-2">*</span>error_location,
                         missing_trait_location: trait_bound.location,
                     });
                 }
@@ -1583,7 +1652,8 @@
         }
     }
 
-    <span class="kw">fn </span>replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
+    <span class="comment">// Replace implicitly added unbound named generics with fresh type variables
+    </span><span class="kw">fn </span>bind_to_fresh_variable(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         named_generics: <span class="kw-2">&amp;mut </span>[NamedType],
         bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
@@ -1643,45 +1713,21 @@
         // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
         // do the same check for the parent, so this trait's parents parents will be checked, so the
         // recursion is guaranteed.
-        </span><span class="kw">for </span>parent_trait_bound <span class="kw">in </span>the_trait.trait_bounds.clone() {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(parent_trait) = <span class="self">self</span>.interner.try_get_trait(parent_trait_bound.trait_id)
-            <span class="kw">else </span>{
-                <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
-                    message: <span class="string">"check_parent_traits_are_implemented: missing parent trait"
-                        </span>.to_string(),
-                    location: trait_impl.object_type.location,
-                });
-                <span class="kw">continue</span>;
-            };
+        //
+        // Convert parent trait bounds (ResolvedTraitBound) to TraitConstraints using
+        // {Self, ResolvedTraitBound} where Self is the object type being implemented for.
+        </span><span class="kw">let </span>constraints: Vec&lt;TraitConstraint&gt; = the_trait
+            .trait_bounds
+            .iter()
+            .map(|bound| TraitConstraint { typ: object_type.clone(), trait_bound: bound.clone() })
+            .collect();
 
-            <span class="kw">let </span>parent_trait_bound = ResolvedTraitBound {
-                trait_generics: parent_trait_bound
-                    .trait_generics
-                    .map(|typ| typ.substitute(<span class="kw-2">&amp;</span>bindings)),
-                ..parent_trait_bound
-            };
-
-            <span class="kw">if </span><span class="self">self
-                </span>.interner
-                .try_lookup_trait_implementation(
-                    object_type,
-                    parent_trait_bound.trait_id,
-                    <span class="kw-2">&amp;</span>parent_trait_bound.trait_generics.ordered,
-                    <span class="kw-2">&amp;</span>parent_trait_bound.trait_generics.named,
-                )
-                .is_err()
-            {
-                <span class="kw">let </span>missing_trait =
-                    <span class="macro">format!</span>(<span class="string">"{}{}"</span>, parent_trait.name, parent_trait_bound.trait_generics);
-                <span class="self">self</span>.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_impl.object_type.to_string(),
-                    location: trait_impl.object_type.location,
-                    missing_trait_location: parent_trait_bound.location,
-                });
-            }
-        }
+        <span class="self">self</span>.check_trait_bounds_are_satisfied(
+            constraints,
+            <span class="kw-2">&amp;</span>impl_trait,
+            <span class="kw-2">&amp;</span>trait_impl.object_type.location,
+            <span class="kw-2">&amp;mut </span>bindings,
+        );
     }
 
     <span class="doccomment">/// Prepares a trait impl for function metadata definition.

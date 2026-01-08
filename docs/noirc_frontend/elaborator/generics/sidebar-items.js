@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["RemoveGenericsAppearingInTypeVisitor"]};
+window.SIDEBAR_ITEMS = {"struct":["GenericsState","RemoveGenericsAppearingInTypeVisitor"]};

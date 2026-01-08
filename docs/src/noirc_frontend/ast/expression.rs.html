@@ -1498,7 +1498,7 @@
     </span><span class="kw">pub </span>index: Expression, <span class="comment">// XXX: We accept two types of indices, either a normal integer or a constant
 </span>}
 
-<span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
+<span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Default)]
 </span><span class="kw">pub struct </span>BlockExpression {
     <span class="kw">pub </span>statements: Vec&lt;Statement&gt;,
 }

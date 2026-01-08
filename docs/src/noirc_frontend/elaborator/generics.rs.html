@@ -318,7 +318,25 @@
 <a href="#317" id="317">317</a>
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a></pre></div><pre class="rust"><code><span class="doccomment">//! Generic parameter resolution and type parameter handling.
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a></pre></div><pre class="rust"><code><span class="doccomment">//! Generic parameter resolution and type parameter handling.
 
 </span><span class="kw">use </span>std::rc::Rc;
 
@@ -339,13 +357,31 @@
 
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
 
+<span class="doccomment">/// Saved generics state for restoration after a scope exits.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>GenericsState {
+    generics_count: usize,
+}
+
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="doccomment">/// Saves the current generics state to be restored later with [Self::exit_generics_scope].
+    /// Note that all of `self.generics` will still be in scope after this call. This will only save the
+    /// position of the current generics so that any generics added afterward can later be discarded
+    /// via a call to [Self::exit_generics_scope].
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>enter_generics_scope(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; GenericsState {
+        GenericsState { generics_count: <span class="self">self</span>.generics.len() }
+    }
+
+    <span class="doccomment">/// Restores the generics state saved by `enter_generics_scope`.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>exit_generics_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>, state: GenericsState) {
+        <span class="self">self</span>.generics.truncate(state.generics_count);
+    }
+
     <span class="doccomment">/// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
     /// back to the previous length.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>recover_generics&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; T) -&gt; T {
-        <span class="kw">let </span>generics_count = <span class="self">self</span>.generics.len();
+        <span class="kw">let </span>state = <span class="self">self</span>.enter_generics_scope();
         <span class="kw">let </span>ret = f(<span class="self">self</span>);
-        <span class="self">self</span>.generics.truncate(generics_count);
+        <span class="self">self</span>.exit_generics_scope(state);
         ret
     }
 
