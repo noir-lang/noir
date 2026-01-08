@@ -3,7 +3,7 @@ fn main(val: str<3>, flag: bool, val2: str<1>) {
     example2(val, flag);
     example3(val2);
 
-    // Still broken. See https://github.com/noir-lang/noir/issues/11134
+    // TODO(https://github.com/noir-lang/noir/issues/11134): Still broken
     // example4(val, flag);
 }
 
