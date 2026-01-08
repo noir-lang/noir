@@ -132,11 +132,11 @@ pub struct Monomorphizer<'interner> {
         Location,
     )>,
 
-    /// When a function finishes being monomorphized, the monomorphized ast::Function is
-    /// stored here along with its FuncId.
+    /// When a function finishes being monomorphized, the monomorphized [ast::Function] is
+    /// stored here along with its [FuncId].
     finished_functions: BTreeMap<FuncId, Function>,
 
-    /// Used to reference existing definitions in the HIR
+    /// Used to reference existing definitions in the HIR.
     interner: &'interner mut NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
@@ -145,8 +145,6 @@ pub struct Monomorphizer<'interner> {
     next_global_id: u32,
     next_function_id: u32,
     next_ident_id: u32,
-
-    is_range_loop: bool,
 
     return_location: Option<Location>,
 
@@ -225,7 +223,6 @@ impl<'interner> Monomorphizer<'interner> {
             next_ident_id: 0,
             interner,
             lambda_envs_stack: Vec::new(),
-            is_range_loop: false,
             return_location: None,
             debug_type_tracker,
             in_unconstrained_function: force_unconstrained,
@@ -971,10 +968,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
-                self.is_range_loop = true;
                 let start = self.expr(for_loop.start_range)?;
                 let end = self.expr(for_loop.end_range)?;
-                self.is_range_loop = false;
                 let index_variable = self.next_local_id();
                 self.define_local(for_loop.identifier.id, index_variable);
 
