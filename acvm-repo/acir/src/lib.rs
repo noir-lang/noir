@@ -159,7 +159,6 @@ mod reflection {
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        // Barretenberg doesn't want to support the serde_generate::Encoding::Bincode encoding any more, only the custom msgpack.
         let config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
             .with_encodings(vec![])
             .with_custom_code(msgpack_code);

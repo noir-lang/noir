@@ -78,8 +78,7 @@ pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
-/// Deserialize any of the supported formats. Try go guess the format based on the first byte,
-/// but fall back to the legacy `bincode` format if anything fails.
+/// Deserialize any of the supported formats.
 pub(crate) fn deserialize_any_format<T>(buf: &[u8]) -> std::io::Result<T>
 where
     T: for<'a> Deserialize<'a>,
