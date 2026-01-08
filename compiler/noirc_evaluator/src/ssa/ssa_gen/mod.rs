@@ -1084,7 +1084,8 @@ impl FunctionContext<'_> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
-        let is_pure_builtin = is_pure_builtin(&call.func);
+        // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
+        let is_pure_func = is_pure_builtin_func(&call.func) || is_oracle_func(&call.func);
 
         for argument in &call.arguments {
             // The ownership pass inserts `Clone` around call arguments, however if we know that
@@ -1092,7 +1093,7 @@ impl FunctionContext<'_> {
             // skip generating an `IncrementRc` for cloned arrays.
             // The purity information isn't currently available to the ownership pass.
             let arg = match argument {
-                Expression::Clone(arg) if is_pure_builtin => arg.as_ref(),
+                Expression::Clone(arg) if is_pure_func => arg.as_ref(),
                 other => other,
             };
             let mut values = self.codegen_expression(arg)?.into_value_list(self);
@@ -1301,9 +1302,9 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression is calling a pure builtin or low level function.
-fn is_pure_builtin(func: &Expression) -> bool {
-    let Expression::Ident(ident) = func else {
+/// Return whether the expression refers to a pure builtin or low level function.
+fn is_pure_builtin_func(expr: &Expression) -> bool {
+    let Expression::Ident(ident) = expr else {
         return false;
     };
     let (ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = &ident.definition
@@ -1314,4 +1315,9 @@ fn is_pure_builtin(func: &Expression) -> bool {
         return false;
     };
     matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+}
+
+/// Return whether the expression refers to a foreign function.
+fn is_oracle_func(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
 }
