@@ -2,7 +2,7 @@
 name = "acvm_js"
 description = "Typescript wrapper around the ACVM allowing execution of ACIR code"
 # x-release-please-start-version
-version = "1.0.0-beta.17"
+version = "1.0.0-beta.18"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -34,7 +34,8 @@ const-str = "^0.6.2"
 
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.
-getrandom = { workspace = true, features = ["js"] }
+getrandom = { workspace = true, features = ["wasm_js"] }
+getrandom_v2 = { package = "getrandom", version = "^0.2.0", features = ["js"] }
 
 [build-dependencies]
 build-data.workspace = true

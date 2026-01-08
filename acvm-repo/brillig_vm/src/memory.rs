@@ -122,10 +122,18 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
         match bit_size {
             IntegerBitSize::U1 => MemoryValue::U1(value != 0),
-            IntegerBitSize::U8 => MemoryValue::U8(value as u8),
-            IntegerBitSize::U16 => MemoryValue::U16(value as u16),
-            IntegerBitSize::U32 => MemoryValue::U32(value as u32),
-            IntegerBitSize::U64 => MemoryValue::U64(value as u64),
+            IntegerBitSize::U8 => {
+                MemoryValue::U8(value.try_into().expect("{value} is out of 8 bits range"))
+            }
+            IntegerBitSize::U16 => {
+                MemoryValue::U16(value.try_into().expect("{value} is out of 16 bits range"))
+            }
+            IntegerBitSize::U32 => {
+                MemoryValue::U32(value.try_into().expect("{value} is out of 32 bits range"))
+            }
+            IntegerBitSize::U64 => {
+                MemoryValue::U64(value.try_into().expect("{value} is out of 64 bits range"))
+            }
             IntegerBitSize::U128 => MemoryValue::U128(value),
         }
     }
@@ -424,13 +432,13 @@ impl<F: AcirField> Memory<F> {
         self.write(ptr, MemoryValue::from(address.to_usize()));
     }
 
-    /// Read a contiguous slice of memory starting at `address`, up to `len` slots.
+    /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
     pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
-        // Allows to read a slice of uninitialized memory if the length is zero.
+        // Allows to read a vector of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
-        // but that's not possible if we want to return a slice instead of owned data.
+        // but that's not possible if we want to return a vector instead of owned data.
         if len == 0 {
             return &[];
         }
@@ -602,7 +610,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
-    fn read_slice_from_non_existent_memory() {
+    fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);
     }

@@ -31,7 +31,7 @@ fn indexing_array_with_non_u32_produces_an_error() {
         let index: Field = 0;
         let array = [1, 2, 3];
         let _ = array[index];
-                      ^^^^^ Indexing arrays and slices must be done with `u32`, not `Field`
+                      ^^^^^ Indexing arrays and vectors must be done with `u32`, not `Field`
     }
     "#;
     check_errors(src);
@@ -44,7 +44,7 @@ fn indexing_array_with_non_u32_on_lvalue_produces_an_error() {
         let index: Field = 0;
         let mut array = [1, 2, 3];
         array[index] = 0;
-              ^^^^^ Indexing arrays and slices must be done with `u32`, not `Field`
+              ^^^^^ Indexing arrays and vectors must be done with `u32`, not `Field`
     }
     "#;
     check_errors(src);
@@ -63,12 +63,12 @@ fn cannot_determine_array_type() {
 }
 
 #[test]
-fn cannot_determine_slice_type() {
+fn cannot_determine_vector_type() {
     let src = r#"
     fn main() {
-        let _ = &[];
+        let _ = @[];
                 ^^^ Type annotation needed
-                ~~~ Could not determine the type of the slice
+                ~~~ Could not determine the type of the vector
     }
     "#;
     check_errors(src);
@@ -105,11 +105,11 @@ fn non_homogenous_array() {
 }
 
 #[test]
-fn array_with_nested_slice() {
+fn array_with_nested_vector() {
     let src = r#"
     fn main () {
-        let _: [[[Field]; 1]; 1] = [[&[0]]];
-               ^^^^^^^^^^^^^^^^^ Nested slices, i.e. slices within an array or slice, are not supported
+        let _: [[[Field]; 1]; 1] = [[@[0]]];
+               ^^^^^^^^^^^^^^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
                ~~~~~~~~~~~~~~~~~ Try to use a constant sized array or BoundedVec instead
     }
     "#;

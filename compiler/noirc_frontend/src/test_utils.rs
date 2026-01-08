@@ -30,7 +30,7 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
     get_monomorphized_with_error_filter(src, |_| false)
 }
 
-pub(crate) fn get_monomorphized_with_error_filter(
+pub fn get_monomorphized_with_error_filter(
     src: &str,
     ignore_error: impl Fn(&CompilationError) -> bool,
 ) -> Result<Program, MonomorphizationError> {
@@ -89,6 +89,7 @@ pub(crate) fn get_program_with_options(
     let mut fm = FileManager::new(root);
     let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
     let mut context = Context::new(fm, Default::default());
+    context.enable_pedantic_solving();
 
     context.def_interner.populate_dummy_operator_traits();
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);

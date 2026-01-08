@@ -417,7 +417,7 @@ impl BinaryOp {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use proptest::prelude::*;
 
     use super::{

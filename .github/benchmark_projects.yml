@@ -1,4 +1,4 @@
-define: &AZ_COMMIT e3e13bb900cd82995a054024b1d8defbd9dc7fb5
+define: &AZ_COMMIT 9a97293f9ef70c4cc52ccba90ba30de7514fd700
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -7,6 +7,8 @@ projects:
     num_runs: 5
     compilation-timeout: 3.0
     execution-timeout: 0.08
+    brillig-compilation-timeout: 3.0
+    brillig-execution-timeout: 0.08
     compilation-memory-limit: 350
     execution-memory-limit: 300
   private-kernel-tail:
@@ -16,6 +18,8 @@ projects:
     num_runs: 5
     compilation-timeout: 3
     execution-timeout: 0.04
+    brillig-compilation-timeout: 3
+    brillig-execution-timeout: 0.04
     compilation-memory-limit: 300
     execution-memory-limit: 350
   private-kernel-reset:
@@ -25,6 +29,8 @@ projects:
     num_runs: 5
     compilation-timeout: 10
     execution-timeout: 0.35
+    brillig-compilation-timeout: 10
+    brillig-execution-timeout: 0.35
     compilation-memory-limit: 750
     execution-memory-limit: 350
   rollup-block-root-first-empty-tx:
@@ -34,6 +40,8 @@ projects:
     cannot_execute: true
     num_runs: 5
     compilation-timeout: 30
+    brillig-compilation-timeout: 30
+    brillig-execution-timeout: 0.01
     compilation-memory-limit: 1500
   rollup-block-root-single-tx:
     repo: AztecProtocol/aztec-packages
@@ -42,6 +50,8 @@ projects:
     cannot_execute: true
     num_runs: 1
     compilation-timeout: 250
+    brillig-compilation-timeout: 250
+    brillig-execution-timeout: 0.01
     compilation-memory-limit: 10000
   rollup-block-root:
     repo: AztecProtocol/aztec-packages
@@ -50,6 +60,8 @@ projects:
     num_runs: 1
     compilation-timeout: 250
     execution-timeout: 40
+    brillig-compilation-timeout: 250
+    brillig-execution-timeout: 40
     compilation-memory-limit: 10000
     execution-memory-limit: 1900
   rollup-checkpoint-merge:
@@ -59,24 +71,30 @@ projects:
     num_runs: 5
     compilation-timeout: 20
     execution-timeout: 0.75
+    brillig-compilation-timeout: 20
+    brillig-execution-timeout: 0.75
     compilation-memory-limit: 1700
     execution-memory-limit: 600
   rollup-checkpoint-root-single-block:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
+    cannot_execute_brillig: true
     num_runs: 1
     compilation-timeout: 500
     execution-timeout: 0.75
+    brillig-compilation-timeout: 500
     compilation-memory-limit: 12000
     execution-memory-limit: 2000
   rollup-checkpoint-root:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
+    cannot_execute_brillig: true
     num_runs: 1
     compilation-timeout: 525
     execution-timeout: 1
+    brillig-compilation-timeout: 525
     compilation-memory-limit: 12000
     execution-memory-limit: 2000
   rollup-tx-merge:
@@ -86,6 +104,8 @@ projects:
     num_runs: 5
     compilation-timeout: 4
     execution-timeout: 0.01
+    brillig-compilation-timeout: 4
+    brillig-execution-timeout: 0.01
     compilation-memory-limit: 450
     execution-memory-limit: 450
   rollup-root:
@@ -95,6 +115,8 @@ projects:
     num_runs: 5
     compilation-timeout: 2
     execution-timeout: 0.6
+    brillig-compilation-timeout: 2
+    brillig-execution-timeout: 0.6
     compilation-memory-limit: 500
     execution-memory-limit: 450
   rollup-tx-base-private:
@@ -104,6 +126,8 @@ projects:
     num_runs: 5
     compilation-timeout: 30
     execution-timeout: 0.75
+    brillig-compilation-timeout: 30
+    brillig-execution-timeout: 0.75
     compilation-memory-limit: 1700
     execution-memory-limit: 600
   rollup-tx-base-public:
@@ -113,6 +137,8 @@ projects:
     num_runs: 5
     compilation-timeout: 100
     execution-timeout: 0.75
+    brillig-compilation-timeout: 100
+    brillig-execution-timeout: 0.75
     compilation-memory-limit: 8000
     execution-memory-limit: 600
   semaphore-depth-10:
@@ -121,6 +147,8 @@ projects:
     num_runs: 20
     compilation-timeout: 2
     execution-timeout: 0.6
+    brillig-compilation-timeout: 2
+    brillig-execution-timeout: 0.6
     compilation-memory-limit: 450
     execution-memory-limit: 400
   sha512-100-bytes:
@@ -129,5 +157,7 @@ projects:
     num_runs: 10
     compilation-timeout: 10
     execution-timeout: 5
+    brillig-compilation-timeout: 10
+    brillig-execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400

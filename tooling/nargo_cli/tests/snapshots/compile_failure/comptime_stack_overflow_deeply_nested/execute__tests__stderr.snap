@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable max_depth
+  ┌─ src/main.nr:1:8
+  │
+1 │ fn foo(max_depth: u32) -> u32 {
+  │        --------- unused variable
+  │
+
+error: expected type u32, found type ()
+    ┌─ src/main.nr:1:27
+    │  
+  1 │   fn foo(max_depth: u32) -> u32 {
+    │                             --- expected u32 because of return type
+    ·  
+101 │ ╭                                                                                                                                                                                                                                                                                                                                                                                                                 if max_depth
+102 │ │                                                                                                                                                                                                                                                                                                                                                                                                                     == 0 {
+103 │ │                                                                                                                                                                                                                                                                                                                                                                                                                     1
+104 │ │                                                                                                                                                                                                                                                                                                                                                                                                                 } else {
+    · │
+306 │ │             + 100
+307 │ │     )
+    │ ╰─────' () returned here
+    │  
+
+error: Internal Compiler Error: Error node encountered
+    ┌─ src/main.nr:307:6
+    │
+307 │     )
+    │      - This is a bug, please report this if found!
+    │
+
+error: Maximum recursion depth exceeded while parsing expression
+    ┌─ src/main.nr:101:404
+    │
+101 │                                                                                                                                                                                                                                                                                                                                                                                                                 if max_depth
+    │                                                                                                                                                                                                                                                                                                                                                                                                                    ---------
+    │
+
+error: Expected an expression but found '}'
+    ┌─ src/main.nr:308:1
+    │
+308 │ }
+    │ -
+    │
+
+error: Expected a '{' but found '}'
+    ┌─ src/main.nr:308:1
+    │
+308 │ }
+    │ -
+    │
+
+Aborting due to 5 previous errors

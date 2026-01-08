@@ -24,6 +24,7 @@
 <li><a href="#any">any</a></li>
 <li><a href="#as_slice">as_slice</a></li>
 <li><a href="#as_str_unchecked">as_str_unchecked</a></li>
+<li><a href="#as_vector">as_vector</a></li>
 <li><a href="#concat">concat</a></li>
 <li><a href="#fold">fold</a></li>
 <li><a href="#for_each">for_each</a></li>
@@ -73,7 +74,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -88,6 +88,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -109,22 +110,48 @@
 and the non-negative compile-time constant size, <code>N</code>.</p>
 <p>There are two syntactic forms for creating an array:</p>
 <ul>
-<li>A list with each element, i.e., <code>[x, y, z]</code>.</li>
+<li>A vector with each element, i.e., <code>[x, y, z]</code>.</li>
 <li>A repeat expression <code>[expr; N]</code> where <code>N</code> is how many times to repeat <code>expr</code> in the array.</li>
 </ul>
 </div>
 <h2>Implementations</h2>
-<h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
+<h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
-<div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <a href="#as_str_unchecked"><span class="fn">as_str_unchecked</span></a>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
+<div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort"><span class="fn">sort</span></a>(self) -> Self
+<div class="where-clause">where
+    T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
+    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
 
 <div class="padded-description"><div class="comments">
-<p>Converts a byte array of type <code>[u8; N]</code> to a string. Note that this performs no UTF-8 validation -
-the given array is interpreted as-is as a string.</p>
+<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
+only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
+logic it uses internally is optimized specifically for these values. If you need a sort function to
+sort any type, you should use the <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a> function.</p>
 <p>Example:</p>
 <pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> hi = [<span class="number">104</span>, <span class="number">105</span>].as_str_unchecked();
-    <span class="kw">assert_eq</span>(hi, <span class="string">"hi"</span>);
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
+    <span class="kw">let</span> sorted = arr.sort();
+    <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
+<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
+<div class="where-clause">where
+    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a new sorted array by sorting it with a custom comparison function.
+The original array remains untouched.
+The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
+<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
+    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
+    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
+
+    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
+    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
@@ -138,13 +165,25 @@ the given array is interpreted as-is as a string.</p>
     <span class="kw">let</span> array = [<span class="number">42</span>, <span class="number">42</span>];
     <span class="kw">assert</span>(array.len() == <span class="number">2</span>);
 }</code></pre></div>
-</div><code id="as_slice" class="code-header">pub fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> [T]</code>
+</div><code id="as_vector" class="code-header">pub fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> [T]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns this array as a slice.</p>
+<p>Returns this array as a vector.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
-<span class="kw">let</span> slice = array.as_slice();
-<span class="kw">assert_eq</span>(slice, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
+<span class="kw">let</span> vector = array.as_vector();
+<span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
+</div><code id="as_slice" class="code-header">pub fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> [T]</code>
+
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_vector`
+</div>
+<div class="comments">
+<p>Returns this array as a vector.
+This method is deprecated in favor of <code>as_vector</code>.</p>
+<pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
+<span class="kw">let</span> vector = array.as_slice();
+<span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
 </div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
 
 <div class="padded-description"><div class="comments">
@@ -245,43 +284,17 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
     <span class="kw">let</span> concatenated_arr = arr1.concat(arr2);
     <span class="kw">assert</span>(concatenated_arr == [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>]);
 }</code></pre></div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
 
-<div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort"><span class="fn">sort</span></a>(self) -> Self
-<div class="where-clause">where
-    T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
-    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
+<div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <a href="#as_str_unchecked"><span class="fn">as_str_unchecked</span></a>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
-only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
-logic it uses internally is optimized specifically for these values. If you need a sort function to
-sort any type, you should use the <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a> function.</p>
+<p>Converts a byte array of type <code>[u8; N]</code> to a string. Note that this performs no UTF-8 validation -
+the given array is interpreted as-is as a string.</p>
 <p>Example:</p>
 <pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
-    <span class="kw">let</span> sorted = arr.sort();
-    <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
-}</code></pre></div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
-
-<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
-<div class="where-clause">where
-    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns a new sorted array by sorting it with a custom comparison function.
-The original array remains untouched.
-The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
-<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
-<p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
-    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
-    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
-
-    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
-    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
+    <span class="kw">let</span> hi = [<span class="number">104</span>, <span class="number">105</span>].as_str_unchecked();
+    <span class="kw">assert_eq</span>(hi, <span class="string">"hi"</span>);
 }</code></pre></div>
 </div></div></main>
 </span>

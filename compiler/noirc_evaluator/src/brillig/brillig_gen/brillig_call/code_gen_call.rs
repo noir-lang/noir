@@ -83,7 +83,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 .brillig_context
                 .codegen_initialize_externally_returned_vector(vector, &heap_vector);
 
-            // Update the dynamic slice length maintained in SSA, a.k.a semantic length,
+            // Update the dynamic vector length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
             if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
                 // Calculate the semantic length as flattened_size / element_size.
@@ -147,8 +147,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         assert!(
-            !arguments.iter().any(|arg| dfg.type_of_value(*arg).contains_slice_element()),
-            "Blackbox functions should not be called with arguments of slice type"
+            !arguments.iter().any(|arg| dfg.type_of_value(*arg).contains_vector_element()),
+            "Blackbox functions should not be called with arguments of vector type"
         );
 
         let mut arguments = arguments.to_vec();
@@ -183,10 +183,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
-    /// Converts an array to a slice by copying the array contents into a vector.
+    /// Converts an array to a vector by copying the array contents into a vector.
     ///
-    /// This intrinsic converts a fixed-size array into a dynamically-sized slice (vector).
-    fn convert_ssa_as_slice(
+    /// This intrinsic converts a fixed-size array into a dynamically-sized vector (vector).
+    fn convert_ssa_as_vector(
         &mut self,
         arguments: &[ValueId],
         instruction_id: InstructionId,
@@ -261,16 +261,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // This match could be combined with the above but without it rust analyzer
                 // can't automatically insert any missing cases
                 match intrinsic {
-                    Intrinsic::AsSlice => {
-                        self.convert_ssa_as_slice(arguments, instruction_id, dfg);
+                    Intrinsic::AsVector => {
+                        self.convert_ssa_as_vector(arguments, instruction_id, dfg);
                     }
-                    Intrinsic::SlicePushBack
-                    | Intrinsic::SlicePopBack
-                    | Intrinsic::SlicePushFront
-                    | Intrinsic::SlicePopFront
-                    | Intrinsic::SliceInsert
-                    | Intrinsic::SliceRemove => {
-                        self.convert_ssa_slice_intrinsic_call(
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorInsert
+                    | Intrinsic::VectorRemove => {
+                        self.convert_ssa_vector_intrinsic_call(
                             dfg,
                             &dfg[func],
                             instruction_id,
@@ -355,7 +355,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);
                     }
-                    Intrinsic::SliceRefCount => {
+                    Intrinsic::VectorRefCount => {
                         let array = self.convert_ssa_value(arguments[1], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 

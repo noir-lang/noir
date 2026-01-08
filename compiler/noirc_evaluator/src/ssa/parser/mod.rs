@@ -263,6 +263,8 @@ impl<'a> Parser<'a> {
             Ok(InlineType::Inline)
         } else if self.eat_keyword(Keyword::InlineAlways)? {
             Ok(InlineType::InlineAlways)
+        } else if self.eat_keyword(Keyword::InlineNever)? {
+            Ok(InlineType::InlineNever)
         } else if self.eat_keyword(Keyword::Fold)? {
             Ok(InlineType::Fold)
         } else if self.eat_keyword(Keyword::NoPredicates)? {
@@ -271,6 +273,7 @@ impl<'a> Parser<'a> {
             self.expected_one_of_tokens(&[
                 Token::Keyword(Keyword::Inline),
                 Token::Keyword(Keyword::InlineAlways),
+                Token::Keyword(Keyword::InlineNever),
                 Token::Keyword(Keyword::Fold),
                 Token::Keyword(Keyword::NoPredicates),
             ])
@@ -738,7 +741,7 @@ impl<'a> Parser<'a> {
                 return self.expected_byte_string();
             };
             let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-            let typ = Type::Slice(Arc::new(vec![u8.clone()]));
+            let typ = Type::Vector(Arc::new(vec![u8.clone()]));
             let elements = string
                 .bytes()
                 .map(|byte| {
@@ -977,7 +980,7 @@ impl<'a> Parser<'a> {
                 return Ok(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Slice(Arc::new(element_types)));
+                return Ok(Type::Vector(Arc::new(element_types)));
             }
         }
 
