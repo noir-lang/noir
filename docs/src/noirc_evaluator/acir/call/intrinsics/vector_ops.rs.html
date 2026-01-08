@@ -818,7 +818,20 @@
 <a href="#817" id="817">817</a>
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
@@ -1182,7 +1195,7 @@
         <span class="kw">let </span>vector_typ = dfg.type_of_value(vector_contents);
         <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(vector_contents, dfg)<span class="question-mark">?</span>;
 
-        <span class="comment">// Check if we're trying to pop from an empty vector
+        <span class="comment">// Check if we're trying to pop from a known empty vector.
         </span><span class="kw">if </span><span class="self">self</span>.has_zero_length(vector_contents, dfg) {
             <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
             </span><span class="kw">let </span>msg = <span class="string">"cannot pop from a vector with length 0"</span>.to_string();
@@ -1207,6 +1220,19 @@
 
             <span class="kw">return </span><span class="prelude-val">Ok</span>(results);
         }
+
+        <span class="comment">// Check that the vector length is not zero.
+        // This is different from the previous check as this is a runtime check.
+        </span><span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
+        <span class="kw">let </span>assert_message = <span class="self">self</span>.acir_context.generate_assertion_message_payload(
+            <span class="string">"Attempt to pop_front from an empty vector"</span>.to_string(),
+        );
+        <span class="self">self</span>.acir_context.assert_neq_var(
+            vector_length,
+            zero,
+            <span class="self">self</span>.current_side_effects_enabled_var,
+            <span class="prelude-val">Some</span>(assert_message),
+        )<span class="question-mark">?</span>;
 
         <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
         <span class="kw">let </span>new_vector_length = <span class="self">self</span>.acir_context.sub_var(vector_length, one)<span class="question-mark">?</span>;
