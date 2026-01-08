@@ -141,7 +141,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) => {
                 // The array's flattened size must match the expected size
-                assert_eq!(*type_size * value_types.len(), size);
+                let flattened_size = *type_size * value_types.len();
+                assert_eq!(flattened_size, size);
 
                 let start = self.memory.read_ref(pointer);
                 self.read_slice_of_values_from_memory(start, size, value_types)
@@ -170,6 +171,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
     /// Reads an array/vector from memory but recursively reads pointers to
     /// nested arrays/vectors according to the sequence of value types.
+    ///
+    /// The given `size` is the total number of `HeadValueType`s to read, which must
+    /// be a multiple of the length of `value_types` (unless `value_types.len()` is 0).
     fn read_slice_of_values_from_memory(
         &self,
         start: MemoryAddress,
@@ -201,10 +205,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         HeapValueType::Array { value_types, size: type_size } => {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
+                            let flattened_size = *type_size * value_types.len();
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                *type_size,
+                                flattened_size,
                                 value_types,
                             )
                         }
