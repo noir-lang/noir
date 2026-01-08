@@ -13,11 +13,7 @@ fn example2(val: str<3>, flag: bool) {
     let (_, s1) = s.pop_front();
     let (s2, _) = s.pop_back();
     let (s3, s4, _) = std::hint::black_box((s1, s2, 1));
-    let _ = if flag {
-        s3
-    } else {
-        s4
-    };
+    let _ = if flag { s3 } else { s4 };
 }
 
 fn example3(val: str<1>) {
