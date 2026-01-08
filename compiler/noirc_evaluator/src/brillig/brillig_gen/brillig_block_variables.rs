@@ -10,7 +10,10 @@
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-use acvm::FieldElement;
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -164,8 +167,11 @@ impl BlockVariables {
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
-    item_typ.len() * elem_count
+pub(crate) fn compute_array_length(
+    item_typ: &CompositeType,
+    elem_count: SemanticLength,
+) -> SemiFlattenedLength {
+    ElementsLength(item_typ.len()) * elem_count
 }
 
 /// For a given [ValueId], allocates the necessary registers to hold it.
@@ -189,7 +195,10 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context
-            .allocate_brillig_array(compute_array_length(&item_typ, elem_count as usize))
+            .allocate_brillig_array(compute_array_length(
+                &item_typ,
+                SemanticLength(elem_count as usize),
+            ))
             .map(BrilligVariable::BrilligArray),
         Type::Vector(_) => {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)

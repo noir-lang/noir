@@ -14,10 +14,10 @@ pub(crate) enum BrilligParameter {
     /// A single address parameter or return value. Holds the bit size of the parameter.
     SingleAddr(u32),
     /// An array parameter or return value. Holds the type of an array item and its size.
-    Array(Vec<BrilligParameter>, usize),
+    Array(Vec<BrilligParameter>, usize), // TODO(lengths): use SemiFlattenedLength
     /// A vector parameter or return value. Holds the type of a vector item.
     /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
-    Vector(Vec<BrilligParameter>, usize),
+    Vector(Vec<BrilligParameter>, usize), // TODO(lengths): use SemiFlattenedLength
 }
 
 /// The result of compiling and linking brillig artifacts.

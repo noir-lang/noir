@@ -1,7 +1,7 @@
 use acvm::{
     AcirField,
     acir::{
-        brillig::{HeapVector, MemoryAddress},
+        brillig::{HeapVector, MemoryAddress, lengths::SemiFlattenedLength},
         circuit::ErrorSelector,
     },
 };
@@ -309,6 +309,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Computes the size of a parameter if it was flattened
+    // TODO(lengths): return SemiFlattenedLength
     pub(super) fn flattened_size(param: &BrilligParameter) -> usize {
         match param {
             BrilligParameter::SingleAddr(_) => 1,
@@ -376,8 +377,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                             nested_array_item_type,
                             nested_array_item_count,
                         ) => {
-                            let deflattened_nested_array =
-                                self.allocate_brillig_array(*nested_array_item_count);
+                            let deflattened_nested_array = self.allocate_brillig_array(
+                                SemiFlattenedLength(*nested_array_item_count),
+                            );
 
                             self.codegen_load_with_offset(
                                 deflattened_items_pointer,

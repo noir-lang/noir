@@ -4,7 +4,10 @@ use acvm::{
     FieldElement,
     acir::{
         AcirField,
-        brillig::{BitSize, lengths::SemanticLength},
+        brillig::{
+            BitSize,
+            lengths::{SemanticLength, SemiFlattenedLength},
+        },
     },
     brillig_vm::brillig::{HeapValueType, MemoryAddress},
 };
@@ -45,8 +48,7 @@ pub(crate) struct BrilligArray {
     ///
     /// This is the flattened size of the array, where complex types
     /// take up more than one slot.
-    pub(crate) size: usize,
-    // TODO(lengths): use SemiFlattenedLength here instead of usize
+    pub(crate) size: SemiFlattenedLength,
 }
 
 /// The representation of a noir vector in the Brillig IR

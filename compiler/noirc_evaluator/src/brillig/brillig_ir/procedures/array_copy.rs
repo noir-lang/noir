@@ -40,7 +40,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(
             source_array_memory_size_arg,
-            (source_array.size + offsets::ARRAY_META_COUNT).into(),
+            (source_array.size.0 + offsets::ARRAY_META_COUNT).into(),
         );
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
@@ -103,7 +103,7 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     data: &str,
     brillig_context: &mut BrilligContext<F, Registers>,
 ) -> Allocated<ValueOrArray, Registers> {
-    let brillig_array = brillig_context.allocate_brillig_array(data.len());
+    let brillig_array = brillig_context.allocate_brillig_array(SemiFlattenedLength(data.len()));
 
     // Allocate space on the heap.
     brillig_context.codegen_initialize_array(*brillig_array);

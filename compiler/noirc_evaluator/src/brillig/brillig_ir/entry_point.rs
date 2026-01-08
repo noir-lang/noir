@@ -12,7 +12,10 @@ use super::{
 };
 use acvm::acir::{
     AcirField,
-    brillig::{HeapVector, MemoryAddress},
+    brillig::{
+        HeapVector, MemoryAddress,
+        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+    },
 };
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
@@ -118,7 +121,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     BrilligVariable::BrilligArray(mut array),
                     BrilligParameter::Array(item_type, item_count),
                 ) => {
-                    let flattened_size = array.size;
+                    let semi_flattened_size = array.size;
                     self.usize_const_instruction(array.pointer, current_calldata_pointer.into());
 
                     let deflattened_address =
@@ -126,9 +129,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     self.mov_instruction(array.pointer, *deflattened_address);
 
                     // After deflattening, we have to adjust the size of the array.
-                    array.size = item_type.len() * item_count;
+                    array.size = ElementsLength(item_type.len()) * SemanticLength(*item_count);
 
-                    current_calldata_pointer += flattened_size;
+                    current_calldata_pointer += semi_flattened_size.0;
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
@@ -161,6 +164,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(_, _) => {
                     let flattened_size = Self::flattened_size(argument);
+                    let flattened_size = SemiFlattenedLength(flattened_size);
                     self.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(_, _) => {
@@ -225,7 +229,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         } else {
             let arr = BrilligArray {
                 pointer: *deflattened_array_pointer,
-                size: item_count * item_type.len(),
+                size: SemanticLength(item_count) * ElementsLength(item_type.len()),
             };
             self.codegen_initialize_array(arr);
             self.codegen_make_array_items_pointer(arr)
@@ -327,7 +331,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Array(item_types, item_count) => self
-                    .allocate_brillig_array(item_types.len() * item_count)
+                    .allocate_brillig_array(
+                        ElementsLength(item_types.len()) * SemanticLength(*item_count),
+                    )
                     .map(BrilligVariable::from),
                 BrilligParameter::Vector(..) => unreachable!("ICE: Cannot return vectors"),
             })
@@ -382,7 +388,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 #[cfg(test)]
 mod tests {
 
-    use acvm::FieldElement;
+    use acvm::{FieldElement, acir::brillig::lengths::SemiFlattenedLength};
 
     use crate::{
         brillig::brillig_ir::{
@@ -418,13 +424,17 @@ mod tests {
         let array_pointer = context.allocate_register();
         let array_value = context.allocate_register();
 
-        let items_pointer = context
-            .codegen_make_array_items_pointer(BrilligArray { pointer: *array_pointer, size: 2 });
+        let items_pointer = context.codegen_make_array_items_pointer(BrilligArray {
+            pointer: *array_pointer,
+            size: SemiFlattenedLength(2),
+        });
 
         // Load the nested array
         context.load_instruction(*array_pointer, *items_pointer);
-        let items_pointer = context
-            .codegen_make_array_items_pointer(BrilligArray { pointer: *array_pointer, size: 2 });
+        let items_pointer = context.codegen_make_array_items_pointer(BrilligArray {
+            pointer: *array_pointer,
+            size: SemiFlattenedLength(2),
+        });
         // Load the first item of the nested array.
         context.load_instruction(*array_value, *items_pointer);
 
@@ -461,7 +471,7 @@ mod tests {
         let mut context = create_context(FunctionId::test_new(0));
 
         // Allocate the parameter
-        let return_register = context.allocate_brillig_array(2);
+        let return_register = context.allocate_brillig_array(SemiFlattenedLength(2));
 
         context.codegen_return(&[return_register.to_var()]);
 

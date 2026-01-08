@@ -544,7 +544,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// That is done by [BrilligContext::codegen_initialize_array].
     pub(crate) fn allocate_brillig_array(
         &mut self,
-        size: usize,
+        size: SemiFlattenedLength,
     ) -> Allocated<BrilligArray, Registers> {
         self.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
@@ -557,8 +557,10 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     }
 
     /// Allocate a [HeapArray].
-    pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
-        let size = SemiFlattenedLength(size);
+    pub(crate) fn allocate_heap_array(
+        &mut self,
+        size: SemiFlattenedLength,
+    ) -> Allocated<HeapArray, Registers> {
         self.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
 
