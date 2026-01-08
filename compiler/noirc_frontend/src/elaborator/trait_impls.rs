@@ -34,8 +34,7 @@ use super::Elaborator;
 
 impl Elaborator<'_> {
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        let previous_local_module =
-            std::mem::replace(&mut self.local_module, Some(trait_impl.module_id));
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
         let previous_current_trait_impl =
             std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
 
@@ -43,7 +42,7 @@ impl Elaborator<'_> {
         let self_type =
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
-        let previous_self_type = std::mem::replace(&mut self.self_type, Some(self_type.clone()));
+        let previous_self_type = self.self_type.replace(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
         if matches!(self_type, Type::Reference(..)) {
@@ -232,8 +231,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        let previous_local_module =
-            std::mem::replace(&mut self.local_module, Some(trait_impl.module_id));
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -437,8 +435,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        let previous_local_module =
-            std::mem::replace(&mut self.local_module, Some(trait_impl.module_id));
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
             Some(Type::DataType(struct_or_enum_type, _)) => {
@@ -735,8 +732,7 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> Vec<(TraitConstraint, Location)> {
-        let previous_local_module =
-            std::mem::replace(&mut self.local_module, Some(trait_impl.module_id));
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);

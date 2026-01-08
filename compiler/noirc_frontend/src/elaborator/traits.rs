@@ -202,20 +202,17 @@ impl Elaborator<'_> {
     /// 4. Resolves the trait's bounds (its listed super traits).
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            let previous_local_module =
-                std::mem::replace(&mut self.local_module, Some(unresolved_trait.module_id));
+            let previous_local_module = self.local_module.replace(unresolved_trait.module_id);
 
             self.recover_generics(|this| {
-                let previous_current_trait =
-                    std::mem::replace(&mut this.current_trait, Some(*trait_id));
+                let previous_current_trait = this.current_trait.replace(*trait_id);
 
                 let the_trait = this.interner.get_trait(*trait_id);
 
                 // Add each type variable from the trait (including Self) into scope.
                 let self_typevar = the_trait.self_type_typevar.clone();
                 let self_type = Type::TypeVariable(self_typevar.clone());
-                let previous_self_type =
-                    std::mem::replace(&mut this.self_type, Some(self_type.clone()));
+                let previous_self_type = this.self_type.replace(self_type.clone());
 
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
@@ -287,19 +284,16 @@ impl Elaborator<'_> {
     /// method bodies are not elaborated.
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            let previous_local_module =
-                std::mem::replace(&mut self.local_module, Some(unresolved_trait.module_id));
+            let previous_local_module = self.local_module.replace(unresolved_trait.module_id);
 
             self.recover_generics(|this| {
-                let previous_current_trait =
-                    std::mem::replace(&mut this.current_trait, Some(*trait_id));
+                let previous_current_trait = this.current_trait.replace(*trait_id);
 
                 // Put `Self` and other trait generics in scope
                 let the_trait = this.interner.get_trait(*trait_id);
                 let self_typevar = the_trait.self_type_typevar.clone();
                 let self_type = Type::TypeVariable(self_typevar.clone());
-                let previous_self_type =
-                    std::mem::replace(&mut this.self_type, Some(self_type.clone()));
+                let previous_self_type = this.self_type.replace(self_type.clone());
 
                 this.generics = the_trait.all_generics.clone();
 
