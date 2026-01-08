@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767879829719,
+  "lastUpdate": 1767880495774,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0a365c89fc601cf1fb2faf2ef1db0de0a517ec3c",
-          "message": "fix: skip release-end job when release PR isn't updated (#11031)",
-          "timestamp": "2026-01-02T16:57:37Z",
-          "tree_id": "832c24ddc284c29c43392e64142043a7061a51ef",
-          "url": "https://github.com/noir-lang/noir/commit/0a365c89fc601cf1fb2faf2ef1db0de0a517ec3c"
-        },
-        "date": 1767374327119,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259700,
-            "range": "± 789",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231989,
-            "range": "± 3814",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791011,
-            "range": "± 7942",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790316,
             "range": "± 2920",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c96ca7ac4e4e07268ecc21fb6f1f034c7f4659f1",
+          "message": "fix(fmt): format the old vector syntax into the new one (#11128)",
+          "timestamp": "2026-01-08T13:34:17Z",
+          "tree_id": "c9c4871bbd221c8f2c6f31199a5b2662b44cc55c",
+          "url": "https://github.com/noir-lang/noir/commit/c96ca7ac4e4e07268ecc21fb6f1f034c7f4659f1"
+        },
+        "date": 1767880461407,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252700,
+            "range": "± 565",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222194,
+            "range": "± 9281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793862,
+            "range": "± 11772",
             "unit": "ns/iter"
           }
         ]
