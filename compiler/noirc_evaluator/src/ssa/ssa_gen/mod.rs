@@ -1085,7 +1085,7 @@ impl FunctionContext<'_> {
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
         // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
-        let is_pure_func = is_pure_builtin_func(&call.func) || is_oracle_func(&call.func);
+        let can_modify_args = !is_pure_builtin_func(&call.func) && !is_oracle_func(&call.func);
 
         for argument in &call.arguments {
             // The ownership pass inserts `Clone` around call arguments, however if we know that
@@ -1093,7 +1093,7 @@ impl FunctionContext<'_> {
             // skip generating an `IncrementRc` for cloned arrays.
             // The purity information isn't currently available to the ownership pass.
             let arg = match argument {
-                Expression::Clone(arg) if is_pure_func => arg.as_ref(),
+                Expression::Clone(arg) if !can_modify_args => arg.as_ref(),
                 other => other,
             };
             let mut values = self.codegen_expression(arg)?.into_value_list(self);
