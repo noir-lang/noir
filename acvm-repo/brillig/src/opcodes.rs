@@ -1,6 +1,6 @@
 use crate::{
     black_box::BlackBoxOp,
-    lengths::{SemanticLength, SemiFlattenedLength},
+    lengths::{FlattenedLength, SemanticLength, SemiFlattenedLength},
 };
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
@@ -122,16 +122,17 @@ impl HeapValueType {
     /// Returns the total number of field elements required to represent this type in memory.
     ///
     /// Returns `None` for `Vector`, as their size is not statically known.
-    pub fn flattened_size(&self) -> Option<usize> {
+    pub fn flattened_size(&self) -> Option<FlattenedLength> {
         match self {
-            HeapValueType::Simple(_) => Some(1),
+            HeapValueType::Simple(_) => Some(FlattenedLength(1)),
             HeapValueType::Array { value_types, size } => {
-                // TODO(lengths): use FlattenedLength here
+                // This is the flattened length of a single entry in the array (all of `value_types`)
                 let element_size =
-                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<usize>>();
+                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
 
-                // Multiply element size by number of elements.
-                element_size.map(|element_size| element_size * size.0)
+                // Next we multiply it by the size of the array
+                // TODO(lengths): find a type-safe way to do this multiplication
+                element_size.map(|element_size| FlattenedLength(element_size.0 * size.0))
             }
             HeapValueType::Vector { .. } => {
                 // Vectors are dynamic, so we cannot determine their size statically.

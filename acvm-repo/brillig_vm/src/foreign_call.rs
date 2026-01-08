@@ -4,7 +4,7 @@ use acir::{
     brillig::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
-        lengths::{ElementsLength, SemiFlattenedLength},
+        lengths::{ElementsLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
@@ -93,9 +93,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         }
                         HeapValueType::Vector { value_types } => {
                             if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
+                                let flattened_length =
+                                    vector_flattened_length(value_types, SemanticLength(length));
                                 let mut fields = input.fields();
-                                fields.truncate(length * type_size);
+                                fields.truncate(flattened_length.0);
                                 input = ForeignCallParam::Array(fields);
                             }
                             vector_length = None;
@@ -242,8 +243,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         }
                         HeapValueType::Vector { value_types } => {
                             if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
-                                values.truncate(length * type_size);
+                                let flattened_length =
+                                    vector_flattened_length(value_types, SemanticLength(length));
+                                values.truncate(flattened_length.0);
                             }
                             vector_length = None;
                         }
@@ -305,10 +307,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             match (destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {
                     let output_fields = output.fields();
-                    if value_type
-                        .flattened_size()
-                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
-                    {
+                    if value_type.flattened_size().is_some_and(|flattened_size| {
+                        FlattenedLength(output_fields.len()) != flattened_size
+                    }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
                             value_type.flattened_size().unwrap(),
@@ -337,10 +338,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         ));
                     }
                     let output_fields = output.fields();
-                    if value_type
-                        .flattened_size()
-                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
-                    {
+                    if value_type.flattened_size().is_some_and(|flattened_size| {
+                        FlattenedLength(output_fields.len()) != flattened_size
+                    }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
                             value_type.flattened_size().unwrap(),
@@ -556,12 +556,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 /// Returns the total number of field elements required to represent the elements in the vector in memory.
 ///
 /// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
-fn vector_element_size(value_types: &[HeapValueType]) -> usize {
-    value_types
+fn vector_flattened_length(
+    value_types: &[HeapValueType],
+    length: SemanticLength,
+) -> FlattenedLength {
+    let elements_flattened_length: FlattenedLength = value_types
         .iter()
         .map(|typ| {
             typ.flattened_size()
                 .unwrap_or_else(|| panic!("unexpected nested dynamic element type: {typ:?}"))
         })
-        .sum()
+        .sum();
+    FlattenedLength(elements_flattened_length.0 * length.0)
 }

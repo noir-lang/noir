@@ -1,4 +1,7 @@
-use std::ops::Mul;
+use std::{
+    iter::Sum,
+    ops::{Add, Mul},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -63,5 +66,30 @@ pub struct SemiFlattenedLength(pub usize);
 impl std::fmt::Display for SemiFlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+/// Represents the total number of fields required to represent the entirety of an array or vector.
+/// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened legnth is 48: 8 * (1 + 1 + 4).
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
+pub struct FlattenedLength(pub usize);
+
+impl std::fmt::Display for FlattenedLength {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Add for FlattenedLength {
+    type Output = FlattenedLength;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        FlattenedLength(self.0 + rhs.0)
+    }
+}
+
+impl Sum for FlattenedLength {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(FlattenedLength(0), |acc, x| acc + x)
     }
 }
