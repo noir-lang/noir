@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767890753930,
+  "lastUpdate": 1767891265636,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4eb25c4c32c572c04dd2ed863efb98c76c0f8ec3",
-          "message": "chore: move debug-related types from noirc_errors to noirc_artifacts (#11032)",
-          "timestamp": "2026-01-02T19:18:51Z",
-          "tree_id": "9476596837baa6d0db629f832fc8a49d6aff5723",
-          "url": "https://github.com/noir-lang/noir/commit/4eb25c4c32c572c04dd2ed863efb98c76c0f8ec3"
-        },
-        "date": 1767382776684,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263018,
-            "range": "± 1265",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234553,
-            "range": "± 3375",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794537,
-            "range": "± 6809",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795358,
             "range": "± 1551",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "37c15b99052e1cf2ef6483e63dcd5391ae8c1c8f",
+          "message": "chore(serialisation): Stop generating `bincode` serde code for C++ (#10928)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-08T16:13:58Z",
+          "tree_id": "c9dd60dbcf6e2245b13638a3be14c0e7943537e4",
+          "url": "https://github.com/noir-lang/noir/commit/37c15b99052e1cf2ef6483e63dcd5391ae8c1c8f"
+        },
+        "date": 1767891228920,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251944,
+            "range": "± 1162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223031,
+            "range": "± 2820",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2258411,
+            "range": "± 2256",
             "unit": "ns/iter"
           }
         ]
