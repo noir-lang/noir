@@ -1568,7 +1568,14 @@ mod tests {
 
 
         #[test]
-        fn fuzz_bound_constraint_with_offset(limit: u128, offset: bool) {
+        fn fuzz_bound_constraint_with_offset(
+            (limit, offset) in prop_oneof![
+                // Specific case: strict inequality with 2^127 + 1
+                Just((170141183460469231731687303715884105729u128, true)),
+                // Random cases
+                (any::<u128>(), any::<bool>())
+            ]
+        ) {
             let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
 
             let lhs = context.add_variable();
