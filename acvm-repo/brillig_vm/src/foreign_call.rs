@@ -8,10 +8,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{
-    MemoryValue, VM, VMStatus,
-    memory::{ArrayAddress, VectorAddress},
-};
+use crate::{MemoryValue, VM, VMStatus, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
