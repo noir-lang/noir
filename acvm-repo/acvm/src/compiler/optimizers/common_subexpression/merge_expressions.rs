@@ -200,7 +200,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             Opcode::BlackBoxFuncCall(bb_func) => {
                 let mut witnesses = bb_func.get_input_witnesses();
                 witnesses.extend(bb_func.get_outputs_vec());
-
+                if let Some(w) = bb_func.get_predicate() {
+                    witnesses.insert(w);
+                }
                 witnesses
             }
             Opcode::MemoryOp { block_id: _, op } => {
