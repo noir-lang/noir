@@ -172,7 +172,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Reads an array/vector from memory but recursively reads pointers to
     /// nested arrays/vectors according to the sequence of value types.
     ///
-    /// The given `size` is the total number of `HeadValueType`s to read, which must
+    /// The given `size` is the total number of `HeapValueType`s to read, which must
     /// be a multiple of the length of `value_types` (unless `value_types.len()` is 0).
     fn read_slice_of_values_from_memory(
         &self,
