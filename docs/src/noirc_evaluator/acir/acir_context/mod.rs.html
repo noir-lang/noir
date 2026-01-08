@@ -1669,7 +1669,14 @@
 <a href="#1668" id="1668">1668</a>
 <a href="#1669" id="1669">1669</a>
 <a href="#1670" id="1670">1670</a>
-<a href="#1671" id="1671">1671</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -3239,7 +3246,14 @@
 
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>fuzz_bound_constraint_with_offset(limit: u128, offset: bool) {
+        </span><span class="kw">fn </span>fuzz_bound_constraint_with_offset(
+            (limit, offset) <span class="kw">in </span><span class="macro">prop_oneof!</span>[
+                <span class="comment">// Specific case: strict inequality with 2^127 + 1
+                </span>Just((<span class="number">170141183460469231731687303715884105729u128</span>, <span class="bool-val">true</span>)),
+                <span class="comment">// Random cases
+                </span>(any::&lt;u128&gt;(), any::&lt;bool&gt;())
+            ]
+        ) {
             <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
 
             <span class="kw">let </span>lhs = context.add_variable();
