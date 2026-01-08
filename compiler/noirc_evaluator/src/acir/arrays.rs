@@ -589,12 +589,27 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        let call_data_info = self
-            .data_bus
-            .call_data
-            .iter()
-            .find_map(|cd| cd.index_map.get(&array).map(|idx| (cd.array_id, *idx)));
-        if let Some((array_id, bus_index)) = call_data_info {
+        let call_data_info = self.data_bus.call_data.iter().find_map(|cd| {
+            cd.index_map.get(&array).map(|idx| (cd.array_id, *idx, cd.index_map.len()))
+        });
+        if let Some((array_id, bus_index, index_map_len)) = call_data_info {
+            // Check index for out of bounds when there are multiple elements in the call_data
+            // because the databus aggregates them into the call_data array.
+            if index_map_len > 1 {
+                // Get the length of the array we want to read:
+                let array_typ = dfg.type_of_value(array);
+                let flattened_len = array_typ.flattened_size();
+                let length_var =
+                    self.acir_context.add_constant(FieldElement::from(i128::from(flattened_len)));
+                // Compute out-of-bounds value:
+                let in_bound = self.acir_context.less_than_var(var_index, length_var, 32)?;
+                // Add the out-of-bounds check:
+                let assert_message = "Index out of bounds".to_string();
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let message = self.acir_context.generate_assertion_message_payload(assert_message);
+                self.acir_context.assert_eq_var(in_bound, one, Some(message))?;
+            }
+
             let call_data_block = self.ensure_array_is_initialized(array_id, dfg)?;
             let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
