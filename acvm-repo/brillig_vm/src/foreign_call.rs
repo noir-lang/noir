@@ -202,18 +202,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 value_types,
                             )
                         }
-                        HeapValueType::Vector { value_types } => {
-                            let vector_address =
-                                VectorAddress::from(self.memory.read_ref(value_address));
-
-                            let side_addr = vector_address.size_addr();
-                            let items_start = vector_address.items_start();
-                            let vector_size = self.memory.read(side_addr).to_usize();
-                            self.read_slice_of_values_from_memory(
-                                items_start,
-                                vector_size,
-                                value_types,
-                            )
+                        HeapValueType::Vector { .. } => {
+                            unreachable!("Vectors nested in arrays/vectors are not supported");
                         }
                     }
                 })
