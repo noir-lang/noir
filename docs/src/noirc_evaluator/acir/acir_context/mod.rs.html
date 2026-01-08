@@ -1670,13 +1670,7 @@
 <a href="#1669" id="1669">1669</a>
 <a href="#1670" id="1670">1670</a>
 <a href="#1671" id="1671">1671</a>
-<a href="#1672" id="1672">1672</a>
-<a href="#1673" id="1673">1673</a>
-<a href="#1674" id="1674">1674</a>
-<a href="#1675" id="1675">1675</a>
-<a href="#1676" id="1676">1676</a>
-<a href="#1677" id="1677">1677</a>
-<a href="#1678" id="1678">1678</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1672" id="1672">1672</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2235,12 +2229,6 @@
         <span class="self">self</span>.assert_eq_var(var, zero, <span class="prelude-val">Some</span>(msg))
     }
 
-    <span class="doccomment">/// Add an always-fail assertion with a message.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_always_fail(<span class="kw-2">&amp;mut </span><span class="self">self</span>, msg: String) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span>one = <span class="self">self</span>.add_constant(F::one());
-        <span class="self">self</span>.assert_zero_var(one, msg)
-    }
-
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>values_to_expressions_or_memory(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         values: <span class="kw-2">&amp;</span>[AcirValue],
@@ -2511,7 +2499,7 @@
                 <span class="kw">let </span>msg = <span class="macro">format!</span>(
                     <span class="string">"attempted to divide by constant larger than operand type: {rhs_bits} &gt; {bit_size}"
                 </span>);
-                <span class="self">self</span>.assert_always_fail(msg)<span class="question-mark">?</span>;
+                <span class="self">self</span>.assert_zero_var(predicate, msg)<span class="question-mark">?</span>;
                 <span class="kw">return </span><span class="prelude-val">Ok</span>((zero, zero));
             }
 
