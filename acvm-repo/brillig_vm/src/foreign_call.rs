@@ -180,7 +180,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         size: usize,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
-        assert!(start.is_direct(), "read_vector_of_values_from_memory requires direct addresses");
+        assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
