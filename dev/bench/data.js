@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767884039624,
+  "lastUpdate": 1767890148190,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0a97d07a4420be3ce1f64493c350bbfc4f16792a",
-          "message": "chore: add property test to compare arithmetic generics to comptime interpreter (#11014)",
-          "timestamp": "2026-01-02T18:59:55Z",
-          "tree_id": "e64907182c9bb5d71317a6e3991d10ee45c5d220",
-          "url": "https://github.com/noir-lang/noir/commit/0a97d07a4420be3ce1f64493c350bbfc4f16792a"
-        },
-        "date": 1767381781361,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259253,
-            "range": "± 1888",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231922,
-            "range": "± 7329",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791494,
-            "range": "± 5999",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794152,
             "range": "± 5383",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4a39a9a4dd53cb0e638cbf846fc34fb23c9b953d",
+          "message": "fix: do not crash when R is zero (#11122)",
+          "timestamp": "2026-01-08T16:11:27Z",
+          "tree_id": "78ac14220cb9e7d167d3ff6073454a86c38363f4",
+          "url": "https://github.com/noir-lang/noir/commit/4a39a9a4dd53cb0e638cbf846fc34fb23c9b953d"
+        },
+        "date": 1767890114079,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249557,
+            "range": "± 717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220090,
+            "range": "± 383",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795358,
+            "range": "± 1551",
             "unit": "ns/iter"
           }
         ]
