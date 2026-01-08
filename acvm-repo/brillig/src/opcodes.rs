@@ -127,12 +127,14 @@ impl HeapValueType {
             HeapValueType::Simple(_) => Some(FlattenedLength(1)),
             HeapValueType::Array { value_types, size } => {
                 // This is the flattened length of a single entry in the array (all of `value_types`)
-                let element_size =
+                let elements_flattened_size =
                     value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
+                let elements_flattened_size = elements_flattened_size
+                    .map(|elements_flattened_size| elements_flattened_size.as_elements_length());
 
                 // Next we multiply it by the size of the array
-                // TODO(lengths): find a type-safe way to do this multiplication
-                element_size.map(|element_size| FlattenedLength(element_size.0 * size.0))
+                elements_flattened_size
+                    .map(|elements_flattened_size| elements_flattened_size * *size)
             }
             HeapValueType::Vector { .. } => {
                 // Vectors are dynamic, so we cannot determine their size statically.

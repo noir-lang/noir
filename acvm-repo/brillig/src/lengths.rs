@@ -45,6 +45,16 @@ impl Mul<SemanticLength> for ElementsLength {
     }
 }
 
+impl Mul<ElementsFlattenedLength> for SemanticLength {
+    type Output = FlattenedLength;
+
+    /// Computes the flattened length by multiplying the semantic length
+    /// by the elements flattened length.
+    fn mul(self, rhs: ElementsFlattenedLength) -> Self::Output {
+        FlattenedLength(self.0 * rhs.0)
+    }
+}
+
 impl std::fmt::Display for ElementsLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -69,10 +79,41 @@ impl std::fmt::Display for SemiFlattenedLength {
     }
 }
 
+/// Represents the total number of fields required to represent a single entry of an array or vector.
+/// For example in the array `[(u8, u16, [u32; 4]); 8]` the elements flattened legnth is 6:
+/// 1. u8 (1)
+/// 2. u16 (1)
+/// 3. [u32; 4] (4)
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
+pub struct ElementsFlattenedLength(pub usize);
+
+impl std::fmt::Display for ElementsFlattenedLength {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Mul<SemanticLength> for ElementsFlattenedLength {
+    type Output = FlattenedLength;
+
+    /// Computes the flattened length by multiplying the semantic length
+    /// by the elements flattened length.
+    fn mul(self, rhs: SemanticLength) -> Self::Output {
+        FlattenedLength(self.0 * rhs.0)
+    }
+}
+
 /// Represents the total number of fields required to represent the entirety of an array or vector.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened legnth is 48: 8 * (1 + 1 + 4).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct FlattenedLength(pub usize);
+
+impl FlattenedLength {
+    /// Assumes this flattened length represents a single entry in an array or vector,
+    pub fn as_elements_length(self) -> ElementsFlattenedLength {
+        ElementsFlattenedLength(self.0)
+    }
+}
 
 impl std::fmt::Display for FlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
