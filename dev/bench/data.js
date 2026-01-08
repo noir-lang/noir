@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767893891430,
+  "lastUpdate": 1767902747901,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a0e7be2474d455abdf55d7a4b090a7ff7903a901",
-          "message": "chore: add necessary permission to release workflow (#11035)",
-          "timestamp": "2026-01-02T20:53:24Z",
-          "tree_id": "925a09fc6bcc1d2d2955cd2ad73508c9273c6bc1",
-          "url": "https://github.com/noir-lang/noir/commit/a0e7be2474d455abdf55d7a4b090a7ff7903a901"
-        },
-        "date": 1767387350020,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 222041,
-            "range": "± 1794",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 210914,
-            "range": "± 1805",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3174326,
-            "range": "± 4022",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793751,
             "range": "± 9317",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "116ae837c39d3b1f31f985c69adc4555b5c27587",
+          "message": "chore: refactoring elaborator traits (#10670)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-01-08T19:41:35Z",
+          "tree_id": "2d9b2d7b8a732312e8d51d99097aaf78de4ae4f2",
+          "url": "https://github.com/noir-lang/noir/commit/116ae837c39d3b1f31f985c69adc4555b5c27587"
+        },
+        "date": 1767902709977,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251983,
+            "range": "± 1096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224635,
+            "range": "± 3712",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2260724,
+            "range": "± 4605",
             "unit": "ns/iter"
           }
         ]
