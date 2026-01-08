@@ -11,6 +11,7 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 #[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
+#[derive(Default)]
 pub enum Format {
     /// Bincode without format marker.
     /// This does not actually appear in the data.
@@ -20,13 +21,8 @@ pub enum Format {
     /// Msgpack with named structs.
     Msgpack = 2,
     /// Msgpack with tuple structs.
+    #[default]
     MsgpackCompact = 3,
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Self::MsgpackCompact
-    }
 }
 
 impl Format {
