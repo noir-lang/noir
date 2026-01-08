@@ -1,7 +1,12 @@
 use acvm::{
     AcirField,
     acir::{
-        brillig::{HeapVector, MemoryAddress, lengths::SemiFlattenedLength},
+        brillig::{
+            HeapVector, MemoryAddress,
+            lengths::{
+                ElementsFlattenedLength, ElementsLength, SemanticLength, SemiFlattenedLength,
+            },
+        },
         circuit::ErrorSelector,
     },
 };
@@ -309,14 +314,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Computes the size of a parameter if it was flattened
-    // TODO(lengths): return SemiFlattenedLength
+    // TODO(lengths): return FlattenedLength
     pub(super) fn flattened_size(param: &BrilligParameter) -> usize {
         match param {
             BrilligParameter::SingleAddr(_) => 1,
             BrilligParameter::Array(item_types, item_count)
             | BrilligParameter::Vector(item_types, item_count) => {
                 let item_size: usize = item_types.iter().map(Self::flattened_size).sum();
-                item_count * item_size
+                (*item_count * ElementsFlattenedLength(item_size)).0
             }
         }
     }
@@ -335,7 +340,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(super) fn flatten_array(
         &mut self,
         item_type: &[BrilligParameter],
-        item_count: usize,
+        item_count: SemanticLength,
         flattened_array_pointer: MemoryAddress,
         deflattened_items_pointer: MemoryAddress,
     ) {
@@ -345,7 +350,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let source_item_size = item_type.len();
             let target_item_size: usize = item_type.iter().map(Self::flattened_size).sum();
 
-            for item_index in 0..item_count {
+            for item_index in 0..item_count.0 {
                 let source_item_base_index = item_index * source_item_size;
                 let target_item_base_index = item_index * target_item_size;
 
@@ -377,8 +382,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                             nested_array_item_type,
                             nested_array_item_count,
                         ) => {
+                            // TODO(lengths): this looks off as to allocate an array we need a semi-flattened length,
+                            // yet nested_array_item_count is a semantic length.
                             let deflattened_nested_array = self.allocate_brillig_array(
-                                SemiFlattenedLength(*nested_array_item_count),
+                                SemiFlattenedLength(nested_array_item_count.0),
                             );
 
                             self.codegen_load_with_offset(
@@ -411,8 +418,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 }
             }
         } else {
-            let item_count =
-                self.make_usize_constant_instruction((item_count * item_type.len()).into());
+            let size: SemiFlattenedLength = item_count * ElementsLength(item_type.len());
+            let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }
     }

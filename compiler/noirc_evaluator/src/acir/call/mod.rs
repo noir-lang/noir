@@ -1,4 +1,5 @@
 use acvm::AcirField;
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 use noirc_artifacts::ssa::SsaReport;
@@ -209,7 +210,7 @@ impl Context<'_> {
 
                     BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
-                        len,
+                        SemanticLength(len),
                     )
                 } else {
                     FunctionContext::ssa_type_to_parameter(&typ)
