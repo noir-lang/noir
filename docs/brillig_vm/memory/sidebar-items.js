@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FREE_MEMORY_POINTER_ADDRESS","MEMORY_ADDRESSING_BIT_SIZE","STACK_POINTER_ADDRESS"],"enum":["MemoryTypeError","MemoryValue"],"mod":["offsets"],"struct":["ArrayAddress","Memory","VectorAddress"]};
+window.SIDEBAR_ITEMS = {"constant":["FREE_MEMORY_POINTER_ADDRESS","MEMORY_ADDRESSING_BIT_SIZE","STACK_POINTER_ADDRESS"],"enum":["MemoryTypeError","MemoryValue"],"mod":["offsets"],"struct":["ArrayAddress","Memory"]};
