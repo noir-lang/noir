@@ -4,7 +4,10 @@ use crate::{errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
 
 use super::{Ssa, generate_ssa};
 
-use noirc_frontend::test_utils::get_monomorphized;
+use noirc_frontend::{
+    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
+    test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
+};
 
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
     let program = match get_monomorphized(src) {
@@ -192,6 +195,73 @@ fn brillig_access_check_on_array_assignment() {
         v8 = array_set v4, index v1, value v2
         v10 = unchecked_add v1, u32 1
         store v8 at v3
+        return
+    }
+    "#;
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn pure_builtin_call_args_do_not_get_cloned() {
+    let src = "
+    #[builtin(as_vector)]
+    pub fn as_vector<T, let N: u32>(arr: [T; N]) -> [T] {}
+
+    unconstrained fn main() -> pub u32 {
+        let a = [1, 2];
+        let x = as_vector(a);
+        let y = as_vector(a);
+        x[0] + y[1]
+    }
+    ";
+
+    let program = get_monomorphized_with_error_filter(src, |err| {
+        matches!(
+            err,
+            CompilationError::ResolverError(ResolverError::LowLevelFunctionOutsideOfStdlib { .. })
+        )
+    })
+    .unwrap();
+
+    let ssa = generate_ssa(program).unwrap();
+
+    let expected = r#"
+    brillig(inline) fn main f0 {
+      b0():
+        v2 = make_array [u32 1, u32 2] : [u32; 2]
+        v3 = make_array [u32 1, u32 2] : [u32]
+        v4 = make_array [u32 1, u32 2] : [u32]
+        return u32 3
+    }
+    "#;
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn foreign_call_args_do_not_get_cloned() {
+    let src = "
+    #[oracle(print)]
+    unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+
+    unconstrained fn main() {
+        let a = [1, 2];
+        print_oracle(true, a);
+        print_oracle(true, a);
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+
+    let ssa = generate_ssa(program).unwrap();
+
+    let expected = r#"
+    brillig(inline) fn main f0 {
+      b0():
+        v2 = make_array [Field 1, Field 2] : [Field; 2]
+        v23 = make_array b"{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"field\"}}"
+        call print(u1 1, v2, v23, u1 0)
+        v27 = make_array b"{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"field\"}}"
+        call print(u1 1, v2, v27, u1 0)
         return
     }
     "#;

@@ -408,9 +408,9 @@ fn clone_nested_array_in_lvalue() {
 }
 
 #[test]
-fn array_len_does_not_clone() {
-    // Punting the builtin array_len, because these snippets don't have access to stdlib;
-    // trying to use `a.len()` would result in a panic.
+fn pure_builtin_args_get_cloned() {
+    // Punting the builtin array_len, because these snippets don't have access to stdlib.
+    // Trying to use `a.len()` would result in a panic, even if it's defined an impl block here.
     let src = "
     #[builtin(array_len)]
     fn len<T, let N: u32>(a: [T; N]) -> u32 { }
@@ -431,10 +431,12 @@ fn array_len_does_not_clone() {
     })
     .unwrap();
 
+    // The ownership pass doesn't know which builtin functions are pure and which ones
+    // modifies the arguments, so this optimization is deferred to the SSA generation.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> pub u32 {
         let a$l0 = [1, 2, 3];
-        let x$l1 = len$array_len(a$l0);
+        let x$l1 = len$array_len(a$l0.clone());
         let y$l2 = len$array_len(a$l0);
         (x$l1 + y$l2)
     }
