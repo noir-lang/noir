@@ -14,7 +14,7 @@ use acvm::acir::{
     AcirField,
     brillig::{
         HeapVector, MemoryAddress,
-        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+        lengths::{ElementsLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
     },
 };
 
@@ -76,8 +76,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         let mut argument_variables = self.allocate_function_arguments(arguments);
 
-        let calldata_size = Self::flattened_tuple_size(arguments);
-        let return_data_size = Self::flattened_tuple_size(return_parameters);
+        let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
+        let calldata_size = calldata_size.0;
+
+        let return_data_size: FlattenedLength = Self::flattened_tuple_size(return_parameters);
+        let return_data_size = return_data_size.0;
 
         // Set reserved registers constants
         self.const_instruction(
@@ -143,7 +146,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         self.deflatten_array(item_type, *item_count, vector.pointer, true);
                     self.mov_instruction(vector.pointer, *deflattened_address);
 
-                    current_calldata_pointer += flattened_size;
+                    current_calldata_pointer += flattened_size.0;
                 }
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
@@ -162,10 +165,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 BrilligParameter::SingleAddr(bit_size) => {
                     self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Array(_, _) => {
-                    let flattened_size = Self::flattened_size(argument);
-                    let flattened_size = SemiFlattenedLength(flattened_size);
-                    self.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
+                BrilligParameter::Array(..) => {
+                    let flattened_size: FlattenedLength = Self::flattened_size(argument);
+
+                    // TODO(lengths): this looks off as to allocate a brillig array we need a semi-flattened length,
+                    // but here we have the fully flattened length
+                    self.allocate_brillig_array(SemiFlattenedLength(flattened_size.0))
+                        .map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(_, _) => {
                     self.allocate_brillig_vector().map(BrilligVariable::from)
@@ -175,7 +181,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn copy_and_cast_calldata(&mut self, arguments: &[BrilligParameter]) {
-        let calldata_size = Self::flattened_tuple_size(arguments);
+        let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
+        let calldata_size = calldata_size.0;
+
         self.calldata_copy_instruction(
             MemoryAddress::direct(self.calldata_start_offset()),
             calldata_size,
@@ -239,7 +247,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             let movement_register = self.allocate_register();
 
             let target_item_size = item_type.len();
-            let source_item_size = Self::flattened_tuple_size(item_type);
+            let source_item_size: FlattenedLength = Self::flattened_tuple_size(item_type);
+            let source_item_size = source_item_size.0;
 
             for item_index in 0..item_count.0 {
                 let source_item_base_index = item_index * source_item_size;
@@ -293,7 +302,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                                 *deflattened_nested_array_pointer,
                             );
 
-                            source_offset += Self::flattened_size(subitem);
+                            source_offset += Self::flattened_size(subitem).0;
                         }
                         BrilligParameter::Vector(..) => {
                             unreachable!("ICE: Cannot deflatten vectors")
@@ -340,8 +349,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             .collect();
 
         // Now, we deflatten the return data
-        let calldata_size = Self::flattened_tuple_size(arguments);
-        let return_data_size = Self::flattened_tuple_size(return_parameters);
+        let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
+        let calldata_size = calldata_size.0;
+        let return_data_size: FlattenedLength = Self::flattened_tuple_size(return_parameters);
+        let return_data_size = return_data_size.0;
 
         // Return data has a reserved space after calldata
         let return_data_offset = self.return_data_start_offset(calldata_size);
@@ -369,7 +380,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         *deflattened_items_pointer,
                     );
 
-                    return_data_index += Self::flattened_size(return_param);
+                    return_data_index += Self::flattened_size(return_param).0;
                 }
                 BrilligParameter::Vector(..) => {
                     unreachable!("ICE: Cannot return vectors from brillig entrypoints")
