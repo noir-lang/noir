@@ -174,7 +174,8 @@
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 <span class="kw">use </span>p256::elliptic_curve::PrimeField;
 <span class="kw">use </span>p256::elliptic_curve::sec1::FromEncodedPoint;
 
@@ -275,6 +276,7 @@
 
     <span class="kw">match </span>R.to_encoded_point(<span class="bool-val">false</span>).coordinates() {
         Coordinates::Uncompressed { x, y: <span class="kw">_ </span>} =&gt; <span class="prelude-val">Ok</span>(Scalar::from_repr(<span class="kw-2">*</span>x).unwrap().eq(<span class="kw-2">&amp;</span>r)),
+        Coordinates::Identity =&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Point is uncompressed"</span>),
     }
 }
