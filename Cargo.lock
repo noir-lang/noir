@@ -9,7 +9,6 @@ dependencies = [
  "acir",
  "acir_field",
  "base64",
- "bincode",
  "brillig",
  "criterion",
  "flate2",
