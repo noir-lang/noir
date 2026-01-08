@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767907920578,
+  "lastUpdate": 1767910164512,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2f1315f4835d25a0a383e79ea4fd890a63449077",
-          "message": "fix: type alias of unit return type of main function (#11038)",
-          "timestamp": "2026-01-03T12:03:06Z",
-          "tree_id": "1f9b6d73a6e8befeb2d0297e0df0428a6b4cbcd8",
-          "url": "https://github.com/noir-lang/noir/commit/2f1315f4835d25a0a383e79ea4fd890a63449077"
-        },
-        "date": 1767443058044,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264711,
-            "range": "± 823",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236835,
-            "range": "± 6643",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790712,
-            "range": "± 7022",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794622,
             "range": "± 18865",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78a54455147d9ddbec669e78ebd107aed5245111",
+          "message": "fix: remove most blackbox panics (#11136)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2026-01-08T21:47:22Z",
+          "tree_id": "8703b08799032f0696d7ec9529f827c1bdea85b7",
+          "url": "https://github.com/noir-lang/noir/commit/78a54455147d9ddbec669e78ebd107aed5245111"
+        },
+        "date": 1767910130475,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257598,
+            "range": "± 611",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229990,
+            "range": "± 4300",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793703,
+            "range": "± 11219",
             "unit": "ns/iter"
           }
         ]
