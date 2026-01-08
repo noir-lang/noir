@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767904113130,
+  "lastUpdate": 1767906574415,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "abfee1f54b20984172ba23482f4af160395cfba5",
-          "message": "feat: improved error message when if is missing its condition (#11037)",
-          "timestamp": "2026-01-02T21:26:20Z",
-          "tree_id": "30674d90d00f83bc8c67b07e4eb668923f02ae5c",
-          "url": "https://github.com/noir-lang/noir/commit/abfee1f54b20984172ba23482f4af160395cfba5"
-        },
-        "date": 1767390404319,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262154,
-            "range": "± 721",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234563,
-            "range": "± 3565",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793779,
-            "range": "± 11067",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2260724,
             "range": "± 4605",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6e8b9951867c8bbe5c91a0ef2192e2f4f9f4305",
+          "message": "chore(brillig): remove dead code related to nested slices when reading slices from memory (#11129)",
+          "timestamp": "2026-01-08T20:47:52Z",
+          "tree_id": "fc90498114e725e9bb2eaf8f9868779b70dc1d74",
+          "url": "https://github.com/noir-lang/noir/commit/c6e8b9951867c8bbe5c91a0ef2192e2f4f9f4305"
+        },
+        "date": 1767906540069,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257421,
+            "range": "± 324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229671,
+            "range": "± 9133",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794622,
+            "range": "± 18865",
             "unit": "ns/iter"
           }
         ]
