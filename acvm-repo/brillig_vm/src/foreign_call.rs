@@ -140,9 +140,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 ValueOrArray::HeapArray(HeapArray { pointer, size }),
                 HeapValueType::Array { value_types, size: type_size },
             ) => {
-                // The array's flattened size must match the expected size
-                let flattened_size = *type_size * value_types.len();
-                assert_eq!(flattened_size, size);
+                // The array's semi-flattened size must match the expected size
+                let semi_flattened_size = *type_size * value_types.len();
+                assert_eq!(semi_flattened_size, size);
 
                 let start = self.memory.read_ref(pointer);
                 self.read_slice_of_values_from_memory(start, size, value_types)
@@ -205,11 +205,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         HeapValueType::Array { value_types, size: type_size } => {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
-                            let flattened_size = *type_size * value_types.len();
+                            let semi_flattened_size = *type_size * value_types.len();
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                flattened_size,
+                                semi_flattened_size,
                                 value_types,
                             )
                         }
