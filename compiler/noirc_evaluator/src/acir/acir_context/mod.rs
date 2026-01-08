@@ -557,12 +557,6 @@ impl<F: AcirField> AcirContext<F> {
         self.assert_eq_var(var, zero, Some(msg))
     }
 
-    /// Add an always-fail assertion with a message.
-    pub(crate) fn assert_always_fail(&mut self, msg: String) -> Result<(), RuntimeError> {
-        let one = self.add_constant(F::one());
-        self.assert_zero_var(one, msg)
-    }
-
     pub(crate) fn values_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
@@ -833,7 +827,7 @@ impl<F: AcirField> AcirContext<F> {
                 let msg = format!(
                     "attempted to divide by constant larger than operand type: {rhs_bits} > {bit_size}"
                 );
-                self.assert_always_fail(msg)?;
+                self.assert_zero_var(predicate, msg)?;
                 return Ok((zero, zero));
             }
 
