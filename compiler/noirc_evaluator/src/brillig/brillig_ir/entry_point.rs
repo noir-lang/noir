@@ -74,7 +74,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         return_parameters: &[BrilligParameter],
     ) -> usize {
         // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
-        let mut argument_variables = self.allocate_function_arguments(arguments);
+        let argument_variables = self.allocate_function_arguments(arguments);
 
         let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
         let calldata_size = calldata_size.0;
@@ -111,7 +111,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let mut current_calldata_pointer = self.calldata_start_offset();
 
         // Initialize the variables with the calldata
-        for (argument_variable, argument) in argument_variables.iter_mut().zip(arguments) {
+        for (argument_variable, argument) in argument_variables.iter().zip(arguments) {
             match (**argument_variable, argument) {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
@@ -121,20 +121,17 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     current_calldata_pointer += 1;
                 }
                 (
-                    BrilligVariable::BrilligArray(mut array),
+                    BrilligVariable::BrilligArray(array),
                     BrilligParameter::Array(item_type, item_count),
                 ) => {
-                    let semi_flattened_size = array.size;
                     self.usize_const_instruction(array.pointer, current_calldata_pointer.into());
 
                     let deflattened_address =
                         self.deflatten_array(item_type, *item_count, array.pointer, false);
                     self.mov_instruction(array.pointer, *deflattened_address);
 
-                    // After deflattening, we have to adjust the size of the array.
-                    array.size = ElementsLength(item_type.len()) * *item_count;
-
-                    current_calldata_pointer += semi_flattened_size.0;
+                    let flattened_size = Self::flattened_size(argument);
+                    current_calldata_pointer += flattened_size.0;
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
@@ -165,13 +162,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 BrilligParameter::SingleAddr(bit_size) => {
                     self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Array(..) => {
-                    let flattened_size: FlattenedLength = Self::flattened_size(argument);
+                BrilligParameter::Array(items, size) => {
+                    let semi_flattened_size: SemiFlattenedLength =
+                        ElementsLength(items.len()) * *size;
 
-                    // TODO(lengths): this looks off as to allocate a brillig array we need a semi-flattened length,
-                    // but here we have the fully flattened length
-                    self.allocate_brillig_array(SemiFlattenedLength(flattened_size.0))
-                        .map(BrilligVariable::from)
+                    self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(_, _) => {
                     self.allocate_brillig_vector().map(BrilligVariable::from)
