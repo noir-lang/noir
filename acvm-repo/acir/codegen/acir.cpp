@@ -905,9 +905,28 @@ namespace Acir {
         }
     };
 
+    struct SemiFlattenedLength {
+        uint64_t value;
+
+        friend bool operator==(const SemiFlattenedLength&, const SemiFlattenedLength&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static SemiFlattenedLength bincodeDeserialize(std::vector<uint8_t>);
+
+        void msgpack_pack(auto& packer) const { packer.pack(value); }
+
+        void msgpack_unpack(msgpack::object const& o) {
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'SemiFlattenedLength'");
+            }
+        }
+    };
+
     struct HeapArray {
         Acir::MemoryAddress pointer;
-        uint64_t size;
+        Acir::SemiFlattenedLength size;
 
         friend bool operator==(const HeapArray&, const HeapArray&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -1586,6 +1605,25 @@ namespace Acir {
         }
     };
 
+    struct SemanticLength {
+        uint64_t value;
+
+        friend bool operator==(const SemanticLength&, const SemanticLength&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static SemanticLength bincodeDeserialize(std::vector<uint8_t>);
+
+        void msgpack_pack(auto& packer) const { packer.pack(value); }
+
+        void msgpack_unpack(msgpack::object const& o) {
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'SemanticLength'");
+            }
+        }
+    };
+
     struct HeapValueType;
 
     struct HeapValueType {
@@ -1611,7 +1649,7 @@ namespace Acir {
 
         struct Array {
             std::vector<Acir::HeapValueType> value_types;
-            uint64_t size;
+            Acir::SemanticLength size;
 
             friend bool operator==(const Array&, const Array&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -10317,6 +10355,90 @@ template <typename Deserializer>
 Acir::PublicInputs serde::Deserializable<Acir::PublicInputs>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::PublicInputs obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const SemanticLength &lhs, const SemanticLength &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> SemanticLength::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<SemanticLength>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline SemanticLength SemanticLength::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<SemanticLength>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw_or_abort("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::SemanticLength>::serialize(const Acir::SemanticLength &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Acir::SemanticLength serde::Deserializable<Acir::SemanticLength>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Acir::SemanticLength obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const SemiFlattenedLength &lhs, const SemiFlattenedLength &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> SemiFlattenedLength::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<SemiFlattenedLength>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline SemiFlattenedLength SemiFlattenedLength::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<SemiFlattenedLength>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw_or_abort("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::SemiFlattenedLength>::serialize(const Acir::SemiFlattenedLength &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Acir::SemiFlattenedLength serde::Deserializable<Acir::SemiFlattenedLength>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Acir::SemiFlattenedLength obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
