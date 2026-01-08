@@ -438,21 +438,7 @@
 <a href="#437" id="437">437</a>
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#440" id="440">440</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -794,20 +780,6 @@
         <span class="self">self</span>.handle_expression(<span class="kw-2">&amp;mut </span>call.func);
         <span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;mut </span>call.arguments {
             <span class="self">self</span>.handle_expression(arg);
-        }
-
-        <span class="comment">// Hack to avoid clones when calling `array.len()`.
-        // That function takes arrays by value but we know it never mutates them.
-        </span><span class="kw">if let </span>Expression::Ident(ident) = call.func.as_ref() {
-            <span class="kw">if let </span>Definition::Builtin(name) = <span class="kw-2">&amp;</span>ident.definition {
-                <span class="kw">if </span>name == <span class="string">"array_len" </span>{
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(Expression::Clone(array)) = call.arguments.get_mut(<span class="number">0</span>) {
-                        <span class="kw">let </span>array =
-                            std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
-                        call.arguments[<span class="number">0</span>] = array;
-                    }
-                }
-            }
         }
     }
 

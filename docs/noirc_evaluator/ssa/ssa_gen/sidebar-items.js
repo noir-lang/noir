@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["SHOW_INVALID_SSA_ENV_KEY","SSA_WORD_SIZE"],"fn":["generate_ssa","validate_ssa","validate_ssa_or_err"],"mod":["context","program","value"],"struct":["Ssa"]};
+window.SIDEBAR_ITEMS = {"constant":["SHOW_INVALID_SSA_ENV_KEY","SSA_WORD_SIZE"],"fn":["generate_ssa","is_oracle_func","is_pure_builtin_func","validate_ssa","validate_ssa_or_err"],"mod":["context","program","value"],"struct":["Ssa"]};

@@ -1289,7 +1289,39 @@
 <a href="#1288" id="1288">1288</a>
 <a href="#1289" id="1289">1289</a>
 <a href="#1290" id="1290">1290</a>
-<a href="#1291" id="1291">1291</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1308,6 +1340,7 @@
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::{<span class="self">self</span>, Expression, MatchCase, Program, While};
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 
+<span class="kw">use </span><span class="kw">crate</span>::ssa::opt::pure::Purity;
 <span class="kw">use crate</span>::{
     errors::RuntimeError,
     ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
@@ -2374,8 +2407,19 @@
         <span class="kw">let </span>function = <span class="self">self</span>.codegen_non_tuple_expression(<span class="kw-2">&amp;</span>call.func)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(call.arguments.len());
 
+        <span class="comment">// Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
+        </span><span class="kw">let </span>can_modify_args = !is_pure_builtin_func(<span class="kw-2">&amp;</span>call.func) &amp;&amp; !is_oracle_func(<span class="kw-2">&amp;</span>call.func);
+
         <span class="kw">for </span>argument <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {
-            <span class="kw">let </span><span class="kw-2">mut </span>values = <span class="self">self</span>.codegen_expression(argument)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
+            <span class="comment">// The ownership pass inserts `Clone` around call arguments, however if we know that
+            // we are calling a builtin function that will not modify the argument, then we can
+            // skip generating an `IncrementRc` for cloned arrays.
+            // The purity information isn't currently available to the ownership pass.
+            </span><span class="kw">let </span>arg = <span class="kw">match </span>argument {
+                Expression::Clone(arg) <span class="kw">if </span>!can_modify_args =&gt; arg.as_ref(),
+                other =&gt; other,
+            };
+            <span class="kw">let </span><span class="kw-2">mut </span>values = <span class="self">self</span>.codegen_expression(arg)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
             arguments.append(<span class="kw-2">&amp;mut </span>values);
         }
 
@@ -2579,5 +2623,25 @@
             <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(err),
         }
     }
+}
+
+<span class="doccomment">/// Return whether the expression refers to a pure builtin or low level function.
+</span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    };
+    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
+    <span class="kw">else </span>{
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    };
+    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    };
+    <span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+}
+
+<span class="doccomment">/// Return whether the expression refers to a foreign function.
+</span><span class="kw">fn </span>is_oracle_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    <span class="macro">matches!</span>(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(<span class="kw">_</span>), .. }))
 }
 </code></pre></div></section></main></body></html>

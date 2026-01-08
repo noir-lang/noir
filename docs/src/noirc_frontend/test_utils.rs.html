@@ -167,7 +167,7 @@
     get_monomorphized_with_error_filter(src, |<span class="kw">_</span>| <span class="bool-val">false</span>)
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_monomorphized_with_error_filter(
+<span class="kw">pub fn </span>get_monomorphized_with_error_filter(
     src: <span class="kw-2">&amp;</span>str,
     ignore_error: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>CompilationError) -&gt; bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {

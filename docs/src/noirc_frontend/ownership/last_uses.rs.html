@@ -756,8 +756,8 @@
     <span class="doccomment">/// Given the `branches` in which a local variable is used, update the last use with the latest
     /// `variable` identifier at the current `path`.
     ///
-    /// This is only called when the local variable was created in the current loop, so consider a
-    /// loop body as a last use for something defined outside the loop.
+    /// This is only called when the local variable was created in the current loop, so it never
+    /// considers a use in a loop body as a last use for something defined outside the loop.
     </span><span class="kw">fn </span>remember_use_of_variable_rec(
         branches: <span class="kw-2">&amp;mut </span>Branches,
         path: <span class="kw-2">&amp;</span>[(IfOrMatchId, BranchId)],
