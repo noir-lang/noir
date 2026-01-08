@@ -779,7 +779,28 @@
 <a href="#778" id="778">778</a>
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -789,6 +810,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::BlackBoxFunc;
 <span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
 
+<span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1105,7 +1127,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;F: Copy&gt; BlackBoxFuncCall&lt;F&gt; {
+<span class="kw">impl</span>&lt;F: Copy + AcirField&gt; BlackBoxFuncCall&lt;F&gt; {
     <span class="kw">pub fn </span>get_inputs_vec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;FunctionInput&lt;F&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             BlackBoxFuncCall::Blake2s { inputs, outputs: <span class="kw">_ </span>}
@@ -1180,6 +1202,26 @@
             }
         }
         result
+    }
+
+    <span class="kw">pub fn </span>get_predicate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Witness&gt; {
+        <span class="kw">let </span>predicate = <span class="kw">match </span><span class="self">self </span>{
+            BlackBoxFuncCall::AES128Encrypt { .. }
+            | BlackBoxFuncCall::AND { .. }
+            | BlackBoxFuncCall::XOR { .. }
+            | BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::Blake2s { .. }
+            | BlackBoxFuncCall::Blake3 { .. }
+            | BlackBoxFuncCall::Keccakf1600 { .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { .. }
+            | BlackBoxFuncCall::Sha256Compression { .. } =&gt; FunctionInput::Constant(F::one()),
+            BlackBoxFuncCall::EcdsaSecp256k1 { predicate, .. }
+            | BlackBoxFuncCall::EcdsaSecp256r1 { predicate, .. }
+            | BlackBoxFuncCall::MultiScalarMul { predicate, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { predicate, .. }
+            | BlackBoxFuncCall::RecursiveAggregation { predicate, .. } =&gt; <span class="kw-2">*</span>predicate,
+        };
+        <span class="kw">if </span>predicate.is_constant() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(predicate.to_witness()) }
     }
 }
 

@@ -450,7 +450,9 @@
 <a href="#449" id="449">449</a>
 <a href="#450" id="450">450</a>
 <a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -652,7 +654,9 @@
             Opcode::BlackBoxFuncCall(bb_func) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>witnesses = bb_func.get_input_witnesses();
                 witnesses.extend(bb_func.get_outputs_vec());
-
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(w) = bb_func.get_predicate() {
+                    witnesses.insert(w);
+                }
                 witnesses
             }
             Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
