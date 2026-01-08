@@ -2,7 +2,7 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::lengths::SemiFlattenedLength;
+use acvm::acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength};
 use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
@@ -131,13 +131,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         for _ in 0..*size {
             for element_type in types.iter() {
                 match element_type {
-                    Type::Array(_, nested_size) => {
+                    Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
-                        // TODO(lengths): this looks off. `nested_size` seems to be a SemanticLength,
-                        // yet for allocating a Brillig array we need a SemiFlattenedLength.
-                        let inner_array = self
-                            .brillig_context
-                            .allocate_brillig_array(SemiFlattenedLength(*nested_size as usize));
+                        let size: SemiFlattenedLength =
+                            ElementsLength(items.len()) * SemanticLength(*nested_size as usize);
+                        let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.
                         // This sets the pointer on the stack to point at the heap.
