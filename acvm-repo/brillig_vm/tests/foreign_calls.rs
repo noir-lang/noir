@@ -3,6 +3,7 @@ use acir::{
     brillig::{
         BitSize, ForeignCallParam, ForeignCallResult, HeapArray, HeapValueType, HeapVector,
         IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
+        lengths::{SemanticLength, SemiFlattenedLength},
     },
 };
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
@@ -127,19 +128,19 @@ fn foreign_call_opcode_memory_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len()),
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len()),
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len()),
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::field()],
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len()),
             }],
         },
     ];
@@ -350,19 +351,19 @@ fn foreign_call_opcode_memory_alloc_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len()),
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len()),
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len()),
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::field()],
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len()),
             }],
         },
     ];
@@ -454,23 +455,29 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: matrix_a.len(),
+                size: SemiFlattenedLength(matrix_a.len()),
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: matrix_a.len(),
+                size: SemanticLength(matrix_a.len()),
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![
-                ValueOrArray::HeapArray(HeapArray { pointer: r_input_a, size: matrix_a.len() }),
-                ValueOrArray::HeapArray(HeapArray { pointer: r_input_b, size: matrix_b.len() }),
+                ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input_a,
+                    size: SemiFlattenedLength(matrix_a.len()),
+                }),
+                ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input_b,
+                    size: SemiFlattenedLength(matrix_b.len()),
+                }),
             ],
             input_value_types: vec![
                 HeapValueType::Array {
-                    size: matrix_a.len(),
+                    size: SemanticLength(matrix_a.len()),
                     value_types: vec![HeapValueType::field()],
                 },
                 HeapValueType::Array {
-                    size: matrix_b.len(),
+                    size: SemanticLength(matrix_b.len()),
                     value_types: vec![HeapValueType::field()],
                 },
             ],
@@ -565,7 +572,7 @@ fn foreign_call_opcode_nested_arrays_and_vectors_input() {
         HeapValueType::field(),
         HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U64)), // size of following vector
         HeapValueType::Vector { value_types: vec![HeapValueType::field()] },
-        HeapValueType::Array { value_types: vec![HeapValueType::field()], size: 1 },
+        HeapValueType::Array { value_types: vec![HeapValueType::field()], size: SemanticLength(1) },
     ];
 
     // memory addresses for input and output
@@ -609,11 +616,11 @@ fn foreign_call_opcode_nested_arrays_and_vectors_input() {
             destination_value_types: vec![HeapValueType::field()],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: outer_array.len(), // This is the flattened array length
+                size: SemiFlattenedLength(outer_array.len()),
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: input_array_value_types,
-                size: 2, // This is the non-flattened array length
+                size: SemanticLength(2),
             }],
         },
     ])
@@ -663,11 +670,11 @@ fn handles_foreign_calls_returning_empty_arrays() {
             function: "foo".to_string(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: MemoryAddress::Direct(0),
-                size: 0,
+                size: SemiFlattenedLength(0),
             })],
             destination_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                size: 0,
+                size: SemanticLength(0),
             }],
             inputs: Vec::new(),
             input_value_types: Vec::new(),
@@ -695,11 +702,11 @@ fn aborts_when_foreign_call_returns_too_much_data() {
             function: "foo".to_string(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: MemoryAddress::Direct(0),
-                size: 3,
+                size: SemiFlattenedLength(3),
             })],
             destination_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                size: 3,
+                size: SemanticLength(3),
             }],
             inputs: Vec::new(),
             input_value_types: Vec::new(),
@@ -739,11 +746,11 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
             function: "foo".to_string(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: MemoryAddress::Direct(0),
-                size: 3,
+                size: SemiFlattenedLength(3),
             })],
             destination_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                size: 3,
+                size: SemanticLength(3),
             }],
             inputs: Vec::new(),
             input_value_types: Vec::new(),

@@ -1,4 +1,7 @@
-use crate::black_box::BlackBoxOp;
+use crate::{
+    black_box::BlackBoxOp,
+    lengths::{SemanticLength, SemiFlattenedLength},
+};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
@@ -98,7 +101,7 @@ pub enum HeapValueType {
     /// The value read should be interpreted as a pointer to a [HeapArray], which
     /// consists of a pointer to a slice of memory of size elements, and a
     /// reference count, to avoid cloning arrays that are not shared.
-    Array { value_types: Vec<HeapValueType>, size: usize },
+    Array { value_types: Vec<HeapValueType>, size: SemanticLength },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
@@ -123,11 +126,12 @@ impl HeapValueType {
         match self {
             HeapValueType::Simple(_) => Some(1),
             HeapValueType::Array { value_types, size } => {
+                // TODO(lengths): use FlattenedLength here
                 let element_size =
                     value_types.iter().map(|t| t.flattened_size()).sum::<Option<usize>>();
 
                 // Multiply element size by number of elements.
-                element_size.map(|element_size| element_size * size)
+                element_size.map(|element_size| element_size * size.0)
             }
             HeapValueType::Vector { .. } => {
                 // Vectors are dynamic, so we cannot determine their size statically.
@@ -184,12 +188,12 @@ pub struct HeapArray {
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
     pub pointer: MemoryAddress,
     /// Statically known size of the array.
-    pub size: usize,
+    pub size: SemiFlattenedLength,
 }
 
 impl Default for HeapArray {
     fn default() -> Self {
-        Self { pointer: MemoryAddress::direct(0), size: 0 }
+        Self { pointer: MemoryAddress::direct(0), size: SemiFlattenedLength(0) }
     }
 }
 
@@ -776,6 +780,8 @@ mod prop_tests {
     use proptest::arbitrary::Arbitrary;
     use proptest::prelude::*;
 
+    use crate::lengths::SemanticLength;
+
     use super::{BitSize, HeapValueType};
 
     // Need to define recursive strategy for `HeapValueType`
@@ -788,7 +794,9 @@ mod prop_tests {
             leaf.prop_recursive(2, 3, 2, |inner| {
                 prop_oneof![
                     (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
-                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                        |(value_types, size)| {
+                            HeapValueType::Array { value_types, size: SemanticLength(size) }
+                        }
                     ),
                     (prop::collection::vec(inner.clone(), 1..3))
                         .prop_map(|value_types| { HeapValueType::Vector { value_types } }),

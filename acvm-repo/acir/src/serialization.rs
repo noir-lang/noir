@@ -156,7 +156,7 @@ where
 #[cfg(test)]
 mod tests {
     use acir_field::FieldElement;
-    use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray};
+    use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray, lengths::SemiFlattenedLength};
     use std::str::FromStr;
 
     use crate::{
@@ -311,7 +311,7 @@ mod tests {
 
         let value = ValueOrArray::HeapArray(HeapArray {
             pointer: brillig::MemoryAddress::Relative(0),
-            size: 3,
+            size: SemiFlattenedLength(3),
         });
         let bz = msgpack_serialize(&value, false).unwrap();
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line

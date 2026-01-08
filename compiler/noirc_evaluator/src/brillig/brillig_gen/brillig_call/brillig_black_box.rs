@@ -273,7 +273,7 @@ fn convert_array_or_vector<F: AcirField + DebugToString, Registers: RegisterAllo
     array_or_vector.and_then(|array_or_vector| match array_or_vector {
         ValueOrArray::HeapArray(array) => brillig_context.allocate_register().map(|size| {
             let vector = HeapVector { pointer: array.pointer, size };
-            brillig_context.usize_const_instruction(vector.size, array.size.into());
+            brillig_context.usize_const_instruction(vector.size, array.size.0.into());
             vector
         }),
         ValueOrArray::HeapVector(vector) => Allocated::pure(vector),

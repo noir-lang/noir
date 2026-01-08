@@ -4,6 +4,7 @@ use acvm::{
     AcirField,
     acir::brillig::{
         BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
+        lengths::{SemanticLength, SemiFlattenedLength},
     },
     brillig_vm::offsets,
 };
@@ -114,7 +115,8 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     initialize_constant_string(brillig_context, data, *items_pointer);
 
     // Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: data.len() }))
+    let size = SemiFlattenedLength(data.len());
+    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size }))
 }
 
 /// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
@@ -171,11 +173,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         let newline_type = u1_type.clone();
-        let size = message_with_func_name.len();
+        let size = SemanticLength(message_with_func_name.len());
         let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
-        let size = PRINT_U32_TYPE_STRING.len();
+        let size = SemanticLength(PRINT_U32_TYPE_STRING.len());
         let metadata_type = HeapValueType::Array { value_types: vec![u8_type], size };
         let is_fmt_string_type = u1_type;
 

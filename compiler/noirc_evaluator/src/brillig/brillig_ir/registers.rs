@@ -34,7 +34,7 @@ use std::{
     rc::Rc,
 };
 
-use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
+use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress, lengths::SemiFlattenedLength};
 use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
@@ -558,6 +558,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [HeapArray].
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
+        let size = SemiFlattenedLength(size);
         self.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
 

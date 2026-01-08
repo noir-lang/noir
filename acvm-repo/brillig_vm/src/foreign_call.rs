@@ -4,6 +4,7 @@ use acir::{
     brillig::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
+        lengths::{ElementsLength, SemiFlattenedLength},
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
@@ -141,7 +142,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) => {
                 // The array's semi-flattened size must match the expected size
-                let semi_flattened_size = *type_size * value_types.len();
+                let semi_flattened_size = *type_size * ElementsLength(value_types.len());
                 assert_eq!(semi_flattened_size, size);
 
                 let start = self.memory.read_ref(pointer);
@@ -157,6 +158,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             ) => {
                 let start = self.memory.read_ref(pointer);
                 let size = self.memory.read(size_addr).to_usize();
+                let size = SemiFlattenedLength(size);
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -177,9 +179,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     fn read_slice_of_values_from_memory(
         &self,
         start: MemoryAddress,
-        size: usize,
+        size: SemiFlattenedLength,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
+        let size = size.0;
+
         assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
@@ -205,7 +209,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         HeapValueType::Array { value_types, size: type_size } => {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
-                            let semi_flattened_size = *type_size * value_types.len();
+                            let semi_flattened_size =
+                                *type_size * ElementsLength(value_types.len());
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
@@ -220,6 +225,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             let side_addr = vector_address.size_addr();
                             let items_start = vector_address.items_start();
                             let vector_size = self.memory.read(side_addr).to_usize();
+                            let vector_size = SemiFlattenedLength(vector_size);
                             self.read_slice_of_values_from_memory(
                                 items_start,
                                 vector_size,
@@ -325,7 +331,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) => {
-                    if value_types.len() * type_size != *size {
+                    if *type_size * ElementsLength(value_types.len()) != *size {
                         return Err(format!(
                             "Destination array size of {size} does not match the type size of {type_size}"
                         ));
@@ -347,7 +353,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an array type"
                                 .to_string());
                         };
-                        if values.len() != *size {
+                        // TODO(lengths): check this comparison, it looks off
+                        if values.len() != size.0 {
                             // foreign call returning flattened values into a nested type, so the sizes do not match
                             let destination = self.memory.read_ref(*pointer);
 
@@ -501,7 +508,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             }
             HeapValueType::Array { value_types, size } => {
                 let mut current_pointer = destination;
-                for _ in 0..*size {
+                let size = size.0;
+                for _ in 0..size {
                     for typ in value_types {
                         match typ {
                             HeapValueType::Simple(bit_size) => {
