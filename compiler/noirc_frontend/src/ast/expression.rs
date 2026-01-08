@@ -682,10 +682,10 @@ impl Display for Literal {
             }
             Literal::Vector(ArrayLiteral::Standard(elements)) => {
                 let contents = vecmap(elements, ToString::to_string);
-                write!(f, "&[{}]", contents.join(", "))
+                write!(f, "@[{}]", contents.join(", "))
             }
             Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) => {
-                write!(f, "&[{repeated_element}; {length}]")
+                write!(f, "@[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(signed_field, Some(suffix)) => write!(f, "{signed_field}_{suffix}"),

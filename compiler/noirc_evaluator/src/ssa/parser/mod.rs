@@ -263,6 +263,8 @@ impl<'a> Parser<'a> {
             Ok(InlineType::Inline)
         } else if self.eat_keyword(Keyword::InlineAlways)? {
             Ok(InlineType::InlineAlways)
+        } else if self.eat_keyword(Keyword::InlineNever)? {
+            Ok(InlineType::InlineNever)
         } else if self.eat_keyword(Keyword::Fold)? {
             Ok(InlineType::Fold)
         } else if self.eat_keyword(Keyword::NoPredicates)? {
@@ -271,6 +273,7 @@ impl<'a> Parser<'a> {
             self.expected_one_of_tokens(&[
                 Token::Keyword(Keyword::Inline),
                 Token::Keyword(Keyword::InlineAlways),
+                Token::Keyword(Keyword::InlineNever),
                 Token::Keyword(Keyword::Fold),
                 Token::Keyword(Keyword::NoPredicates),
             ])

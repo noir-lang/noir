@@ -41,6 +41,11 @@ impl Ssa {
                 }
             }
 
+            // Do not inline functions marked with the inline never attribute
+            if callee.runtime().is_inline_never() {
+                return false;
+            }
+
             // Do not inline Brillig entry points
             if brillig_entry_points.contains(&callee.id()) {
                 return false;
@@ -416,6 +421,23 @@ mod tests {
             v3 = not v2
             constrain v2 == u1 0
             return v0
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn inline_never_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
         }
         ";
         assert_does_not_inline(src);
