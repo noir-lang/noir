@@ -88,13 +88,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             vector_length = Some(length.to_u128() as usize);
                         }
                         HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
-                                let mut fields = input.fields();
-                                fields.truncate(length * type_size);
-                                input = ForeignCallParam::Array(fields);
-                            }
-                            vector_length = None;
+                            let length =
+                                vector_length.take().expect("expected vector length before vector");
+                            let type_size = vector_element_size(value_types);
+                            let mut fields = input.fields();
+                            fields.truncate(length * type_size);
+                            input = ForeignCallParam::Array(fields);
                         }
                         _ => {
                             // Otherwise we are not dealing with a u32 followed by a vector.
