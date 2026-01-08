@@ -82,7 +82,7 @@ impl std::fmt::Display for SemiFlattenedLength {
 }
 
 /// Represents the total number of fields required to represent a single entry of an array or vector.
-/// For example in the array `[(u8, u16, [u32; 4]); 8]` the elements flattened legnth is 6:
+/// For example in the array `[(u8, u16, [u32; 4]); 8]` the elements flattened length is 6:
 /// 1. u8 (1)
 /// 2. u16 (1)
 /// 3. [u32; 4] (4)
@@ -106,7 +106,7 @@ impl Mul<SemanticLength> for ElementsFlattenedLength {
 }
 
 /// Represents the total number of fields required to represent the entirety of an array or vector.
-/// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened legnth is 48: 8 * (1 + 1 + 4).
+/// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened length is 48: 8 * (1 + 1 + 4).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct FlattenedLength(pub usize);
 

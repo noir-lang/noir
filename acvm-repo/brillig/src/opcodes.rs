@@ -708,7 +708,7 @@ mod tests {
         assert!(IntegerBitSize::try_from(256).is_err());
     }
 
-    /// Test that BitSize roundtrips correctly through to_u32/try_from_u32
+    /// Test that BitSize round-trips correctly through to_u32/try_from_u32
     #[test]
     fn test_bitsize_roundtrip() {
         // Test all integer bit sizes
