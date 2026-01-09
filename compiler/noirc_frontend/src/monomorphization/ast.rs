@@ -255,9 +255,6 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
-    /// Whether the range is inclusive (`..=`) or exclusive (`..`).
-    /// Preserved from HIR to avoid desugaring that would cause overflow
-    /// when the end value is the maximum for the type.
     pub inclusive: bool,
 
     pub start_range_location: Location,

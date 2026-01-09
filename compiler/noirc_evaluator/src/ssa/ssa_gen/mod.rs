@@ -666,14 +666,9 @@ impl FunctionContext<'_> {
                 this.builder.terminate_with_jmpif(at_end, loop_end, continue_block);
 
                 this.builder.switch_to_block(continue_block);
-                let new_loop_index = this.make_offset(loop_index, 1, true);
-                this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
-            } else {
-                // For exclusive ranges, we can safely increment since we know loop_index < end_index
-                // (from the loop condition), so incrementing won't overflow past the end.
-                let new_loop_index = this.make_offset(loop_index, 1, true);
-                this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
             }
+            let new_loop_index = this.make_offset(loop_index, 1, true);
+            this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
 
         // Finish by switching back to the end of the loop

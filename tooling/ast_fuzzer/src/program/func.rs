@@ -1640,8 +1640,6 @@ impl<'a> FunctionContext<'a> {
             start_range: Box::new(start_range),
             end_range: Box::new(end_range),
             block: Box::new(block),
-            // Randomly choose between inclusive and exclusive ranges for fuzzing.
-            // This helps catch bugs in both range types.
             inclusive: bool::arbitrary(u)?,
             start_range_location: Location::dummy(),
             end_range_location: Location::dummy(),

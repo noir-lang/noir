@@ -905,8 +905,6 @@ impl<'interner> Monomorphizer<'interner> {
                     index_type,
                     start_range: Box::new(start),
                     end_range: Box::new(end),
-                    // Preserve the inclusive flag through monomorphization so SSA codegen
-                    // can handle inclusive ranges without desugaring (which would cause overflow).
                     inclusive: for_loop.inclusive,
                     start_range_location: self.interner.expr_location(&for_loop.start_range),
                     end_range_location: self.interner.expr_location(&for_loop.end_range),
