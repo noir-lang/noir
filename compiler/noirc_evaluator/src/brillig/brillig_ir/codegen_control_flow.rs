@@ -322,7 +322,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligParameter::Array(item_types, item_count)
             | BrilligParameter::Vector(item_types, item_count) => {
                 let item_size: FlattenedLength = item_types.iter().map(Self::flattened_size).sum();
-                let item_size: ElementsFlattenedLength = item_size.as_elements_length();
+                let item_size: ElementsFlattenedLength = item_size.as_elements_flattened_length();
                 *item_count * item_size
             }
         }

@@ -529,6 +529,6 @@ fn vector_flattened_length(
                 .unwrap_or_else(|| panic!("unexpected nested dynamic element type: {typ:?}"))
         })
         .sum();
-    let elements_flattened_length = elements_flattened_length.as_elements_length();
+    let elements_flattened_length = elements_flattened_length.as_elements_flattened_length();
     elements_flattened_length * length
 }

@@ -112,7 +112,7 @@ pub struct FlattenedLength(pub usize);
 
 impl FlattenedLength {
     /// Assumes this flattened length represents a single entry in an array or vector,
-    pub fn as_elements_length(self) -> ElementsFlattenedLength {
+    pub fn as_elements_flattened_length(self) -> ElementsFlattenedLength {
         ElementsFlattenedLength(self.0)
     }
 }
