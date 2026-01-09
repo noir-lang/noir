@@ -14,7 +14,7 @@ use acvm::acir::{
     AcirField,
     brillig::{
         HeapVector, MemoryAddress,
-        lengths::{ElementsLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
+        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
     },
 };
 
@@ -76,11 +76,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         let argument_variables = self.allocate_function_arguments(arguments);
 
-        let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
-        let calldata_size = calldata_size.0;
-
-        let return_data_size: FlattenedLength = Self::flattened_tuple_size(return_parameters);
-        let return_data_size = return_data_size.0;
+        let calldata_size = Self::flattened_tuple_size(arguments);
+        let return_data_size = Self::flattened_tuple_size(return_parameters);
 
         // Set reserved registers constants
         self.const_instruction(
@@ -141,7 +138,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
 
-            current_calldata_pointer += Self::flattened_size(argument).0;
+            current_calldata_pointer += Self::flattened_size(argument);
         }
 
         stack_start
@@ -171,8 +168,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn copy_and_cast_calldata(&mut self, arguments: &[BrilligParameter]) {
-        let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
-        let calldata_size = calldata_size.0;
+        let calldata_size = Self::flattened_tuple_size(arguments);
 
         self.calldata_copy_instruction(
             MemoryAddress::direct(self.calldata_start_offset()),
@@ -237,8 +233,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             let movement_register = self.allocate_register();
 
             let target_item_size = item_type.len();
-            let source_item_size: FlattenedLength = Self::flattened_tuple_size(item_type);
-            let source_item_size = source_item_size.0;
+            let source_item_size = Self::flattened_tuple_size(item_type);
 
             for item_index in 0..item_count.0 {
                 let source_item_base_index = item_index * source_item_size;
@@ -296,7 +291,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         }
                     }
 
-                    source_offset += Self::flattened_size(subitem).0;
+                    source_offset += Self::flattened_size(subitem);
                 }
             }
         } else {
@@ -338,10 +333,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             .collect();
 
         // Now, we deflatten the return data
-        let calldata_size: FlattenedLength = Self::flattened_tuple_size(arguments);
-        let calldata_size = calldata_size.0;
-        let return_data_size: FlattenedLength = Self::flattened_tuple_size(return_parameters);
-        let return_data_size = return_data_size.0;
+        let calldata_size = Self::flattened_tuple_size(arguments);
+        let return_data_size = Self::flattened_tuple_size(return_parameters);
 
         // Return data has a reserved space after calldata
         let return_data_offset = self.return_data_start_offset(calldata_size);
@@ -373,7 +366,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
             }
 
-            return_data_index += Self::flattened_size(return_param).0;
+            return_data_index += Self::flattened_size(return_param);
         }
 
         let return_pointer = self.make_usize_constant_instruction(return_data_offset.into());
