@@ -7,13 +7,12 @@ BACKEND=${BACKEND:-bb}
 excluded_dirs=(
     "workspace"
     "workspace_default_member"
+    # UltraCircuitBuilder (standalone Noir application) does not support CallData/ReturnData block constraints. Use MegaCircuitBuilder (Aztec app) or fall back to RAM and ROM operations.
     "databus"
     "databus_composite_calldata"
     "databus_two_calldata"
     "databus_two_calldata_simple"
-    "double_verify_honk_proof"
-    "verify_honk_proof"
-    "verify_rollup_honk_proof"
+    # For circuits which use #[fold]: circuit_buf_to_acir_format: expected single function in ACIR program
     "fold_2_to_17"
     "fold_after_inlined_calls"
     "fold_basic"
@@ -59,5 +58,3 @@ for pathname in $test_dirs; do
 done
 
 echo "]}" >> gates_report.json
-
-

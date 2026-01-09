@@ -3,6 +3,6 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() -> pub bool {
-    let b: [&mut bool] = &[&mut true, &mut false];
+    let b: [&mut bool] = [&mut true, &mut false].as_vector();
     *b[2_u32]
 }

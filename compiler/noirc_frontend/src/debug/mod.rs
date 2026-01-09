@@ -118,6 +118,7 @@ impl DebugInstrumenter {
                 | FunctionAttributeKind::Fold
                 | FunctionAttributeKind::NoPredicates
                 | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::InlineNever
                 | FunctionAttributeKind::FuzzingHarness(..) => (),
             }
         }
