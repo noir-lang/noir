@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767984424132,
+  "lastUpdate": 1767984426377,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -38239,6 +38239,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.197,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bb95e527023095696a9795e53c1ccc1ccc64d61c",
+          "message": "fix: safe cast shift rhs to u32 in comptime interpreter (#11151)",
+          "timestamp": "2026-01-09T18:14:22Z",
+          "tree_id": "1aa13bc9169163ba77be262011b78fc042c08556",
+          "url": "https://github.com/noir-lang/noir/commit/bb95e527023095696a9795e53c1ccc1ccc64d61c"
+        },
+        "date": 1767984386922,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.232,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.222,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.376,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.386,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.77,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.876,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.41,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.242,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.202,
             "unit": "s"
           }
         ]
