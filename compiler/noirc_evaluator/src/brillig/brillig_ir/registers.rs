@@ -39,7 +39,7 @@ use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
 use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, assert_u32,
     brillig_variable::{BrilligArray, BrilligVector},
 };
 
@@ -560,7 +560,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
         self.allocate_register().map(|pointer| HeapArray {
             pointer,
-            size: size.try_into().expect("Failed conversion from u32 to usize"),
+            size: assert_u32(size),
         })
     }
 

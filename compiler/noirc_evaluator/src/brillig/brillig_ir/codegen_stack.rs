@@ -2,7 +2,9 @@ use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use crate::brillig::brillig_ir::registers::Stack;
 
-use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
+use super::{
+    BrilligContext, assert_usize, debug_show::DebugToString, registers::RegisterAllocator,
+};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Map sources to potentially multiple destinations.
@@ -150,9 +152,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 /// Map the address so that the first register of the stack will have index 0
 fn to_index(adr: &MemoryAddress) -> Option<usize> {
     match adr {
-        MemoryAddress::Relative(size) => Some(
-            usize::try_from(*size).expect("Failed conversion from u32 to usize") - Stack::start(),
-        ),
+        MemoryAddress::Relative(size) => Some(assert_usize(*size) - Stack::start()),
         MemoryAddress::Direct(_) => None,
     }
 }

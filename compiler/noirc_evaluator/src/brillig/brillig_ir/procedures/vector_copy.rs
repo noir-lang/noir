@@ -2,7 +2,7 @@ use acvm::{AcirField, brillig_vm::offsets};
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext,
+    BrilligBinaryOp, BrilligContext, assert_usize,
     brillig_variable::BrilligVector,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
@@ -53,8 +53,7 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             ctx.codegen_usize_op_in_place(
                 allocation_size.address,
                 BrilligBinaryOp::Add,
-                usize::try_from(offsets::VECTOR_META_COUNT)
-                    .expect("Failed conversion from u32 to usize"),
+                assert_usize(offsets::VECTOR_META_COUNT),
             );
             ctx.codegen_allocate_mem(target_vector.pointer, allocation_size.address);
 

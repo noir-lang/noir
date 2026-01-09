@@ -12,7 +12,7 @@ use super::ProcedureId;
 use crate::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BrilligContext, ReservedRegisters,
+        BrilligContext, ReservedRegisters, assert_u32, assert_usize,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -39,10 +39,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(
             source_array_memory_size_arg,
-            (source_array.size
-                + usize::try_from(offsets::ARRAY_META_COUNT)
-                    .expect("Failed conversion from u32 to usize"))
-            .into(),
+            (source_array.size + assert_usize(offsets::ARRAY_META_COUNT)).into(),
         );
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
@@ -120,7 +117,7 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     items_pointer.map(|pointer| {
         ValueOrArray::HeapArray(HeapArray {
             pointer,
-            size: data.len().try_into().expect("Failed conversion from usize to u32"),
+            size: assert_u32(data.len()),
         })
     })
 }
@@ -182,14 +179,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let size = message_with_func_name.len();
         let msg_type = HeapValueType::Array {
             value_types: vec![u8_type.clone()],
-            size: size.try_into().expect("Failed conversion from usize to u32"),
+            size: assert_u32(size),
         };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
         let size = PRINT_U32_TYPE_STRING.len();
         let metadata_type = HeapValueType::Array {
             value_types: vec![u8_type],
-            size: size.try_into().expect("Failed conversion from usize to u32"),
+            size: assert_u32(size),
         };
         let is_fmt_string_type = u1_type;
 
