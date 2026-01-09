@@ -984,11 +984,7 @@
 <a href="#983" id="983">983</a>
 <a href="#984" id="984">984</a>
 <a href="#985" id="985">985</a>
-<a href="#986" id="986">986</a>
-<a href="#987" id="987">987</a>
-<a href="#988" id="988">988</a>
-<a href="#989" id="989">989</a>
-<a href="#990" id="990">990</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#986" id="986">986</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -1054,8 +1050,7 @@
     /// - `ImplIsStricterThanTrait`: Method where clause is more restrictive than trait
     /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl) {
-        <span class="kw">let </span>previous_local_module =
-            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
+        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.local_module.replace(trait_impl.module_id);
         <span class="kw">let </span>previous_current_trait_impl =
             std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.current_trait_impl, trait_impl.impl_id);
 
@@ -1063,7 +1058,7 @@
         <span class="kw">let </span>self_type =
             self_type.expect(<span class="string">"Expected struct type to be set before collect_trait_impl"</span>);
 
-        <span class="kw">let </span>previous_self_type = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(self_type.clone()));
+        <span class="kw">let </span>previous_self_type = <span class="self">self</span>.self_type.replace(self_type.clone());
         <span class="kw">let </span>self_type_location = trait_impl.object_type.location;
 
         <span class="kw">if </span><span class="macro">matches!</span>(self_type, Type::Reference(..)) {
@@ -1252,8 +1247,7 @@
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
         trait_impl_where_clause: <span class="kw-2">&amp;</span>[TraitConstraint],
     ) {
-        <span class="kw">let </span>previous_local_module =
-            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
+        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.local_module.replace(trait_impl.module_id);
 
         <span class="kw">let </span>impl_id = trait_impl.impl_id.expect(<span class="string">"impl_id should be set in define_function_metas"</span>);
 
@@ -1457,8 +1451,7 @@
         trait_id: TraitId,
         trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl,
     ) {
-        <span class="kw">let </span>previous_local_module =
-            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
+        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.local_module.replace(trait_impl.module_id);
 
         <span class="kw">let </span>object_crate = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.resolved_object_type {
             <span class="prelude-val">Some</span>(Type::DataType(struct_or_enum_type, <span class="kw">_</span>)) =&gt; {
@@ -1748,8 +1741,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
     ) -&gt; Vec&lt;(TraitConstraint, Location)&gt; {
-        <span class="kw">let </span>previous_local_module =
-            std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_module, <span class="prelude-val">Some</span>(trait_impl.module_id));
+        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.local_module.replace(trait_impl.module_id);
 
         <span class="kw">let </span>(trait_id, trait_generics, path_location) =
             <span class="self">self</span>.resolve_trait_impl_trait_path(trait_impl);

@@ -1109,12 +1109,12 @@
                     <span class="kw">let </span>tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     <span class="kw">let </span>lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    <span class="kw-2">*</span>object_ref = Box::new(HirLValue::Dereference {
+                    <span class="kw-2">**</span>object_ref = HirLValue::Dereference {
                         lvalue,
                         element_type,
                         location,
                         implicitly_added: <span class="bool-val">true</span>,
-                    });
+                    };
                     <span class="kw-2">*</span>mutable_ref = <span class="bool-val">true</span>;
                 };
 

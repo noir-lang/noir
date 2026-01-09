@@ -129,8 +129,7 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
+<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -214,8 +213,7 @@
         struct_id: TypeId,
     ) -&gt; Vec&lt;StructField&gt; {
         <span class="self">self</span>.recover_generics(|this| {
-            <span class="kw">let </span>previous_item =
-                std::mem::replace(<span class="kw-2">&amp;mut </span>this.current_item, <span class="prelude-val">Some</span>(DependencyId::Struct(struct_id)));
+            <span class="kw">let </span>previous_item = this.current_item.replace(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
