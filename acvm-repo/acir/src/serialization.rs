@@ -83,11 +83,11 @@ pub(crate) fn deserialize_any_format<T>(buf: &[u8]) -> std::io::Result<T>
 where
     T: for<'a> Deserialize<'a>,
 {
-    let Some(format) = buf.first().map(|format_byte| Format::try_from(*format_byte)) else {
+    let Some(format_byte) = buf.first() else {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "empty buffer"));
     };
 
-    match format {
+    match Format::try_from(*format_byte) {
         Ok(Format::Msgpack) | Ok(Format::MsgpackCompact) => msgpack_deserialize(&buf[1..]),
         Err(msg) => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, msg.to_string())),
     }
