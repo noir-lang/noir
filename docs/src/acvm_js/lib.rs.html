@@ -29,11 +29,13 @@
 <a href="#28" id="28">28</a>
 <a href="#29" id="29">29</a>
 <a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="comment">// See Cargo.toml for explanation.
 </span><span class="kw">use </span>getrandom <span class="kw">as _</span>;
 <span class="kw">use </span>getrandom_v2 <span class="kw">as _</span>;
+<span class="kw">use </span>getrandom_v4 <span class="kw">as _</span>;
 
 <span class="kw">mod </span>black_box_solvers;
 <span class="kw">mod </span>build_info;

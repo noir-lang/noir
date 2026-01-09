@@ -57,11 +57,13 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="attr">#![warn(unused_crate_dependencies, unused_extern_crates)]
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a></pre></div><pre class="rust"><code><span class="attr">#![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="comment">// See Cargo.toml for explanation.
 </span><span class="kw">use </span>getrandom <span class="kw">as _</span>;
 <span class="kw">use </span>getrandom_v2 <span class="kw">as _</span>; <span class="comment">// cSpell:disable-line
+</span><span class="kw">use </span>getrandom_v4 <span class="kw">as _</span>; <span class="comment">// cSpell:disable-line
 </span><span class="kw">use </span>rust_embed <span class="kw">as _</span>;
 
 <span class="kw">use </span>gloo_utils::format::JsValueSerdeExt;

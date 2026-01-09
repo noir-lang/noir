@@ -163,13 +163,15 @@
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="attr">#![warn(unused_crate_dependencies, unused_extern_crates)]
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="attr">#![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="comment">// See Cargo.toml for explanation.
 </span><span class="kw">use </span>getrandom <span class="kw">as _</span>;
 <span class="kw">use </span>getrandom_v2 <span class="kw">as _</span>;
+<span class="kw">use </span>getrandom_v4 <span class="kw">as _</span>; <span class="comment">// cSpell:disable-line
 
-<span class="kw">use </span>acvm::{
+</span><span class="kw">use </span>acvm::{
     AcirField, FieldElement,
     acir::native_types::{WitnessMap, WitnessStack},
     pwg::RawAssertionPayload,
