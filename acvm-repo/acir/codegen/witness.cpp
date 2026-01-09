@@ -114,9 +114,9 @@ namespace Witnesses {
         friend bool operator==(const StackItem&, const StackItem&);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("index", index));
-            packer.pack(std::make_pair("witness", witness));
+            packer.pack_array(2);
+            packer.pack(index);
+            packer.pack(witness);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -141,8 +141,8 @@ namespace Witnesses {
         friend bool operator==(const WitnessStack&, const WitnessStack&);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(1);
-            packer.pack(std::make_pair("stack", stack));
+            packer.pack_array(1);
+            packer.pack(stack);
         }
 
         void msgpack_unpack(msgpack::object const& o) {

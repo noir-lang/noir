@@ -155,7 +155,12 @@ mod reflection {
         } else {
             None
         };
-        let msgpack_code = MsgPackCodeGenerator::generate(namespace, registry, code);
+        let msgpack_code = MsgPackCodeGenerator::generate(
+            namespace,
+            registry,
+            code,
+            MsgPackCodeConfig { pack_compact: true },
+        );
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -220,16 +225,22 @@ mod reflection {
         *source = source.replace("throw serde::deserialization_error", "throw_or_abort");
     }
 
+    struct MsgPackCodeConfig {
+        /// If `true`, use `ARRAY` format for structs, otherwise use `MAP` when packing.
+        pack_compact: bool,
+    }
+
     /// Generate custom code for the msgpack machinery in Barretenberg.
     /// See https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp
     struct MsgPackCodeGenerator {
+        config: MsgPackCodeConfig,
         namespace: Vec<String>,
         code: CustomCode,
     }
 
     impl MsgPackCodeGenerator {
         /// Add the import of the Barretenberg C++ header for msgpack.
-        fn add_preamble(source: &mut String) {
+        pub(crate) fn add_preamble(source: &mut String) {
             let inc = r#"#include "serde.hpp""#;
             let pos = source.find(inc).expect("serde.hpp missing");
             source.insert_str(
@@ -239,7 +250,7 @@ mod reflection {
         }
 
         /// Add helper functions to cut down repetition in the generated code.
-        fn add_helpers(source: &mut String, namespace: &str) {
+        pub(crate) fn add_helpers(source: &mut String, namespace: &str) {
             // Based on https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75
             // Using a `struct Helpers` with `static` methods, because top level functions turn up as duplicates in `wasm-ld`.
             // cSpell:disable
@@ -327,8 +338,14 @@ mod reflection {
             *source = fixed;
         }
 
-        fn generate(namespace: &str, registry: &Registry, code: CustomCode) -> CustomCode {
-            let mut g = Self { namespace: vec![namespace.to_string()], code };
+        /// Add custom code for msgpack serialization and deserialization.
+        pub(crate) fn generate(
+            namespace: &str,
+            registry: &Registry,
+            code: CustomCode,
+            config: MsgPackCodeConfig,
+        ) -> CustomCode {
+            let mut g = Self { namespace: vec![namespace.to_string()], code, config };
             for (name, container) in registry {
                 g.generate_container(name, container);
             }
@@ -402,21 +419,39 @@ mod reflection {
             let non_unit_field_count = fields.iter().filter(|f| !is_unit(f)).count();
 
             self.msgpack_pack(name, &{
-                let mut body = format!(
-                    "
-    packer.pack_map({non_unit_field_count});",
-                );
-                for field in fields {
-                    if is_unit(field) {
-                        continue;
+                if self.config.pack_compact {
+                    // Pack as ARRAY
+                    let mut body = format!(
+                        "
+    packer.pack_array({});",
+                        fields.len()
+                    );
+                    for field in fields {
+                        let field_name = &field.name;
+                        body.push_str(&format!(
+                            r#"
+    packer.pack({field_name});"#
+                        ));
                     }
-                    let field_name = &field.name;
-                    body.push_str(&format!(
-                        r#"
+                    body
+                } else {
+                    // Pack as MAP
+                    let mut body = format!(
+                        "
+    packer.pack_map({non_unit_field_count});",
+                    );
+                    for field in fields {
+                        if is_unit(field) {
+                            continue;
+                        }
+                        let field_name = &field.name;
+                        body.push_str(&format!(
+                            r#"
     packer.pack(std::make_pair("{field_name}", {field_name}));"#
-                    ));
+                        ));
+                    }
+                    body
                 }
-                body
             });
 
             self.msgpack_unpack(name, &{
