@@ -1156,3 +1156,15 @@ fn varargs_on_function_without_arguments() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn varargs_on_function_without_last_vector_parameter() {
+    let src = "
+    #[varargs]
+    pub comptime fn foo(_x: Field, _y: Field) {}
+                                   ^^ The last parameter of a #[varargs] function must be a vector
+
+    fn main() {}
+    ";
+    check_errors(src);
+}

@@ -359,8 +359,12 @@ pub(crate) fn check_varargs(
         return Some(ResolverError::VarargsOnNonComptimeFunction { location });
     }
 
-    if func.parameters.is_empty() {
+    let Some((pattern, typ, _)) = func.parameters.0.last() else {
         return Some(ResolverError::VarargsOnFunctionWithNoParameters { location });
+    };
+    if !matches!(typ.follow_bindings(), Type::Vector(..)) {
+        let location = pattern.location();
+        return Some(ResolverError::VarargsLastParameterIsNotAVector { location });
     }
 
     None
