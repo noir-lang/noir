@@ -1670,7 +1670,11 @@
 <a href="#1669" id="1669">1669</a>
 <a href="#1670" id="1670">1670</a>
 <a href="#1671" id="1671">1671</a>
-<a href="#1672" id="1672">1672</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -3101,8 +3105,12 @@
         // See issue https://github.com/noir-lang/noir/issues/1439
         </span><span class="kw">let </span>results =
             vecmap(<span class="kw-2">&amp;</span>outputs, |witness_index| <span class="self">self</span>.add_data(AcirVarData::Witness(<span class="kw-2">*</span>witness_index)));
-
-        <span class="kw">let </span>predicate = <span class="prelude-val">Some</span>(<span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?</span>);
+        <span class="kw">let </span>expr: Expression&lt;F&gt; = <span class="kw">if </span><span class="self">self</span>.is_constant(<span class="kw-2">&amp;</span>predicate) {
+            <span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?
+        </span>} <span class="kw">else </span>{
+            <span class="self">self</span>.var_to_witness(predicate)<span class="question-mark">?</span>.into()
+        };
+        <span class="kw">let </span>predicate = <span class="prelude-val">Some</span>(expr);
         <span class="self">self</span>.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         <span class="prelude-val">Ok</span>(results)
     }
