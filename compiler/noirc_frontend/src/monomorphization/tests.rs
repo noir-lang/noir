@@ -184,3 +184,34 @@ fn tuple_pattern_becomes_separate_params() {
     }
     ");
 }
+
+#[test]
+fn return_impl_trait_becomes_underlying_type() {
+    let src = r#"
+    trait Foo {}
+    struct Bar { x: u32, y: Field }
+    impl Foo for Bar {}
+
+    fn foo_bar() -> Bar {
+        Bar { x: 0, y: 0 }
+    }
+
+    fn main() {
+        let _fb = foo_bar();
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _fb$l0 = foo_bar$f1()
+    }
+    fn foo_bar$f1() -> (u32, Field) {
+        {
+            let x$l1 = 0;
+            let y$l2 = 0;
+            (x$l1, y$l2)
+        }
+    }
+    ");
+}
