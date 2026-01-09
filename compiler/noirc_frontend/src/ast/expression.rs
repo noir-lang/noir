@@ -557,7 +557,7 @@ pub struct IndexExpression {
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct BlockExpression {
     pub statements: Vec<Statement>,
 }
