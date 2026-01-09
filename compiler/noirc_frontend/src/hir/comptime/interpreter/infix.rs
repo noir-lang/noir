@@ -208,6 +208,7 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs ">>" rhs_value as rhs) {
                 int: {
                     #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::unnecessary_fallible_conversions)]
                     let rhs: Result<u32, _> = rhs.try_into();
                     #[allow(irrefutable_let_patterns)]
                     let Ok(rhs) = rhs else {
@@ -223,6 +224,7 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "<<" rhs_value as rhs) {
                 int: {
                     #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::unnecessary_fallible_conversions)]
                     let rhs: Result<u32, _> = rhs.try_into();
                     #[allow(irrefutable_let_patterns)]
                     let Ok(rhs) = rhs else {
