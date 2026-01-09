@@ -1,0 +1,7 @@
+[package]
+name = "comptime_bit_shift_overflow"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

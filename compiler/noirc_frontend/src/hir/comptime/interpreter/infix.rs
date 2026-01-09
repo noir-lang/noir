@@ -204,25 +204,85 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
         #[allow(trivial_numeric_casts)]
-        BinaryOpKind::ShiftRight => match_integer! {
-            (lhs_value as lhs ">>" rhs_value as rhs) {
-                int: {
-                    #[allow(clippy::cast_lossless)]
-                    lhs.checked_shr(rhs as u32)
-                },
-                u1: if rhs { return Err(shr_overflow())} else { Some(lhs) },
+        BinaryOpKind::ShiftRight => {
+            // Helper to validate and perform shift with pre-cast checks
+            macro_rules! shift_right {
+                (signed: $lhs:expr, $rhs:expr, $variant:ident) => {{
+                    if $rhs < 0 {
+                        return Err(shr_overflow());
+                    }
+                    Ok(Value::$variant($lhs.checked_shr($rhs as u32).ok_or(shr_overflow())?))
+                }};
+                (unsigned: $lhs:expr, $rhs:expr, $variant:ident) => {
+                    Ok(Value::$variant($lhs.checked_shr($rhs as u32).ok_or(shr_overflow())?))
+                };
+                (unsigned_wide: $lhs:expr, $rhs:expr, $variant:ident) => {{
+                    if $rhs >= 256 {
+                        return Err(shr_overflow());
+                    }
+                    Ok(Value::$variant($lhs.checked_shr($rhs as u32).ok_or(shr_overflow())?))
+                }};
             }
-        },
+
+            match (lhs_value, rhs_value) {
+                (Value::I8(lhs), Value::I8(rhs)) => shift_right!(signed: lhs, rhs, I8),
+                (Value::I16(lhs), Value::I16(rhs)) => shift_right!(signed: lhs, rhs, I16),
+                (Value::I32(lhs), Value::I32(rhs)) => shift_right!(signed: lhs, rhs, I32),
+                (Value::I64(lhs), Value::I64(rhs)) => shift_right!(signed: lhs, rhs, I64),
+                (Value::U1(lhs), Value::U1(rhs)) => {
+                    if rhs {
+                        return Err(shr_overflow());
+                    }
+                    Ok(Value::U1(lhs))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => shift_right!(unsigned: lhs, rhs, U8),
+                (Value::U16(lhs), Value::U16(rhs)) => shift_right!(unsigned: lhs, rhs, U16),
+                (Value::U32(lhs), Value::U32(rhs)) => shift_right!(unsigned: lhs, rhs, U32),
+                (Value::U64(lhs), Value::U64(rhs)) => shift_right!(unsigned_wide: lhs, rhs, U64),
+                (Value::U128(lhs), Value::U128(rhs)) => shift_right!(unsigned_wide: lhs, rhs, U128),
+                (_, _) => Err(error(">>")),
+            }
+        }
         #[allow(trivial_numeric_casts)]
-        BinaryOpKind::ShiftLeft => match_integer! {
-            (lhs_value as lhs "<<" rhs_value as rhs) {
-                int: {
-                    #[allow(clippy::cast_lossless)]
-                    lhs.checked_shl(rhs as u32)
-                },
-                u1: if rhs { return Err(shl_overflow())} else { Some(lhs) },
+        BinaryOpKind::ShiftLeft => {
+            // Helper to validate and perform shift with pre-cast checks
+            macro_rules! shift_left {
+                (signed: $lhs:expr, $rhs:expr, $variant:ident) => {{
+                    if $rhs < 0 {
+                        return Err(shl_overflow());
+                    }
+                    Ok(Value::$variant($lhs.checked_shl($rhs as u32).ok_or(shl_overflow())?))
+                }};
+                (unsigned: $lhs:expr, $rhs:expr, $variant:ident) => {
+                    Ok(Value::$variant($lhs.checked_shl($rhs as u32).ok_or(shl_overflow())?))
+                };
+                (unsigned_wide: $lhs:expr, $rhs:expr, $variant:ident) => {{
+                    if $rhs >= 256 {
+                        return Err(shl_overflow());
+                    }
+                    Ok(Value::$variant($lhs.checked_shl($rhs as u32).ok_or(shl_overflow())?))
+                }};
             }
-        },
+
+            match (lhs_value, rhs_value) {
+                (Value::I8(lhs), Value::I8(rhs)) => shift_left!(signed: lhs, rhs, I8),
+                (Value::I16(lhs), Value::I16(rhs)) => shift_left!(signed: lhs, rhs, I16),
+                (Value::I32(lhs), Value::I32(rhs)) => shift_left!(signed: lhs, rhs, I32),
+                (Value::I64(lhs), Value::I64(rhs)) => shift_left!(signed: lhs, rhs, I64),
+                (Value::U1(lhs), Value::U1(rhs)) => {
+                    if rhs {
+                        return Err(shl_overflow());
+                    }
+                    Ok(Value::U1(lhs))
+                }
+                (Value::U8(lhs), Value::U8(rhs)) => shift_left!(unsigned: lhs, rhs, U8),
+                (Value::U16(lhs), Value::U16(rhs)) => shift_left!(unsigned: lhs, rhs, U16),
+                (Value::U32(lhs), Value::U32(rhs)) => shift_left!(unsigned: lhs, rhs, U32),
+                (Value::U64(lhs), Value::U64(rhs)) => shift_left!(unsigned_wide: lhs, rhs, U64),
+                (Value::U128(lhs), Value::U128(rhs)) => shift_left!(unsigned_wide: lhs, rhs, U128),
+                (_, _) => Err(error("<<")),
+            }
+        }
         BinaryOpKind::Modulo => match_integer! {
             (lhs_value as lhs "%" rhs_value as rhs) {
                 int: lhs.checked_rem(rhs),
