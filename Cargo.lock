@@ -125,6 +125,7 @@ dependencies = [
  "const-str",
  "getrandom 0.2.16",
  "getrandom 0.3.4",
+ "getrandom 0.4.0-rc.0",
  "gloo-utils",
  "js-sys",
  "pkg-config",
@@ -2141,10 +2142,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b99f0d993a2b9b97b9a201193aa8ad21305cde06a3be9a7e1f8f4201e5cc27e"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi",
  "rand_core 0.10.0-rc-3",
  "wasip2",
+ "wasm-bindgen",
 ]
 
 [[package]]
