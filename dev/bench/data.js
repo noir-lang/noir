@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767977812983,
+  "lastUpdate": 1767982005940,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "5ce535bd9b084926a19083374b8f883232b4c8ef",
-          "message": "chore: add assertion that RHS type of a bit shift is a power of 2 (#11041)",
-          "timestamp": "2026-01-05T17:50:27Z",
-          "tree_id": "a5ddf4ebbdfa739a136ad6bf37c859cd121b6998",
-          "url": "https://github.com/noir-lang/noir/commit/5ce535bd9b084926a19083374b8f883232b4c8ef"
-        },
-        "date": 1767636625026,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267536,
-            "range": "± 1182",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239291,
-            "range": "± 5646",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793676,
-            "range": "± 10278",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "a550737db427067a7ef08f6590da0b97cfd8a0d0",
           "message": "chore: bump to new version of bb (#11023)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
           "timestamp": "2026-01-05T18:00:17Z",
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2256930,
             "range": "± 3437",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "77422e5ef048af891ce5493bd64ea4ac44d7bec1",
+          "message": "chore: check in memop operation for witnesses (#11148)",
+          "timestamp": "2026-01-09T17:45:03Z",
+          "tree_id": "f9ffa97ffce2fcb378f906749a01610fcdbb9828",
+          "url": "https://github.com/noir-lang/noir/commit/77422e5ef048af891ce5493bd64ea4ac44d7bec1"
+        },
+        "date": 1767981971545,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253028,
+            "range": "± 257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222977,
+            "range": "± 17636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792740,
+            "range": "± 18869",
             "unit": "ns/iter"
           }
         ]
