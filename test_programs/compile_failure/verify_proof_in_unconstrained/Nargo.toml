@@ -1,0 +1,6 @@
+[package]
+name = "verify_proof_in_unconstrained"
+type = "bin"
+authors = [""]
+
+[dependencies]
