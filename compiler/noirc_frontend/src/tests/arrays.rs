@@ -115,3 +115,17 @@ fn array_with_nested_vector() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn array_length_overflow_at_comptime() {
+    let src = r#"
+    fn main() {
+        comptime {
+            let _array = [0; 4294967296];
+                         ^^^^^^^^^^^^^^^ Invalid array length
+                         ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `numeric u32` which has a maximum size of `4294967295`
+        }
+    }
+    "#;
+    check_errors(src);
+}

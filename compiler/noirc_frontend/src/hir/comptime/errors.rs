@@ -93,7 +93,6 @@ pub enum InterpreterError {
         location: Location,
     },
     NonIntegerArrayLength {
-        typ: Type,
         err: Box<TypeCheckError>,
         location: Location,
     },
@@ -511,11 +510,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerArrayLength { typ, err, location } => {
-                let msg = format!("Non-integer array length: `{typ}`");
-                let secondary = format!(
-                    "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
-                );
+            InterpreterError::NonIntegerArrayLength { err, location } => {
+                let msg = "Invalid array length".to_string();
+                let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonNumericCasted { typ, location } => {
