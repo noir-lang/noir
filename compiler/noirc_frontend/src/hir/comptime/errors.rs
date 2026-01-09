@@ -97,11 +97,6 @@ pub enum InterpreterError {
         err: Box<TypeCheckError>,
         location: Location,
     },
-    NonIntegerAssociatedConstant {
-        typ: Type,
-        err: Option<Box<TypeCheckError>>,
-        location: Location,
-    },
     NonNumericCasted {
         typ: Type,
         location: Location,
@@ -341,7 +336,6 @@ impl InterpreterError {
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::NonIntegerArrayLength { location, .. }
-            | InterpreterError::NonIntegerAssociatedConstant { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -522,17 +516,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = format!(
                     "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
                 );
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::NonIntegerAssociatedConstant { typ, err, location } => {
-                let msg = format!("Non-integer associated constant: `{typ}`");
-                let secondary = if let Some(err) = err {
-                    format!(
-                        "Associated constants must be integers, but evaluating `{typ}` resulted in `{err}`"
-                    )
-                } else {
-                    "Associated constants must be integers".to_string()
-                };
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonNumericCasted { typ, location } => {
