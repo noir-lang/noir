@@ -243,9 +243,9 @@ pub(super) fn evaluate_infix(
                 (_, _) => Err(error(">>")),
             }
         }
-        #[allow(trivial_numeric_casts)]
         BinaryOpKind::ShiftLeft => {
             // Helper to validate and perform shift with pre-cast checks
+            #[allow(trivial_numeric_casts)]
             macro_rules! shift_left {
                 (signed: $lhs:expr, $rhs:expr, $variant:ident) => {{
                     if $rhs < 0 {
