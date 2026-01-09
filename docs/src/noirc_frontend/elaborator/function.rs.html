@@ -597,7 +597,8 @@
 <a href="#596" id="596">596</a>
 <a href="#597" id="597">597</a>
 <a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -1052,6 +1053,7 @@
         });
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
+        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_reference(func, modifiers).map(Into::into));
         <span class="self">self</span>.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
