@@ -421,6 +421,8 @@ pub enum InlineType {
     Inline,
     /// Functions marked as inline always will always be inlined, even in brillig contexts.
     InlineAlways,
+    /// Functions marked as inline never will never be inlined
+    InlineNever,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -447,6 +449,7 @@ impl From<&Attributes> for InlineType {
             FunctionAttributeKind::Fold => InlineType::Fold,
             FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
             FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
+            FunctionAttributeKind::InlineNever => InlineType::InlineNever,
             _ => InlineType::default(),
         })
     }
@@ -457,6 +460,7 @@ impl InlineType {
         match self {
             InlineType::Inline => false,
             InlineType::InlineAlways => false,
+            InlineType::InlineNever => false,
             InlineType::Fold => true,
             InlineType::NoPredicates => false,
         }
@@ -465,7 +469,7 @@ impl InlineType {
     /// Produce an `InlineType` which we can use with an unconstrained version of a function.
     pub fn into_unconstrained(self) -> Self {
         match self {
-            InlineType::Inline | InlineType::InlineAlways => self,
+            InlineType::Inline | InlineType::InlineAlways | InlineType::InlineNever => self,
             InlineType::Fold => {
                 // The #[fold] attribute is about creating separate ACIR circuits for proving,
                 // not relevant in Brillig. Leaving it violates some expectations that each
@@ -490,6 +494,7 @@ impl Display for InlineType {
         match self {
             InlineType::Inline => write!(f, "inline"),
             InlineType::InlineAlways => write!(f, "inline_always"),
+            InlineType::InlineNever => write!(f, "inline_never"),
             InlineType::Fold => write!(f, "fold"),
             InlineType::NoPredicates => write!(f, "no_predicates"),
         }

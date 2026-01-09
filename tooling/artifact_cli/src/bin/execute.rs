@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use clap::{Parser, Subcommand, command};
+use clap::{Parser, Subcommand};
 use color_eyre::eyre;
 use const_format::formatcp;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
