@@ -557,12 +557,6 @@ impl<F: AcirField> AcirContext<F> {
         self.assert_eq_var(var, zero, Some(msg))
     }
 
-    /// Add an always-fail assertion with a message.
-    pub(crate) fn assert_always_fail(&mut self, msg: String) -> Result<(), RuntimeError> {
-        let one = self.add_constant(F::one());
-        self.assert_zero_var(one, msg)
-    }
-
     pub(crate) fn values_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
@@ -833,7 +827,7 @@ impl<F: AcirField> AcirContext<F> {
                 let msg = format!(
                     "attempted to divide by constant larger than operand type: {rhs_bits} > {bit_size}"
                 );
-                self.assert_always_fail(msg)?;
+                self.assert_zero_var(predicate, msg)?;
                 return Ok((zero, zero));
             }
 
@@ -1435,8 +1429,12 @@ impl<F: AcirField> AcirContext<F> {
         // See issue https://github.com/noir-lang/noir/issues/1439
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-
-        let predicate = Some(self.var_to_expression(predicate)?);
+        let expr: Expression<F> = if self.is_constant(&predicate) {
+            self.var_to_expression(predicate)?
+        } else {
+            self.var_to_witness(predicate)?.into()
+        };
+        let predicate = Some(expr);
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
@@ -1568,7 +1566,14 @@ mod tests {
 
 
         #[test]
-        fn fuzz_bound_constraint_with_offset(limit: u128, offset: bool) {
+        fn fuzz_bound_constraint_with_offset(
+            (limit, offset) in prop_oneof![
+                // Specific case: strict inequality with 2^127 + 1
+                Just((170141183460469231731687303715884105729u128, true)),
+                // Random cases
+                (any::<u128>(), any::<bool>())
+            ]
+        ) {
             let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
 
             let lhs = context.add_variable();

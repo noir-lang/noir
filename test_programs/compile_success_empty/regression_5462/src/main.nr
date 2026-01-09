@@ -1,7 +1,7 @@
 fn main() {
-    let empty_vector: [u8] = &[];
+    let empty_vector: [u8] = [].as_vector();
 
-    if empty_vector != &[] {
+    if empty_vector != [].as_vector() {
         let _ = empty_vector.pop_front();
     }
 

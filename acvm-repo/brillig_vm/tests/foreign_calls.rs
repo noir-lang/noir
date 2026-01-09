@@ -527,40 +527,24 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 }
 
 #[test]
-fn foreign_call_opcode_nested_arrays_and_vectors_input() {
+fn foreign_call_opcode_nested_arrays_input() {
     // This is the data we want to pass:
-    // [(Field, [Field], [Field; 1]); 2]
-    // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
+    // [(Field, [Field; 1]); 2]
+    // [(1, [4]), (5, [9])]
 
-    let v2: Vec<MemoryValue<FieldElement>> = vec![
-        MemoryValue::new_field(FieldElement::from(2u128)),
-        MemoryValue::new_field(FieldElement::from(3u128)),
-    ];
     let a4: Vec<MemoryValue<FieldElement>> =
         vec![MemoryValue::new_field(FieldElement::from(4u128))];
-    let v6: Vec<MemoryValue<FieldElement>> = vec![
-        MemoryValue::new_field(FieldElement::from(6u128)),
-        MemoryValue::new_field(FieldElement::from(7u128)),
-        MemoryValue::new_field(FieldElement::from(8u128)),
-    ];
     let a9: Vec<MemoryValue<FieldElement>> =
         vec![MemoryValue::new_field(FieldElement::from(9u128))];
 
     // construct memory by declaring all inner arrays/vectors first
     // Declare v2: [RC, size, capacity, ...items]
-    let v2_ptr: usize = 0usize;
-    let mut memory = vec![MemoryValue::from(1_u32), v2.len().into(), v2.len().into()];
-    memory.extend(v2.clone());
+    let mut memory = vec![MemoryValue::from(1_u32)];
 
     // Declare a4: [RC, ...items]
     let a4_ptr = memory.len();
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a4.clone());
-
-    // Declare v6: [RC, size, capacity, ...items]
-    let v6_ptr = memory.len();
-    memory.extend(vec![MemoryValue::from(1_u32), v6.len().into(), v6.len().into()]);
-    memory.extend(v6.clone());
 
     // Declare a9: [RC, ...items]
     let a9_ptr = memory.len();
@@ -574,20 +558,14 @@ fn foreign_call_opcode_nested_arrays_and_vectors_input() {
     let outer_start = memory.len();
     let outer_array = vec![
         MemoryValue::new_field(FieldElement::from(1u128)),
-        MemoryValue::from(v2.len() as u32), // semantic length
-        MemoryValue::from(v2_ptr),
         MemoryValue::from(a4_ptr),
         MemoryValue::new_field(FieldElement::from(5u128)),
-        MemoryValue::from(v6.len() as u32), // semantic length
-        MemoryValue::from(v6_ptr),
         MemoryValue::from(a9_ptr),
     ];
     memory.extend(outer_array.clone());
 
     let input_array_value_types: Vec<HeapValueType> = vec![
         HeapValueType::field(),
-        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U64)), // size of following vector
-        HeapValueType::Vector { value_types: vec![HeapValueType::field()] },
         HeapValueType::Array { value_types: vec![HeapValueType::field()], size: 1 },
     ];
 
@@ -650,25 +628,18 @@ fn foreign_call_opcode_nested_arrays_and_vectors_input() {
             function: "flat_sum".into(),
             inputs: vec![ForeignCallParam::Array(vec![
                 (1u128).into(),
-                (2u128).into(), // size of following vector
-                (2u128).into(),
-                (3u128).into(),
                 (4u128).into(),
                 (5u128).into(),
-                (3u128).into(), // size of following vector
-                (6u128).into(),
-                (7u128).into(),
-                (8u128).into(),
                 (9u128).into(),
             ])],
         },
-        vec![FieldElement::from(45u128).into()],
+        vec![FieldElement::from(19u128).into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
     );
 
     // Check result
     let result_value = memory.read(r_output);
-    assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(45u128)));
+    assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(19u128)));
 
     // Ensure the foreign call counter has been incremented
     assert_eq!(counter, 1);

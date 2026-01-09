@@ -56,33 +56,6 @@ impl From<MemoryAddress> for ArrayAddress {
     }
 }
 
-/// Wrapper for vector addresses, with convenience methods for various offsets.
-///
-/// A vector is prefixed by 3 meta-data fields: the ref-count, the size, and the capacity,
-/// which are followed by a number of items indicated by its capacity, with the items
-/// its size being placeholders to accommodate future growth.
-///
-/// The semantic length of the vector is maintained at a separate address.
-pub(crate) struct VectorAddress(MemoryAddress);
-
-impl VectorAddress {
-    /// Size of the vector.
-    pub(crate) fn size_addr(&self) -> MemoryAddress {
-        self.0.offset(offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize"))
-    }
-    /// The start of the items, after the meta-data.
-    pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0
-            .offset(offsets::VECTOR_ITEMS.try_into().expect("Failed conversion from u32 to usize"))
-    }
-}
-
-impl From<MemoryAddress> for VectorAddress {
-    fn from(value: MemoryAddress) -> Self {
-        Self(value)
-    }
-}
-
 /// A single typed value in the Brillig VM's memory.
 ///
 /// Memory in the VM is strongly typed and can represent either a native field element

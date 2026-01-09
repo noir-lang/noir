@@ -316,7 +316,7 @@ impl InterpreterError {
             self,
             InterpreterError::Break
                 | InterpreterError::Continue
-                | InterpreterError::SkippedDueToEarlierErrors { .. }
+                | InterpreterError::SkippedDueToEarlierErrors
         )
     }
 
