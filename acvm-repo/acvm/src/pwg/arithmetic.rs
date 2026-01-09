@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use acir::{
     AcirField,
     native_types::{Expression, Witness, WitnessMap},
@@ -243,12 +245,14 @@ impl ExpressionSolver {
         initial_witness: &WitnessMap<F>,
     ) -> Expression<F> {
         let mut result = Expression::default();
+        let mut linear_combinations = HashMap::new();
+
         for &(c, w1, w2) in &expr.mul_terms {
             let mul_result = ExpressionSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);
             match mul_result {
                 MulTerm::OneUnknown(v, w) => {
                     if !v.is_zero() {
-                        result.linear_combinations.push((v, w));
+                        linear_combinations.entry(w).and_modify(|value| *value += v).or_insert(c);
                     }
                 }
                 MulTerm::TooManyUnknowns => {
@@ -259,13 +263,20 @@ impl ExpressionSolver {
                 MulTerm::Solved(f) => result.q_c += f,
             }
         }
+
         for &(c, w) in &expr.linear_combinations {
             if let Some(f) = ExpressionSolver::solve_fan_in_term_helper(&(c, w), initial_witness) {
                 result.q_c += f;
             } else if !c.is_zero() {
-                result.linear_combinations.push((c, w));
+                linear_combinations.entry(w).and_modify(|value| *value += c).or_insert(c);
             }
         }
+
+        result.linear_combinations = linear_combinations
+            .into_iter()
+            .filter_map(|(w, c)| if c.is_zero() { None } else { Some((c, w)) })
+            .collect();
+
         result.q_c += expr.q_c;
         result
     }
@@ -364,5 +375,17 @@ mod tests {
         assert_eq!(ExpressionSolver::solve(&mut values, &opcode_b), Ok(()));
 
         assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4_i128));
+    }
+
+    #[test]
+    fn solves_by_combining_linear_terms_after_they_have_been_multiplied_by_known_witnesses() {
+        let expr = Expression::from_str("w1 + w1*w0 - 4").unwrap();
+        let mut values = WitnessMap::new();
+        values.insert(Witness(0), FieldElement::from(1_i128));
+
+        let res = ExpressionSolver::solve(&mut values, &expr);
+        assert!(res.is_ok());
+
+        assert_eq!(values.get(&Witness(1)).unwrap(), &FieldElement::from(2_i128));
     }
 }
