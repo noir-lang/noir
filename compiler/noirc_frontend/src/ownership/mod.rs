@@ -341,20 +341,6 @@ impl Context {
         for arg in &mut call.arguments {
             self.handle_expression(arg);
         }
-
-        // Hack to avoid clones when calling `array.len()`.
-        // That function takes arrays by value but we know it never mutates them.
-        if let Expression::Ident(ident) = call.func.as_ref() {
-            if let Definition::Builtin(name) = &ident.definition {
-                if name == "array_len" {
-                    if let Some(Expression::Clone(array)) = call.arguments.get_mut(0) {
-                        let array =
-                            std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
-                        call.arguments[0] = array;
-                    }
-                }
-            }
-        }
     }
 
     fn handle_let(&mut self, let_expr: &mut crate::monomorphization::ast::Let) {

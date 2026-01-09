@@ -2,7 +2,6 @@
 
 #include "serde.hpp"
 #include "barretenberg/serialize/msgpack_impl.hpp"
-#include "bincode.hpp"
 
 namespace Acir {
     struct Helpers {
@@ -78,8 +77,6 @@ namespace Acir {
 
         struct Add {
             friend bool operator==(const Add&, const Add&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Add bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -87,8 +84,6 @@ namespace Acir {
 
         struct Sub {
             friend bool operator==(const Sub&, const Sub&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sub bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -96,8 +91,6 @@ namespace Acir {
 
         struct Mul {
             friend bool operator==(const Mul&, const Mul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Mul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -105,8 +98,6 @@ namespace Acir {
 
         struct Div {
             friend bool operator==(const Div&, const Div&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Div bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -114,8 +105,6 @@ namespace Acir {
 
         struct IntegerDiv {
             friend bool operator==(const IntegerDiv&, const IntegerDiv&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -123,8 +112,6 @@ namespace Acir {
 
         struct Equals {
             friend bool operator==(const Equals&, const Equals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Equals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -132,8 +119,6 @@ namespace Acir {
 
         struct LessThan {
             friend bool operator==(const LessThan&, const LessThan&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -141,8 +126,6 @@ namespace Acir {
 
         struct LessThanEquals {
             friend bool operator==(const LessThanEquals&, const LessThanEquals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -151,8 +134,6 @@ namespace Acir {
         std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
 
         friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -268,8 +249,6 @@ namespace Acir {
 
         struct Add {
             friend bool operator==(const Add&, const Add&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Add bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -277,8 +256,6 @@ namespace Acir {
 
         struct Sub {
             friend bool operator==(const Sub&, const Sub&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sub bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -286,8 +263,6 @@ namespace Acir {
 
         struct Mul {
             friend bool operator==(const Mul&, const Mul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Mul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -295,8 +270,6 @@ namespace Acir {
 
         struct Div {
             friend bool operator==(const Div&, const Div&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Div bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -304,8 +277,6 @@ namespace Acir {
 
         struct Equals {
             friend bool operator==(const Equals&, const Equals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Equals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -313,8 +284,6 @@ namespace Acir {
 
         struct LessThan {
             friend bool operator==(const LessThan&, const LessThan&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -322,8 +291,6 @@ namespace Acir {
 
         struct LessThanEquals {
             friend bool operator==(const LessThanEquals&, const LessThanEquals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -331,8 +298,6 @@ namespace Acir {
 
         struct And {
             friend bool operator==(const And&, const And&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static And bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -340,8 +305,6 @@ namespace Acir {
 
         struct Or {
             friend bool operator==(const Or&, const Or&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Or bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -349,8 +312,6 @@ namespace Acir {
 
         struct Xor {
             friend bool operator==(const Xor&, const Xor&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Xor bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -358,8 +319,6 @@ namespace Acir {
 
         struct Shl {
             friend bool operator==(const Shl&, const Shl&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Shl bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -367,8 +326,6 @@ namespace Acir {
 
         struct Shr {
             friend bool operator==(const Shr&, const Shr&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Shr bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -377,8 +334,6 @@ namespace Acir {
         std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
 
         friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -526,8 +481,6 @@ namespace Acir {
 
         struct U1 {
             friend bool operator==(const U1&, const U1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static U1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -535,8 +488,6 @@ namespace Acir {
 
         struct U8 {
             friend bool operator==(const U8&, const U8&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static U8 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -544,8 +495,6 @@ namespace Acir {
 
         struct U16 {
             friend bool operator==(const U16&, const U16&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static U16 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -553,8 +502,6 @@ namespace Acir {
 
         struct U32 {
             friend bool operator==(const U32&, const U32&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static U32 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -562,8 +509,6 @@ namespace Acir {
 
         struct U64 {
             friend bool operator==(const U64&, const U64&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static U64 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -571,8 +516,6 @@ namespace Acir {
 
         struct U128 {
             friend bool operator==(const U128&, const U128&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static U128 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -581,8 +524,6 @@ namespace Acir {
         std::variant<U1, U8, U16, U32, U64, U128> value;
 
         friend bool operator==(const IntegerBitSize&, const IntegerBitSize&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -682,8 +623,6 @@ namespace Acir {
 
         struct Field {
             friend bool operator==(const Field&, const Field&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Field bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -693,8 +632,6 @@ namespace Acir {
             Acir::IntegerBitSize value;
 
             friend bool operator==(const Integer&, const Integer&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Integer bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -711,8 +648,6 @@ namespace Acir {
         std::variant<Field, Integer> value;
 
         friend bool operator==(const BitSize&, const BitSize&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BitSize bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -789,8 +724,6 @@ namespace Acir {
             uint64_t value;
 
             friend bool operator==(const Direct&, const Direct&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Direct bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -808,8 +741,6 @@ namespace Acir {
             uint64_t value;
 
             friend bool operator==(const Relative&, const Relative&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Relative bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -826,8 +757,6 @@ namespace Acir {
         std::variant<Direct, Relative> value;
 
         friend bool operator==(const MemoryAddress&, const MemoryAddress&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -929,8 +858,6 @@ namespace Acir {
         Acir::SemiFlattenedLength size;
 
         friend bool operator==(const HeapArray&, const HeapArray&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapArray bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(2);
@@ -959,8 +886,6 @@ namespace Acir {
         Acir::MemoryAddress size;
 
         friend bool operator==(const HeapVector&, const HeapVector&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapVector bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(2);
@@ -993,8 +918,6 @@ namespace Acir {
             Acir::HeapVector outputs;
 
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -1029,8 +952,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Blake2s&, const Blake2s&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake2s bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -1059,8 +980,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Blake3&, const Blake3&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -1089,8 +1008,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -1122,8 +1039,6 @@ namespace Acir {
             Acir::MemoryAddress result;
 
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(5);
@@ -1164,8 +1079,6 @@ namespace Acir {
             Acir::MemoryAddress result;
 
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(5);
@@ -1204,8 +1117,6 @@ namespace Acir {
             Acir::HeapArray outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -1242,8 +1153,6 @@ namespace Acir {
             Acir::HeapArray result;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(7);
@@ -1287,8 +1196,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -1318,8 +1225,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -1354,8 +1259,6 @@ namespace Acir {
             Acir::MemoryAddress output_bits;
 
             friend bool operator==(const ToRadix&, const ToRadix&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ToRadix bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(5);
@@ -1391,8 +1294,6 @@ namespace Acir {
         std::variant<AES128Encrypt, Blake2s, Blake3, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Poseidon2Permutation, Sha256Compression, ToRadix> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -1632,8 +1533,6 @@ namespace Acir {
             Acir::BitSize value;
 
             friend bool operator==(const Simple&, const Simple&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Simple bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -1652,8 +1551,6 @@ namespace Acir {
             Acir::SemanticLength size;
 
             friend bool operator==(const Array&, const Array&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Array bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -1681,8 +1578,6 @@ namespace Acir {
             std::vector<Acir::HeapValueType> value_types;
 
             friend bool operator==(const Vector&, const Vector&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Vector bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(1);
@@ -1706,8 +1601,6 @@ namespace Acir {
         std::variant<Simple, Array, Vector> value;
 
         friend bool operator==(const HeapValueType&, const HeapValueType&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -1806,8 +1699,6 @@ namespace Acir {
             Acir::MemoryAddress value;
 
             friend bool operator==(const MemoryAddress&, const MemoryAddress&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -1825,8 +1716,6 @@ namespace Acir {
             Acir::HeapArray value;
 
             friend bool operator==(const HeapArray&, const HeapArray&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static HeapArray bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -1844,8 +1733,6 @@ namespace Acir {
             Acir::HeapVector value;
 
             friend bool operator==(const HeapVector&, const HeapVector&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static HeapVector bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -1862,8 +1749,6 @@ namespace Acir {
         std::variant<MemoryAddress, HeapArray, HeapVector> value;
 
         friend bool operator==(const ValueOrArray&, const ValueOrArray&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -1965,8 +1850,6 @@ namespace Acir {
             Acir::MemoryAddress rhs;
 
             friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -2004,8 +1887,6 @@ namespace Acir {
             Acir::MemoryAddress rhs;
 
             friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(5);
@@ -2044,8 +1925,6 @@ namespace Acir {
             Acir::IntegerBitSize bit_size;
 
             friend bool operator==(const Not&, const Not&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Not bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -2078,8 +1957,6 @@ namespace Acir {
             Acir::BitSize bit_size;
 
             friend bool operator==(const Cast&, const Cast&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Cast bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -2111,8 +1988,6 @@ namespace Acir {
             uint64_t location;
 
             friend bool operator==(const JumpIf&, const JumpIf&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static JumpIf bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -2140,8 +2015,6 @@ namespace Acir {
             uint64_t location;
 
             friend bool operator==(const Jump&, const Jump&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Jump bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(1);
@@ -2168,8 +2041,6 @@ namespace Acir {
             Acir::MemoryAddress offset_address;
 
             friend bool operator==(const CalldataCopy&, const CalldataCopy&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static CalldataCopy bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -2200,8 +2071,6 @@ namespace Acir {
             uint64_t location;
 
             friend bool operator==(const Call&, const Call&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Call bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(1);
@@ -2228,8 +2097,6 @@ namespace Acir {
             std::vector<uint8_t> value;
 
             friend bool operator==(const Const&, const Const&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Const bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -2262,8 +2129,6 @@ namespace Acir {
             std::vector<uint8_t> value;
 
             friend bool operator==(const IndirectConst&, const IndirectConst&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static IndirectConst bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -2292,8 +2157,6 @@ namespace Acir {
 
         struct Return {
             friend bool operator==(const Return&, const Return&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Return bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -2307,8 +2170,6 @@ namespace Acir {
             std::vector<Acir::HeapValueType> input_value_types;
 
             friend bool operator==(const ForeignCall&, const ForeignCall&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ForeignCall bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(5);
@@ -2346,8 +2207,6 @@ namespace Acir {
             Acir::MemoryAddress source;
 
             friend bool operator==(const Mov&, const Mov&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Mov bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -2378,8 +2237,6 @@ namespace Acir {
             Acir::MemoryAddress condition;
 
             friend bool operator==(const ConditionalMov&, const ConditionalMov&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ConditionalMov bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -2414,8 +2271,6 @@ namespace Acir {
             Acir::MemoryAddress source_pointer;
 
             friend bool operator==(const Load&, const Load&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Load bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -2444,8 +2299,6 @@ namespace Acir {
             Acir::MemoryAddress source;
 
             friend bool operator==(const Store&, const Store&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Store bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -2473,8 +2326,6 @@ namespace Acir {
             Acir::BlackBoxOp value;
 
             friend bool operator==(const BlackBox&, const BlackBox&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BlackBox bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -2492,8 +2343,6 @@ namespace Acir {
             Acir::HeapVector revert_data;
 
             friend bool operator==(const Trap&, const Trap&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Trap bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(1);
@@ -2518,8 +2367,6 @@ namespace Acir {
             Acir::HeapVector return_data;
 
             friend bool operator==(const Stop&, const Stop&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Stop bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(1);
@@ -2543,8 +2390,6 @@ namespace Acir {
         std::variant<BinaryFieldOp, BinaryIntOp, Not, Cast, JumpIf, Jump, CalldataCopy, Call, Const, IndirectConst, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
 
         friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -2874,8 +2719,6 @@ namespace Acir {
         uint32_t value;
 
         friend bool operator==(const Witness&, const Witness&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Witness bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -2895,8 +2738,6 @@ namespace Acir {
             std::vector<uint8_t> value;
 
             friend bool operator==(const Constant&, const Constant&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Constant bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -2914,8 +2755,6 @@ namespace Acir {
             Acir::Witness value;
 
             friend bool operator==(const Witness&, const Witness&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Witness bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -2932,8 +2771,6 @@ namespace Acir {
         std::variant<Constant, Witness> value;
 
         friend bool operator==(const FunctionInput&, const FunctionInput&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static FunctionInput bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -3020,8 +2857,6 @@ namespace Acir {
             std::vector<Acir::Witness> outputs;
 
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -3058,8 +2893,6 @@ namespace Acir {
             Acir::Witness output;
 
             friend bool operator==(const AND&, const AND&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AND bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -3096,8 +2929,6 @@ namespace Acir {
             Acir::Witness output;
 
             friend bool operator==(const XOR&, const XOR&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static XOR bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -3132,8 +2963,6 @@ namespace Acir {
             uint32_t num_bits;
 
             friend bool operator==(const RANGE&, const RANGE&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static RANGE bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -3162,8 +2991,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 32>> outputs;
 
             friend bool operator==(const Blake2s&, const Blake2s&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake2s bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -3192,8 +3019,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 32>> outputs;
 
             friend bool operator==(const Blake3&, const Blake3&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -3226,8 +3051,6 @@ namespace Acir {
             Acir::Witness output;
 
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(6);
@@ -3272,8 +3095,6 @@ namespace Acir {
             Acir::Witness output;
 
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(6);
@@ -3316,8 +3137,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -3354,8 +3173,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -3390,8 +3207,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 25>> outputs;
 
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -3424,8 +3239,6 @@ namespace Acir {
             Acir::FunctionInput predicate;
 
             friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static RecursiveAggregation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(6);
@@ -3466,8 +3279,6 @@ namespace Acir {
             std::vector<Acir::Witness> outputs;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -3497,8 +3308,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 8>> outputs;
 
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -3528,8 +3337,6 @@ namespace Acir {
         std::variant<AES128Encrypt, AND, XOR, RANGE, Blake2s, Blake3, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccakf1600, RecursiveAggregation, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -3791,8 +3598,6 @@ namespace Acir {
         uint32_t value;
 
         friend bool operator==(const BlockId&, const BlockId&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlockId bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -3810,8 +3615,6 @@ namespace Acir {
 
         struct Memory {
             friend bool operator==(const Memory&, const Memory&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Memory bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -3821,8 +3624,6 @@ namespace Acir {
             uint32_t value;
 
             friend bool operator==(const CallData&, const CallData&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static CallData bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -3838,8 +3639,6 @@ namespace Acir {
 
         struct ReturnData {
             friend bool operator==(const ReturnData&, const ReturnData&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ReturnData bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -3848,8 +3647,6 @@ namespace Acir {
         std::variant<Memory, CallData, ReturnData> value;
 
         friend bool operator==(const BlockType&, const BlockType&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlockType bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -3934,8 +3731,6 @@ namespace Acir {
         std::vector<uint8_t> q_c;
 
         friend bool operator==(const Expression&, const Expression&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Expression bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(3);
@@ -3968,8 +3763,6 @@ namespace Acir {
             Acir::Expression value;
 
             friend bool operator==(const Single&, const Single&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Single bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -3987,8 +3780,6 @@ namespace Acir {
             std::vector<Acir::Expression> value;
 
             friend bool operator==(const Array&, const Array&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Array bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4006,8 +3797,6 @@ namespace Acir {
             Acir::BlockId value;
 
             friend bool operator==(const MemoryArray&, const MemoryArray&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4024,8 +3813,6 @@ namespace Acir {
         std::variant<Single, Array, MemoryArray> value;
 
         friend bool operator==(const BrilligInputs&, const BrilligInputs&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -4124,8 +3911,6 @@ namespace Acir {
             Acir::Witness value;
 
             friend bool operator==(const Simple&, const Simple&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Simple bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4143,8 +3928,6 @@ namespace Acir {
             std::vector<Acir::Witness> value;
 
             friend bool operator==(const Array&, const Array&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Array bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4161,8 +3944,6 @@ namespace Acir {
         std::variant<Simple, Array> value;
 
         friend bool operator==(const BrilligOutputs&, const BrilligOutputs&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -4246,8 +4027,6 @@ namespace Acir {
         Acir::Expression value;
 
         friend bool operator==(const MemOp&, const MemOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static MemOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(3);
@@ -4280,8 +4059,6 @@ namespace Acir {
             Acir::Expression value;
 
             friend bool operator==(const AssertZero&, const AssertZero&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AssertZero bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4299,8 +4076,6 @@ namespace Acir {
             Acir::BlackBoxFuncCall value;
 
             friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4319,8 +4094,6 @@ namespace Acir {
             Acir::MemOp op;
 
             friend bool operator==(const MemoryOp&, const MemoryOp&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -4350,8 +4123,6 @@ namespace Acir {
             Acir::BlockType block_type;
 
             friend bool operator==(const MemoryInit&, const MemoryInit&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryInit bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(3);
@@ -4385,8 +4156,6 @@ namespace Acir {
             std::optional<Acir::Expression> predicate;
 
             friend bool operator==(const BrilligCall&, const BrilligCall&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BrilligCall bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -4423,8 +4192,6 @@ namespace Acir {
             std::optional<Acir::Expression> predicate;
 
             friend bool operator==(const Call&, const Call&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Call bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(4);
@@ -4457,8 +4224,6 @@ namespace Acir {
         std::variant<AssertZero, BlackBoxFuncCall, MemoryOp, MemoryInit, BrilligCall, Call> value;
 
         friend bool operator==(const Opcode&, const Opcode&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Opcode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -4602,8 +4367,6 @@ namespace Acir {
             Acir::Expression value;
 
             friend bool operator==(const Expression&, const Expression&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Expression bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4621,8 +4384,6 @@ namespace Acir {
             Acir::BlockId value;
 
             friend bool operator==(const Memory&, const Memory&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Memory bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4639,8 +4400,6 @@ namespace Acir {
         std::variant<Expression, Memory> value;
 
         friend bool operator==(const ExpressionOrMemory&, const ExpressionOrMemory&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ExpressionOrMemory bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -4723,8 +4482,6 @@ namespace Acir {
         std::vector<Acir::ExpressionOrMemory> payload;
 
         friend bool operator==(const AssertionPayload&, const AssertionPayload&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static AssertionPayload bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(2);
@@ -4754,8 +4511,6 @@ namespace Acir {
             uint64_t value;
 
             friend bool operator==(const Acir&, const Acir&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Acir bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4774,8 +4529,6 @@ namespace Acir {
             uint64_t brillig_index;
 
             friend bool operator==(const Brillig&, const Brillig&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Brillig bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(2);
@@ -4802,8 +4555,6 @@ namespace Acir {
         std::variant<Acir, Brillig> value;
 
         friend bool operator==(const OpcodeLocation&, const OpcodeLocation&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static OpcodeLocation bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -4885,8 +4636,6 @@ namespace Acir {
         std::vector<Acir::Witness> value;
 
         friend bool operator==(const PublicInputs&, const PublicInputs&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static PublicInputs bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -4910,8 +4659,6 @@ namespace Acir {
         std::vector<std::tuple<Acir::OpcodeLocation, Acir::AssertionPayload>> assert_messages;
 
         friend bool operator==(const Circuit&, const Circuit&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Circuit bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(7);
@@ -4955,8 +4702,6 @@ namespace Acir {
         std::vector<Acir::BrilligOpcode> bytecode;
 
         friend bool operator==(const BrilligBytecode&, const BrilligBytecode&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligBytecode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(2);
@@ -4985,8 +4730,6 @@ namespace Acir {
         std::vector<Acir::BrilligBytecode> unconstrained_functions;
 
         friend bool operator==(const Program&, const Program&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Program bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(2);
@@ -5015,8 +4758,6 @@ namespace Acir {
         std::monostate unconstrained_functions;
 
         friend bool operator==(const ProgramWithoutBrillig&, const ProgramWithoutBrillig&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ProgramWithoutBrillig bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(1);
@@ -5041,8 +4782,6 @@ namespace Acir {
 
         struct Unbounded {
             friend bool operator==(const Unbounded&, const Unbounded&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Unbounded bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
@@ -5052,8 +4791,6 @@ namespace Acir {
             uint64_t width;
 
             friend bool operator==(const Bounded&, const Bounded&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Bounded bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
                 packer.pack_map(1);
@@ -5077,8 +4814,6 @@ namespace Acir {
         std::variant<Unbounded, Bounded> value;
 
         friend bool operator==(const ExpressionWidth&, const ExpressionWidth&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -5160,21 +4895,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> AssertionPayload::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<AssertionPayload>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline AssertionPayload AssertionPayload::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<AssertionPayload>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5204,21 +4924,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryFieldOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp BinaryFieldOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5245,21 +4950,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryFieldOp::Add::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::Add>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::Add BinaryFieldOp::Add::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::Add>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5278,21 +4968,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryFieldOp::Sub &lhs, const BinaryFieldOp::Sub &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryFieldOp::Sub::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::Sub>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::Sub BinaryFieldOp::Sub::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::Sub>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5315,21 +4990,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryFieldOp::Mul::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::Mul>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::Mul BinaryFieldOp::Mul::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::Mul>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5348,21 +5008,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryFieldOp::Div &lhs, const BinaryFieldOp::Div &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryFieldOp::Div::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::Div>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::Div BinaryFieldOp::Div::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::Div>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5385,21 +5030,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryFieldOp::IntegerDiv::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::IntegerDiv>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::IntegerDiv BinaryFieldOp::IntegerDiv::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::IntegerDiv>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5418,21 +5048,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryFieldOp::Equals &lhs, const BinaryFieldOp::Equals &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryFieldOp::Equals::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::Equals>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::Equals BinaryFieldOp::Equals::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::Equals>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5455,21 +5070,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryFieldOp::LessThan::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::LessThan>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::LessThan BinaryFieldOp::LessThan::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::LessThan>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5488,21 +5088,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryFieldOp::LessThanEquals &lhs, const BinaryFieldOp::LessThanEquals &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryFieldOp::LessThanEquals::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryFieldOp::LessThanEquals>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryFieldOp::LessThanEquals BinaryFieldOp::LessThanEquals::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryFieldOp::LessThanEquals>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5524,21 +5109,6 @@ namespace Acir {
     inline bool operator==(const BinaryIntOp &lhs, const BinaryIntOp &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp BinaryIntOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5567,21 +5137,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryIntOp::Add::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Add>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Add BinaryIntOp::Add::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Add>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5600,21 +5155,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryIntOp::Sub &lhs, const BinaryIntOp::Sub &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::Sub::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Sub>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Sub BinaryIntOp::Sub::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Sub>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5637,21 +5177,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryIntOp::Mul::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Mul>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Mul BinaryIntOp::Mul::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Mul>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5670,21 +5195,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryIntOp::Div &lhs, const BinaryIntOp::Div &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::Div::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Div>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Div BinaryIntOp::Div::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Div>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5707,21 +5217,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryIntOp::Equals::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Equals>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Equals BinaryIntOp::Equals::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Equals>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5740,21 +5235,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryIntOp::LessThan &lhs, const BinaryIntOp::LessThan &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::LessThan::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::LessThan>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::LessThan BinaryIntOp::LessThan::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::LessThan>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5777,21 +5257,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryIntOp::LessThanEquals::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::LessThanEquals>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::LessThanEquals BinaryIntOp::LessThanEquals::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::LessThanEquals>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5810,21 +5275,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryIntOp::And &lhs, const BinaryIntOp::And &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::And::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::And>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::And BinaryIntOp::And::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::And>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5847,21 +5297,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryIntOp::Or::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Or>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Or BinaryIntOp::Or::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Or>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5880,21 +5315,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryIntOp::Xor &lhs, const BinaryIntOp::Xor &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::Xor::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Xor>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Xor BinaryIntOp::Xor::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Xor>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5917,21 +5337,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BinaryIntOp::Shl::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Shl>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Shl BinaryIntOp::Shl::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Shl>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -5950,21 +5355,6 @@ namespace Acir {
 
     inline bool operator==(const BinaryIntOp::Shr &lhs, const BinaryIntOp::Shr &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> BinaryIntOp::Shr::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BinaryIntOp::Shr>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BinaryIntOp::Shr BinaryIntOp::Shr::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BinaryIntOp::Shr>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -5986,21 +5376,6 @@ namespace Acir {
     inline bool operator==(const BitSize &lhs, const BitSize &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BitSize::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BitSize>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BitSize BitSize::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BitSize>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6029,21 +5404,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BitSize::Field::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BitSize::Field>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BitSize::Field BitSize::Field::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BitSize::Field>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6063,21 +5423,6 @@ namespace Acir {
     inline bool operator==(const BitSize::Integer &lhs, const BitSize::Integer &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BitSize::Integer::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BitSize::Integer>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BitSize::Integer BitSize::Integer::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BitSize::Integer>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6101,21 +5446,6 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall &lhs, const BlackBoxFuncCall &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall BlackBoxFuncCall::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6146,21 +5476,6 @@ namespace Acir {
         if (!(lhs.key == rhs.key)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::AES128Encrypt::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::AES128Encrypt>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::AES128Encrypt BlackBoxFuncCall::AES128Encrypt::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::AES128Encrypt>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6195,21 +5510,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::AND::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::AND>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::AND BlackBoxFuncCall::AND::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::AND>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6242,21 +5542,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::XOR::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::XOR>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::XOR BlackBoxFuncCall::XOR::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::XOR>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6287,21 +5572,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::RANGE::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::RANGE>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::RANGE BlackBoxFuncCall::RANGE::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::RANGE>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6328,21 +5598,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::Blake2s::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::Blake2s>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::Blake2s BlackBoxFuncCall::Blake2s::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::Blake2s>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6367,21 +5622,6 @@ namespace Acir {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::Blake3::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::Blake3>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::Blake3 BlackBoxFuncCall::Blake3::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::Blake3>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6412,21 +5652,6 @@ namespace Acir {
         if (!(lhs.predicate == rhs.predicate)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::EcdsaSecp256k1::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::EcdsaSecp256k1>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::EcdsaSecp256k1 BlackBoxFuncCall::EcdsaSecp256k1::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::EcdsaSecp256k1>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6467,21 +5692,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::EcdsaSecp256r1::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::EcdsaSecp256r1>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::EcdsaSecp256r1 BlackBoxFuncCall::EcdsaSecp256r1::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::EcdsaSecp256r1>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6518,21 +5728,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::MultiScalarMul::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::MultiScalarMul>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::MultiScalarMul BlackBoxFuncCall::MultiScalarMul::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::MultiScalarMul>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6565,21 +5760,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::EmbeddedCurveAdd::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::EmbeddedCurveAdd>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::EmbeddedCurveAdd BlackBoxFuncCall::EmbeddedCurveAdd::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::EmbeddedCurveAdd>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6610,21 +5790,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::Keccakf1600::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::Keccakf1600>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::Keccakf1600 BlackBoxFuncCall::Keccakf1600::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::Keccakf1600>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6653,21 +5818,6 @@ namespace Acir {
         if (!(lhs.proof_type == rhs.proof_type)) { return false; }
         if (!(lhs.predicate == rhs.predicate)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::RecursiveAggregation::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::RecursiveAggregation>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::RecursiveAggregation BlackBoxFuncCall::RecursiveAggregation::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::RecursiveAggregation>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6704,21 +5854,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::Poseidon2Permutation::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::Poseidon2Permutation>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::Poseidon2Permutation BlackBoxFuncCall::Poseidon2Permutation::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::Poseidon2Permutation>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6746,21 +5881,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::Sha256Compression::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::Sha256Compression>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::Sha256Compression BlackBoxFuncCall::Sha256Compression::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::Sha256Compression>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6786,21 +5906,6 @@ namespace Acir {
     inline bool operator==(const BlackBoxOp &lhs, const BlackBoxOp &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp BlackBoxOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -6833,21 +5938,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::AES128Encrypt::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::AES128Encrypt>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::AES128Encrypt BlackBoxOp::AES128Encrypt::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::AES128Encrypt>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6878,21 +5968,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::Blake2s::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Blake2s>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Blake2s BlackBoxOp::Blake2s::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Blake2s>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6919,21 +5994,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::Blake3::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Blake3>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Blake3 BlackBoxOp::Blake3::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Blake3>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -6958,21 +6018,6 @@ namespace Acir {
         if (!(lhs.input == rhs.input)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::Keccakf1600::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Keccakf1600>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Keccakf1600 BlackBoxOp::Keccakf1600::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Keccakf1600>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7002,21 +6047,6 @@ namespace Acir {
         if (!(lhs.signature == rhs.signature)) { return false; }
         if (!(lhs.result == rhs.result)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::EcdsaSecp256k1::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::EcdsaSecp256k1>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::EcdsaSecp256k1 BlackBoxOp::EcdsaSecp256k1::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::EcdsaSecp256k1>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7054,21 +6084,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::EcdsaSecp256r1::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::EcdsaSecp256r1>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::EcdsaSecp256r1 BlackBoxOp::EcdsaSecp256r1::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::EcdsaSecp256r1>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7102,21 +6117,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::MultiScalarMul::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::MultiScalarMul>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::MultiScalarMul BlackBoxOp::MultiScalarMul::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::MultiScalarMul>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7148,21 +6148,6 @@ namespace Acir {
         if (!(lhs.input2_infinite == rhs.input2_infinite)) { return false; }
         if (!(lhs.result == rhs.result)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::EmbeddedCurveAdd::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::EmbeddedCurveAdd>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::EmbeddedCurveAdd BlackBoxOp::EmbeddedCurveAdd::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::EmbeddedCurveAdd>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7201,21 +6186,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::Poseidon2Permutation::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Poseidon2Permutation>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Poseidon2Permutation BlackBoxOp::Poseidon2Permutation::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Poseidon2Permutation>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7241,21 +6211,6 @@ namespace Acir {
         if (!(lhs.hash_values == rhs.hash_values)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::Sha256Compression::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Sha256Compression>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Sha256Compression BlackBoxOp::Sha256Compression::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Sha256Compression>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7289,21 +6244,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::ToRadix::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::ToRadix>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::ToRadix BlackBoxOp::ToRadix::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::ToRadix>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7335,21 +6275,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlockId::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlockId>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlockId BlockId::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlockId>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7375,21 +6300,6 @@ namespace Acir {
     inline bool operator==(const BlockType &lhs, const BlockType &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlockType::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlockType>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlockType BlockType::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlockType>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7418,21 +6328,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlockType::Memory::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlockType::Memory>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlockType::Memory BlockType::Memory::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlockType::Memory>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7452,21 +6347,6 @@ namespace Acir {
     inline bool operator==(const BlockType::CallData &lhs, const BlockType::CallData &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BlockType::CallData::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlockType::CallData>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlockType::CallData BlockType::CallData::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlockType::CallData>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7491,21 +6371,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BlockType::ReturnData::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlockType::ReturnData>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlockType::ReturnData BlockType::ReturnData::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlockType::ReturnData>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7526,21 +6391,6 @@ namespace Acir {
         if (!(lhs.function_name == rhs.function_name)) { return false; }
         if (!(lhs.bytecode == rhs.bytecode)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligBytecode::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligBytecode>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligBytecode BrilligBytecode::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligBytecode>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7572,21 +6422,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligInputs::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligInputs>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligInputs BrilligInputs::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligInputs>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7614,21 +6449,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligInputs::Single::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligInputs::Single>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligInputs::Single BrilligInputs::Single::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligInputs::Single>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7650,21 +6470,6 @@ namespace Acir {
     inline bool operator==(const BrilligInputs::Array &lhs, const BrilligInputs::Array &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligInputs::Array::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligInputs::Array>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligInputs::Array BrilligInputs::Array::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligInputs::Array>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7690,21 +6495,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligInputs::MemoryArray::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligInputs::MemoryArray>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligInputs::MemoryArray BrilligInputs::MemoryArray::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligInputs::MemoryArray>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7726,21 +6516,6 @@ namespace Acir {
     inline bool operator==(const BrilligOpcode &lhs, const BrilligOpcode &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode BrilligOpcode::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7771,21 +6546,6 @@ namespace Acir {
         if (!(lhs.lhs == rhs.lhs)) { return false; }
         if (!(lhs.rhs == rhs.rhs)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::BinaryFieldOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::BinaryFieldOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::BinaryFieldOp BrilligOpcode::BinaryFieldOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::BinaryFieldOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7821,21 +6581,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::BinaryIntOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::BinaryIntOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::BinaryIntOp BrilligOpcode::BinaryIntOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::BinaryIntOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7869,21 +6614,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Not::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Not>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Not BrilligOpcode::Not::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Not>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7911,21 +6641,6 @@ namespace Acir {
         if (!(lhs.source == rhs.source)) { return false; }
         if (!(lhs.bit_size == rhs.bit_size)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::Cast::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Cast>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Cast BrilligOpcode::Cast::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Cast>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -7956,21 +6671,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::JumpIf::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::JumpIf>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::JumpIf BrilligOpcode::JumpIf::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::JumpIf>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -7996,21 +6696,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Jump::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Jump>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Jump BrilligOpcode::Jump::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Jump>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8034,21 +6719,6 @@ namespace Acir {
         if (!(lhs.size_address == rhs.size_address)) { return false; }
         if (!(lhs.offset_address == rhs.offset_address)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::CalldataCopy::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::CalldataCopy>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::CalldataCopy BrilligOpcode::CalldataCopy::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::CalldataCopy>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8078,21 +6748,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Call::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Call>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Call BrilligOpcode::Call::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Call>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8116,21 +6771,6 @@ namespace Acir {
         if (!(lhs.bit_size == rhs.bit_size)) { return false; }
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::Const::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Const>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Const BrilligOpcode::Const::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Const>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8162,21 +6802,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::IndirectConst::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::IndirectConst>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::IndirectConst BrilligOpcode::IndirectConst::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::IndirectConst>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8203,21 +6828,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Return::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Return>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Return BrilligOpcode::Return::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Return>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8241,21 +6851,6 @@ namespace Acir {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.input_value_types == rhs.input_value_types)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::ForeignCall::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::ForeignCall>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::ForeignCall BrilligOpcode::ForeignCall::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::ForeignCall>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8290,21 +6885,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Mov::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Mov>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Mov BrilligOpcode::Mov::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Mov>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8331,21 +6911,6 @@ namespace Acir {
         if (!(lhs.source_b == rhs.source_b)) { return false; }
         if (!(lhs.condition == rhs.condition)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::ConditionalMov::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::ConditionalMov>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::ConditionalMov BrilligOpcode::ConditionalMov::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::ConditionalMov>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8378,21 +6943,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Load::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Load>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Load BrilligOpcode::Load::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Load>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8417,21 +6967,6 @@ namespace Acir {
         if (!(lhs.destination_pointer == rhs.destination_pointer)) { return false; }
         if (!(lhs.source == rhs.source)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::Store::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Store>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Store BrilligOpcode::Store::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Store>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8459,21 +6994,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::BlackBox::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::BlackBox>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::BlackBox BrilligOpcode::BlackBox::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::BlackBox>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8495,21 +7015,6 @@ namespace Acir {
     inline bool operator==(const BrilligOpcode::Trap &lhs, const BrilligOpcode::Trap &rhs) {
         if (!(lhs.revert_data == rhs.revert_data)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::Trap::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Trap>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Trap BrilligOpcode::Trap::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Trap>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8535,21 +7040,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOpcode::Stop::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::Stop>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::Stop BrilligOpcode::Stop::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::Stop>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8571,21 +7061,6 @@ namespace Acir {
     inline bool operator==(const BrilligOutputs &lhs, const BrilligOutputs &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOutputs::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOutputs>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOutputs BrilligOutputs::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOutputs>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8615,21 +7090,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> BrilligOutputs::Simple::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOutputs::Simple>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOutputs::Simple BrilligOutputs::Simple::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOutputs::Simple>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8651,21 +7111,6 @@ namespace Acir {
     inline bool operator==(const BrilligOutputs::Array &lhs, const BrilligOutputs::Array &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOutputs::Array::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOutputs::Array>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOutputs::Array BrilligOutputs::Array::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOutputs::Array>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8695,21 +7140,6 @@ namespace Acir {
         if (!(lhs.return_values == rhs.return_values)) { return false; }
         if (!(lhs.assert_messages == rhs.assert_messages)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Circuit::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Circuit>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Circuit Circuit::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Circuit>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8753,21 +7183,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> Expression::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Expression>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Expression Expression::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Expression>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8799,21 +7214,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ExpressionOrMemory::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ExpressionOrMemory>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ExpressionOrMemory ExpressionOrMemory::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ExpressionOrMemory>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8841,21 +7241,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ExpressionOrMemory::Expression::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ExpressionOrMemory::Expression>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ExpressionOrMemory::Expression ExpressionOrMemory::Expression::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ExpressionOrMemory::Expression>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8879,21 +7264,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ExpressionOrMemory::Memory::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ExpressionOrMemory::Memory>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ExpressionOrMemory::Memory ExpressionOrMemory::Memory::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ExpressionOrMemory::Memory>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8915,21 +7285,6 @@ namespace Acir {
     inline bool operator==(const ExpressionWidth &lhs, const ExpressionWidth &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> ExpressionWidth::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ExpressionWidth>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ExpressionWidth ExpressionWidth::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ExpressionWidth>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -8958,21 +7313,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ExpressionWidth::Unbounded::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ExpressionWidth::Unbounded>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ExpressionWidth::Unbounded ExpressionWidth::Unbounded::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ExpressionWidth::Unbounded>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8992,21 +7332,6 @@ namespace Acir {
     inline bool operator==(const ExpressionWidth::Bounded &lhs, const ExpressionWidth::Bounded &rhs) {
         if (!(lhs.width == rhs.width)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> ExpressionWidth::Bounded::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ExpressionWidth::Bounded>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ExpressionWidth::Bounded ExpressionWidth::Bounded::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ExpressionWidth::Bounded>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9030,21 +7355,6 @@ namespace Acir {
     inline bool operator==(const FunctionInput &lhs, const FunctionInput &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> FunctionInput::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<FunctionInput>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline FunctionInput FunctionInput::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<FunctionInput>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9074,21 +7384,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> FunctionInput::Constant::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<FunctionInput::Constant>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline FunctionInput::Constant FunctionInput::Constant::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<FunctionInput::Constant>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9110,21 +7405,6 @@ namespace Acir {
     inline bool operator==(const FunctionInput::Witness &lhs, const FunctionInput::Witness &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> FunctionInput::Witness::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<FunctionInput::Witness>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline FunctionInput::Witness FunctionInput::Witness::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<FunctionInput::Witness>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9149,21 +7429,6 @@ namespace Acir {
         if (!(lhs.pointer == rhs.pointer)) { return false; }
         if (!(lhs.size == rhs.size)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> HeapArray::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<HeapArray>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline HeapArray HeapArray::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<HeapArray>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9195,21 +7460,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> HeapValueType::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<HeapValueType>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline HeapValueType HeapValueType::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<HeapValueType>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9237,21 +7487,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> HeapValueType::Simple::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<HeapValueType::Simple>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline HeapValueType::Simple HeapValueType::Simple::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<HeapValueType::Simple>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9274,21 +7509,6 @@ namespace Acir {
         if (!(lhs.value_types == rhs.value_types)) { return false; }
         if (!(lhs.size == rhs.size)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> HeapValueType::Array::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<HeapValueType::Array>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline HeapValueType::Array HeapValueType::Array::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<HeapValueType::Array>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9316,21 +7536,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> HeapValueType::Vector::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<HeapValueType::Vector>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline HeapValueType::Vector HeapValueType::Vector::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<HeapValueType::Vector>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9353,21 +7558,6 @@ namespace Acir {
         if (!(lhs.pointer == rhs.pointer)) { return false; }
         if (!(lhs.size == rhs.size)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> HeapVector::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<HeapVector>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline HeapVector HeapVector::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<HeapVector>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9399,21 +7589,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> IntegerBitSize::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize IntegerBitSize::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9440,21 +7615,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> IntegerBitSize::U1::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize::U1>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize::U1 IntegerBitSize::U1::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize::U1>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9473,21 +7633,6 @@ namespace Acir {
 
     inline bool operator==(const IntegerBitSize::U8 &lhs, const IntegerBitSize::U8 &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> IntegerBitSize::U8::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize::U8>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize::U8 IntegerBitSize::U8::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize::U8>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9510,21 +7655,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> IntegerBitSize::U16::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize::U16>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize::U16 IntegerBitSize::U16::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize::U16>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9543,21 +7673,6 @@ namespace Acir {
 
     inline bool operator==(const IntegerBitSize::U32 &lhs, const IntegerBitSize::U32 &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> IntegerBitSize::U32::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize::U32>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize::U32 IntegerBitSize::U32::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize::U32>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9580,21 +7695,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> IntegerBitSize::U64::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize::U64>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize::U64 IntegerBitSize::U64::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize::U64>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9613,21 +7713,6 @@ namespace Acir {
 
     inline bool operator==(const IntegerBitSize::U128 &lhs, const IntegerBitSize::U128 &rhs) {
         return true;
-    }
-
-    inline std::vector<uint8_t> IntegerBitSize::U128::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<IntegerBitSize::U128>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline IntegerBitSize::U128 IntegerBitSize::U128::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<IntegerBitSize::U128>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9651,21 +7736,6 @@ namespace Acir {
         if (!(lhs.index == rhs.index)) { return false; }
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> MemOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<MemOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline MemOp MemOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<MemOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9699,21 +7769,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> MemoryAddress::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<MemoryAddress>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline MemoryAddress MemoryAddress::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<MemoryAddress>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9741,21 +7796,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> MemoryAddress::Direct::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<MemoryAddress::Direct>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline MemoryAddress::Direct MemoryAddress::Direct::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<MemoryAddress::Direct>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9779,21 +7819,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> MemoryAddress::Relative::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<MemoryAddress::Relative>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline MemoryAddress::Relative MemoryAddress::Relative::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<MemoryAddress::Relative>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9815,21 +7840,6 @@ namespace Acir {
     inline bool operator==(const Opcode &lhs, const Opcode &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Opcode::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode Opcode::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9859,21 +7869,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> Opcode::AssertZero::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::AssertZero>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::AssertZero Opcode::AssertZero::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::AssertZero>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -9895,21 +7890,6 @@ namespace Acir {
     inline bool operator==(const Opcode::BlackBoxFuncCall &lhs, const Opcode::BlackBoxFuncCall &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Opcode::BlackBoxFuncCall::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::BlackBoxFuncCall>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::BlackBoxFuncCall Opcode::BlackBoxFuncCall::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::BlackBoxFuncCall>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9934,21 +7914,6 @@ namespace Acir {
         if (!(lhs.block_id == rhs.block_id)) { return false; }
         if (!(lhs.op == rhs.op)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Opcode::MemoryOp::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::MemoryOp>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::MemoryOp Opcode::MemoryOp::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::MemoryOp>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -9976,21 +7941,6 @@ namespace Acir {
         if (!(lhs.init == rhs.init)) { return false; }
         if (!(lhs.block_type == rhs.block_type)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Opcode::MemoryInit::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::MemoryInit>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::MemoryInit Opcode::MemoryInit::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::MemoryInit>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -10021,21 +7971,6 @@ namespace Acir {
         if (!(lhs.outputs == rhs.outputs)) { return false; }
         if (!(lhs.predicate == rhs.predicate)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Opcode::BrilligCall::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::BrilligCall>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::BrilligCall Opcode::BrilligCall::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::BrilligCall>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -10070,21 +8005,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> Opcode::Call::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::Call>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::Call Opcode::Call::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::Call>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10114,21 +8034,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> OpcodeLocation::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<OpcodeLocation>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline OpcodeLocation OpcodeLocation::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<OpcodeLocation>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10156,21 +8061,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> OpcodeLocation::Acir::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<OpcodeLocation::Acir>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline OpcodeLocation::Acir OpcodeLocation::Acir::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<OpcodeLocation::Acir>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10193,21 +8083,6 @@ namespace Acir {
         if (!(lhs.acir_index == rhs.acir_index)) { return false; }
         if (!(lhs.brillig_index == rhs.brillig_index)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> OpcodeLocation::Brillig::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<OpcodeLocation::Brillig>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline OpcodeLocation::Brillig OpcodeLocation::Brillig::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<OpcodeLocation::Brillig>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -10234,21 +8109,6 @@ namespace Acir {
         if (!(lhs.functions == rhs.functions)) { return false; }
         if (!(lhs.unconstrained_functions == rhs.unconstrained_functions)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Program::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Program>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Program Program::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Program>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -10281,21 +8141,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ProgramWithoutBrillig::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ProgramWithoutBrillig>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ProgramWithoutBrillig ProgramWithoutBrillig::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ProgramWithoutBrillig>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10323,21 +8168,6 @@ namespace Acir {
     inline bool operator==(const PublicInputs &lhs, const PublicInputs &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> PublicInputs::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<PublicInputs>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline PublicInputs PublicInputs::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<PublicInputs>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -10451,21 +8281,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ValueOrArray::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ValueOrArray>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ValueOrArray ValueOrArray::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ValueOrArray>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10493,21 +8308,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ValueOrArray::MemoryAddress::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ValueOrArray::MemoryAddress>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ValueOrArray::MemoryAddress ValueOrArray::MemoryAddress::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ValueOrArray::MemoryAddress>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10529,21 +8329,6 @@ namespace Acir {
     inline bool operator==(const ValueOrArray::HeapArray &lhs, const ValueOrArray::HeapArray &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> ValueOrArray::HeapArray::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ValueOrArray::HeapArray>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ValueOrArray::HeapArray ValueOrArray::HeapArray::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ValueOrArray::HeapArray>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
@@ -10569,21 +8354,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> ValueOrArray::HeapVector::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ValueOrArray::HeapVector>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ValueOrArray::HeapVector ValueOrArray::HeapVector::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ValueOrArray::HeapVector>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -10605,21 +8375,6 @@ namespace Acir {
     inline bool operator==(const Witness &lhs, const Witness &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> Witness::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Witness>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Witness Witness::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Witness>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
