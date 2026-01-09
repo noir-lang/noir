@@ -50,7 +50,7 @@
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
-use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
+use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
@@ -1518,8 +1518,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         let length = size.as_ref().clone();
                         return Err(MonomorphizationError::UnknownArrayLength {
@@ -1534,8 +1532,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(size, fields) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         let length = size.as_ref().clone();
                         return Err(MonomorphizationError::UnknownArrayLength {
