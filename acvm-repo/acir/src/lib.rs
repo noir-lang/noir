@@ -159,7 +159,12 @@ mod reflection {
             namespace,
             registry,
             code,
-            MsgPackCodeConfig { pack_compact: true, no_pack: true },
+            MsgPackCodeConfig {
+                // We agreed on the default format to be compact, so it makes sense for Barretenberg to use it for serialization.
+                pack_compact: true,
+                // Barretenberg didn't use serialization outside tests, so they decided they don't want to have this code at all.
+                no_pack: true,
+            },
         );
 
         // Create C++ class definitions.
