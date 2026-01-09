@@ -12,7 +12,7 @@ error: Type provided when a numeric generic was expected
 error: Type annotation needed
   ┌─ src/main.nr:3:13
   │
-3 │     let _ = vector_to_array(&[1, 2, 3]);
+3 │     let _ = vector_to_array([1, 2, 3].as_vector());
   │             --------------- Could not determine the type of the generic argument `N` declared on the function `vector_to_array`
   │
 

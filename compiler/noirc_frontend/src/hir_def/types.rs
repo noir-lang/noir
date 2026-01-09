@@ -1638,7 +1638,9 @@ impl Type {
             | Type::Quoted(_)
             | Type::Vector(_)
             | Type::InfixExpr(..)
-            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+            | Type::Error => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
         }
     }
 

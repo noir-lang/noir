@@ -663,7 +663,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     | FunctionAttributeKind::FuzzingHarness(..)
                     | FunctionAttributeKind::Fold
                     | FunctionAttributeKind::NoPredicates
-                    | FunctionAttributeKind::InlineAlways => {
+                    | FunctionAttributeKind::InlineAlways
+                    | FunctionAttributeKind::InlineNever => {
                         self.push(';');
                     }
                 },
@@ -1010,7 +1011,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push(']');
             }
             Value::Vector(values, _) => {
-                self.push_str("&[");
+                self.push_str("@[");
                 for (index, value) in values.iter().enumerate() {
                     if index != 0 {
                         self.push_str(", ");

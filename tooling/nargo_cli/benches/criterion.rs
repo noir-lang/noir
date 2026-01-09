@@ -16,6 +16,7 @@ include!("./utils.rs");
 /// Compile the test program in a sub-process
 /// The `force_brillig` option is used to benchmark the program as if it was executed by the AVM.
 fn compile_program(test_program_dir: &Path, force_brillig: bool) {
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile");
