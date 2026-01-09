@@ -78,8 +78,7 @@ namespace Witnesses {
 
         friend bool operator==(const Witness&, const Witness&);
 
-        bool operator<(Witness const& rhs) const { return value < rhs.value; }void msgpack_pack(auto& packer) const { packer.pack(value); }
-
+        bool operator<(Witness const& rhs) const { return value < rhs.value; }
         void msgpack_unpack(msgpack::object const& o) {
             try {
                 o.convert(value);
@@ -94,8 +93,6 @@ namespace Witnesses {
         std::map<Witnesses::Witness, std::vector<uint8_t>> value;
 
         friend bool operator==(const WitnessMap&, const WitnessMap&);
-
-        void msgpack_pack(auto& packer) const { packer.pack(value); }
 
         void msgpack_unpack(msgpack::object const& o) {
             try {
@@ -112,12 +109,6 @@ namespace Witnesses {
         Witnesses::WitnessMap witness;
 
         friend bool operator==(const StackItem&, const StackItem&);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_array(2);
-            packer.pack(index);
-            packer.pack(witness);
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "StackItem";
@@ -139,11 +130,6 @@ namespace Witnesses {
         std::vector<Witnesses::StackItem> stack;
 
         friend bool operator==(const WitnessStack&, const WitnessStack&);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_array(1);
-            packer.pack(stack);
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "WitnessStack";

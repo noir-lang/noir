@@ -159,7 +159,7 @@ mod reflection {
             namespace,
             registry,
             code,
-            MsgPackCodeConfig { pack_compact: true },
+            MsgPackCodeConfig { pack_compact: true, no_pack: true },
         );
 
         // Create C++ class definitions.
@@ -226,8 +226,10 @@ mod reflection {
     }
 
     struct MsgPackCodeConfig {
-        /// If `true`, use `ARRAY` format for structs, otherwise use `MAP` when packing.
+        /// If `true`, use `ARRAY` format, otherwise use `MAP` when packing structs.
         pack_compact: bool,
+        /// If `true`, skip generating `msgpack_pack` methods.
+        no_pack: bool,
     }
 
     /// Generate custom code for the msgpack machinery in Barretenberg.
@@ -678,6 +680,9 @@ mod reflection {
 
         /// Add a `msgpack_pack` implementation.
         fn msgpack_pack(&mut self, name: &str, body: &str) {
+            if self.config.no_pack {
+                return;
+            }
             let code = Self::make_fn("void msgpack_pack(auto& packer) const", body);
             self.add_code(name, &code);
         }
