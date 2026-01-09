@@ -704,7 +704,8 @@
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
 <a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
@@ -865,7 +866,8 @@
 
         <span class="comment">// Create C++ class definitions.
         </span><span class="kw">let </span><span class="kw-2">mut </span>source = Vec::new();
-        <span class="comment">// Barretenberg doesn't want to support the serde_generate::Encoding::Bincode encoding any more, only the custom msgpack.
+        <span class="comment">// We use `serde_generate` to take advantage of its integration with `serde_reflection` but only use our
+        // custom msgpack code generation.
         </span><span class="kw">let </span>config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
             .with_encodings(<span class="macro">vec!</span>[])
             .with_custom_code(msgpack_code);

@@ -1385,11 +1385,11 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>keccakf1600_serialization_roundtrip() {
-        <span class="kw">use </span><span class="kw">crate</span>::serialization::{bincode_deserialize, bincode_serialize};
+        <span class="kw">use </span><span class="kw">crate</span>::serialization::{msgpack_deserialize, msgpack_serialize};
 
         <span class="kw">let </span>opcode = keccakf1600_opcode::&lt;FieldElement&gt;();
-        <span class="kw">let </span>buf = bincode_serialize(<span class="kw-2">&amp;</span>opcode).unwrap();
-        <span class="kw">let </span>recovered_opcode = bincode_deserialize(<span class="kw-2">&amp;</span>buf).unwrap();
+        <span class="kw">let </span>buf = msgpack_serialize(<span class="kw-2">&amp;</span>opcode, <span class="bool-val">true</span>).unwrap();
+        <span class="kw">let </span>recovered_opcode = msgpack_deserialize(<span class="kw-2">&amp;</span>buf).unwrap();
         <span class="macro">assert_eq!</span>(opcode, recovered_opcode);
     }
 }
