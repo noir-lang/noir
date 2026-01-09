@@ -1129,7 +1129,7 @@ fn type_as_constant(
                     Ok(None)
                 } else {
                     let err = Box::new(err);
-                    Err(InterpreterError::NonIntegerArrayLength { err, location })
+                    Err(InterpreterError::InvalidArrayLength { err, location })
                 }
             }
         }

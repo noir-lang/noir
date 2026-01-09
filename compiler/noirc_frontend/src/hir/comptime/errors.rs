@@ -92,7 +92,7 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
-    NonIntegerArrayLength {
+    InvalidArrayLength {
         err: Box<TypeCheckError>,
         location: Location,
     },
@@ -334,7 +334,7 @@ impl InterpreterError {
             | InterpreterError::NonArrayIndexed { location, .. }
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
-            | InterpreterError::NonIntegerArrayLength { location, .. }
+            | InterpreterError::InvalidArrayLength { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -510,7 +510,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerArrayLength { err, location } => {
+            InterpreterError::InvalidArrayLength { err, location } => {
                 let msg = "Invalid array length".to_string();
                 let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
