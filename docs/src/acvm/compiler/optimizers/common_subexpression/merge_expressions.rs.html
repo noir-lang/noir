@@ -451,8 +451,7 @@
 <a href="#450" id="450">450</a>
 <a href="#451" id="451">451</a>
 <a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<a href="#453" id="453">453</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -659,11 +658,10 @@
                 }
                 witnesses
             }
-            Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
-                <span class="comment">//index and value
-                </span><span class="kw">let </span>witnesses = CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.index);
-                witnesses.chain(CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.value)).collect()
-            }
+            Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.operation)
+                .chain(CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.index))
+                .chain(CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.value))
+                .collect(),
 
             Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
                 init.iter().cloned().collect()
