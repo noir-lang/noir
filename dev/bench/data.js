@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767911564867,
+  "lastUpdate": 1767956783750,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23180,48 +23180,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "6c5829ab026cb337271c694ce830d4a666470dde",
-          "message": "chore: check for index type (#10903)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-01-05T10:10:45Z",
-          "tree_id": "ff21afb027f086526ade30c32d3979a5a2c8b534",
-          "url": "https://github.com/noir-lang/noir/commit/6c5829ab026cb337271c694ce830d4a666470dde"
-        },
-        "date": 1767609028603,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261415,
-            "range": "± 894",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235206,
-            "range": "± 5545",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794149,
-            "range": "± 8681",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "d201d960f888268751eaa9fb5b3e338b4a455f03",
           "message": "fix: error on returning unit type in empty array (#10844)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793703,
             "range": "± 11219",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89d26666ee9c6ca79b84ec0adb8cf98248fda6cb",
+          "message": "chore: witness predicate for acir calls (#11108)",
+          "timestamp": "2026-01-09T10:43:50Z",
+          "tree_id": "b7e576977781652d80d7f63c9b9126c3ced4051a",
+          "url": "https://github.com/noir-lang/noir/commit/89d26666ee9c6ca79b84ec0adb8cf98248fda6cb"
+        },
+        "date": 1767956748140,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250277,
+            "range": "± 554",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221953,
+            "range": "± 3657",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784552,
+            "range": "± 1648",
             "unit": "ns/iter"
           }
         ]
