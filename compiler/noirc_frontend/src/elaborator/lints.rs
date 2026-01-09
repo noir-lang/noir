@@ -354,10 +354,13 @@ pub(crate) fn check_varargs(
     let varargs_attribute = secondary_attributes
         .iter()
         .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Varargs))?;
+    let location = varargs_attribute.location;
     if !modifiers.is_comptime {
-        return Some(ResolverError::VarargsOnNonComptimeFunction {
-            location: varargs_attribute.location,
-        });
+        return Some(ResolverError::VarargsOnNonComptimeFunction { location });
+    }
+
+    if func.parameters.is_empty() {
+        return Some(ResolverError::VarargsOnFunctionWithNoParameters { location });
     }
 
     None

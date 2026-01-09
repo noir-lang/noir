@@ -1144,3 +1144,15 @@ fn varargs_on_non_comptime_function() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn varargs_on_function_without_arguments() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] requires its function to have at least one parameter
+    pub comptime fn foo() {}
+
+    fn main() {}
+    ";
+    check_errors(src);
+}

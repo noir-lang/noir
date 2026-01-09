@@ -210,6 +210,8 @@ pub enum ResolverError {
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
     VarargsOnNonComptimeFunction { location: Location },
+    #[error("#[varargs] requires its function to have at least one parameter")]
+    VarargsOnFunctionWithNoParameters { location: Location },
 }
 
 impl ResolverError {
@@ -282,7 +284,8 @@ impl ResolverError {
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
             | ResolverError::BuiltinWithBody { location }
-            | ResolverError::VarargsOnNonComptimeFunction { location } => *location,
+            | ResolverError::VarargsOnNonComptimeFunction { location }
+            | ResolverError::VarargsOnFunctionWithNoParameters { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -932,6 +935,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::VarargsOnNonComptimeFunction { location } => {
                 Diagnostic::simple_error(
                     "#[varargs] can only be applied to comptime functions".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsOnFunctionWithNoParameters { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] requires its function to have at least one parameter".to_string(),
                     String::new(),
                     *location,
                 )
