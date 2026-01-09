@@ -215,3 +215,26 @@ fn return_impl_trait_becomes_underlying_type() {
     }
     ");
 }
+
+#[test]
+fn unused_generic_becomes_field() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B
+    }
+    fn main() {
+        let _foo: Foo<u32> = Foo::B;
+    }
+    "#;
+
+    // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
+    // Since variant 2 doesn't have a T value, even though we have u32 on the LHS it becomes Field.
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global B$g0: (Field, (Field,), ()) = (1, (0), ());
+    fn main$f0() -> () {
+        let _foo$l0 = B$g0
+    }
+    ");
+}
