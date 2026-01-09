@@ -254,7 +254,6 @@ impl ExpressionSolver {
         initial_witness: &WitnessMap<F>,
     ) -> Expression<F> {
         let mut result = Expression::default();
-
         for &(c, w1, w2) in &expr.mul_terms {
             let mul_result = ExpressionSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);
             match mul_result {
@@ -271,7 +270,6 @@ impl ExpressionSolver {
                 MulTerm::Solved(f) => result.q_c += f,
             }
         }
-
         for &(c, w) in &expr.linear_combinations {
             if let Some(f) = ExpressionSolver::solve_fan_in_term_helper(&(c, w), initial_witness) {
                 result.q_c += f;
@@ -279,7 +277,6 @@ impl ExpressionSolver {
                 result.linear_combinations.push((c, w));
             }
         }
-
         result.q_c += expr.q_c;
         result
     }
