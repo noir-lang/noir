@@ -382,7 +382,7 @@ fn static_trait_method_call_with_multiple_generics() {
 
 #[test]
 fn generic_struct_implementing_generic_trait() {
-    // Make sure trait generics Input=X=Field and Output=Y=u32 bind correctly.
+    // Make sure trait generics Input=X=u8 and Output=Y=u32 bind correctly.
     let src = r#"
     trait MyTrait<Input, Output> {
         fn foo(input: Input) -> Output;
