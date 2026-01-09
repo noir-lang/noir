@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use acir::acir_field::GenericFieldElement;
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
@@ -17,7 +16,7 @@ use acir::{InvalidInputBitSize, parse_opcodes};
 
 use acvm::pwg::{ACVM, ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use bn254_blackbox_solver::{Bn254BlackBoxSolver, POSEIDON2_CONFIG, field_from_hex};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
 
 use num_bigint::BigUint;
@@ -852,13 +851,6 @@ fn sha256_compression_op(
     })
 }
 
-fn into_repr_vec<T>(fields: T) -> Vec<ark_bn254::Fr>
-where
-    T: IntoIterator<Item = FieldElement>,
-{
-    fields.into_iter().map(|field| field.into_repr()).collect()
-}
-
 // fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
 // where
 //     T: IntoIterator<Item = U>,
@@ -866,70 +858,6 @@ where
 // {
 //     fields.into_iter().map(|field| into_repr_vec(field)).collect()
 // }
-
-fn into_old_ark_field<T, U>(field: T) -> U
-where
-    T: AcirField,
-    U: ark_ff_v04::PrimeField,
-{
-    U::from_be_bytes_mod_order(&field.to_be_bytes())
-}
-
-fn into_new_ark_field<T, U>(field: T) -> U
-where
-    T: ark_ff_v04::PrimeField,
-    U: ark_ff::PrimeField,
-{
-    use zkhash::ark_ff::BigInteger;
-
-    U::from_be_bytes_mod_order(&field.into_bigint().to_bytes_be())
-}
-
-fn run_both_poseidon2_permutations(
-    inputs: Vec<ConstantOrWitness>,
-) -> Result<(Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>), OpcodeResolutionError<FieldElement>> {
-    let pedantic_solving = true;
-    let result = solve_array_input_blackbox_call(
-        inputs.clone(),
-        inputs.len(),
-        None,
-        pedantic_solving,
-        poseidon2_permutation_op,
-    )?;
-
-    let poseidon2_t = POSEIDON2_CONFIG.t as usize;
-    let poseidon2_d = 5;
-    let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
-    let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
-    let mat_internal_diag_m_1: Vec<ark_bn254_v04::Fr> =
-        POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
-    let mat_internal = vec![];
-    let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
-        .round_constant
-        .into_iter()
-        .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
-        .collect();
-
-    let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(
-        zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
-            poseidon2_t,
-            poseidon2_d,
-            rounds_f,
-            rounds_p,
-            &mat_internal_diag_m_1,
-            &mat_internal,
-            &round_constants,
-        ),
-    ));
-
-    let expected_result = external_poseidon2.permutation(
-        &drop_use_constant(&inputs)
-            .into_iter()
-            .map(into_old_ark_field)
-            .collect::<Vec<ark_bn254_v04::Fr>>(),
-    );
-    Ok((into_repr_vec(result), expected_result.into_iter().map(into_new_ark_field).collect()))
-}
 
 fn function_input_from_option(
     witness: Witness,
@@ -1121,23 +1049,6 @@ prop_compose! {
 }
 
 #[test]
-fn poseidon2_permutation_zeroes() {
-    let use_constants: [bool; 4] = [false; 4];
-    let inputs: Vec<_> = [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
-    let (results, expected_results) = run_both_poseidon2_permutations(inputs).unwrap();
-
-    let internal_expected_results = vec![
-        field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
-        field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
-        field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
-        field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
-    ];
-
-    assert_eq!(expected_results, into_repr_vec(internal_expected_results));
-    assert_eq!(results, expected_results);
-}
-
-#[test]
 fn sha256_compression_zeros() {
     let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(
@@ -1325,11 +1236,7 @@ proptest! {
         prop_assert_eq!(lhs, rhs);
     }
 
-    #[test]
-    fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
-        let (result, expected_result) = run_both_poseidon2_permutations(inputs).unwrap();
-        prop_assert_eq!(result, expected_result);
-    }
+
 
 
     #[test]

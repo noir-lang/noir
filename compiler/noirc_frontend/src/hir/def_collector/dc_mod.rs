@@ -21,7 +21,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
-use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
+use crate::{Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -216,6 +216,7 @@ impl ModCollector<'_> {
                     krate,
                     self.file_id,
                     self.module_id,
+                    &mut errors,
                 );
 
             let module = ModuleId { krate, local_id: self.module_id };
@@ -448,7 +449,7 @@ impl ModCollector<'_> {
             let doc_comments = trait_definition.doc_comments;
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
-            let location = trait_definition.location;
+            let location = trait_definition.name.location();
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
@@ -462,7 +463,7 @@ impl ModCollector<'_> {
                 context,
                 &name,
                 ItemVisibility::Public,
-                name.location(),
+                location,
                 Vec::new(),
                 Vec::new(),
                 false,
@@ -514,12 +515,32 @@ impl ModCollector<'_> {
             };
 
             let mut method_ids = HashMap::default();
-            let mut associated_types = Generics::new();
+            let mut associated_types = ResolvedGenerics::new();
             let mut associated_constant_ids = HashMap::default();
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
                     desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
+                }
+            }
+
+            // Check for duplicate trait item names across all item types (functions, types, constants)
+            let mut trait_item_names: HashMap<String, Ident> = HashMap::default();
+            for trait_item in &trait_definition.items {
+                let item_name = match &trait_item.item {
+                    TraitItem::Function { name, .. } => name,
+                    TraitItem::Constant { name, .. } => name,
+                    TraitItem::Type { name, .. } => name,
+                };
+                if let Some(first_def) = trait_item_names.get(item_name.as_str()) {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
             }
 
@@ -1473,6 +1494,7 @@ pub(crate) fn collect_trait_impl_items(
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
+    errors: &mut Vec<CompilationError>,
 ) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
@@ -1504,6 +1526,12 @@ pub(crate) fn collect_trait_impl_items(
                 associated_constants.push((name, typ, expr));
             }
             TraitImplItemKind::Type { name, alias } => {
+                if alias.is_none() {
+                    let ident = name.clone();
+                    let error = ResolverError::AssociatedTypeInImplWithoutBody { ident };
+                    errors.push(error.into());
+                }
+
                 associated_types.push((name, alias));
             }
         }

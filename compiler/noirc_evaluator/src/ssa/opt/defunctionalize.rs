@@ -749,11 +749,11 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             }
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Slice(_) => {
+        Type::Vector(_) => {
             let array = im::Vector::new();
-            // The contents of a slice do not matter for a dummy function, we simply
+            // The contents of a vector do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
-            // Thus, we return an empty slice here.
+            // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
         Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
@@ -801,7 +801,7 @@ fn defunctionalize_post_check(func: &Function) {
 /// Return what type a function value type should be replaced with:
 /// * Global functions are replaced with a `Field`.
 /// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
-/// * Array and slices that contain function types are handled recursively.
+/// * Array and vectors that contain function types are handled recursively.
 ///
 /// If the type doesn't need replacement, `None` is returned.
 fn replacement_type(typ: &Type) -> Option<Type> {
@@ -814,8 +814,8 @@ fn replacement_type(typ: &Type) -> Option<Type> {
         Type::Array(items, size) => {
             replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
         }
-        Type::Slice(items) => {
-            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        Type::Vector(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Vector(Arc::new(types)))
         }
     }
 }

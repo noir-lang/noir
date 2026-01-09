@@ -448,7 +448,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
-                         ^^^^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
+                         ^^^^^^^^ Indexing arrays and vectors must be done with `u32`, not `u64`
             self.len += 1;
         }
     }
@@ -609,4 +609,18 @@ fn integer_with_suffix_used_as_tuple_index() {
         }
     ";
     assert_no_errors(src);
+}
+
+// Regression for https://github.com/noir-lang/noir/issues/10711
+#[test]
+fn no_panic_on_numeric_generic_parse_error() {
+    let src = "
+        fn foo<let N: >() {
+                      ^ Expected a type but found '>'
+            let _ = N;
+        }
+
+        fn main() { foo::<3>(); }
+    ";
+    check_errors(src);
 }

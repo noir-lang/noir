@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type FunctionDefinition documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">FunctionDefinition</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -74,7 +80,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -89,6 +94,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -118,37 +124,37 @@ top of a function:</p>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
 
-<div class="padded-methods"><code id="add_attribute" class="code-header">pub comptime fn <span class="fn">add_attribute</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, attribute: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;)</code>
+<div class="padded-methods"><code id="add_attribute" class="code-header">pub comptime fn <a href="#add_attribute"><span class="fn">add_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, attribute: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;)</code>
 
-<code id="as_typed_expr" class="code-header">pub comptime fn <span class="fn">as_typed_expr</span>(self) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
+<code id="as_typed_expr" class="code-header">pub comptime fn <a href="#as_typed_expr"><span class="fn">as_typed_expr</span></a>(self) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
 
-<code id="body" class="code-header">pub comptime fn <span class="fn">body</span>(self) -> <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code>
+<code id="body" class="code-header">pub comptime fn <a href="#body"><span class="fn">body</span></a>(self) -> <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
-<code id="has_named_attribute" class="code-header">pub comptime fn <span class="fn">has_named_attribute</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute"><span class="fn">has_named_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_unconstrained" class="code-header">pub comptime fn <span class="fn">is_unconstrained</span>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="is_unconstrained" class="code-header">pub comptime fn <a href="#is_unconstrained"><span class="fn">is_unconstrained</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="module" class="code-header">pub comptime fn <span class="fn">module</span>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
+<code id="module" class="code-header">pub comptime fn <a href="#module"><span class="fn">module</span></a>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
 
-<code id="name" class="code-header">pub comptime fn <span class="fn">name</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="name" class="code-header">pub comptime fn <a href="#name"><span class="fn">name</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
-<code id="parameters" class="code-header">pub comptime fn <span class="fn">parameters</span>(self) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>)]</code>
+<code id="parameters" class="code-header">pub comptime fn <a href="#parameters"><span class="fn">parameters</span></a>(self) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>)]</code>
 
-<code id="return_type" class="code-header">pub comptime fn <span class="fn">return_type</span>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<code id="return_type" class="code-header">pub comptime fn <a href="#return_type"><span class="fn">return_type</span></a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
-<code id="set_body" class="code-header">pub comptime fn <span class="fn">set_body</span>(self, body: <a href="../std/primitive.Expr.html" class="primitive">Expr</a>)</code>
+<code id="set_body" class="code-header">pub comptime fn <a href="#set_body"><span class="fn">set_body</span></a>(self, body: <a href="../std/primitive.Expr.html" class="primitive">Expr</a>)</code>
 
-<code id="set_parameters" class="code-header">pub comptime fn <span class="fn">set_parameters</span>(self, parameters: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>)])</code>
+<code id="set_parameters" class="code-header">pub comptime fn <a href="#set_parameters"><span class="fn">set_parameters</span></a>(self, parameters: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>)])</code>
 
-<code id="set_return_type" class="code-header">pub comptime fn <span class="fn">set_return_type</span>(self, return_type: <a href="../std/primitive.Type.html" class="primitive">Type</a>)</code>
+<code id="set_return_type" class="code-header">pub comptime fn <a href="#set_return_type"><span class="fn">set_return_type</span></a>(self, return_type: <a href="../std/primitive.Type.html" class="primitive">Type</a>)</code>
 
-<code id="set_return_public" class="code-header">pub comptime fn <span class="fn">set_return_public</span>(self, public: <a href="../std/primitive.bool.html" class="primitive">bool</a>)</code>
+<code id="set_return_public" class="code-header">pub comptime fn <a href="#set_return_public"><span class="fn">set_return_public</span></a>(self, public: <a href="../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
-<code id="set_return_data" class="code-header">pub comptime fn <span class="fn">set_return_data</span>(self)</code>
+<code id="set_return_data" class="code-header">pub comptime fn <a href="#set_return_data"><span class="fn">set_return_data</span></a>(self)</code>
 
-<code id="set_unconstrained" class="code-header">pub comptime fn <span class="fn">set_unconstrained</span>(self, value: <a href="../std/primitive.bool.html" class="primitive">bool</a>)</code>
+<code id="set_unconstrained" class="code-header">pub comptime fn <a href="#set_unconstrained"><span class="fn">set_unconstrained</span></a>(self, value: <a href="../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
-<code id="visibility" class="code-header">pub comptime fn <span class="fn">visibility</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="visibility" class="code-header">pub comptime fn <a href="#visibility"><span class="fn">visibility</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 </div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-FunctionDefinition"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
@@ -162,5 +168,6 @@ top of a function:</p>
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>

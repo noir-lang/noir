@@ -21,7 +21,7 @@
 //!     references in constrained (ACIR) code.
 //!   - Flattening inserts `Instruction::IfElse` to merge the values from an if-expression's "then"
 //!     and "else" branches. These are immediately simplified out for numeric values, but for
-//!     arrays and slices we require the `remove_if_else` SSA pass to later be run to remove the
+//!     arrays and vectors we require the `remove_if_else` SSA pass to later be run to remove the
 //!     remaining `Instruction::IfElse` instructions.
 //!
 //! Implementation details & examples:
@@ -80,7 +80,7 @@
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
 //!    `c * then_arg + !c * else_arg` is used for each argument. Note that this is represented by
 //!    `Instruction::IfElse` which is often simplified to the above when inserted, but in the case
-//!    of complex values (arrays and slices) this simplification is delayed until the
+//!    of complex values (arrays and vectors) this simplification is delayed until the
 //!    `remove_if_else` SSA pass.
 //!
 //! ```text
@@ -439,7 +439,7 @@ impl<'f> Context<'f> {
         self.next_arguments.take().expect("there are no arguments prepared")
     }
 
-    /// Inline all instructions from the given block into the target block, and track slice capacities.
+    /// Inline all instructions from the given block into the target block, and track vector capacities.
     /// This is done by processing every instruction in the block and using the flattening context
     /// to push them in the target block.
     ///
@@ -850,12 +850,8 @@ impl<'f> Context<'f> {
         match instruction {
             Instruction::Constrain(lhs, rhs, message) => {
                 // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, lhs, call_stack);
-                let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
-                let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
+                let lhs = self.mul_by_condition(lhs, condition, call_stack);
+                let rhs = self.mul_by_condition(rhs, condition, call_stack);
                 Instruction::Constrain(lhs, rhs, message)
             }
             Instruction::ConstrainNotEqual(_, _, _) => {
@@ -970,15 +966,15 @@ impl<'f> Context<'f> {
             // multiplying their arguments with the condition.
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsSlice
+            | Intrinsic::AsVector
             | Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
-            | Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
-            | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorRemove
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)
@@ -987,7 +983,7 @@ impl<'f> Context<'f> {
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount => arguments,
+            | Intrinsic::VectorRefCount => arguments,
         }
     }
 
@@ -1068,7 +1064,7 @@ impl<'f> Context<'f> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::acir::AcirField;
 
     use crate::{
@@ -1884,11 +1880,14 @@ mod test {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = cast v0 as Field
-            v4 = mul v2, Field 2
-            v5 = make_array [v4] : [Field; 1]
             enable_side_effects u1 1
-            return v5
+            v3 = cast v0 as Field
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v5 = mul v3, Field 2
+            v6 = make_array [v5] : [Field; 1]
+            enable_side_effects u1 1
+            return v6
         }
         ");
     }

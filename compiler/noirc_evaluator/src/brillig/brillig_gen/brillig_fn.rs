@@ -41,8 +41,8 @@ pub(crate) struct FunctionContext {
     /// allocator for each block we process, and something that is allocated in e.g. block 1
     /// might be deallocated in block 2, so it has to be done manually.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
-    /// The block ids of the function in reverse post order.
-    pub(crate) blocks: Vec<BasicBlockId>,
+    /// The block ids of the function in Reverse Post Order.
+    blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
@@ -96,7 +96,7 @@ impl FunctionContext {
     /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
     ///
     /// # Panics
-    /// Panics if called with a slice type, as a slice's memory layout cannot be inferred without runtime data.
+    /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
             Type::Numeric(_) | Type::Reference(_) => {
@@ -106,13 +106,23 @@ impl FunctionContext {
                 vecmap(item_type.iter(), Self::ssa_type_to_parameter),
                 *size as usize,
             ),
-            Type::Slice(_) => {
-                panic!("ICE: Slice parameters cannot be derived from type information")
+            Type::Vector(_) => {
+                panic!("ICE: Vector parameters cannot be derived from type information")
             }
             // Treat functions as field values
             Type::Function => {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
             }
         }
+    }
+
+    /// Iterate blocks in Post Order.
+    pub(crate) fn post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+        self.blocks.iter().copied().rev()
+    }
+
+    /// Iterate blocks in Reverse Post Order.
+    pub(crate) fn reverse_post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+        self.blocks.iter().copied()
     }
 }

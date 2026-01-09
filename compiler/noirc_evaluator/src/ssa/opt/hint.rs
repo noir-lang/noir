@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use acvm::acir::circuit::ExpressionWidth;
 
     use crate::{
         assert_ssa_snapshot,
@@ -18,7 +17,6 @@ mod tests {
             ssa_logging: SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             enable_brillig_constraints_check_lookback: false,

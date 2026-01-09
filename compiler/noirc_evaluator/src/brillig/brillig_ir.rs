@@ -5,8 +5,8 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 //!
-//! The brillig ir provides instructions and codegens.
-//! The instructions are low level operations that are printed via debug_show.
+//! The brillig IR provides instructions and codegens.
+//! The instructions are low level operations that are printed via `debug_show`.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
 pub mod artifact;
@@ -143,6 +143,20 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
             );
         }
         self.globals_memory_size = new_size;
+    }
+
+    /// Returns the artifact, discarding the rest of the context.
+    pub(crate) fn into_artifact(self) -> BrilligArtifact<F> {
+        self.obj
+    }
+
+    /// Returns the artifact.
+    pub(crate) fn artifact(&self) -> &BrilligArtifact<F> {
+        &self.obj
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.obj.name
     }
 }
 
@@ -310,15 +324,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.push_opcode(opcode);
     }
 
-    /// Returns the artifact
-    pub(crate) fn artifact(self) -> BrilligArtifact<F> {
-        self.obj
-    }
-
-    pub(crate) fn name(&self) -> &str {
-        &self.obj.name
-    }
-
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
@@ -407,7 +412,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: context.count_arrays_copied,
             ..Default::default()
         };
-        let artifact = context.artifact();
+        let artifact = context.into_artifact();
         let (mut entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
@@ -463,26 +468,33 @@ pub(crate) mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
-            ..Default::default()
+            show_opcode_advisories: false,
+            layout: Default::default(),
         };
         let mut context = BrilligContext::new("test", &options);
-        let r_free = ReservedRegisters::free_memory_pointer();
-        // Set the free memory pointer after the 2 variables allocated below.
-        let r_free_value = ReservedRegisters::len() + 2;
-        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
-        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        let r_vector_ptr = r_input_size.offset(1);
-        let r_equality = r_input_size.offset(2);
 
-        // The vector size is going to be on the heap. It's easy here, since we know where it will start.
-        let r_output_size = MemoryAddress::direct(r_free_value + offsets::VECTOR_SIZE);
+        // Allocate variables
+        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        let r_output_ptr = r_input_size.offset(1);
+        let r_output_size = r_input_size.offset(2);
+        let r_equality = r_input_size.offset(3);
+
+        let r_free = ReservedRegisters::free_memory_pointer();
+        // Set the free memory pointer after the variables allocated above.
+        let r_free_value = ReservedRegisters::len() + 4;
+        context.usize_const_instruction(r_free, FieldElement::from(r_free_value));
 
         context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
+        // The output pointer points at the heap.
+        context.usize_const_instruction(
+            r_output_ptr,
+            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+        );
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
             &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            &[ValueOrArray::MemoryAddress(r_vector_ptr)],
+            &[ValueOrArray::HeapVector(HeapVector { pointer: r_output_ptr, size: r_output_size })],
             &[HeapValueType::Vector {
                 value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             }],
@@ -510,7 +522,7 @@ pub(crate) mod tests {
         context.push_opcode(BrilligOpcode::Trap { revert_data: empty_data });
         context.stop_instruction(empty_data);
 
-        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.into_artifact().finish().byte_code;
 
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
 

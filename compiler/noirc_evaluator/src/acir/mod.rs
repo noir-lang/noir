@@ -6,12 +6,13 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
+use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    circuit::{AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId},
+    circuit::{AssertionPayload, brillig::BrilligFunctionId},
     native_types::Witness,
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -29,7 +30,7 @@ mod types;
 
 use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
-use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
+use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -113,13 +114,11 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
-        expression_width: ExpressionWidth,
         brillig: &'a Brillig,
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
@@ -399,10 +398,18 @@ impl<'a> Context<'a> {
         numeric_type: &NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
-        let one = self.acir_context.add_constant(FieldElement::one());
-        // The predicate is one so that this constraint is is always applied to Signed/Unsigned
-        // NumericType's
-        self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
+
+        if !numeric_type.is_field() {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            // The predicate is one so that this constraint is is always applied to Signed/Unsigned NumericTypes
+
+            self.acir_context.range_constrain_var(
+                acir_var,
+                numeric_type.bit_size::<FieldElement>(),
+                None,
+                one,
+            )?;
+        }
         Ok(acir_var)
     }
 
@@ -491,7 +498,7 @@ impl<'a> Context<'a> {
                 // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
                     acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    *max_bit_size,
                     assert_message.clone(),
                     one,
                 )?;
@@ -778,12 +785,7 @@ impl<'a> Context<'a> {
             _ => return Ok(result),
         };
 
-        self.acir_context.range_constrain_var(
-            result,
-            &NumericType::Unsigned { bit_size },
-            Some(msg.to_string()),
-            predicate,
-        )
+        self.acir_context.range_constrain_var(result, bit_size, Some(msg.to_string()), predicate)
     }
 
     /// Operands in a binary operation are checked to have the same type.
@@ -806,7 +808,7 @@ impl<'a> Context<'a> {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+            (_, Type::Vector(..)) | (Type::Vector(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
             // If either side is a numeric type, then we expect their types to be
@@ -847,6 +849,13 @@ impl<'a> Context<'a> {
                     // for FieldElements. Furthermore, adding a power of two
                     // would be incorrect for a FieldElement (cf. #8519).
                     if max_bit_size < FieldElement::max_num_bits() {
+                        // When max_bit_size is max_num_bits() - 1, adding
+                        // 2**max_bit_size to an element of max_bit_size bits
+                        // gives an element of max_num_bits() bits which may overflow
+                        assert!(
+                            max_bit_size != FieldElement::max_num_bits() - 1,
+                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
+                        );
                         let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
                         let integer_modulus = self.acir_context.add_constant(integer_modulus);
                         var = self.acir_context.add_var(var, integer_modulus)?;

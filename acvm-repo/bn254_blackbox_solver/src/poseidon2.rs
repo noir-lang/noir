@@ -11,12 +11,12 @@ pub fn poseidon2_permutation(
     poseidon.permutation(inputs)
 }
 
-pub(crate) struct Poseidon2<'a> {
+struct Poseidon2<'a> {
     config: &'a Poseidon2Config,
 }
 
 impl Poseidon2<'_> {
-    pub(crate) fn new() -> Self {
+    fn new() -> Self {
         Poseidon2 { config: &POSEIDON2_CONFIG }
     }
 
@@ -117,82 +117,17 @@ impl Poseidon2<'_> {
     }
 }
 
-/// Performs a poseidon hash with a sponge construction equivalent to the one in the Barretenberg proving system
-pub fn poseidon_hash(inputs: &[FieldElement]) -> Result<FieldElement, BlackBoxResolutionError> {
-    let two_pow_64 = 18446744073709551616_u128.into();
-    let iv = FieldElement::from(inputs.len()) * two_pow_64;
-    // A rate of 3, with a width of 4, gives 1 field element of capacity, i.e ~128 bits of security
-    let mut sponge = Poseidon2Sponge::new(iv, 3);
-    for input in inputs.iter() {
-        sponge.absorb(*input)?;
-    }
-    sponge.squeeze()
-}
-
-pub struct Poseidon2Sponge<'a> {
-    rate: usize,
-    poseidon: Poseidon2<'a>,
-    squeezed: bool,
-    cache: Vec<FieldElement>,
-    state: Vec<FieldElement>,
-}
-
-impl<'a> Poseidon2Sponge<'a> {
-    pub fn new(iv: FieldElement, rate: usize) -> Poseidon2Sponge<'a> {
-        let mut result = Poseidon2Sponge {
-            cache: Vec::with_capacity(rate),
-            state: vec![FieldElement::zero(); rate + 1],
-            squeezed: false,
-            rate,
-            poseidon: Poseidon2::new(),
-        };
-        result.state[rate] = iv;
-        result
-    }
-
-    fn perform_duplex(&mut self) -> Result<(), BlackBoxResolutionError> {
-        // zero-pad the cache
-        for _ in self.cache.len()..self.rate {
-            self.cache.push(FieldElement::zero());
-        }
-        // add the cache into sponge state
-        for i in 0..self.rate {
-            self.state[i] += self.cache[i];
-        }
-        self.state = self.poseidon.permutation(&self.state)?;
-        Ok(())
-    }
-
-    pub fn absorb(&mut self, input: FieldElement) -> Result<(), BlackBoxResolutionError> {
-        assert!(!self.squeezed);
-        if self.cache.len() == self.rate {
-            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
-            self.perform_duplex()?;
-            self.cache = vec![input];
-        } else {
-            // If we're absorbing, and the cache is not full, add the input into the cache
-            self.cache.push(input);
-        }
-        Ok(())
-    }
-
-    pub fn squeeze(&mut self) -> Result<FieldElement, BlackBoxResolutionError> {
-        assert!(!self.squeezed);
-        // If we're in absorb mode, apply sponge permutation to compress the cache.
-        self.perform_duplex()?;
-        self.squeezed = true;
-
-        // Pop one item off the top of the permutation and return it.
-        Ok(self.state[0])
-    }
-}
-
 #[cfg(test)]
-mod test {
+mod tests {
+    use std::sync::Arc;
+
     use acir::AcirField;
 
+    use proptest::prelude::*;
+    use proptest::result::maybe_ok;
+
     use super::{FieldElement, poseidon2_permutation};
-    use crate::poseidon2_constants::field_from_hex;
+    use crate::poseidon2_constants::{POSEIDON2_CONFIG, field_from_hex};
 
     #[test]
     fn smoke_test() {
@@ -208,18 +143,79 @@ mod test {
         assert_eq!(result, expected_result);
     }
 
-    #[test]
-    fn hash_smoke_test() {
-        let fields = [
-            FieldElement::from(1u128),
-            FieldElement::from(2u128),
-            FieldElement::from(3u128),
-            FieldElement::from(4u128),
-        ];
-        let result = super::poseidon_hash(&fields).expect("should hash successfully");
-        assert_eq!(
-            result,
-            field_from_hex("130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"),
+    fn into_old_ark_field<T, U>(field: T) -> U
+    where
+        T: AcirField,
+        U: ark_ff_v04::PrimeField,
+    {
+        U::from_be_bytes_mod_order(&field.to_be_bytes())
+    }
+
+    fn into_new_ark_field<T, U>(field: T) -> U
+    where
+        T: ark_ff_v04::PrimeField,
+        U: ark_ff::PrimeField,
+    {
+        use zkhash::ark_ff::BigInteger;
+
+        U::from_be_bytes_mod_order(&field.into_bigint().to_bytes_be())
+    }
+
+    fn run_both_poseidon2_permutations(
+        inputs: Vec<FieldElement>,
+    ) -> (Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>) {
+        let poseidon2_t = POSEIDON2_CONFIG.t as usize;
+        let poseidon2_d = 5;
+        let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
+        let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
+        let mat_internal_diag_m_1: Vec<ark_bn254_v04::Fr> =
+            POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
+        let mat_internal = vec![];
+        let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
+            .round_constant
+            .into_iter()
+            .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
+            .collect();
+
+        let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(
+            zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
+                poseidon2_t,
+                poseidon2_d,
+                rounds_f,
+                rounds_p,
+                &mat_internal_diag_m_1,
+                &mat_internal,
+                &round_constants,
+            ),
+        ));
+
+        let result =
+            poseidon2_permutation(&inputs).unwrap().into_iter().map(|x| x.into_repr()).collect();
+
+        let expected_result = external_poseidon2.permutation(
+            &inputs.into_iter().map(into_old_ark_field).collect::<Vec<ark_bn254_v04::Fr>>(),
         );
+        (result, expected_result.into_iter().map(into_new_ark_field).collect())
+    }
+
+    prop_compose! {
+        // Use both `u128` and hex proptest strategies
+        fn field_element()
+            (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"))
+            -> FieldElement
+        {
+            match u128_or_hex {
+                Ok(number) => FieldElement::from(number),
+                Err(hex) => FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"),
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
+            let (result, expected_result) = run_both_poseidon2_permutations(inputs);
+            prop_assert_eq!(result, expected_result);
+        }
     }
 }

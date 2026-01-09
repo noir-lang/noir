@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
     graph::CrateId,
-    hir::type_check::generics::TraitGenerics,
+    hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
     node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
@@ -84,14 +84,18 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), Location> {
+        location: Location,
+    ) -> Result<Result<(), Location>, TypeCheckError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
         if object_type == Type::Error {
-            return Ok(());
+            return Err(TypeCheckError::ExpectingOtherError {
+                message: "collect_trait_impl: missing trait type".to_string(),
+                location,
+            });
         }
 
         // Replace each generic with a fresh type variable
@@ -136,7 +140,7 @@ impl NodeInterner {
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
-            return Err(existing_impl.ident.location());
+            return Ok(Err(existing_impl.ident.location()));
         }
 
         for method in &trait_impl.borrow().methods {
@@ -150,7 +154,7 @@ impl NodeInterner {
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
-        Ok(())
+        Ok(Ok(()))
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -278,7 +282,7 @@ impl NodeInterner {
 
             let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
                 |(trait_generic, impl_generic)| {
-                    let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
+                    let impl_generic = impl_generic.substitute(&instantiation_bindings);
                     trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                 },
             );
@@ -305,13 +309,20 @@ impl NodeInterner {
                 }
             }
 
-            let associated_types_unify = trait_associated_types
-                .iter()
-                .zip(&impl_trait_generics.named)
-                .all(|(trait_generic, impl_generic)| {
-                    let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
-                    trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                });
+            // Match associated types by name, not position
+            let associated_types_unify = trait_associated_types.iter().all(|trait_generic| {
+                // Find the matching impl generic by name
+                let Some(impl_generic) = impl_trait_generics
+                    .named
+                    .iter()
+                    .find(|impl_g| impl_g.name.as_str() == trait_generic.name.as_str())
+                else {
+                    // If the impl doesn't have this associated type, it doesn't match
+                    return false;
+                };
+                let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
+                trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
+            });
             if !associated_types_unify {
                 continue;
             }
@@ -423,13 +434,13 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
-        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, HashSet::new());
     }
 
     fn remove_assumed_trait_implementations_for_trait_and_parents(
         &mut self,
         trait_id: TraitId,
-        starting_trait_id: TraitId,
+        mut visited_trait_ids: HashSet<TraitId>,
     ) {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
@@ -440,13 +451,14 @@ impl NodeInterner {
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
+                if visited_trait_ids.contains(&parent_trait_bound.trait_id) {
                     continue;
                 }
+                visited_trait_ids.insert(parent_trait_bound.trait_id);
 
                 self.remove_assumed_trait_implementations_for_trait_and_parents(
                     parent_trait_bound.trait_id,
-                    starting_trait_id,
+                    visited_trait_ids.clone(),
                 );
             }
         }

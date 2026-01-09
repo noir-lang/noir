@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, Path,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     shared::Signedness,
@@ -114,7 +114,14 @@ impl Parser<'_> {
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
-        let typ = self.parse_type_or_error();
+        let mut typ = self.parse_type_or_error();
+
+        // If we failed to parse a type, default to u32 instead of Type::Error
+        // to prevent more type errors down the line
+        if typ.typ == UnresolvedTypeData::Error {
+            let path = Path::from_single("u32".to_string(), self.location_at_previous_token_end());
+            typ.typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
+        }
 
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }

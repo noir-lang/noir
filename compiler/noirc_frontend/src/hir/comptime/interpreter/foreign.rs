@@ -1,9 +1,6 @@
 //! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-use acvm::{
-    AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
-    blackbox_solver::BlackBoxFunctionSolver,
-};
+use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
 use iter_extended::vecmap;
@@ -23,7 +20,7 @@ use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_bool, get_field, get_fixed_array_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_struct,
+        get_struct_fields, get_u8, get_u32, get_u64, to_byte_vector, to_struct,
     },
 };
 
@@ -65,7 +62,6 @@ fn call_foreign(
         "multi_scalar_mul" => multi_scalar_mul(args, return_type, location, pedantic_solving),
         "poseidon2_permutation" => poseidon2_permutation(args, location, pedantic_solving),
         "keccakf1600" => keccakf1600(args, location),
-        "range" => apply_range_constraint(args, location),
         "sha256_compression" => sha256_compression(args, location),
         _ => {
             let explanation = match name {
@@ -94,28 +90,7 @@ fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IRes
     let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(to_byte_slice(&output))
-}
-
-fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (value, num_bits) = check_two_arguments(arguments, location)?;
-
-    let input = get_field(value)?;
-    let field = input.to_field_element();
-
-    let num_bits = get_u32(num_bits)?;
-
-    if field.num_bits() < num_bits {
-        Ok(Value::Unit)
-    } else {
-        Err(InterpreterError::BlackBoxError(
-            BlackBoxResolutionError::Failed(
-                BlackBoxFunc::RANGE,
-                "value exceeds range check bounds".to_owned(),
-            ),
-            location,
-        ))
-    }
+    Ok(to_byte_vector(&output))
 }
 
 /// Run one of the Blake hash functions.
@@ -139,11 +114,12 @@ fn blake_hash(
 // cSpell:disable-next-line
 /// Run one of the Secp256 signature verifications.
 /// ```text
-/// pub fn verify_signature<let N: u32>(
-///   public_key_x: [u8; 32],
-///   public_key_y: [u8; 32],
-///   signature: [u8; 64],
-///   message_hash: [u8; N],
+/// pub fn _verify_signature(
+///     public_key_x: [u8; 32],
+///     public_key_y: [u8; 32],
+///     signature: [u8; 64],
+///     message_hash: [u8; 32],
+///     predicate: bool,
 /// ) -> bool
 // cSpell:disable-next-line
 fn ecdsa_secp256_verify(
@@ -207,6 +183,7 @@ fn embedded_curve_add(
 /// pub fn multi_scalar_mul<let N: u32>(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
+///     predicate: bool,
 /// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn multi_scalar_mul(
@@ -216,7 +193,7 @@ fn multi_scalar_mul(
     pedantic_solving: bool,
 ) -> IResult<Value> {
     let (points, scalars, predicate) = check_three_arguments(arguments, location)?;
-    assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
+    assert_eq!(predicate.0, Value::Bool(true), "multi_scalar_mul predicate should be true");
 
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;
@@ -361,6 +338,12 @@ mod tests {
         let mut not_implemented = Vec::new();
 
         for blackbox in BlackBoxFunc::iter() {
+            // There's no implementation for RANGE as it's actually a builtin function,
+            // and in the comptime interpreter it's not transformed to a foreign function call
+            if blackbox == BlackBoxFunc::RANGE {
+                continue;
+            }
+
             let name = blackbox.name();
             let pedantic_solving = true;
             match call_foreign(name, Vec::new(), Type::Unit, no_location, pedantic_solving) {
