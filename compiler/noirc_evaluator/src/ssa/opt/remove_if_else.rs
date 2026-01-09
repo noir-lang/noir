@@ -408,14 +408,13 @@ impl Context {
                     results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
 
                 assert_eq!(arguments_types, results_types);
- 
+
                 let mut changes = Vec::new();
                 for (i, argument) in arguments.iter().enumerate() {
                     if self.vector_sizes.contains_key(argument)
                         && matches!(dfg.type_of_value(*argument), Type::Vector(_))
                     {
                         assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
-                        assert!(matches!(arguments_types[i], Type::Vector(_)));
                         let new = results[i];
                         changes.push(SizeChange::SetTo { old: *argument, new });
                     }
