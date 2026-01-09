@@ -1160,9 +1160,10 @@ fn varargs_on_function_without_arguments() {
 #[test]
 fn varargs_on_function_without_last_vector_parameter() {
     let src = "
+    #[foo(1, 2, 3, 4)] // Make sure no error is triggered here because of the varargs error
     #[varargs]
-    pub comptime fn foo(_x: Field, _y: Field) {}
-                                   ^^ The last parameter of a #[varargs] function must be a vector
+    pub comptime fn foo(_: FunctionDefinition, _x: Field, _y: Field) {}
+                                                          ^^ The last parameter of a #[varargs] function must be a vector
 
     fn main() {}
     ";
