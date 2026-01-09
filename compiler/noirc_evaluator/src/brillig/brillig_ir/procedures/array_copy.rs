@@ -114,12 +114,8 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     initialize_constant_string(brillig_context, data, *items_pointer);
 
     // Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    items_pointer.map(|pointer| {
-        ValueOrArray::HeapArray(HeapArray {
-            pointer,
-            size: assert_u32(data.len()),
-        })
-    })
+    items_pointer
+        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: assert_u32(data.len()) }))
 }
 
 /// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
@@ -177,17 +173,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         let newline_type = u1_type.clone();
         let size = message_with_func_name.len();
-        let msg_type = HeapValueType::Array {
-            value_types: vec![u8_type.clone()],
-            size: assert_u32(size),
-        };
+        let msg_type =
+            HeapValueType::Array { value_types: vec![u8_type.clone()], size: assert_u32(size) };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
         let size = PRINT_U32_TYPE_STRING.len();
-        let metadata_type = HeapValueType::Array {
-            value_types: vec![u8_type],
-            size: assert_u32(size),
-        };
+        let metadata_type =
+            HeapValueType::Array { value_types: vec![u8_type], size: assert_u32(size) };
         let is_fmt_string_type = u1_type;
 
         let input_types = [
