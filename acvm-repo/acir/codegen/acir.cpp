@@ -838,8 +838,6 @@ namespace Acir {
         uint64_t value;
 
         friend bool operator==(const SemiFlattenedLength&, const SemiFlattenedLength&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static SemiFlattenedLength bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -1510,8 +1508,6 @@ namespace Acir {
         uint64_t value;
 
         friend bool operator==(const SemanticLength&, const SemanticLength&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static SemanticLength bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -8197,21 +8193,6 @@ namespace Acir {
         return true;
     }
 
-    inline std::vector<uint8_t> SemanticLength::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<SemanticLength>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline SemanticLength SemanticLength::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<SemanticLength>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Acir
 
 template <>
@@ -8237,21 +8218,6 @@ namespace Acir {
     inline bool operator==(const SemiFlattenedLength &lhs, const SemiFlattenedLength &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> SemiFlattenedLength::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<SemiFlattenedLength>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline SemiFlattenedLength SemiFlattenedLength::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<SemiFlattenedLength>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Acir
