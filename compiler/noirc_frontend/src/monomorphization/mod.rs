@@ -146,10 +146,13 @@ pub struct Monomorphizer<'interner> {
     next_function_id: u32,
     next_ident_id: u32,
 
+    /// Location of the last statement in the `main` function, determined during compilation.
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
 
+    /// Indicate that we are currently monomorphizing an unconstrained function, which causes
+    /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
 
     /// Set to true to force every function to be unconstrained.
@@ -159,6 +162,8 @@ pub struct Monomorphizer<'interner> {
 }
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
+///
+/// Maps (FuncId, unconstrained) -> Map (Func Type) -> Map (Vec<Generic Type>) -> monomorphized FuncId
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
@@ -451,13 +456,18 @@ impl<'interner> Monomorphizer<'interner> {
             .insert(turbofish_generics, new_id);
     }
 
-    /// Monomorphize the `main` function, ensuring it has the id expected by [Program::main_id].
+    /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
+    ///
+    /// Sets the `return_location` expected by `into_program` later.
+    /// Returns the [FunctionSignature] of `main`, expected to be passed to `into_program`.
+    ///
+    /// Panics if some other function has already been monomorphized before.
     pub fn compile_main(
         &mut self,
         main_id: node_interner::FuncId,
     ) -> Result<FunctionSignature, MonomorphizationError> {
         let new_main_id = self.next_function_id();
-        assert_eq!(new_main_id, Program::main_id());
+        assert_eq!(new_main_id, Program::main_id(), "expected main to be monomorphized first");
 
         let location = self.interner.function_meta(&main_id).location;
         self.in_unconstrained_function = self.is_unconstrained(main_id);
