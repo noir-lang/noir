@@ -17,7 +17,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
     shared::{Signedness, Visibility},
-    token::FunctionAttributeKind,
+    token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
 
 use noirc_errors::Location;
@@ -344,6 +344,23 @@ pub(super) fn databus_on_non_entry_point(
     } else {
         None
     }
+}
+
+pub(crate) fn check_varargs(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let secondary_attributes = &modifiers.attributes.secondary;
+    let varargs_attribute = secondary_attributes
+        .iter()
+        .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Varargs))?;
+    if !modifiers.is_comptime {
+        return Some(ResolverError::VarargsOnNonComptimeFunction {
+            location: varargs_attribute.location,
+        });
+    }
+
+    None
 }
 
 /// Checks if an ExprId, which has to be an integer literal, fits in its type.

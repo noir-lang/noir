@@ -1133,3 +1133,14 @@ fn regression_11016() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn varargs_on_non_comptime_function() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] can only be applied to comptime functions
+    fn main() {
+    }
+    ";
+    check_errors(src);
+}
