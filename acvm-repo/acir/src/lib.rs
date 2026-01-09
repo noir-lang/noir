@@ -159,12 +159,7 @@ mod reflection {
             namespace,
             registry,
             code,
-            MsgPackCodeConfig {
-                // We agreed on the default format to be compact, so it makes sense for Barretenberg to use it for serialization.
-                pack_compact: true,
-                // Barretenberg didn't use serialization outside tests, so they decided they don't want to have this code at all.
-                no_pack: true,
-            },
+            MsgPackCodeConfig::from_env(),
         );
 
         // Create C++ class definitions.
@@ -193,13 +188,22 @@ mod reflection {
         write_to_file(source.as_bytes(), path);
     }
 
+    /// Get a boolean flag env var.
+    fn env_flag(name: &str, default: bool) -> bool {
+        let Ok(s) = std::env::var(name) else {
+            return default;
+        };
+        match s.as_str() {
+            "1" | "true" | "yes" => true,
+            "0" | "false" | "no" => false,
+            _ => default,
+        }
+    }
+
     /// Check if it's okay for the generated source to be overwritten with a new version.
     /// Otherwise any changes causes a test failure.
     fn should_overwrite() -> bool {
-        std::env::var("NOIR_CODEGEN_OVERWRITE")
-            .ok()
-            .map(|v| v == "1" || v == "true")
-            .unwrap_or_default()
+        env_flag("NOIR_CODEGEN_OVERWRITE", false)
     }
 
     fn write_to_file(bytes: &[u8], path: &Path) -> String {
@@ -235,6 +239,17 @@ mod reflection {
         pack_compact: bool,
         /// If `true`, skip generating `msgpack_pack` methods.
         no_pack: bool,
+    }
+
+    impl MsgPackCodeConfig {
+        fn from_env() -> Self {
+            Self {
+                // We agreed on the default format to be compact, so it makes sense for Barretenberg to use it for serialization.
+                pack_compact: env_flag("NOIR_CODEGEN_PACK_COMPACT", true),
+                // Barretenberg didn't use serialization outside tests, so they decided they don't want to have this code at all.
+                no_pack: env_flag("NOIR_CODEGEN_NO_PACK", true),
+            }
+        }
     }
 
     /// Generate custom code for the msgpack machinery in Barretenberg.
