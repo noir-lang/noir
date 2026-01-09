@@ -1128,7 +1128,7 @@ fn type_as_constant(
                 if err.is_non_constant_evaluated() {
                     Ok(None)
                 } else {
-                    let err = Some(Box::new(err));
+                    let err = Box::new(err);
                     Err(InterpreterError::NonIntegerArrayLength { typ, err, location })
                 }
             }
