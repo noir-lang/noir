@@ -573,7 +573,7 @@ mod reflection {
         std::visit([&packer, tag](const auto& arg) {{
             packer.pack_map(1);
             packer.pack(tag);
-            arg.msgpack_pack(packer);
+            packer.pack(arg);
         }}, value);
     }}"#
                 )
