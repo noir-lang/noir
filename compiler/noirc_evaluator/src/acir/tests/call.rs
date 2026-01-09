@@ -256,6 +256,6 @@ fn call_with_expression_predicate() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
