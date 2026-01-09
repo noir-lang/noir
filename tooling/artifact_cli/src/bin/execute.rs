@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use acvm::compiler::validator::validate_witness;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use clap::{Parser, Subcommand, command};
+use clap::{Parser, Subcommand};
 use color_eyre::eyre;
 use const_format::formatcp;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
