@@ -1518,7 +1518,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
+                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         let length = size.as_ref().clone();
@@ -1534,7 +1534,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(size, fields) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
+                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         let length = size.as_ref().clone();
