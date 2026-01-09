@@ -207,6 +207,7 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftRight => match_integer! {
             (lhs_value as lhs ">>" rhs_value as rhs) {
                 int: {
+                    #[allow(clippy::useless_conversion)]
                     let rhs: Result<u32, _> = rhs.try_into();
                     #[allow(irrefutable_let_patterns)]
                     let Ok(rhs) = rhs else {
@@ -221,6 +222,7 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) {
                 int: {
+                    #[allow(clippy::useless_conversion)]
                     let rhs: Result<u32, _> = rhs.try_into();
                     #[allow(irrefutable_let_patterns)]
                     let Ok(rhs) = rhs else {
