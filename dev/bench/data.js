@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767983445904,
+  "lastUpdate": 1767983811862,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "77aeca0f369227940958d83d6e3e90e23d68a484",
-          "message": "chore: remove trailing spaces from bash scripts (#11075)",
-          "timestamp": "2026-01-05T19:04:20Z",
-          "tree_id": "ae3a80377344875f1938d7a7fcbf7006f45487ba",
-          "url": "https://github.com/noir-lang/noir/commit/77aeca0f369227940958d83d6e3e90e23d68a484"
-        },
-        "date": 1767640004965,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261669,
-            "range": "± 1032",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235059,
-            "range": "± 2692",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792322,
-            "range": "± 4267",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794740,
             "range": "± 11518",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bb95e527023095696a9795e53c1ccc1ccc64d61c",
+          "message": "fix: safe cast shift rhs to u32 in comptime interpreter (#11151)",
+          "timestamp": "2026-01-09T18:14:22Z",
+          "tree_id": "1aa13bc9169163ba77be262011b78fc042c08556",
+          "url": "https://github.com/noir-lang/noir/commit/bb95e527023095696a9795e53c1ccc1ccc64d61c"
+        },
+        "date": 1767983777772,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254098,
+            "range": "± 818",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224199,
+            "range": "± 1905",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793842,
+            "range": "± 1415",
             "unit": "ns/iter"
           }
         ]
