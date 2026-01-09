@@ -648,7 +648,10 @@ fn format_generics_impl(generics: &ResolvedGenerics, only_show_names: bool, stri
                 noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
                     string.push_str(&generic.name);
                 }
-                noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
+                noirc_frontend::Kind::IntegerOrField
+                | noirc_frontend::Kind::Integer
+                | noirc_frontend::Kind::TypeIntegerOrField
+                | noirc_frontend::Kind::TypeInteger => {
                     string.push_str("let ");
                     string.push_str(&generic.name);
                     string.push_str(": u32");

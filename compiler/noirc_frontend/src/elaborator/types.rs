@@ -744,6 +744,8 @@ impl Elaborator<'_> {
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
                 if let Some(suffix) = suffix {
                     self.check_kind(suffix.as_kind(), expected_kind, location);
+                } else {
+                    self.check_kind(Kind::TypeIntegerOrField, expected_kind, location);
                 }
                 Type::Constant(int, expected_kind.clone())
             }

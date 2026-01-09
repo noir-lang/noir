@@ -182,6 +182,12 @@ pub enum Kind {
     /// that can only be bound to Type::Integer, or other polymorphic integers.
     Integer,
 
+    // Type-level IntegerOrField
+    TypeIntegerOrField,
+
+    // type-level Integer)
+    TypeInteger,
+
     /// Can bind to a Type::Constant or Type::InfixExpr of the given kind
     Numeric(Box<Type>),
 }
@@ -209,6 +215,8 @@ impl Kind {
             Self::Normal => Self::Normal,
             Self::Integer => Self::Integer,
             Self::IntegerOrField => Self::IntegerOrField,
+            Self::TypeInteger => Self::TypeInteger,
+            Self::TypeIntegerOrField => Self::TypeIntegerOrField,
             Self::Numeric(typ) => Self::numeric(typ.follow_bindings()),
         }
     }
@@ -227,19 +235,30 @@ impl Kind {
                 None
             }
             Kind::Any | Kind::Normal => None,
+            Kind::TypeIntegerOrField | Kind::TypeInteger => None,
         }
     }
 
     fn integral_maximum_size(&self) -> Option<FieldElement> {
         match self.follow_bindings() {
-            Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
+            Kind::Any
+            | Kind::IntegerOrField
+            | Kind::TypeIntegerOrField
+            | Kind::Integer
+            | Kind::TypeInteger
+            | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
         }
     }
 
     fn integral_minimum_size(&self) -> Option<SignedField> {
         match self.follow_bindings() {
-            Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
+            Kind::Any
+            | Kind::IntegerOrField
+            | Kind::TypeIntegerOrField
+            | Kind::Integer
+            | Kind::TypeInteger
+            | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_minimum_size(),
         }
     }
@@ -295,7 +314,9 @@ impl std::fmt::Display for Kind {
             Kind::Any => write!(f, "any"),
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
+            Kind::TypeInteger => write!(f, "typeInt"),
             Kind::IntegerOrField => write!(f, "intOrField"),
+            Kind::TypeIntegerOrField => write!(f, "typeIntOrField"),
             Kind::Numeric(typ) => write!(f, "numeric {typ}"),
         }
     }
@@ -1081,6 +1102,7 @@ impl std::fmt::Display for Type {
                         Kind::Integer => write!(f, "{}", Type::default_int_type()),
                         Kind::IntegerOrField => write!(f, "Field"),
                         Kind::Numeric(_typ) => write!(f, "_"),
+                        Kind::TypeInteger | Kind::TypeIntegerOrField => write!(f, "_"),
                     },
                     TypeBinding::Bound(binding) => {
                         write!(f, "{binding}")
@@ -2656,7 +2678,12 @@ impl Type {
                 let binding = &var.1;
                 match &*binding.borrow() {
                     TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
-                        Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
+                        Kind::Any
+                        | Kind::Normal
+                        | Kind::Integer
+                        | Kind::TypeInteger
+                        | Kind::IntegerOrField
+                        | Kind::TypeIntegerOrField => None,
                         Kind::Numeric(typ) => typ.integral_maximum_size(),
                     },
                     TypeBinding::Bound(typ) => typ.integral_maximum_size(),
@@ -2707,7 +2734,12 @@ impl Type {
                 let binding = &var.1;
                 match &*binding.borrow() {
                     TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
-                        Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
+                        Kind::Any
+                        | Kind::Normal
+                        | Kind::Integer
+                        | Kind::IntegerOrField
+                        | Kind::TypeInteger
+                        | Kind::TypeIntegerOrField => None,
                         Kind::Numeric(typ) => typ.integral_minimum_size(),
                     },
                     TypeBinding::Bound(typ) => typ.integral_minimum_size(),
@@ -2923,8 +2955,10 @@ impl From<&Type> for PrintableType {
             },
             Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.into(),
-                TypeBinding::Unbound(_, Kind::Integer) => Type::default_int_type().into(),
-                TypeBinding::Unbound(_, Kind::IntegerOrField) => {
+                TypeBinding::Unbound(_, Kind::Integer | Kind::TypeInteger) => {
+                    Type::default_int_type().into()
+                }
+                TypeBinding::Unbound(_, Kind::IntegerOrField | Kind::TypeIntegerOrField) => {
                     Type::default_int_or_field_type().into()
                 }
                 TypeBinding::Unbound(_, Kind::Numeric(typ)) => (*typ.clone()).into(),
@@ -3012,6 +3046,8 @@ impl std::fmt::Debug for Type {
                         Kind::Any | Kind::Normal => write!(f, "{var:?}"),
                         Kind::IntegerOrField => write!(f, "IntOrField{binding:?}"),
                         Kind::Integer => write!(f, "Int{binding:?}"),
+                        Kind::TypeIntegerOrField => write!(f, "TypeIntOrField{binding:?}"),
+                        Kind::TypeInteger => write!(f, "TypeInt{binding:?}"),
                         Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
@@ -3052,7 +3088,12 @@ impl std::fmt::Debug for Type {
             Type::Error => write!(f, "error"),
             Type::CheckedCast { to, .. } => write!(f, "{to:?}"),
             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
-                Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
+                Kind::Any
+                | Kind::Normal
+                | Kind::Integer
+                | Kind::IntegerOrField
+                | Kind::TypeInteger
+                | Kind::TypeIntegerOrField => {
                     write!(f, "{name}{type_var:?}")
                 }
                 Kind::Numeric(typ) => {

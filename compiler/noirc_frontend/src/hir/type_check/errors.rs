@@ -403,7 +403,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
                 // Try to improve the error message for some kind combinations
                 match (expected_kind, expr_kind) {
-                    (Kind::Normal, Kind::Numeric(_)) => {
+                    (Kind::Normal, Kind::Numeric(_) | Kind::TypeInteger | Kind::TypeIntegerOrField) => {
                         Diagnostic::simple_error(
                             "Expected type, found numeric generic".into(),
                             "not a type".into(),
@@ -414,6 +414,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                         Diagnostic::simple_error(
                             "Type provided when a numeric generic was expected".into(),
                             format!("the numeric generic is not of type `{typ}`"),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::TypeInteger | Kind::TypeIntegerOrField, Kind::Normal) => {
+                        Diagnostic::simple_error(
+                            "Type provided when a numeric generic was expected".into(),
+                            String::new(),
                             *expr_location,
                         )
                     }

@@ -479,7 +479,7 @@ fn type_def_add_generic(
         }
     }
 
-    let type_var_kind = Kind::Normal;
+    let type_var_kind = Kind::Any;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
     let typ = type_var.clone().into_named_generic(name.clone());
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };

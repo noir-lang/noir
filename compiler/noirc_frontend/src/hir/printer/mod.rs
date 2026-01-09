@@ -708,7 +708,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Kind::Any | Kind::Normal => {
                 self.push_str(name);
             }
-            Kind::IntegerOrField | Kind::Integer => {
+            Kind::IntegerOrField | Kind::Integer => self.push_str(name),
+            Kind::TypeIntegerOrField | Kind::TypeInteger => {
                 self.push_str("let ");
                 self.push_str(name);
                 self.push_str(": u32");

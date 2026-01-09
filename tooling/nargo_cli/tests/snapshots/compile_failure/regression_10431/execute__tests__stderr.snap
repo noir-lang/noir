@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected type, found numeric generic
+  ┌─ src/main.nr:5:10
+  │
+5 │ impl Foo<1> {}
+  │          - not a type
+  │
+
+error: Expected type, found numeric generic
+  ┌─ src/main.nr:8:18
+  │
+8 │     let foo: Foo<1> = std::mem::zeroed();
+  │                  - not a type
+  │
+
+Aborting due to 2 previous errors

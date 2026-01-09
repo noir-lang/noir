@@ -602,7 +602,12 @@ impl DocItemBuilder<'_> {
 
     fn kind_to_numeric(&self, kind: Kind) -> Option<Type> {
         match kind {
-            Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
+            Kind::Any
+            | Kind::Normal
+            | Kind::IntegerOrField
+            | Kind::Integer
+            | Kind::TypeInteger
+            | Kind::TypeIntegerOrField => None,
             Kind::Numeric(typ) => Some(self.convert_type(&typ)),
         }
     }

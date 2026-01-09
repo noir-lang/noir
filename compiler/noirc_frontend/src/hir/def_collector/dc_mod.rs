@@ -688,7 +688,7 @@ impl ModCollector<'_> {
                             let type_variable_id = context.def_interner.next_type_variable_id();
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(type_variable_id, Kind::Normal),
+                                type_var: TypeVariable::unbound(type_variable_id, Kind::Any),
                                 location: name.location(),
                             });
                         }

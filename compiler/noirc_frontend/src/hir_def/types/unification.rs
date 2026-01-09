@@ -43,9 +43,15 @@ impl Kind {
             // Kind::Integer unifies with Kind::IntegerOrField
             (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
 
-            // Kind::IntegerOrField unifies with Kind::Numeric(_)
-            (Kind::IntegerOrField, Kind::Numeric(_typ))
-            | (Kind::Numeric(_typ), Kind::IntegerOrField) => true,
+            // Kind::TypeInteger unifies with Kind::TypeIntegerOrField
+            (
+                Kind::TypeInteger | Kind::TypeIntegerOrField,
+                Kind::TypeInteger | Kind::TypeIntegerOrField,
+            ) => true,
+
+            // Kind::TypeInteger and Kind::TypeIntegerOrField unifies with Kind::Numeric(_)
+            (Kind::TypeInteger | Kind::TypeIntegerOrField, Kind::Numeric(_typ))
+            | (Kind::Numeric(_typ), Kind::TypeInteger | Kind::TypeIntegerOrField) => true,
 
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {

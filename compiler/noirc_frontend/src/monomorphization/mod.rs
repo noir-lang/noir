@@ -1279,6 +1279,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Kind::Normal => (),
                     Kind::Integer => (),
                     Kind::IntegerOrField => (),
+                    Kind::TypeInteger => (),
+                    Kind::TypeIntegerOrField => (),
                     Kind::Numeric(typ) => Self::check_type(typ, ident.location)?,
                 }
                 Self::check_type(binding, ident.location)?;
