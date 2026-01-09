@@ -545,7 +545,7 @@ pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<
 pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
     match typ {
         Type::Function(_, ret, _, _) => {
-            *ret = Box::new(return_type);
+            **ret = return_type;
         }
         Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
         _ => {}
