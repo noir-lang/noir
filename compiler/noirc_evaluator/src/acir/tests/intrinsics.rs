@@ -481,7 +481,7 @@ fn vector_insert_no_predicate() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -557,7 +557,7 @@ fn vector_remove() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -754,7 +754,7 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 

@@ -30,7 +30,7 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
     get_monomorphized_with_error_filter(src, |_| false)
 }
 
-pub(crate) fn get_monomorphized_with_error_filter(
+pub fn get_monomorphized_with_error_filter(
     src: &str,
     ignore_error: impl Fn(&CompilationError) -> bool,
 ) -> Result<Program, MonomorphizationError> {

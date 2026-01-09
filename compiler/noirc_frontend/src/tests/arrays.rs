@@ -66,7 +66,7 @@ fn cannot_determine_array_type() {
 fn cannot_determine_vector_type() {
     let src = r#"
     fn main() {
-        let _ = &[];
+        let _ = @[];
                 ^^^ Type annotation needed
                 ~~~ Could not determine the type of the vector
     }
@@ -108,7 +108,7 @@ fn non_homogenous_array() {
 fn array_with_nested_vector() {
     let src = r#"
     fn main () {
-        let _: [[[Field]; 1]; 1] = [[&[0]]];
+        let _: [[[Field]; 1]; 1] = [[@[0]]];
                ^^^^^^^^^^^^^^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
                ~~~~~~~~~~~~~~~~~ Try to use a constant sized array or BoundedVec instead
     }
