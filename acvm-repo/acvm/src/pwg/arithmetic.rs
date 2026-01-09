@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use acir::{
     AcirField,
     native_types::{Expression, Witness, WitnessMap},
@@ -42,14 +40,28 @@ impl ExpressionSolver {
     ) -> Result<(), OpcodeResolutionError<F>> {
         let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
         // Evaluate multiplication term
-        let mul_result =
-            ExpressionSolver::solve_mul_term(opcode, initial_witness).map_err(|_| {
+        let mul_result = ExpressionSolver::solve_mul_term(&opcode.mul_terms, initial_witness)
+            .map_err(|_| {
                 OpcodeResolutionError::OpcodeNotSolvable(
                     OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
                 )
             })?;
         // Evaluate the fan-in terms
-        let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
+        let opcode_status =
+            ExpressionSolver::solve_fan_in_term(&opcode.linear_combinations, initial_witness);
+
+        // If we can solve the multiplication terms but not the linear terms,
+        // try again by combining linear terms with the same witness.
+        let opcode_status = if matches!(
+            (&mul_result, &opcode_status),
+            (MulTerm::Solved(..), OpcodeStatus::OpcodeUnsolvable)
+        ) {
+            let linear_combinations =
+                ExpressionSolver::combine_linear_terms(&opcode.linear_combinations);
+            ExpressionSolver::solve_fan_in_term(&linear_combinations, initial_witness)
+        } else {
+            opcode_status
+        };
 
         match (mul_result, opcode_status) {
             (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
@@ -141,23 +153,20 @@ impl ExpressionSolver {
         }
     }
 
-    /// Try to reduce the multiplication terms of the given expression to a known value or to a linear term,
+    /// Try to reduce the multiplication terms of the given expression's mul terms to a known value or to a linear term,
     /// using the provided witness mapping.
     /// If there are 2 or more multiplication terms it returns the OpcodeUnsolvable error.
     /// If no witnesses value is in the provided 'witness_assignments' map,
     /// it returns MulTerm::TooManyUnknowns
     fn solve_mul_term<F: AcirField>(
-        arith_opcode: &Expression<F>,
+        mul_terms: &[(F, Witness, Witness)],
         witness_assignments: &WitnessMap<F>,
     ) -> Result<MulTerm<F>, OpcodeStatus<F>> {
         // First note that the mul term can only contain one/zero term,
         // e.g. that it has been optimized, or else we're returning OpcodeUnsolvable
-        match arith_opcode.mul_terms.len() {
+        match mul_terms.len() {
             0 => Ok(MulTerm::Solved(F::zero())),
-            1 => Ok(ExpressionSolver::solve_mul_term_helper(
-                &arith_opcode.mul_terms[0],
-                witness_assignments,
-            )),
+            1 => Ok(ExpressionSolver::solve_mul_term_helper(&mul_terms[0], witness_assignments)),
             _ => Err(OpcodeStatus::OpcodeUnsolvable),
         }
     }
@@ -199,7 +208,7 @@ impl ExpressionSolver {
     /// Returns the summation of all of the variables, plus the unknown variable
     /// Returns [`OpcodeStatus::OpcodeUnsolvable`], if there is more than one unknown variable
     pub(super) fn solve_fan_in_term<F: AcirField>(
-        arith_opcode: &Expression<F>,
+        linear_combinations: &[(F, Witness)],
         witness_assignments: &WitnessMap<F>,
     ) -> OpcodeStatus<F> {
         // If the fan-in has more than 0 num_unknowns:
@@ -210,7 +219,7 @@ impl ExpressionSolver {
         // This is the sum of all of the known variables
         let mut result = F::zero();
 
-        for term in arith_opcode.linear_combinations.iter() {
+        for term in linear_combinations.iter() {
             let value = ExpressionSolver::solve_fan_in_term_helper(term, witness_assignments);
             match value {
                 Some(a) => result += a,
@@ -245,14 +254,13 @@ impl ExpressionSolver {
         initial_witness: &WitnessMap<F>,
     ) -> Expression<F> {
         let mut result = Expression::default();
-        let mut linear_combinations = HashMap::new();
 
         for &(c, w1, w2) in &expr.mul_terms {
             let mul_result = ExpressionSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);
             match mul_result {
                 MulTerm::OneUnknown(v, w) => {
                     if !v.is_zero() {
-                        linear_combinations.entry(w).and_modify(|value| *value += v).or_insert(c);
+                        result.linear_combinations.push((v, w));
                     }
                 }
                 MulTerm::TooManyUnknowns => {
@@ -268,17 +276,34 @@ impl ExpressionSolver {
             if let Some(f) = ExpressionSolver::solve_fan_in_term_helper(&(c, w), initial_witness) {
                 result.q_c += f;
             } else if !c.is_zero() {
-                linear_combinations.entry(w).and_modify(|value| *value += c).or_insert(c);
+                result.linear_combinations.push((c, w));
             }
         }
 
-        result.linear_combinations = linear_combinations
-            .into_iter()
-            .filter_map(|(w, c)| if c.is_zero() { None } else { Some((c, w)) })
-            .collect();
-
         result.q_c += expr.q_c;
         result
+    }
+
+    /// Combines linear terms with the same witness by summing their coefficients.
+    /// For example `w1 + 2*w1` becomes `3*w1`.
+    fn combine_linear_terms<F: AcirField>(
+        linear_combinations: &[(F, Witness)],
+    ) -> Vec<(F, Witness)> {
+        let mut combined_linear_combinations = std::collections::HashMap::new();
+
+        for (c, w) in linear_combinations {
+            let existing_c = combined_linear_combinations.entry(*w).or_insert(F::zero());
+            *existing_c += *c;
+        }
+
+        combined_linear_combinations
+            .into_iter()
+            .filter_map(
+                |(witness, coeff)| {
+                    if !coeff.is_zero() { Some((coeff, witness)) } else { None }
+                },
+            )
+            .collect()
     }
 }
 
