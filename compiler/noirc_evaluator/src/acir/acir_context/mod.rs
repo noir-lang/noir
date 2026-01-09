@@ -1429,8 +1429,12 @@ impl<F: AcirField> AcirContext<F> {
         // See issue https://github.com/noir-lang/noir/issues/1439
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-
-        let predicate = Some(self.var_to_expression(predicate)?);
+        let expr: Expression<F> = if self.is_constant(&predicate) {
+            self.var_to_expression(predicate)?
+        } else {
+            self.var_to_witness(predicate)?.into()
+        };
+        let predicate = Some(expr);
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
