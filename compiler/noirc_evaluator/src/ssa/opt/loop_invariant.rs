@@ -435,7 +435,7 @@ impl<'f> LoopInvariantContext<'f> {
                         let results: Vec<_> = dfg
                             .instruction_results(instruction_id)
                             .iter()
-                            .filter(|result| dfg.type_of_value(**result).contains_an_array())
+                            .filter(|result| dfg.type_of_value(**result).is_array())
                             .copied()
                             .collect();
                         let call_stack = dfg.get_instruction_call_stack_id(instruction_id);
@@ -688,12 +688,21 @@ impl<'f> LoopInvariantContext<'f> {
             return (false, false);
         }
 
-        // In Brillig, if the instruction returns an array, we need to insert an inc_rc
+        // In Brillig, if the instruction creates a new array, we need to insert an inc_rc
         // to handle potential mutations.
         let dfg = &self.inserter.function.dfg;
         let returns_array = if dfg.runtime().is_brillig() {
-            let results = dfg.instruction_results(instruction_id);
-            results.iter().any(|r| dfg.type_of_value(*r).is_array())
+            // Add inc_rc for instructions that create new arrays
+            match &instruction {
+                Instruction::MakeArray { .. } | Instruction::ArraySet { .. } => true,
+                Instruction::Call { .. } => {
+                    let results = dfg.instruction_results(instruction_id);
+                    results.iter().any(|r| dfg.type_of_value(*r).is_array())
+                }
+                // ArrayGet can return an array but it does not create it
+                // In that case, the refcount is managed by the parent array.
+                _ => false,
+            }
         } else {
             false
         };
@@ -3652,5 +3661,42 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
         let ssa_string = ssa.to_string();
         assert!(ssa_string.contains("inc_rc"), "failed on call f1() -> (u8, [u8; 4])");
+    }
+
+    #[test]
+    /// Validates that the pass does not add an inc_rc operation for ArrayGet
+    fn array_get_does_not_add_inc_rc() {
+        let src = r#"
+        g0 = make_array [Field 1, Field 2] : [Field; 2]
+        g1 = make_array [Field 3, Field 4] : [Field; 2]
+        g2 = make_array [g0, g1] : [[Field; 2]; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            v3 = allocate -> &mut Field
+            store Field 0 at v3
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v6 = lt v0, u32 2
+            jmpif v6 then: b2, else: b3
+          b2():
+            v8 = array_get g2, index v0 -> [Field; 2]
+            v9 = array_get v8, index u32 0 -> Field
+            v10 = load v3 -> Field
+            v11 = add v10, v9
+            store v11 at v3
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b3():
+            v7 = load v3 -> Field
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let ssa_string = ssa.to_string();
+        // ArrayGet should not add inc_rc since it extracts from an existing array
+        // rather than creating a new one
+        assert!(!ssa_string.contains("inc_rc"), "ArrayGet should not add inc_rc");
     }
 }
