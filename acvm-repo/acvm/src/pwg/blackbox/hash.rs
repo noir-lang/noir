@@ -15,9 +15,10 @@ pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
     inputs: &[FunctionInput<F>],
     var_message_size: Option<&FunctionInput<F>>,
     outputs: &[Witness; 32],
+    bb_func: acir::BlackBoxFunc,
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let message_input = get_hash_input(initial_witness, inputs, var_message_size, 8)?;
+    let message_input = get_hash_input(initial_witness, inputs, var_message_size, 8, bb_func)?;
     let digest: [u8; 32] = hash_function(&message_input)?;
 
     write_digest_to_outputs(initial_witness, outputs, digest)
@@ -29,6 +30,7 @@ fn get_hash_input<F: AcirField>(
     inputs: &[FunctionInput<F>],
     message_size: Option<&FunctionInput<F>>,
     num_bits: usize,
+    bb_func: acir::BlackBoxFunc,
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
     let mut message_input = Vec::new();
@@ -50,7 +52,7 @@ fn get_hash_input<F: AcirField>(
             // in the message, then we error.
             if num_bytes_to_take > message_input.len() {
                 return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-                    acir::BlackBoxFunc::Blake2s,
+                    bb_func,
                     format!(
                         "the number of bytes to take from the message is more than the number of bytes in the message. {} > {}",
                         num_bytes_to_take,
@@ -172,8 +174,15 @@ mod tests {
             (Witness(3), FieldElement::from('c' as u128)),
         ]));
 
-        solve_generic_256_hash_opcode(&mut initial_witness, &inputs, None, &outputs, blake2s)
-            .unwrap();
+        solve_generic_256_hash_opcode(
+            &mut initial_witness,
+            &inputs,
+            None,
+            &outputs,
+            acir::BlackBoxFunc::Blake2s,
+            blake2s,
+        )
+        .unwrap();
 
         let expected_output: [u128; 32] = [
             0x50, 0x8C, 0x5E, 0x8C, 0x32, 0x7C, 0x14, 0xE2, 0xE1, 0xA7, 0x2B, 0xA3, 0x4E, 0xEB,
@@ -206,8 +215,15 @@ mod tests {
             (Witness(3), FieldElement::from('c' as u128)),
         ]));
 
-        solve_generic_256_hash_opcode(&mut initial_witness, &inputs, None, &outputs, blake3)
-            .unwrap();
+        solve_generic_256_hash_opcode(
+            &mut initial_witness,
+            &inputs,
+            None,
+            &outputs,
+            acir::BlackBoxFunc::Blake3,
+            blake3,
+        )
+        .unwrap();
 
         let expected_output: [u128; 32] = [
             0x64, 0x37, 0xB3, 0xAC, 0x38, 0x46, 0x51, 0x33, 0xFF, 0xB6, 0x3B, 0x75, 0x27, 0x3A,
