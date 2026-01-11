@@ -14,9 +14,9 @@ This article intends to set you up with key concepts essential for writing more 
 When writing a web application for a performant computer with high-speed internet connection, writing efficient code sometimes is seen as an afterthought only if needed. Large multiplications running at the innermost of nested loops may not even be on a dev's radar.
 When writing firmware for a battery-powered microcontroller, you think of cpu cycles as rations to keep within a product's power budget.
 
-> Code is written to create applications that perform specific tasks within specific constraints
+> Code is written to create applications that perform specific tasks within specific constraints.
 
-And these constraints differ depending on where the compiled code is execute.
+And these constraints differ depending on where the compiled code is executed.
 
 ### The Ethereum Virtual Machine (EVM)
 
@@ -26,7 +26,7 @@ The equivalent optimization task when writing zk circuits is affectionately refe
 
 ### Coding for circuits - a paradigm shift
 
-In zero knowledge cryptography, code is compiled to "circuits" consisting of arithmetic gates, and gate count is the significant cost. Depending on the proving system this is linearly proportionate to proof size and proving time, so from a product point of view this should be kept as low as possible.
+In zero knowledge cryptography, code is compiled to "circuits" consisting of arithmetic gates, and gate count is the significant cost. Depending on the proving system this may be linearly proportionate to proof size and proving time, so from a product point of view this should be kept as low as possible.
 
 Whilst writing efficient code for web apps and Solidity have some differences, writing efficient circuits have a different set of considerations. It is a bit of a paradigm shift, like writing code for GPUs for the first time...
 
@@ -83,10 +83,10 @@ The following points help refine our understanding over time.
 A Noir program makes a statement that can be verified.
 :::
 
-It compiles to a structure that represents the calculation, and can assert results within the calculation at any stage (via the `constrain` keyword).
+It compiles to a structure that represents the calculation, and can assert results within the calculation at any stage.
 
-A Noir program compiles to an Abstract Circuit Intermediate Representation which is:
- - Conceptually a tree structure
+A Noir program compiles to an Abstract Circuit Intermediate Representation (ACIR) where:
+ - It is conceptually a tree structure
  - Leaves (inputs) are the `Field` type
  - Nodes contain arithmetic operations to combine them (gates)
  - The root is the final result (return value)
@@ -104,7 +104,7 @@ A program optimized for execution may leverage the binary representations of int
 The cryptography in a proving backend makes use of a `Field` type, and leveraging this lower level type correctly can reduce gate count, and thus proof size and proving time.
 
 In some instances simply replacing the integer type with a `Field` could save on some range checks (and hence gates).
-Note: when casting a `Field` to an integer type, the value is converted based on the integer binary representation. Eg a Field variable with a value of 260 `as u8` becomes 4
+Note: when casting a `Field` to an integer type, the value is converted based on the integer binary representation. E.g. a Field variable with a value of 260 `as u8` becomes 4.
 
 ### `Field`s for efficiency
 
@@ -152,7 +152,7 @@ Another general theme that manifests in different ways is that static reads are 
 
 Reading from read-only memory (ROM) adds less gates than random-access memory (RAM), 2 vs ~3.25 due to the additional bounds checks. Arrays of fixed length (albeit used at a lower capacity), will generate less gates than dynamic storage.
 
-Related to this, if an index used to access an array is not known at compile time (ie unknown until run time), then ROM will be converted to RAM, expanding the gate count.
+Related to this, if an index used to access an array is not known at compile time (i.e. unknown until run time), then ROM will be converted to RAM, expanding the gate count.
 
 :::tip
 Use arrays and indices that are known at compile time where possible.
@@ -176,9 +176,9 @@ Only have essential computation inside conditional logic and loops, and calculat
 Constrained verification can leverage unconstrained execution, this is especially useful for operations that are represented by many gates.
 Use an [unconstrained function](../noir/concepts/unconstrained.md) to perform gate-heavy calculations, then verify and constrain the result.
 
-Eg division generates more gates than multiplication, so calculating the quotient in an unconstrained function then constraining the product for the quotient and divisor (+ any remainder) equals the dividend will be more efficient.
+Eg division generates more gates than multiplication, so calculating the quotient in an unconstrained function then constraining the product for the quotient and divisor (+ any remainder) means the dividend will be more efficient.
 
-Use `  if is_unconstrained() { /`, to conditionally execute code if being called in an unconstrained vs constrained way.
+Use `  if is_unconstrained() { `, to conditionally execute code if being called in an unconstrained vs constrained way.
 
 ## Advanced
 
@@ -199,7 +199,7 @@ Use `nargo info --print-acir`, to inspect the ACIR opcodes (and the proving syst
 
 If you've come this far and really know what you're doing at the equation level, a temporary lever (that will become unnecessary/useless over time) is: `std::as_witness`. This informs the compiler to save a variable as a witness not an expression.
 
-The compiler will mostly be correct and optimal, but this may help some near term edge cases that are yet to optimize.
+The compiler will mostly be correct and optimal, but this may help some near term edge cases that are yet to be optimized.
 Note: When used incorrectly it will create **less** efficient circuits (higher gate count).
 
 ## References
