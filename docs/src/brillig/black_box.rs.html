@@ -146,7 +146,7 @@
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{HeapArray, MemoryAddress, opcodes::HeapVector};
+<a href="#148" id="148">148</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{HeapArray, MemoryAddress};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="doccomment">/// These opcodes provide an equivalent of ACIR blackbox functions.
@@ -156,16 +156,16 @@
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>BlackBoxOp {
     <span class="doccomment">/// Encrypts a message using AES-128.
-    </span>AES128Encrypt { inputs: HeapVector, iv: HeapArray, key: HeapArray, outputs: HeapVector },
+    </span>AES128Encrypt { inputs: HeapArray, iv: HeapArray, key: HeapArray, outputs: HeapArray },
     <span class="doccomment">/// Calculates the Blake2s hash of the inputs.
-    </span>Blake2s { message: HeapVector, output: HeapArray },
+    </span>Blake2s { message: HeapArray, output: HeapArray },
     <span class="doccomment">/// Calculates the Blake3 hash of the inputs.
-    </span>Blake3 { message: HeapVector, output: HeapArray },
+    </span>Blake3 { message: HeapArray, output: HeapArray },
     <span class="doccomment">/// Keccak permutation function of 1600 width.
     </span>Keccakf1600 { input: HeapArray, output: HeapArray },
     <span class="doccomment">/// Verifies an ECDSA signature over the secp256k1 curve.
     </span>EcdsaSecp256k1 {
-        hashed_msg: HeapVector,
+        hashed_msg: HeapArray,
         public_key_x: HeapArray,
         public_key_y: HeapArray,
         signature: HeapArray,
@@ -173,14 +173,14 @@
     },
     <span class="doccomment">/// Verifies an ECDSA signature over the secp256r1 curve.
     </span>EcdsaSecp256r1 {
-        hashed_msg: HeapVector,
+        hashed_msg: HeapArray,
         public_key_x: HeapArray,
         public_key_y: HeapArray,
         signature: HeapArray,
         result: MemoryAddress,
     },
     <span class="doccomment">/// Performs multi scalar multiplication over the embedded curve.
-    </span>MultiScalarMul { points: HeapVector, scalars: HeapVector, outputs: HeapArray },
+    </span>MultiScalarMul { points: HeapArray, scalars: HeapArray, outputs: HeapArray },
     <span class="doccomment">/// Performs addition over the embedded curve.
     </span>EmbeddedCurveAdd {
         input1_x: MemoryAddress,
@@ -193,7 +193,7 @@
     },
     <span class="doccomment">/// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
-    </span>Poseidon2Permutation { message: HeapVector, output: HeapArray },
+    </span>Poseidon2Permutation { message: HeapArray, output: HeapArray },
     <span class="doccomment">/// Applies the SHA-256 compression function to the input message
     </span>Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
     <span class="doccomment">/// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.

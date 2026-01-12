@@ -1160,13 +1160,13 @@
     <span class="kw">fn </span>visit_black_box_op(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: <span class="kw-2">&amp;</span>BlackBoxOp, location: OpcodeLocation) {
         <span class="kw">match </span>op {
             BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
-                <span class="self">self</span>.read_heap_vector(inputs, location);
+                <span class="self">self</span>.read_heap_array(inputs, location);
                 <span class="self">self</span>.read_heap_array(iv, location);
                 <span class="self">self</span>.read_heap_array(key, location);
-                <span class="self">self</span>.write_heap_vector(outputs, location);
+                <span class="self">self</span>.write_heap_array(outputs, location);
             }
             BlackBoxOp::Blake2s { message, output } | BlackBoxOp::Blake3 { message, output } =&gt; {
-                <span class="self">self</span>.read_heap_vector(message, location);
+                <span class="self">self</span>.read_heap_array(message, location);
                 <span class="self">self</span>.write_heap_array(output, location);
             }
             BlackBoxOp::Keccakf1600 { input, output } =&gt; {
@@ -1187,15 +1187,15 @@
                 signature,
                 result,
             } =&gt; {
-                <span class="self">self</span>.read_heap_vector(hashed_msg, location);
+                <span class="self">self</span>.read_heap_array(hashed_msg, location);
                 <span class="self">self</span>.read_heap_array(public_key_x, location);
                 <span class="self">self</span>.read_heap_array(public_key_y, location);
                 <span class="self">self</span>.read_heap_array(signature, location);
                 <span class="self">self</span>.write(result, location);
             }
             BlackBoxOp::MultiScalarMul { points, scalars, outputs } =&gt; {
-                <span class="self">self</span>.read_heap_vector(points, location);
-                <span class="self">self</span>.read_heap_vector(scalars, location);
+                <span class="self">self</span>.read_heap_array(points, location);
+                <span class="self">self</span>.read_heap_array(scalars, location);
                 <span class="self">self</span>.write_heap_array(outputs, location);
             }
             BlackBoxOp::EmbeddedCurveAdd {
@@ -1216,7 +1216,7 @@
                 <span class="self">self</span>.write_heap_array(result, location);
             }
             BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
-                <span class="self">self</span>.read_heap_vector(message, location);
+                <span class="self">self</span>.read_heap_array(message, location);
                 <span class="self">self</span>.write_heap_array(output, location);
             }
             BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {

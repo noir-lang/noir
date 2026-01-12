@@ -936,7 +936,39 @@
 <a href="#935" id="935">935</a>
 <a href="#936" id="936">936</a>
 <a href="#937" id="937">937</a>
-<a href="#938" id="938">938</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -948,9 +980,9 @@
 <span class="kw">use crate</span>::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, LetStatement, Literal, Pattern, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Literal, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -1196,8 +1228,37 @@
                 SignedField::positive(value),
                 <span class="prelude-val">Some</span>(IntegerTypeSuffix::U128),
             )),
-            Value::String(value) | Value::CtString(value) =&gt; {
-                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            Value::String(value) =&gt; ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::CtString(value) =&gt; {
+                <span class="comment">// Lower to `std::meta::AsCtString::as_ctstring(contents)`
+                </span><span class="kw">let </span>ident = |name: <span class="kw-2">&amp;</span>str| Ident::new(name.to_string(), location);
+                <span class="kw">let </span>segment = |name: <span class="kw-2">&amp;</span>str| PathSegment::from(ident(name));
+                <span class="kw">let </span>path = |segments| Path {
+                    segments,
+                    location,
+                    kind: PathKind::Plain,
+                    kind_location: location,
+                };
+                <span class="kw">let </span>call = |path, arguments| {
+                    ExpressionKind::Call(Box::new(CallExpression {
+                        func: Box::new(Expression {
+                            kind: ExpressionKind::Variable(path),
+                            location,
+                        }),
+                        arguments,
+                        is_macro_call: <span class="bool-val">false</span>,
+                    }))
+                };
+                <span class="kw">let </span>as_ctstring = path(<span class="macro">vec!</span>[
+                    segment(<span class="string">"std"</span>),
+                    segment(<span class="string">"meta"</span>),
+                    segment(<span class="string">"ctstring"</span>),
+                    segment(<span class="string">"AsCtString"</span>),
+                    segment(<span class="string">"as_ctstring"</span>),
+                ]);
+                <span class="kw">let </span>contents = Literal::Str(unwrap_rc(value));
+                <span class="kw">let </span>contents = Expression { kind: ExpressionKind::Literal(contents), location };
+                call(as_ctstring, <span class="macro">vec!</span>[contents])
             }
             Value::FormatString(fragments, <span class="kw">_</span>, length) =&gt; {
                 <span class="comment">// When turning a format string into an expression we could either:
@@ -1295,7 +1356,7 @@
                 ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
             }
             value @ Value::Enum(..) =&gt; {
-                <span class="kw">let </span>hir = value.into_hir_expression(elaborator.interner, location)<span class="question-mark">?</span>;
+                <span class="kw">let </span>hir = value.into_runtime_hir_expression(elaborator.interner, location)<span class="question-mark">?</span>;
                 ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, <span class="kw">_</span>) =&gt; {
@@ -1383,10 +1444,11 @@
         <span class="prelude-val">Ok</span>(Expression::new(kind, location))
     }
 
-    <span class="doccomment">/// Lowers this compile-time value into a HIR expression. This is similar to
-    /// [Self::into_expression] but is used in some cases in the monomorphizer where
-    /// code must already be in HIR.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_hir_expression(
+    <span class="doccomment">/// Lowers this compile-time value into a HIR expression to be used at runtime.
+    /// This means that comptime-only types will panic.
+    /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
+    /// where code must already be in HIR.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_runtime_hir_expression(
         <span class="self">self</span>,
         interner: <span class="kw-2">&amp;mut </span>NodeInterner,
         location: Location,
@@ -1426,9 +1488,7 @@
             Value::U128(value) =&gt; {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::String(value) | Value::CtString(value) =&gt; {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
-            }
+            Value::String(value) =&gt; HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
             Value::FormatString(fragments, _typ, length) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>captures = Vec::new();
                 <span class="kw">let </span><span class="kw-2">mut </span>new_fragments = Vec::with_capacity(fragments.len());
@@ -1438,7 +1498,8 @@
                             new_fragments.push(FmtStrFragment::String(string.clone()));
                         }
                         FormatStringFragment::Value { name, value } =&gt; {
-                            <span class="kw">let </span>expr_id = value.clone().into_hir_expression(interner, location)<span class="question-mark">?</span>;
+                            <span class="kw">let </span>expr_id =
+                                value.clone().into_runtime_hir_expression(interner, location)<span class="question-mark">?</span>;
                             captures.push(expr_id);
                             new_fragments
                                 .push(FmtStrFragment::Interpolation(name.clone(), location));
@@ -1458,13 +1519,14 @@
             }
             Value::Tuple(fields) =&gt; {
                 <span class="kw">let </span>fields = try_vecmap(fields, |field| {
-                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                    field.unwrap_or_clone().into_runtime_hir_expression(interner, location)
                 })<span class="question-mark">?</span>;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) =&gt; {
                 <span class="kw">let </span>fields = try_vecmap(fields, |(name, field)| {
-                    <span class="kw">let </span>field = field.unwrap_or_clone().into_hir_expression(interner, location)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>((Ident::new(unwrap_rc(name), location), field))
                 })<span class="question-mark">?</span>;
 
@@ -1487,7 +1549,7 @@
                 };
 
                 <span class="kw">let </span>arguments =
-                    try_vecmap(args, |arg| arg.into_hir_expression(interner, location))<span class="question-mark">?</span>;
+                    try_vecmap(args, |arg| arg.into_runtime_hir_expression(interner, location))<span class="question-mark">?</span>;
 
                 HirExpression::EnumConstructor(HirEnumConstructorExpression {
                     r#type,
@@ -1497,25 +1559,25 @@
             }
             Value::Array(elements, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })<span class="question-mark">?</span>;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })<span class="question-mark">?</span>;
                 HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
-            Value::Quoted(tokens) =&gt; HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
-            Value::TypedExpr(TypedExpr::ExprId(expr_id)) =&gt; interner.expression(<span class="kw-2">&amp;</span>expr_id),
+            Value::Closure(closure) =&gt; HirExpression::Lambda(closure.lambda.clone()),
             <span class="comment">// Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&amp;mut`.
             </span>Value::Pointer(element, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; {
-                <span class="kw">return </span>element.unwrap_or_clone().into_hir_expression(interner, location);
+                <span class="kw">return </span>element.unwrap_or_clone().into_runtime_hir_expression(interner, location);
             }
-            Value::Closure(closure) =&gt; HirExpression::Lambda(closure.lambda.clone()),
-            Value::TypedExpr(TypedExpr::StmtId(..))
+            Value::CtString(..)
+            | Value::Quoted(..)
+            | Value::TypedExpr(..)
             | Value::Expr(..)
             | Value::Pointer(..)
             | Value::TypeDefinition(<span class="kw">_</span>)
@@ -1664,7 +1726,9 @@
                 </span><span class="kw">let </span>string = fragments_to_string(<span class="kw-2">&amp;</span>fragments, interner);
                 <span class="macro">vec!</span>[Token::Str(string)]
             }
-            other =&gt; <span class="macro">vec!</span>[Token::UnquoteMarker(other.into_hir_expression(interner, location)<span class="question-mark">?</span>)],
+            other =&gt; {
+                <span class="macro">vec!</span>[Token::UnquoteMarker(other.into_runtime_hir_expression(interner, location)<span class="question-mark">?</span>)]
+            }
         };
         <span class="kw">let </span>tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         <span class="prelude-val">Ok</span>(tokens)
@@ -1784,7 +1848,7 @@
         }
     }
 
-    <span class="doccomment">/// Similar to [Self::into_expression] or [Self::into_hir_expression] but for converting
+    <span class="doccomment">/// Similar to [Self::into_expression] or [Self::into_runtime_hir_expression] but for converting
     /// into top-level item(s). Unlike those other methods, most expressions are invalid
     /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
     /// this method is significantly simpler because we only have to parse `Quoted` values

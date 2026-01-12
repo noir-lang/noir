@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["convert_array_or_vector","convert_black_box_call"]};
+window.SIDEBAR_ITEMS = {"fn":["convert_black_box_call"]};

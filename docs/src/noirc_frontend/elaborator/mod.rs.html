@@ -910,7 +910,9 @@
 <a href="#909" id="909">909</a>
 <a href="#910" id="910">910</a>
 <a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1811,10 +1813,12 @@
             Location::dummy(),
         ) {
             <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Interpret(e)),
-            <span class="prelude-val">Ok</span>(value) =&gt; <span class="kw">match </span>value.into_hir_expression(elaborator.interner, Location::dummy()) {
-                <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::HIRConvert(e)),
-                <span class="prelude-val">Ok</span>(expr_id) =&gt; expr_id,
-            },
+            <span class="prelude-val">Ok</span>(value) =&gt; {
+                <span class="kw">match </span>value.into_runtime_hir_expression(elaborator.interner, Location::dummy()) {
+                    <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::HIRConvert(e)),
+                    <span class="prelude-val">Ok</span>(expr_id) =&gt; expr_id,
+                }
+            }
         };
 
         <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer =

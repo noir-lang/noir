@@ -4689,7 +4689,7 @@
             {
                 <span class="kw">let </span>contains_function = value.contains_function_or_closure();
                 <span class="kw">let </span>expr = value
-                    .into_hir_expression(<span class="self">self</span>.interner, global.location)
+                    .into_runtime_hir_expression(<span class="self">self</span>.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)<span class="question-mark">?</span>;
                 (expr, contains_function)
             } <span class="kw">else </span>{

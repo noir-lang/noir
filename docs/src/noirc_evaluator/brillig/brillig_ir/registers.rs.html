@@ -755,20 +755,7 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a>
-<a href="#770" id="770">770</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -1442,19 +1429,6 @@
         <span class="kw">let </span>other = other.into_inner();
         Allocated::from_inner(AllocatedInner {
             value: f(inner.value, other.value),
-            addresses: <span class="self">Self</span>::merge_addresses(inner.addresses, other.addresses),
-            registers: inner.registers.or(other.registers),
-        })
-    }
-
-    <span class="doccomment">/// Map the `value` to something else that involves allocation.
-    ///
-    /// The resulting value keeps both addresses alive.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>and_then&lt;B&gt;(<span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(A) -&gt; Allocated&lt;B, R&gt;) -&gt; Allocated&lt;B, R&gt; {
-        <span class="kw">let </span>inner = <span class="self">self</span>.into_inner();
-        <span class="kw">let </span>other = f(inner.value).into_inner();
-        Allocated::from_inner(AllocatedInner {
-            value: other.value,
             addresses: <span class="self">Self</span>::merge_addresses(inner.addresses, other.addresses),
             registers: inner.registers.or(other.registers),
         })

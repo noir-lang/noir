@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["black_box_function_from_op","evaluate_black_box","read_heap_array","read_heap_vector","to_be_radix","to_u8_vec","to_value_vec","write_heap_array","write_heap_vector"]};
+window.SIDEBAR_ITEMS = {"fn":["black_box_function_from_op","evaluate_black_box","read_heap_array","to_be_radix","to_u8_vec","to_value_vec","write_heap_array"]};

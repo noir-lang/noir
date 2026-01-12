@@ -267,37 +267,15 @@
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for native (black box) function calls.
+<a href="#269" id="269">269</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for native (black box) function calls.
 </span><span class="kw">use </span>acvm::{
     AcirField,
-    acir::{
-        BlackBoxFunc,
-        brillig::{BlackBoxOp, HeapVector, ValueOrArray},
-    },
+    acir::{BlackBoxFunc, brillig::BlackBoxOp},
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BrilligContext,
-    brillig_variable::BrilligVariable,
-    debug_show::DebugToString,
-    registers::{Allocated, RegisterAllocator},
+    BrilligContext, brillig_variable::BrilligVariable, debug_show::DebugToString,
+    registers::RegisterAllocator,
 };
 
 <span class="doccomment">/// Transforms SSA's black box function calls into the corresponding brillig instructions
@@ -311,15 +289,17 @@
 ) {
     <span class="kw">match </span>bb_func {
         BlackBoxFunc::Blake2s =&gt; {
-            <span class="kw">if let </span>([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            <span class="kw">if let </span>(
+                [BrilligVariable::BrilligArray(message)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>message_vector = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>message, bb_func);
+                <span class="kw">let </span>message_array = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>message);
                 <span class="kw">let </span>output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake2s {
-                    message: <span class="kw-2">*</span>message_vector,
+                    message: <span class="kw-2">*</span>message_array,
                     output: <span class="kw-2">*</span>output_heap_array,
                 });
             } <span class="kw">else </span>{
@@ -327,15 +307,17 @@
             }
         }
         BlackBoxFunc::Blake3 =&gt; {
-            <span class="kw">if let </span>([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            <span class="kw">if let </span>(
+                [BrilligVariable::BrilligArray(message)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>message_vector = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>message, bb_func);
+                <span class="kw">let </span>message_array = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>message);
                 <span class="kw">let </span>output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake3 {
-                    message: <span class="kw-2">*</span>message_vector,
+                    message: <span class="kw-2">*</span>message_array,
                     output: <span class="kw-2">*</span>output_heap_array,
                 });
             } <span class="kw">else </span>{
@@ -367,12 +349,12 @@
                     BrilligVariable::BrilligArray(public_key_x),
                     BrilligVariable::BrilligArray(public_key_y),
                     BrilligVariable::BrilligArray(signature),
-                    message,
+                    BrilligVariable::BrilligArray(message),
                 ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>hashed_msg = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>message, bb_func);
+                <span class="kw">let </span>hashed_msg = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>message);
                 <span class="kw">let </span>public_key_x =
                     brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>public_key_x);
                 <span class="kw">let </span>public_key_y =
@@ -398,12 +380,12 @@
                     BrilligVariable::BrilligArray(public_key_x),
                     BrilligVariable::BrilligArray(public_key_y),
                     BrilligVariable::BrilligArray(signature),
-                    message,
+                    BrilligVariable::BrilligArray(message),
                 ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>hashed_msg = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>message, bb_func);
+                <span class="kw">let </span>hashed_msg = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>message);
                 <span class="kw">let </span>public_key_x =
                     brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>public_key_x);
                 <span class="kw">let </span>public_key_y =
@@ -425,11 +407,13 @@
         }
 
         BlackBoxFunc::MultiScalarMul =&gt; {
-            <span class="kw">if let </span>([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
-                (function_arguments, function_results)
+            <span class="kw">if let </span>(
+                [BrilligVariable::BrilligArray(points), BrilligVariable::BrilligArray(scalars)],
+                [BrilligVariable::BrilligArray(outputs)],
+            ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>points = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>points, bb_func);
-                <span class="kw">let </span>scalars = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>scalars, bb_func);
+                <span class="kw">let </span>points = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>points);
+                <span class="kw">let </span>scalars = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>scalars);
                 <span class="kw">let </span>outputs = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>outputs);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::MultiScalarMul {
@@ -484,15 +468,17 @@
         </span>),
         BlackBoxFunc::RecursiveAggregation =&gt; {}
         BlackBoxFunc::Poseidon2Permutation =&gt; {
-            <span class="kw">if let </span>([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            <span class="kw">if let </span>(
+                [BrilligVariable::BrilligArray(message)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>message_vector = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>message, bb_func);
+                <span class="kw">let </span>message_array = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>message);
                 <span class="kw">let </span>output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Poseidon2Permutation {
-                    message: <span class="kw-2">*</span>message_vector,
+                    message: <span class="kw-2">*</span>message_array,
                     output: <span class="kw-2">*</span>output_heap_array,
                 });
             } <span class="kw">else </span>{
@@ -525,49 +511,29 @@
         }
         BlackBoxFunc::AES128Encrypt =&gt; {
             <span class="kw">if let </span>(
-                [inputs, BrilligVariable::BrilligArray(iv), BrilligVariable::BrilligArray(key)],
-                [outputs],
+                [
+                    BrilligVariable::BrilligArray(inputs),
+                    BrilligVariable::BrilligArray(iv),
+                    BrilligVariable::BrilligArray(key),
+                ],
+                [BrilligVariable::BrilligArray(outputs)],
             ) = (function_arguments, function_results)
             {
-                <span class="kw">let </span>inputs = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>inputs, bb_func);
+                <span class="kw">let </span>inputs = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>inputs);
                 <span class="kw">let </span>iv = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>iv);
                 <span class="kw">let </span>key = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>key);
-                <span class="kw">let </span>outputs_vector = convert_array_or_vector(brillig_context, <span class="kw-2">*</span>outputs, bb_func);
+                <span class="kw">let </span>outputs_array = brillig_context.codegen_brillig_array_to_heap_array(<span class="kw-2">*</span>outputs);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
                     inputs: <span class="kw-2">*</span>inputs,
                     iv: <span class="kw-2">*</span>iv,
                     key: <span class="kw-2">*</span>key,
-                    outputs: <span class="kw-2">*</span>outputs_vector,
+                    outputs: <span class="kw-2">*</span>outputs_array,
                 });
             } <span class="kw">else </span>{
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: AES128Encrypt expects three array arguments, one array result"</span>)
             }
         }
     }
-}
-
-<span class="doccomment">/// Converts a Brillig array or vector into a heap-allocated [HeapVector]
-/// suitable for use as an input to a Brillig [BlackBoxOp].
-</span><span class="kw">fn </span>convert_array_or_vector&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
-    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
-    array_or_vector: BrilligVariable,
-    bb_func: <span class="kw-2">&amp;</span>BlackBoxFunc,
-) -&gt; Allocated&lt;HeapVector, Registers&gt; {
-    <span class="kw">let </span>array_or_vector = brillig_context.variable_to_value_or_array(array_or_vector);
-
-    array_or_vector.and_then(|array_or_vector| <span class="kw">match </span>array_or_vector {
-        ValueOrArray::HeapArray(array) =&gt; brillig_context.allocate_register().map(|size| {
-            <span class="kw">let </span>vector = HeapVector { pointer: array.pointer, size };
-            brillig_context.usize_const_instruction(vector.size, array.size.into());
-            vector
-        }),
-        ValueOrArray::HeapVector(vector) =&gt; Allocated::pure(vector),
-        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
-            <span class="string">"ICE: {} expected an array or a vector, but got {:?}"</span>,
-            bb_func.name(),
-            array_or_vector
-        ),
-    })
 }
 </code></pre></div></section></main></body></html>
