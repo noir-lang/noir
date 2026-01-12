@@ -13,3 +13,4 @@
 {"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_7"}
 {"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_8"}
 {"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_9"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon2"}
