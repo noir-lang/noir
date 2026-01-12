@@ -1,10 +1,7 @@
 //! Codegen for native (black box) function calls.
 use acvm::{
     AcirField,
-    acir::{
-        BlackBoxFunc,
-        brillig::{BlackBoxOp, HeapArray, ValueOrArray},
-    },
+    acir::{BlackBoxFunc, brillig::BlackBoxOp},
 };
 
 use crate::brillig::brillig_ir::{
@@ -23,15 +20,17 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
 ) {
     match bb_func {
         BlackBoxFunc::Blake2s => {
-            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            if let (
+                [BrilligVariable::BrilligArray(message)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                let message_array = get_heap_array(brillig_context, *message, bb_func);
+                let message_array = brillig_context.codegen_brillig_array_to_heap_array(*message);
                 let output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(*result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake2s {
-                    message: message_array,
+                    message: *message_array,
                     output: *output_heap_array,
                 });
             } else {
@@ -39,15 +38,17 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
             }
         }
         BlackBoxFunc::Blake3 => {
-            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            if let (
+                [BrilligVariable::BrilligArray(message)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                let message_array = get_heap_array(brillig_context, *message, bb_func);
+                let message_array = brillig_context.codegen_brillig_array_to_heap_array(*message);
                 let output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(*result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake3 {
-                    message: message_array,
+                    message: *message_array,
                     output: *output_heap_array,
                 });
             } else {
@@ -79,12 +80,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                     BrilligVariable::BrilligArray(public_key_x),
                     BrilligVariable::BrilligArray(public_key_y),
                     BrilligVariable::BrilligArray(signature),
-                    message,
+                    BrilligVariable::BrilligArray(message),
                 ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
-                let hashed_msg = get_heap_array(brillig_context, *message, bb_func);
+                let hashed_msg = brillig_context.codegen_brillig_array_to_heap_array(*message);
                 let public_key_x =
                     brillig_context.codegen_brillig_array_to_heap_array(*public_key_x);
                 let public_key_y =
@@ -92,7 +93,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 let signature = brillig_context.codegen_brillig_array_to_heap_array(*signature);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256k1 {
-                    hashed_msg,
+                    hashed_msg: *hashed_msg,
                     public_key_x: *public_key_x,
                     public_key_y: *public_key_y,
                     signature: *signature,
@@ -110,12 +111,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                     BrilligVariable::BrilligArray(public_key_x),
                     BrilligVariable::BrilligArray(public_key_y),
                     BrilligVariable::BrilligArray(signature),
-                    message,
+                    BrilligVariable::BrilligArray(message),
                 ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
-                let hashed_msg = get_heap_array(brillig_context, *message, bb_func);
+                let hashed_msg = brillig_context.codegen_brillig_array_to_heap_array(*message);
                 let public_key_x =
                     brillig_context.codegen_brillig_array_to_heap_array(*public_key_x);
                 let public_key_y =
@@ -123,7 +124,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 let signature = brillig_context.codegen_brillig_array_to_heap_array(*signature);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256r1 {
-                    hashed_msg,
+                    hashed_msg: *hashed_msg,
                     public_key_x: *public_key_x,
                     public_key_y: *public_key_y,
                     signature: *signature,
@@ -137,16 +138,18 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
 
         BlackBoxFunc::MultiScalarMul => {
-            if let ([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
-                (function_arguments, function_results)
+            if let (
+                [BrilligVariable::BrilligArray(points), BrilligVariable::BrilligArray(scalars)],
+                [BrilligVariable::BrilligArray(outputs)],
+            ) = (function_arguments, function_results)
             {
-                let points = get_heap_array(brillig_context, *points, bb_func);
-                let scalars = get_heap_array(brillig_context, *scalars, bb_func);
+                let points = brillig_context.codegen_brillig_array_to_heap_array(*points);
+                let scalars = brillig_context.codegen_brillig_array_to_heap_array(*scalars);
                 let outputs = brillig_context.codegen_brillig_array_to_heap_array(*outputs);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::MultiScalarMul {
-                    points,
-                    scalars,
+                    points: *points,
+                    scalars: *scalars,
                     outputs: *outputs,
                 });
             } else {
@@ -196,15 +199,17 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         ),
         BlackBoxFunc::RecursiveAggregation => {}
         BlackBoxFunc::Poseidon2Permutation => {
-            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
-                (function_arguments, function_results)
+            if let (
+                [BrilligVariable::BrilligArray(message)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
             {
-                let message_array = get_heap_array(brillig_context, *message, bb_func);
+                let message_array = brillig_context.codegen_brillig_array_to_heap_array(*message);
                 let output_heap_array =
                     brillig_context.codegen_brillig_array_to_heap_array(*result_array);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Poseidon2Permutation {
-                    message: message_array,
+                    message: *message_array,
                     output: *output_heap_array,
                 });
             } else {
@@ -237,47 +242,28 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::AES128Encrypt => {
             if let (
-                [inputs, BrilligVariable::BrilligArray(iv), BrilligVariable::BrilligArray(key)],
-                [outputs],
+                [
+                    BrilligVariable::BrilligArray(inputs),
+                    BrilligVariable::BrilligArray(iv),
+                    BrilligVariable::BrilligArray(key),
+                ],
+                [BrilligVariable::BrilligArray(outputs)],
             ) = (function_arguments, function_results)
             {
-                let inputs = get_heap_array(brillig_context, *inputs, bb_func);
+                let inputs = brillig_context.codegen_brillig_array_to_heap_array(*inputs);
                 let iv = brillig_context.codegen_brillig_array_to_heap_array(*iv);
                 let key = brillig_context.codegen_brillig_array_to_heap_array(*key);
-                let outputs_array = get_heap_array(brillig_context, *outputs, bb_func);
+                let outputs_array = brillig_context.codegen_brillig_array_to_heap_array(*outputs);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
-                    inputs,
+                    inputs: *inputs,
                     iv: *iv,
                     key: *key,
-                    outputs: outputs_array,
+                    outputs: *outputs_array,
                 });
             } else {
                 unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
-        }
-    }
-}
-
-/// Converts a [BrilligVariable] into a heap-allocated [HeapArray]
-/// suitable for use as an input to a Brillig [BlackBoxOp].
-///
-/// # Panics
-/// If the input is not a [BrilligVariable::BrilligArray]
-fn get_heap_array<F: AcirField + DebugToString, Registers: RegisterAllocator>(
-    brillig_context: &mut BrilligContext<F, Registers>,
-    array: BrilligVariable,
-    bb_func: &BlackBoxFunc,
-) -> HeapArray {
-    let array_or_array = brillig_context.variable_to_value_or_array(array);
-    match *array_or_array {
-        ValueOrArray::HeapArray(array) => array,
-        _ => {
-            unreachable!(
-                "ICE: {} expected an array, but got {:?}",
-                bb_func.name(),
-                array_or_array.debug_to_string()
-            )
         }
     }
 }

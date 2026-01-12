@@ -24,8 +24,8 @@ fn brillig_blake2s() {
      3: @1 = u32 add @1, sp[3]
      4: sp[2] = indirect const u32 1
      5: sp[3] = u32 add sp[1], @2
-     6: sp[3] = u32 add sp[2], @2
-     7: blake2s(message: [sp[3]; 10], output: [sp[3]; 32])
+     6: sp[4] = u32 add sp[2], @2
+     7: blake2s(message: [sp[3]; 10], output: [sp[4]; 32])
      8: sp[1] = sp[2]
      9: return
     ");
@@ -51,8 +51,8 @@ fn brillig_blake3() {
      3: @1 = u32 add @1, sp[3]
      4: sp[2] = indirect const u32 1
      5: sp[3] = u32 add sp[1], @2
-     6: sp[3] = u32 add sp[2], @2
-     7: blake3(message: [sp[3]; 10], output: [sp[3]; 32])
+     6: sp[4] = u32 add sp[2], @2
+     7: blake3(message: [sp[3]; 10], output: [sp[4]; 32])
      8: sp[1] = sp[2]
      9: return
     ");
@@ -104,10 +104,10 @@ fn brillig_ecdsa_secp256k1() {
     0: call 0
     1: sp[5] = const bool 1
     2: sp[7] = u32 add sp[4], @2
-    3: sp[7] = u32 add sp[1], @2
-    4: sp[8] = u32 add sp[2], @2
-    5: sp[9] = u32 add sp[3], @2
-    6: ecdsa_secp256k1(hashed_msg: [sp[7]; 32], public_key_x: [sp[7]; 32], public_key_y: [sp[8]; 32], signature: [sp[9]; 64], result: sp[6])
+    3: sp[8] = u32 add sp[1], @2
+    4: sp[9] = u32 add sp[2], @2
+    5: sp[10] = u32 add sp[3], @2
+    6: ecdsa_secp256k1(hashed_msg: [sp[7]; 32], public_key_x: [sp[8]; 32], public_key_y: [sp[9]; 32], signature: [sp[10]; 64], result: sp[6])
     7: sp[1] = sp[6]
     8: return
     ");
@@ -131,10 +131,10 @@ fn brillig_ecdsa_secp256r1() {
     0: call 0
     1: sp[5] = const bool 1
     2: sp[7] = u32 add sp[4], @2
-    3: sp[7] = u32 add sp[1], @2
-    4: sp[8] = u32 add sp[2], @2
-    5: sp[9] = u32 add sp[3], @2
-    6: ecdsa_secp256r1(hashed_msg: [sp[7]; 32], public_key_x: [sp[7]; 32], public_key_y: [sp[8]; 32], signature: [sp[9]; 64], result: sp[6])
+    3: sp[8] = u32 add sp[1], @2
+    4: sp[9] = u32 add sp[2], @2
+    5: sp[10] = u32 add sp[3], @2
+    6: ecdsa_secp256r1(hashed_msg: [sp[7]; 32], public_key_x: [sp[8]; 32], public_key_y: [sp[9]; 32], signature: [sp[10]; 64], result: sp[6])
     7: sp[1] = sp[6]
     8: return
     ");
@@ -162,9 +162,9 @@ fn brillig_multi_scalar_mul() {
      4: @1 = u32 add @1, sp[5]
      5: sp[4] = indirect const u32 1
      6: sp[5] = u32 add sp[1], @2
-     7: sp[5] = u32 add sp[2], @2
-     8: sp[5] = u32 add sp[4], @2
-     9: multi_scalar_mul(points: [sp[5]; 6], scalars: [sp[5]; 4], outputs: [sp[5]; 3])
+     7: sp[6] = u32 add sp[2], @2
+     8: sp[7] = u32 add sp[4], @2
+     9: multi_scalar_mul(points: [sp[5]; 6], scalars: [sp[6]; 4], outputs: [sp[7]; 3])
     10: sp[1] = sp[4]
     11: return
     ");
@@ -219,8 +219,8 @@ fn brillig_poseidon2_permutation() {
      3: @1 = u32 add @1, sp[3]
      4: sp[2] = indirect const u32 1
      5: sp[3] = u32 add sp[1], @2
-     6: sp[3] = u32 add sp[2], @2
-     7: poseidon2_permutation(message: [sp[3]; 4], output: [sp[3]; 4])
+     6: sp[4] = u32 add sp[2], @2
+     7: poseidon2_permutation(message: [sp[3]; 4], output: [sp[4]; 4])
      8: sp[1] = sp[2]
      9: return
     ");
@@ -275,10 +275,10 @@ fn brillig_aes128_encrypt() {
      3: @1 = u32 add @1, sp[5]
      4: sp[4] = indirect const u32 1
      5: sp[5] = u32 add sp[1], @2
-     6: sp[5] = u32 add sp[2], @2
-     7: sp[6] = u32 add sp[3], @2
-     8: sp[7] = u32 add sp[4], @2
-     9: aes_128_encrypt(inputs: [sp[5]; 16], iv: [sp[5]; 16], key: [sp[6]; 16], outputs: [sp[7]; 32])
+     6: sp[6] = u32 add sp[2], @2
+     7: sp[7] = u32 add sp[3], @2
+     8: sp[8] = u32 add sp[4], @2
+     9: aes_128_encrypt(inputs: [sp[5]; 16], iv: [sp[6]; 16], key: [sp[7]; 16], outputs: [sp[8]; 32])
     10: sp[1] = sp[4]
     11: return
     ");
