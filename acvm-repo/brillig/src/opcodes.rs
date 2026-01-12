@@ -167,7 +167,7 @@ impl std::fmt::Display for HeapValueType {
                 write!(f, "]")
             }
             HeapValueType::Vector { value_types } => {
-                write!(f, "&[")?;
+                write!(f, "@[")?;
                 write_types(f, value_types)?;
                 write!(f, "]")
             }
@@ -213,7 +213,7 @@ pub struct HeapVector {
 
 impl std::fmt::Display for HeapVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "&[{}; {}]", self.pointer, self.size)
+        write!(f, "@[{}; {}]", self.pointer, self.size)
     }
 }
 

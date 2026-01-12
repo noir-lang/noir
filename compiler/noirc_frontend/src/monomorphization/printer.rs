@@ -258,7 +258,7 @@ impl AstPrinter {
                 write!(f, "]")
             }
             Literal::Vector(array) => {
-                write!(f, "&[")?;
+                write!(f, "@[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }

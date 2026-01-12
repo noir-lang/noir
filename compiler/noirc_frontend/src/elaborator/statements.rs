@@ -469,12 +469,12 @@ impl Elaborator<'_> {
                     let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    *object_ref = Box::new(HirLValue::Dereference {
+                    **object_ref = HirLValue::Dereference {
                         lvalue,
                         element_type,
                         location,
                         implicitly_added: true,
-                    });
+                    };
                     *mutable_ref = true;
                 };
 

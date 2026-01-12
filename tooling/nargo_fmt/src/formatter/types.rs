@@ -61,8 +61,8 @@ impl Formatter<'_> {
                     Token::Ampersand => {
                         self.write_token(Token::Ampersand);
                     }
-                    Token::VectorStart => {
-                        self.write_token(Token::VectorStart);
+                    Token::DeprecatedVectorStart => {
+                        self.write_token(Token::DeprecatedVectorStart);
                     }
                     _ => {
                         panic!("Expected Ampersand or VectorStart, found {:?}", self.token);

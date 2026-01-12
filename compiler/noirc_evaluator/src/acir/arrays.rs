@@ -607,6 +607,7 @@ impl Context<'_> {
     /// Applies predication logic on the result in case the read under a false predicate
     /// returns a value with a larger type that may later trigger an overflow.
     /// Ensures values read under false predicate are zeroed out if types don’t align.
+    /// This is done recursively for nested arrays.
     fn apply_index_side_effects(
         &mut self,
         array: ValueId,
@@ -614,22 +615,35 @@ impl Context<'_> {
         mut index_side_effect: bool,
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
-        if let AcirValue::Var(value_var, typ) = &value {
-            let array_typ = dfg.type_of_value(array);
-            if let Type::Numeric(numeric_type) = array_typ.first() {
-                if numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
-                    // first element is compatible
-                    index_side_effect = false;
+        match &value {
+            AcirValue::Var(acir_var, typ) => {
+                let array_typ = dfg.type_of_value(array);
+                if let Type::Numeric(numeric_type) = array_typ.first() {
+                    if numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
+                        // first element is compatible
+                        index_side_effect = false;
+                    }
+                }
+
+                if index_side_effect {
+                    value = AcirValue::Var(
+                        self.acir_context
+                            .mul_var(*acir_var, self.current_side_effects_enabled_var)?,
+                        *typ,
+                    );
                 }
             }
-
-            if index_side_effect {
-                value = AcirValue::Var(
-                    self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
-                    *typ,
-                );
+            AcirValue::Array(vector) => {
+                let new_values = try_vecmap(vector.iter(), |val| {
+                    self.apply_index_side_effects(array, val.clone(), index_side_effect, dfg)
+                })?;
+                value = AcirValue::Array(im::Vector::from(new_values));
+            }
+            AcirValue::DynamicArray(_) => {
+                unreachable!("ICE: Nested dynamic arrays are not supported")
             }
         }
+
         Ok(value)
     }
 

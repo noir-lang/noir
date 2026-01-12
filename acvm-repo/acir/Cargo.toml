@@ -2,7 +2,7 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "1.0.0-beta.17"
+version = "1.0.0-beta.18"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -23,7 +23,6 @@ noirc_span.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 flate2.workspace = true
-bincode.workspace = true
 base64.workspace = true
 num-bigint.workspace = true
 num_enum.workspace = true

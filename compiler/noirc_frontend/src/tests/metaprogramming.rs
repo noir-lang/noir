@@ -1038,7 +1038,7 @@ fn comptime_uhashmap_of_vectors() {
     }
 
     pub fn example_umap<T>() -> UHashMap<u32, T> {
-        let _table = &[];
+        let _table = @[];
         let _len = 0;
         UHashMap { _table, _len }
     }
@@ -1085,14 +1085,14 @@ fn comptime_uhashmap_of_vectors_attribute() {
     impl<K, V> UHashMap<K, V> {
         fn default_umap(zeroed_value: (K, V)) -> UHashMap<K, V>
         {
-            let _table = &[Slot::default_slot(zeroed_value)];
+            let _table = @[Slot::default_slot(zeroed_value)];
             let _len = 0;
             UHashMap { _table, _len }
         }
     }
 
     comptime fn empty_function_definition_vector() -> [FunctionDefinition] {
-        &[]
+        @[]
     }
 
     comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =
@@ -1130,6 +1130,42 @@ fn regression_11016() {
     comptime fn call(x: Quoted) -> Quoted {
         quote { $x() }
     }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_non_comptime_function() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] can only be applied to comptime functions
+    fn main() {
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_arguments() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] requires its function to have at least one parameter
+    pub comptime fn foo() {}
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_last_vector_parameter() {
+    let src = "
+    #[foo(1, 2, 3, 4)] // Make sure no error is triggered here because of the varargs error
+    #[varargs]
+    pub comptime fn foo(_: FunctionDefinition, _x: Field, _y: Field) {}
+                                                          ^^ The last parameter of a #[varargs] function must be a vector
+
+    fn main() {}
     ";
     check_errors(src);
 }
