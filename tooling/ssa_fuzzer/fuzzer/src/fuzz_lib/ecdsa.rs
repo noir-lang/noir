@@ -1,5 +1,6 @@
 use rand::{Rng, RngCore};
 
+use k256::elliptic_curve::Generate;
 use sha2::{Digest, Sha256};
 
 #[derive(Debug)]
