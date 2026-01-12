@@ -856,6 +856,8 @@ fn runtime_function_with_comptime_block_called_from_comptime() {
         fn helper(x: Field) -> Field {
             comptime {
                 assert_eq(x, 5);
+                          ^ Non-comptime variable `x` referenced in comptime code
+                          ~ Non-comptime variables can't be used in comptime code
             }
             x + 1
         }
@@ -868,7 +870,7 @@ fn runtime_function_with_comptime_block_called_from_comptime() {
             }
         }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
