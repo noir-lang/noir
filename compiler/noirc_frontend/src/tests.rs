@@ -100,10 +100,12 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let allow_parser_errors = false;
+    let allow_elaborator_errors = false;
     let monomorphize = false;
     check_errors_with_options(
         src,
         allow_parser_errors,
+        allow_elaborator_errors,
         monomorphize,
         FrontendOptions::test_default(),
     );
@@ -111,22 +113,34 @@ fn check_errors(src: &str) {
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
+    let allow_elaborator_errors = false;
     let monomorphize = false;
     let options =
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
-    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
+    check_errors_with_options(
+        src,
+        allow_parser_errors,
+        allow_elaborator_errors,
+        monomorphize,
+        options,
+    );
 }
 
 pub(super) fn check_monomorphization_error(src: &str) {
-    check_monomorphization_error_using_features(src, &[]);
+    check_monomorphization_error_using_features(src, &[], false);
 }
 
-pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
+pub(super) fn check_monomorphization_error_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+    allow_elaborator_errors: bool,
+) {
     let allow_parser_errors = false;
     let monomorphize = true;
     check_errors_with_options(
         src,
         allow_parser_errors,
+        allow_elaborator_errors,
         monomorphize,
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
     );
@@ -135,6 +149,7 @@ pub(super) fn check_monomorphization_error_using_features(src: &str, features: &
 fn check_errors_with_options(
     src: &str,
     allow_parser_errors: bool,
+    allow_elaborator_errors: bool,
     monomorphize: bool,
     options: FrontendOptions,
 ) {
@@ -198,12 +213,12 @@ fn check_errors_with_options(
     let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
-    if monomorphize {
-        if !errors.is_empty() {
-            report_all(context.file_manager.as_file_map(), &errors, false, false);
-            panic!("Expected no errors before monomorphization");
-        }
+    if !allow_elaborator_errors && !errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        panic!("Expected no elaborator errors");
+    }
 
+    if monomorphize {
         let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
             panic!("get_monomorphized: test program contains no 'main' function")
         });
