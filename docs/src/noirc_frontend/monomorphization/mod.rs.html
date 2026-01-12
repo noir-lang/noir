@@ -3247,26 +3247,7 @@
 <a href="#3246" id="3246">3246</a>
 <a href="#3247" id="3247">3247</a>
 <a href="#3248" id="3248">3248</a>
-<a href="#3249" id="3249">3249</a>
-<a href="#3250" id="3250">3250</a>
-<a href="#3251" id="3251">3251</a>
-<a href="#3252" id="3252">3252</a>
-<a href="#3253" id="3253">3253</a>
-<a href="#3254" id="3254">3254</a>
-<a href="#3255" id="3255">3255</a>
-<a href="#3256" id="3256">3256</a>
-<a href="#3257" id="3257">3257</a>
-<a href="#3258" id="3258">3258</a>
-<a href="#3259" id="3259">3259</a>
-<a href="#3260" id="3260">3260</a>
-<a href="#3261" id="3261">3261</a>
-<a href="#3262" id="3262">3262</a>
-<a href="#3263" id="3263">3263</a>
-<a href="#3264" id="3264">3264</a>
-<a href="#3265" id="3265">3265</a>
-<a href="#3266" id="3266">3266</a>
-<a href="#3267" id="3267">3267</a>
-<a href="#3268" id="3268">3268</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3249" id="3249">3249</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4180,7 +4161,7 @@
 
         <span class="kw">let </span>length = length.evaluate_to_u32(location).map_err(|err| {
             <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>array);
-            MonomorphizationError::UnknownArrayLength { location, err, length }
+            MonomorphizationError::UnknownArrayLength { location, err }
         })<span class="question-mark">?</span>;
 
         <span class="comment">// Represent `[expr; n]` as:
@@ -4668,13 +4649,9 @@
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        <span class="kw">let </span>value = value.evaluate_to_signed_field(<span class="kw-2">&amp;</span>expected_kind, location).map_err(|err| {
-            MonomorphizationError::UnknownArrayLength {
-                length: value.follow_bindings(),
-                err,
-                location,
-            }
-        })<span class="question-mark">?</span>;
+        <span class="kw">let </span>value = value
+            .evaluate_to_signed_field(<span class="kw-2">&amp;</span>expected_kind, location)
+            .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
         <span class="kw">if </span>!expected_kind.unifies(<span class="kw-2">&amp;</span>expr_kind) {
@@ -4784,12 +4761,7 @@
                     <span class="comment">// only default variable sizes to size 0
                     </span><span class="prelude-val">Err</span>(TypeCheckError::NonConstantEvaluated { .. }) =&gt; <span class="number">0</span>,
                     <span class="prelude-val">Err</span>(err) =&gt; {
-                        <span class="kw">let </span>length = size.as_ref().clone();
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 ast::Type::String(size)
@@ -4800,12 +4772,7 @@
                     <span class="comment">// only default variable sizes to size 0
                     </span><span class="prelude-val">Err</span>(TypeCheckError::NonConstantEvaluated { .. }) =&gt; <span class="number">0</span>,
                     <span class="prelude-val">Err</span>(err) =&gt; {
-                        <span class="kw">let </span>length = size.as_ref().clone();
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 <span class="kw">let </span>fields =
@@ -4822,12 +4789,7 @@
                 <span class="kw">let </span>length = <span class="kw">match </span>length.evaluate_to_u32(location) {
                     <span class="prelude-val">Ok</span>(length) =&gt; length,
                     <span class="prelude-val">Err</span>(err) =&gt; {
-                        <span class="kw">let </span>length = length.as_ref().clone();
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 ast::Type::Array(length, element)

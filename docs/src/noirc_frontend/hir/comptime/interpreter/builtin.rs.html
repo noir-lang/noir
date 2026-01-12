@@ -4398,8 +4398,8 @@
                 </span><span class="kw">if </span>err.is_non_constant_evaluated() {
                     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>err = <span class="prelude-val">Some</span>(Box::new(err));
-                    <span class="prelude-val">Err</span>(InterpreterError::NonIntegerArrayLength { typ, err, location })
+                    <span class="kw">let </span>err = Box::new(err);
+                    <span class="prelude-val">Err</span>(InterpreterError::InvalidArrayLength { err, location })
                 }
             }
         }
