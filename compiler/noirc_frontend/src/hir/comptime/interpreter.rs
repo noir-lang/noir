@@ -754,9 +754,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => self.evaluate_integer(value, id),
-                    Err(err) => {
-                        Err(InterpreterError::InvalidAssociatedConstant { err: Box::new(err), location })
-                    }
+                    Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
+                        err: Box::new(err),
+                        location,
+                    }),
                 }
             }
         }
