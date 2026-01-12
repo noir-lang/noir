@@ -287,15 +287,15 @@ fn lock_workspace(
         if exclusive {
             if fs2::FileExt::try_lock_exclusive(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...");
+                fs2::FileExt::lock_exclusive(&file)
+                    .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
             }
-            fs2::FileExt::lock_exclusive(&file)
-                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         } else {
             if fs2::FileExt::try_lock_shared(&file).is_err() {
-                eprintln!("Waiting for lock on {path_display}...",);
+                eprintln!("Waiting for lock on {path_display}...");
+                fs2::FileExt::lock_shared(&file)
+                    .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
             }
-            fs2::FileExt::lock_shared(&file)
-                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         }
 
         locks.push(LockedFile(file));
