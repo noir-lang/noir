@@ -163,7 +163,7 @@ pub struct Monomorphizer<'interner> {
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
 ///
-/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Vec of Generic Types) -> monomorphized FuncId
+/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics) -> monomorphized FuncId
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
@@ -395,8 +395,8 @@ impl<'interner> Monomorphizer<'interner> {
         match self
             .functions
             .get(&(id, is_unconstrained))
-            .and_then(|inner_map| inner_map.get(&typ))
-            .and_then(|inner_map| inner_map.get(&turbofish_generics))
+            .and_then(|by_func_type| by_func_type.get(&typ))
+            .and_then(|by_turbofish| by_turbofish.get(&turbofish_generics))
         {
             Some(id) => Definition::Function(*id),
             None => {
@@ -406,14 +406,14 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::LowLevel => {
                         let attribute = attributes.function().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.foreign().expect(
-                            "ice: function marked as foreign, but attribute kind does not match this",
+                            "ICE: function marked as foreign, but attribute kind does not match this",
                         );
                         Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.builtin().expect(
-                            "ice: function marked as builtin, but attribute kind does not match this",
+                            "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         Definition::Builtin(opcode.to_string())
                     }
@@ -425,7 +425,7 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::Oracle => {
                         let attribute = attributes.function().expect("all oracle functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.oracle().expect(
-                            "ice: function marked as builtin, but attribute kind does not match this",
+                            "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         Definition::Oracle(opcode.to_string())
                     }
@@ -434,12 +434,16 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Store the local variable ID created for a definition.
+    ///
+    /// Panics if the definition has already been inserted before.
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: LocalId) {
-        self.locals.insert(id, new_id);
+        let existing = self.locals.insert(id, new_id);
+        assert!(existing.is_none(), "ICE: Redefined variable.");
     }
 
-    /// Prerequisite: typ = typ.follow_bindings()
-    ///          and: turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)
+    /// Prerequisite: `typ = typ.follow_bindings()`
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
     fn define_function(
         &mut self,
         id: node_interner::FuncId,
@@ -560,9 +564,12 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    /// Store a monomorphized [Function] among the finished ones.
+    ///
+    /// Panics if the function has already been pushed.
     fn push_function(&mut self, id: FuncId, function: Function) {
         let existing = self.finished_functions.insert(id, function);
-        assert!(existing.is_none());
+        assert!(existing.is_none(), "ICE: Redefined function.");
     }
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
@@ -579,6 +586,8 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(new_params)
     }
 
+    /// Monomorphize a single function parameters, potentially expanding it into multiple parameters
+    /// if it's a tuple/struct pattern, appending the new parameters to an accumulator.
     fn parameter(
         &mut self,
         param: &HirPattern,
@@ -600,14 +609,22 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
-
+                assert_eq!(
+                    fields.len(),
+                    tuple_field_types.len(),
+                    "ICE: Unexpected number of tuple pattern fields."
+                );
                 for (field, typ) in fields.iter().zip(tuple_field_types) {
                     self.parameter(field, &typ, visibility, new_params)?;
                 }
             }
             HirPattern::Struct(_, fields, location) => {
                 let struct_field_types = unwrap_struct_type(typ, *location)?;
-                assert_eq!(struct_field_types.len(), fields.len());
+                assert_eq!(
+                    struct_field_types.len(),
+                    fields.len(),
+                    "ICE: Unexpected number of struct pattern fields."
+                );
 
                 let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
 
@@ -625,7 +642,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    /// Monomorphize an expression
+    /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
@@ -906,7 +923,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Monomorphize an array with repeated elements, such as `[3; 10]`.
+    /// Monomorphize an array or vector with repeated elements, such as `[3; 10]`.
     fn repeated_array(
         &mut self,
         array: ExprId,
@@ -931,6 +948,8 @@ impl<'interner> Monomorphizer<'interner> {
         //
         // That is, `expr` is only evaluated once, assigned to a local variable,
         // and the array consists of references to that local variable.
+        //
+        // Note that `expr` is evaluated even if the length is 0 (same as in Rust).
         let element = self.expr(repeated_element)?;
         let local_id = self.next_local_id();
 
@@ -1519,6 +1538,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
                     // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
+                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         let length = size.as_ref().clone();
@@ -1535,6 +1555,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
                     // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
+                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         let length = size.as_ref().clone();
@@ -1589,6 +1610,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 type_var.bind(HirType::default_int_or_field_type());
+                // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
                 ast::Type::Field
             }
 
@@ -2293,6 +2315,9 @@ impl<'interner> Monomorphizer<'interner> {
         Expression::Literal(Literal::Vector(arr_literal))
     }
 
+    /// Look up the instantiation bindings of a function expression and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
     fn queue_function(
         &mut self,
         id: node_interner::FuncId,
@@ -2314,6 +2339,9 @@ impl<'interner> Monomorphizer<'interner> {
         )
     }
 
+    /// Store the definition of a function and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
     pub fn queue_function_with_bindings(
         &mut self,
         id: node_interner::FuncId,
@@ -2885,6 +2913,8 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 
+    /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
+    /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
         self.in_unconstrained_function
             || self.interner.function_modifiers(&func_id).is_unconstrained

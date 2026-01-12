@@ -264,3 +264,47 @@ fn unused_const_generic_becomes_zero() {
     }
     "#);
 }
+
+#[test]
+fn repeated_array() {
+    let src = r#"
+    fn main() {
+        let _a = [1 + 2; 3];
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l1 = {
+            let repeated_element$l0 = (1 + 2);
+            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
+        }
+    }
+    ");
+}
+
+#[test]
+fn repeated_array_zero() {
+    let src = r#"
+    fn main() {
+        let _a = @[foo(); 0];
+    }
+    fn foo() -> Field {
+        1 + 2
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l1 = {
+            let repeated_element$l0 = foo$f1();
+            @[]
+        }
+    }
+    fn foo$f1() -> Field {
+        (1 + 2)
+    }
+    ");
+}
