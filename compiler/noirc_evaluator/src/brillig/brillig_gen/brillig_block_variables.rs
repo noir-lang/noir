@@ -18,7 +18,7 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{
-        BrilligContext, assert_u32,
+        BrilligContext,
         brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
         registers::{Allocated, RegisterAllocator},
     },
@@ -171,7 +171,7 @@ pub(crate) fn compute_array_length(
     item_typ: &CompositeType,
     elem_count: SemanticLength,
 ) -> SemiFlattenedLength {
-    ElementsLength(assert_u32(item_typ.len())) * elem_count
+    ElementsLength::from(item_typ) * elem_count
 }
 
 /// For a given [ValueId], allocates the necessary registers to hold it.

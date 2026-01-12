@@ -35,6 +35,18 @@ impl std::fmt::Display for SemanticLength {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct ElementsLength(pub u32);
 
+impl<T> From<&[T]> for ElementsLength {
+    fn from(elements: &[T]) -> Self {
+        ElementsLength(assert_u32(elements.len()))
+    }
+}
+
+impl<T> From<&Vec<T>> for ElementsLength {
+    fn from(elements: &Vec<T>) -> Self {
+        ElementsLength(assert_u32(elements.len()))
+    }
+}
+
 impl Mul<SemanticLength> for ElementsLength {
     type Output = SemiFlattenedLength;
 
@@ -135,4 +147,9 @@ impl Sum for FlattenedLength {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(FlattenedLength(0), |acc, x| acc + x)
     }
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+pub(crate) fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
 }

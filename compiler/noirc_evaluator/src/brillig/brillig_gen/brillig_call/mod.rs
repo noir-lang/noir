@@ -7,7 +7,6 @@ use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
-use crate::brillig::brillig_ir::assert_u32;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
@@ -135,7 +134,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
                         let size: SemiFlattenedLength =
-                            ElementsLength(assert_u32(items.len())) * SemanticLength(*nested_size);
+                            ElementsLength::from(items.as_ref()) * SemanticLength(*nested_size);
                         let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.

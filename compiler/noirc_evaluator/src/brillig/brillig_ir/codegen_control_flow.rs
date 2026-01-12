@@ -10,7 +10,7 @@ use acvm::{
 };
 
 use crate::{
-    brillig::brillig_ir::{assert_u32, assert_usize, registers::Allocated},
+    brillig::brillig_ir::{assert_usize, registers::Allocated},
     ssa::ir::instruction::ErrorType,
 };
 
@@ -418,8 +418,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 }
             }
         } else {
-            let size: SemiFlattenedLength =
-                item_count * ElementsLength(assert_u32(item_type.len()));
+            let size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
             let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }
