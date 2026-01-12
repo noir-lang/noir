@@ -260,7 +260,7 @@ impl Value {
             )),
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
             Value::CtString(value) => {
-                // Lower to `std::append::Append::append(CtString::new(), <contents>)`
+                // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
                 let segment = |name: &str| PathSegment::from(ident(name));
                 let path = |segments| Path {
@@ -279,19 +279,16 @@ impl Value {
                         is_macro_call: false,
                     }))
                 };
-
-                let ct_string_new = path(vec![segment("CtString"), segment("new")]);
-                let ct_string_new = call(ct_string_new, vec![]);
-                let ct_string_new = Expression { kind: ct_string_new, location };
+                let as_ctstring = path(vec![
+                    segment("std"),
+                    segment("meta"),
+                    segment("ctstring"),
+                    segment("AsCtString"),
+                    segment("as_ctstring"),
+                ]);
                 let contents = Literal::Str(unwrap_rc(value));
                 let contents = Expression { kind: ExpressionKind::Literal(contents), location };
-                let append = path(vec![
-                    segment("std"),
-                    segment("append"),
-                    segment("Append"),
-                    segment("append"),
-                ]);
-                call(append, vec![ct_string_new, contents])
+                call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
                 // When turning a format string into an expression we could either:
