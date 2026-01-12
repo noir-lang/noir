@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768220095339,
+  "lastUpdate": 1768220601141,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23225,48 +23225,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "e91e68446df6d9819b14d81126cba6c5bdb26213",
-          "message": "fix: do not mark witness as equivalent to a constant (#11072)",
-          "timestamp": "2026-01-06T08:46:39Z",
-          "tree_id": "8af36f2ee41cf36095ada30466ebbc80ff9e7484",
-          "url": "https://github.com/noir-lang/noir/commit/e91e68446df6d9819b14d81126cba6c5bdb26213"
-        },
-        "date": 1767690448209,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 269424,
-            "range": "± 755",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 242158,
-            "range": "± 3896",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2804648,
-            "range": "± 4195",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "0bf762690b7d58296976ae05a0beaf5b9eb3ddde",
           "message": "fix: maximum recursion depth for the parser (#10955)",
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2259432,
             "range": "± 1456",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a9401fe4b4614876f0c3012b8d94e973440b97a3",
+          "message": "chore: ignore failing poseidon oracle tests (#11159)",
+          "timestamp": "2026-01-12T12:20:16Z",
+          "tree_id": "553972135c0fdafd4bc752d827d05c1bf8251efb",
+          "url": "https://github.com/noir-lang/noir/commit/a9401fe4b4614876f0c3012b8d94e973440b97a3"
+        },
+        "date": 1768220566078,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255705,
+            "range": "± 602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223636,
+            "range": "± 3638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786371,
+            "range": "± 5575",
             "unit": "ns/iter"
           }
         ]
