@@ -1728,7 +1728,21 @@
 <a href="#1727" id="1727">1727</a>
 <a href="#1728" id="1728">1728</a>
 <a href="#1729" id="1729">1729</a>
-<a href="#1730" id="1730">1730</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a>
+<a href="#1735" id="1735">1735</a>
+<a href="#1736" id="1736">1736</a>
+<a href="#1737" id="1737">1737</a>
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a>
+<a href="#1740" id="1740">1740</a>
+<a href="#1741" id="1741">1741</a>
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -3267,8 +3281,22 @@
         location: Location,
         target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
     ) -&gt; (ExprId, Type) {
-        <span class="kw">let </span>(block, _typ) = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
-            this.elaborate_block_expression(block, target_type)
+        <span class="kw">let </span>block = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
+            <span class="kw">let </span>(block, block_type) = this.elaborate_block_expression(block, target_type);
+
+            <span class="comment">// If the comptime block is expected to return a specific type, unify their types.
+            // This for example allows this code to compile: `let x: u8 = comptime { 1 }`.
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
+                this.unify(<span class="kw-2">&amp;</span>block_type, target_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: target_type.to_string(),
+                    expr_typ: block_type.to_string(),
+                    expr_location: location,
+                });
+            }
+
+            block
         });
 
         <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();

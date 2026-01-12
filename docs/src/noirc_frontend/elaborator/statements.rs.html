@@ -643,7 +643,38 @@
 <a href="#642" id="642">642</a>
 <a href="#643" id="643">643</a>
 <a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
@@ -689,7 +720,9 @@
             StatementKind::While(while_) =&gt; <span class="self">self</span>.elaborate_while(while_),
             StatementKind::Break =&gt; <span class="self">self</span>.elaborate_jump(<span class="bool-val">true</span>, statement.location),
             StatementKind::Continue =&gt; <span class="self">self</span>.elaborate_jump(<span class="bool-val">false</span>, statement.location),
-            StatementKind::Comptime(statement) =&gt; <span class="self">self</span>.elaborate_comptime_statement(<span class="kw-2">*</span>statement),
+            StatementKind::Comptime(statement) =&gt; {
+                <span class="self">self</span>.elaborate_comptime_statement(<span class="kw-2">*</span>statement, target_type)
+            }
             StatementKind::Expression(expr) =&gt; {
                 <span class="kw">let </span>(expr, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
@@ -762,8 +795,11 @@
 
         <span class="kw">let </span>pattern_location = let_stmt.pattern.location();
         <span class="kw">let </span>expr_location = let_stmt.expression.location;
-        <span class="kw">let </span>(expression, expr_type) =
-            <span class="self">self</span>.elaborate_expression_with_target_type(let_stmt.expression, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>annotated_type));
+        <span class="kw">let </span>(expression, expr_type) = <span class="kw">if </span>no_type {
+            <span class="self">self</span>.elaborate_expression(let_stmt.expression)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.elaborate_expression_with_target_type(let_stmt.expression, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>annotated_type))
+        };
 
         <span class="comment">// Require the top-level of a global's type to be fully-specified
         </span><span class="kw">if </span>global_id.is_some() &amp;&amp; (no_type || annotated_type.contains_type_variable()) {
@@ -1271,10 +1307,36 @@
         <span class="prelude-val">Some</span>((let_, ident_id))
     }
 
-    <span class="kw">fn </span>elaborate_comptime_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: Statement) -&gt; (HirStatement, Type) {
+    <span class="kw">fn </span>elaborate_comptime_statement(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        statement: Statement,
+        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+    ) -&gt; (HirStatement, Type) {
         <span class="kw">let </span>location = statement.location;
-        <span class="kw">let </span>(hir_statement, _typ) =
-            <span class="self">self</span>.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
+        <span class="kw">let </span>hir_statement = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
+            <span class="kw">let </span>(hir_statement, typ) = this.elaborate_statement(statement);
+
+            <span class="comment">// If the comptime statement is expected to return a specific type, unify their types.
+            // This for example allows this code to compile:
+            //
+            // ```
+            // fn foo() -&gt; u8 {
+            //   comptime { 1 }
+            // }
+            // ```
+            //
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
+                this.unify(<span class="kw-2">&amp;</span>typ, target_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: target_type.to_string(),
+                    expr_typ: typ.to_string(),
+                    expr_location: location,
+                });
+            }
+
+            hir_statement
+        });
 
         <span class="comment">// Run the interpreter - it will check if execution has been halted
         </span><span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
