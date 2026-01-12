@@ -98,6 +98,7 @@ pub(super) fn verify_signature(
 
     match R.to_encoded_point(false).coordinates() {
         Coordinates::Uncompressed { x, y: _ } => Ok(Scalar::from_repr(*x).unwrap().eq(&r)),
+        Coordinates::Identity => Ok(false),
         _ => unreachable!("Point is uncompressed"),
     }
 }

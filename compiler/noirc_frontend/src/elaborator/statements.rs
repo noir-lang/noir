@@ -44,7 +44,9 @@ impl Elaborator<'_> {
             StatementKind::While(while_) => self.elaborate_while(while_),
             StatementKind::Break => self.elaborate_jump(true, statement.location),
             StatementKind::Continue => self.elaborate_jump(false, statement.location),
-            StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
+            StatementKind::Comptime(statement) => {
+                self.elaborate_comptime_statement(*statement, target_type)
+            }
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
@@ -117,8 +119,11 @@ impl Elaborator<'_> {
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
-        let (expression, expr_type) =
-            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
+        let (expression, expr_type) = if no_type {
+            self.elaborate_expression(let_stmt.expression)
+        } else {
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type))
+        };
 
         // Require the top-level of a global's type to be fully-specified
         if global_id.is_some() && (no_type || annotated_type.contains_type_variable()) {
@@ -464,12 +469,12 @@ impl Elaborator<'_> {
                     let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    *object_ref = Box::new(HirLValue::Dereference {
+                    **object_ref = HirLValue::Dereference {
                         lvalue,
                         element_type,
                         location,
                         implicitly_added: true,
-                    });
+                    };
                     *mutable_ref = true;
                 };
 
@@ -626,10 +631,36 @@ impl Elaborator<'_> {
         Some((let_, ident_id))
     }
 
-    fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
+    fn elaborate_comptime_statement(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (HirStatement, Type) {
         let location = statement.location;
-        let (hir_statement, _typ) =
-            self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
+        let hir_statement = self.elaborate_in_comptime_context(|this| {
+            let (hir_statement, typ) = this.elaborate_statement(statement);
+
+            // If the comptime statement is expected to return a specific type, unify their types.
+            // This for example allows this code to compile:
+            //
+            // ```
+            // fn foo() -> u8 {
+            //   comptime { 1 }
+            // }
+            // ```
+            //
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            if let Some(target_type) = target_type {
+                this.unify(&typ, target_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: target_type.to_string(),
+                    expr_typ: typ.to_string(),
+                    expr_location: location,
+                });
+            }
+
+            hir_statement
+        });
 
         // Run the interpreter - it will check if execution has been halted
         let mut interpreter = self.setup_interpreter();

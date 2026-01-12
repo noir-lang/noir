@@ -938,7 +938,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let length = length.evaluate_to_u32(location).map_err(|err| {
             let location = self.interner.expr_location(&array);
-            MonomorphizationError::UnknownArrayLength { location, err, length }
+            MonomorphizationError::UnknownArrayLength { location, err }
         })?;
 
         // Represent `[expr; n]` as:
@@ -1426,13 +1426,9 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        let value = value.evaluate_to_signed_field(&expected_kind, location).map_err(|err| {
-            MonomorphizationError::UnknownArrayLength {
-                length: value.follow_bindings(),
-                err,
-                location,
-            }
-        })?;
+        let value = value
+            .evaluate_to_signed_field(&expected_kind, location)
+            .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
         let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
         if !expected_kind.unifies(&expr_kind) {
@@ -1543,12 +1539,7 @@ impl<'interner> Monomorphizer<'interner> {
                     // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
-                        let length = size.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 ast::Type::String(size)
@@ -1560,12 +1551,7 @@ impl<'interner> Monomorphizer<'interner> {
                     // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
-                        let length = size.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 let fields =
@@ -1582,12 +1568,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
-                        let length = length.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 ast::Type::Array(length, element)

@@ -3,6 +3,7 @@
 // See Cargo.toml for explanation.
 use getrandom as _;
 use getrandom_v2 as _; // cSpell:disable-line
+use getrandom_v4 as _; // cSpell:disable-line
 use rust_embed as _;
 
 use gloo_utils::format::JsValueSerdeExt;

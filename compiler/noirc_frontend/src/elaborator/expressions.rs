@@ -1538,8 +1538,22 @@ impl Elaborator<'_> {
         location: Location,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
-            this.elaborate_block_expression(block, target_type)
+        let block = self.elaborate_in_comptime_context(|this| {
+            let (block, block_type) = this.elaborate_block_expression(block, target_type);
+
+            // If the comptime block is expected to return a specific type, unify their types.
+            // This for example allows this code to compile: `let x: u8 = comptime { 1 }`.
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            if let Some(target_type) = target_type {
+                this.unify(&block_type, target_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: target_type.to_string(),
+                    expr_typ: block_type.to_string(),
+                    expr_location: location,
+                });
+            }
+
+            block
         });
 
         let mut interpreter = self.setup_interpreter();
