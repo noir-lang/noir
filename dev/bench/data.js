@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768237109331,
+  "lastUpdate": 1768237110894,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25318,105 +25318,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3abfbf8bbc9a6dafb335fda2200c69ab1705bf70",
-          "message": "fix: defining an impl on a type alias (#11068)",
-          "timestamp": "2026-01-06T12:13:53Z",
-          "tree_id": "3eeb3c0a0e25eda1b99d127ef0f3c66c3ed7a461",
-          "url": "https://github.com/noir-lang/noir/commit/3abfbf8bbc9a6dafb335fda2200c69ab1705bf70"
-        },
-        "date": 1767703884482,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 889.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2052.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 457.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 214.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 218,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 286.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 369.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 49420.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 49450.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 399.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 5589.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4827.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 167.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 570.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 506.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -30186,6 +30087,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/604a51c0e8351e92f618eda9a2f672300672d7eb"
         },
         "date": 1768230353694,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 939,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2064.5,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 469.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 220.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 224,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 292.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 385.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 48353.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 48423,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1209,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5444.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4759.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 168.8,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 551.2,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 474,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e6c06fb952abd5ee737c8aed29430d915511dee",
+          "message": "fix: Add more specific error types for evaluating numeric generics (#11164)",
+          "timestamp": "2026-01-12T16:25:32Z",
+          "tree_id": "a83b16ca0d41cebda49f7bb7a30070abb4684ea5",
+          "url": "https://github.com/noir-lang/noir/commit/7e6c06fb952abd5ee737c8aed29430d915511dee"
+        },
+        "date": 1768237073818,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
