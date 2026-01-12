@@ -1,1 +1,15 @@
-{"suite":"poseidon","name":"oracle_tests::test_poseidon2"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_1"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_10"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_11"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_12"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_13"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_14"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_15"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_2"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_3"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_4"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_5"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_6"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_7"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_8"}
+{"suite":"poseidon","name":"oracle_tests::test_poseidon_hash_9"}
