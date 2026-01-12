@@ -230,6 +230,7 @@ fn unused_generic_becomes_field() {
 
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Since variant-2 doesn't have a T value, even though we have u32 on the LHS it becomes Field.
+    // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     global B$g0: (Field, (Field,), ()) = (1, (0), ());
@@ -254,6 +255,7 @@ fn unused_const_generic_becomes_zero() {
 
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Since variant-2 doesn't use the N value, even though we have 5 on the LHS it becomes 0.
+    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r#"
     global B$g0: (Field, (str<5>,), ()) = (1, (""), ());

@@ -163,7 +163,7 @@ pub struct Monomorphizer<'interner> {
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
 ///
-/// Maps (FuncId, unconstrained) -> Map (Func Type) -> Map (Vec<Generic Type>) -> monomorphized FuncId
+/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Vec of Generic Types) -> monomorphized FuncId
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
