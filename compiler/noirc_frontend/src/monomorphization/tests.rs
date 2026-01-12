@@ -403,3 +403,50 @@ fn infix_trait_method() {
     }
     ");
 }
+
+#[test]
+fn prefix_trait_method() {
+    let src = r#"
+    // There is no stdlib in these tests, so the definition is repeated here.
+    pub trait Neg {
+        fn neg(self) -> Self;
+    }
+
+    struct Foo {
+        a: i32,
+    }
+
+    impl Neg for Foo {
+        fn neg(self) -> Self {
+            Self { a: -self.a }
+        }
+    }
+
+    fn main() {
+        let f1 = Foo { a: 1 };
+        let _f2 = -f1;
+    }
+    "#;
+
+    let program = get_monomorphized_with_error_filter(
+        src,
+        |src| get_program_with_options(src, false, true, FrontendOptions::test_default()),
+        |_| false,
+    )
+    .unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let _f2$l2 = neg$f1(f1$l1)
+    }
+    fn neg$f1(self$l3: (i32,)) -> (i32,) {
+        {
+            let a$l4 = (-self$l3.0);
+            (a$l4)
+        }
+    }
+    ");
+}
