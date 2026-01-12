@@ -86,7 +86,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 
-            memory.write_slice(memory.read_ref(outputs.pointer), &to_value_vec(&ciphertext));
+            write_heap_array(memory, outputs, &to_value_vec(&ciphertext));
 
             Ok(())
         }
