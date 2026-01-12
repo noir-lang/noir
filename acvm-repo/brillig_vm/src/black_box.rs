@@ -9,6 +9,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use crate::Memory;
+use crate::assert_usize;
 use crate::memory::MemoryValue;
 
 /// Reads a dynamically-sized [vector][HeapVector] from memory.
@@ -42,7 +43,7 @@ fn read_heap_array<'a, F: AcirField>(
     array: &HeapArray,
 ) -> &'a [MemoryValue<F>] {
     let items_start = memory.read_ref(array.pointer);
-    memory.read_slice(items_start, array.size)
+    memory.read_slice(items_start, assert_usize(array.size))
 }
 
 /// Write values to a [array][HeapArray] in memory.
