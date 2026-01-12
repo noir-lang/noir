@@ -102,8 +102,15 @@ impl Elaborator<'_> {
                 return self.elaborate_expression_with_target_type(*expr, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
-            ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type);
+            ExpressionKind::Comptime(block, _) => {
+                if self.in_comptime_context {
+                    // Treat a nested comptime block as a regular block. Nesteed comptime blocks
+                    // can happen as a result of macro expansion so it wouldn't be good to produce
+                    // a warning in that case.
+                    self.elaborate_block(block, target_type)
+                } else {
+                    return self.elaborate_comptime_block(block, expr.location, target_type);
+                }
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)

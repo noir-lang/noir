@@ -45,7 +45,14 @@ impl Elaborator<'_> {
             StatementKind::Break => self.elaborate_jump(true, statement.location),
             StatementKind::Continue => self.elaborate_jump(false, statement.location),
             StatementKind::Comptime(statement) => {
-                self.elaborate_comptime_statement(*statement, target_type)
+                if self.in_comptime_context() {
+                    // Treat a nested comptime block as a regular block. Nesteed comptime blocks
+                    // can happen as a result of macro expansion so it wouldn't be good to produce
+                    // a warning in that case.
+                    self.elaborate_statement_value_with_target_type(*statement, target_type)
+                } else {
+                    self.elaborate_comptime_statement(*statement, target_type)
+                }
             }
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
