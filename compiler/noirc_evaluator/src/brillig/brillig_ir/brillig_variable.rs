@@ -8,7 +8,10 @@ use acvm::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    brillig::brillig_ir::registers::{Allocated, RegisterAllocator},
+    brillig::brillig_ir::{
+        assert_u32,
+        registers::{Allocated, RegisterAllocator},
+    },
     ssa::ir::types::Type,
 };
 
@@ -153,8 +156,7 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: u32::try_from(typ.element_size()).expect("Failed conversion from usize to u32")
-                * *size,
+            size: assert_u32(typ.element_size()) * *size,
         },
         Type::Vector(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
