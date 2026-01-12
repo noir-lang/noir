@@ -583,11 +583,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
-        use crate::serialization::{bincode_deserialize, bincode_serialize};
+        use crate::serialization::{msgpack_deserialize, msgpack_serialize};
 
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode_serialize(&opcode).unwrap();
-        let recovered_opcode = bincode_deserialize(&buf).unwrap();
+        let buf = msgpack_serialize(&opcode, true).unwrap();
+        let recovered_opcode = msgpack_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }

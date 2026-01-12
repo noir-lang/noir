@@ -78,113 +78,54 @@ namespace Acir {
         struct Add {
             friend bool operator==(const Add&, const Add&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Sub {
             friend bool operator==(const Sub&, const Sub&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Mul {
             friend bool operator==(const Mul&, const Mul&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Div {
             friend bool operator==(const Div&, const Div&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct IntegerDiv {
             friend bool operator==(const IntegerDiv&, const IntegerDiv&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Equals {
             friend bool operator==(const Equals&, const Equals&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThan {
             friend bool operator==(const LessThan&, const LessThan&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThanEquals {
             friend bool operator==(const LessThanEquals&, const LessThanEquals&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
 
         friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Add";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "Sub";
-                    is_unit = true;
-                    break;
-                case 2:
-                    tag = "Mul";
-                    is_unit = true;
-                    break;
-                case 3:
-                    tag = "Div";
-                    is_unit = true;
-                    break;
-                case 4:
-                    tag = "IntegerDiv";
-                    is_unit = true;
-                    break;
-                case 5:
-                    tag = "Equals";
-                    is_unit = true;
-                    break;
-                case 6:
-                    tag = "LessThan";
-                    is_unit = true;
-                    break;
-                case 7:
-                    tag = "LessThanEquals";
-                    is_unit = true;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BinaryFieldOp' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -250,157 +191,78 @@ namespace Acir {
         struct Add {
             friend bool operator==(const Add&, const Add&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Sub {
             friend bool operator==(const Sub&, const Sub&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Mul {
             friend bool operator==(const Mul&, const Mul&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Div {
             friend bool operator==(const Div&, const Div&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Equals {
             friend bool operator==(const Equals&, const Equals&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThan {
             friend bool operator==(const LessThan&, const LessThan&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThanEquals {
             friend bool operator==(const LessThanEquals&, const LessThanEquals&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct And {
             friend bool operator==(const And&, const And&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Or {
             friend bool operator==(const Or&, const Or&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Xor {
             friend bool operator==(const Xor&, const Xor&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Shl {
             friend bool operator==(const Shl&, const Shl&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Shr {
             friend bool operator==(const Shr&, const Shr&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
 
         friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Add";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "Sub";
-                    is_unit = true;
-                    break;
-                case 2:
-                    tag = "Mul";
-                    is_unit = true;
-                    break;
-                case 3:
-                    tag = "Div";
-                    is_unit = true;
-                    break;
-                case 4:
-                    tag = "Equals";
-                    is_unit = true;
-                    break;
-                case 5:
-                    tag = "LessThan";
-                    is_unit = true;
-                    break;
-                case 6:
-                    tag = "LessThanEquals";
-                    is_unit = true;
-                    break;
-                case 7:
-                    tag = "And";
-                    is_unit = true;
-                    break;
-                case 8:
-                    tag = "Or";
-                    is_unit = true;
-                    break;
-                case 9:
-                    tag = "Xor";
-                    is_unit = true;
-                    break;
-                case 10:
-                    tag = "Shl";
-                    is_unit = true;
-                    break;
-                case 11:
-                    tag = "Shr";
-                    is_unit = true;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BinaryIntOp' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -482,91 +344,42 @@ namespace Acir {
         struct U1 {
             friend bool operator==(const U1&, const U1&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U8 {
             friend bool operator==(const U8&, const U8&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U16 {
             friend bool operator==(const U16&, const U16&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U32 {
             friend bool operator==(const U32&, const U32&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U64 {
             friend bool operator==(const U64&, const U64&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U128 {
             friend bool operator==(const U128&, const U128&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<U1, U8, U16, U32, U64, U128> value;
 
         friend bool operator==(const IntegerBitSize&, const IntegerBitSize&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "U1";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "U8";
-                    is_unit = true;
-                    break;
-                case 2:
-                    tag = "U16";
-                    is_unit = true;
-                    break;
-                case 3:
-                    tag = "U32";
-                    is_unit = true;
-                    break;
-                case 4:
-                    tag = "U64";
-                    is_unit = true;
-                    break;
-                case 5:
-                    tag = "U128";
-                    is_unit = true;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'IntegerBitSize' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -624,7 +437,6 @@ namespace Acir {
         struct Field {
             friend bool operator==(const Field&, const Field&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
@@ -632,8 +444,6 @@ namespace Acir {
             Acir::IntegerBitSize value;
 
             friend bool operator==(const Integer&, const Integer&);
-
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
                 try {
@@ -648,33 +458,6 @@ namespace Acir {
         std::variant<Field, Integer> value;
 
         friend bool operator==(const BitSize&, const BitSize&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Field";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "Integer";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BitSize' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -725,8 +508,6 @@ namespace Acir {
 
             friend bool operator==(const Direct&, const Direct&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -742,8 +523,6 @@ namespace Acir {
 
             friend bool operator==(const Relative&, const Relative&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -757,33 +536,6 @@ namespace Acir {
         std::variant<Direct, Relative> value;
 
         friend bool operator==(const MemoryAddress&, const MemoryAddress&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Direct";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Relative";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'MemoryAddress' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -840,12 +592,6 @@ namespace Acir {
 
         friend bool operator==(const HeapArray&, const HeapArray&);
 
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("pointer", pointer));
-            packer.pack(std::make_pair("size", size));
-        }
-
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "HeapArray";
             if (o.type == msgpack::type::MAP) {
@@ -867,12 +613,6 @@ namespace Acir {
         Acir::MemoryAddress size;
 
         friend bool operator==(const HeapVector&, const HeapVector&);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("pointer", pointer));
-            packer.pack(std::make_pair("size", size));
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "HeapVector";
@@ -900,14 +640,6 @@ namespace Acir {
 
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("iv", iv));
-                packer.pack(std::make_pair("key", key));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "AES128Encrypt";
                 if (o.type == msgpack::type::MAP) {
@@ -934,12 +666,6 @@ namespace Acir {
 
             friend bool operator==(const Blake2s&, const Blake2s&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("message", message));
-                packer.pack(std::make_pair("output", output));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake2s";
                 if (o.type == msgpack::type::MAP) {
@@ -962,12 +688,6 @@ namespace Acir {
 
             friend bool operator==(const Blake3&, const Blake3&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("message", message));
-                packer.pack(std::make_pair("output", output));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake3";
                 if (o.type == msgpack::type::MAP) {
@@ -989,12 +709,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("output", output));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Keccakf1600";
@@ -1020,15 +734,6 @@ namespace Acir {
             Acir::MemoryAddress result;
 
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("hashed_msg", hashed_msg));
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("result", result));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256k1";
@@ -1061,15 +766,6 @@ namespace Acir {
 
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("hashed_msg", hashed_msg));
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("result", result));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256r1";
                 if (o.type == msgpack::type::MAP) {
@@ -1099,13 +795,6 @@ namespace Acir {
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("points", points));
-                packer.pack(std::make_pair("scalars", scalars));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MultiScalarMul";
                 if (o.type == msgpack::type::MAP) {
@@ -1134,17 +823,6 @@ namespace Acir {
             Acir::HeapArray result;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(7);
-                packer.pack(std::make_pair("input1_x", input1_x));
-                packer.pack(std::make_pair("input1_y", input1_y));
-                packer.pack(std::make_pair("input1_infinite", input1_infinite));
-                packer.pack(std::make_pair("input2_x", input2_x));
-                packer.pack(std::make_pair("input2_y", input2_y));
-                packer.pack(std::make_pair("input2_infinite", input2_infinite));
-                packer.pack(std::make_pair("result", result));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EmbeddedCurveAdd";
@@ -1178,12 +856,6 @@ namespace Acir {
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("message", message));
-                packer.pack(std::make_pair("output", output));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Poseidon2Permutation";
                 if (o.type == msgpack::type::MAP) {
@@ -1206,13 +878,6 @@ namespace Acir {
             Acir::HeapArray output;
 
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("hash_values", hash_values));
-                packer.pack(std::make_pair("output", output));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Sha256Compression";
@@ -1241,15 +906,6 @@ namespace Acir {
 
             friend bool operator==(const ToRadix&, const ToRadix&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("radix", radix));
-                packer.pack(std::make_pair("output_pointer", output_pointer));
-                packer.pack(std::make_pair("num_limbs", num_limbs));
-                packer.pack(std::make_pair("output_bits", output_bits));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "ToRadix";
                 if (o.type == msgpack::type::MAP) {
@@ -1275,69 +931,6 @@ namespace Acir {
         std::variant<AES128Encrypt, Blake2s, Blake3, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Poseidon2Permutation, Sha256Compression, ToRadix> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "AES128Encrypt";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Blake2s";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "Blake3";
-                    is_unit = false;
-                    break;
-                case 3:
-                    tag = "Keccakf1600";
-                    is_unit = false;
-                    break;
-                case 4:
-                    tag = "EcdsaSecp256k1";
-                    is_unit = false;
-                    break;
-                case 5:
-                    tag = "EcdsaSecp256r1";
-                    is_unit = false;
-                    break;
-                case 6:
-                    tag = "MultiScalarMul";
-                    is_unit = false;
-                    break;
-                case 7:
-                    tag = "EmbeddedCurveAdd";
-                    is_unit = false;
-                    break;
-                case 8:
-                    tag = "Poseidon2Permutation";
-                    is_unit = false;
-                    break;
-                case 9:
-                    tag = "Sha256Compression";
-                    is_unit = false;
-                    break;
-                case 10:
-                    tag = "ToRadix";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BlackBoxOp' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -1496,8 +1089,6 @@ namespace Acir {
 
             friend bool operator==(const Simple&, const Simple&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -1513,12 +1104,6 @@ namespace Acir {
             uint64_t size;
 
             friend bool operator==(const Array&, const Array&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("value_types", value_types));
-                packer.pack(std::make_pair("size", size));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Array";
@@ -1541,11 +1126,6 @@ namespace Acir {
 
             friend bool operator==(const Vector&, const Vector&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("value_types", value_types));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Vector";
                 if (o.type == msgpack::type::MAP) {
@@ -1563,37 +1143,6 @@ namespace Acir {
         std::variant<Simple, Array, Vector> value;
 
         friend bool operator==(const HeapValueType&, const HeapValueType&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Simple";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Array";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "Vector";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'HeapValueType' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -1684,8 +1233,6 @@ namespace Acir {
 
             friend bool operator==(const MemoryAddress&, const MemoryAddress&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -1700,8 +1247,6 @@ namespace Acir {
             Acir::HeapArray value;
 
             friend bool operator==(const HeapArray&, const HeapArray&);
-
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
                 try {
@@ -1718,8 +1263,6 @@ namespace Acir {
 
             friend bool operator==(const HeapVector&, const HeapVector&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -1733,37 +1276,6 @@ namespace Acir {
         std::variant<MemoryAddress, HeapArray, HeapVector> value;
 
         friend bool operator==(const ValueOrArray&, const ValueOrArray&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "MemoryAddress";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "HeapArray";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "HeapVector";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'ValueOrArray' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -1835,14 +1347,6 @@ namespace Acir {
 
             friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("op", op));
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "BinaryFieldOp";
                 if (o.type == msgpack::type::MAP) {
@@ -1871,15 +1375,6 @@ namespace Acir {
             Acir::MemoryAddress rhs;
 
             friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("op", op));
-                packer.pack(std::make_pair("bit_size", bit_size));
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "BinaryIntOp";
@@ -1910,13 +1405,6 @@ namespace Acir {
 
             friend bool operator==(const Not&, const Not&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source", source));
-                packer.pack(std::make_pair("bit_size", bit_size));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Not";
                 if (o.type == msgpack::type::MAP) {
@@ -1942,13 +1430,6 @@ namespace Acir {
 
             friend bool operator==(const Cast&, const Cast&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source", source));
-                packer.pack(std::make_pair("bit_size", bit_size));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Cast";
                 if (o.type == msgpack::type::MAP) {
@@ -1973,12 +1454,6 @@ namespace Acir {
 
             friend bool operator==(const JumpIf&, const JumpIf&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("condition", condition));
-                packer.pack(std::make_pair("location", location));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "JumpIf";
                 if (o.type == msgpack::type::MAP) {
@@ -2000,11 +1475,6 @@ namespace Acir {
 
             friend bool operator==(const Jump&, const Jump&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("location", location));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Jump";
                 if (o.type == msgpack::type::MAP) {
@@ -2025,13 +1495,6 @@ namespace Acir {
             Acir::MemoryAddress offset_address;
 
             friend bool operator==(const CalldataCopy&, const CalldataCopy&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination_address", destination_address));
-                packer.pack(std::make_pair("size_address", size_address));
-                packer.pack(std::make_pair("offset_address", offset_address));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "CalldataCopy";
@@ -2056,11 +1519,6 @@ namespace Acir {
 
             friend bool operator==(const Call&, const Call&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("location", location));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Call";
                 if (o.type == msgpack::type::MAP) {
@@ -2081,13 +1539,6 @@ namespace Acir {
             std::vector<uint8_t> value;
 
             friend bool operator==(const Const&, const Const&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("bit_size", bit_size));
-                packer.pack(std::make_pair("value", value));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Const";
@@ -2114,13 +1565,6 @@ namespace Acir {
 
             friend bool operator==(const IndirectConst&, const IndirectConst&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination_pointer", destination_pointer));
-                packer.pack(std::make_pair("bit_size", bit_size));
-                packer.pack(std::make_pair("value", value));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "IndirectConst";
                 if (o.type == msgpack::type::MAP) {
@@ -2142,7 +1586,6 @@ namespace Acir {
         struct Return {
             friend bool operator==(const Return&, const Return&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
@@ -2154,15 +1597,6 @@ namespace Acir {
             std::vector<Acir::HeapValueType> input_value_types;
 
             friend bool operator==(const ForeignCall&, const ForeignCall&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("function", function));
-                packer.pack(std::make_pair("destinations", destinations));
-                packer.pack(std::make_pair("destination_value_types", destination_value_types));
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("input_value_types", input_value_types));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "ForeignCall";
@@ -2192,12 +1626,6 @@ namespace Acir {
 
             friend bool operator==(const Mov&, const Mov&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source", source));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Mov";
                 if (o.type == msgpack::type::MAP) {
@@ -2221,14 +1649,6 @@ namespace Acir {
             Acir::MemoryAddress condition;
 
             friend bool operator==(const ConditionalMov&, const ConditionalMov&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source_a", source_a));
-                packer.pack(std::make_pair("source_b", source_b));
-                packer.pack(std::make_pair("condition", condition));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "ConditionalMov";
@@ -2256,12 +1676,6 @@ namespace Acir {
 
             friend bool operator==(const Load&, const Load&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source_pointer", source_pointer));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Load";
                 if (o.type == msgpack::type::MAP) {
@@ -2284,12 +1698,6 @@ namespace Acir {
 
             friend bool operator==(const Store&, const Store&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("destination_pointer", destination_pointer));
-                packer.pack(std::make_pair("source", source));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Store";
                 if (o.type == msgpack::type::MAP) {
@@ -2311,8 +1719,6 @@ namespace Acir {
 
             friend bool operator==(const BlackBox&, const BlackBox&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -2327,11 +1733,6 @@ namespace Acir {
             Acir::HeapVector revert_data;
 
             friend bool operator==(const Trap&, const Trap&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("revert_data", revert_data));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Trap";
@@ -2352,11 +1753,6 @@ namespace Acir {
 
             friend bool operator==(const Stop&, const Stop&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("return_data", return_data));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Stop";
                 if (o.type == msgpack::type::MAP) {
@@ -2374,101 +1770,6 @@ namespace Acir {
         std::variant<BinaryFieldOp, BinaryIntOp, Not, Cast, JumpIf, Jump, CalldataCopy, Call, Const, IndirectConst, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
 
         friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "BinaryFieldOp";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "BinaryIntOp";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "Not";
-                    is_unit = false;
-                    break;
-                case 3:
-                    tag = "Cast";
-                    is_unit = false;
-                    break;
-                case 4:
-                    tag = "JumpIf";
-                    is_unit = false;
-                    break;
-                case 5:
-                    tag = "Jump";
-                    is_unit = false;
-                    break;
-                case 6:
-                    tag = "CalldataCopy";
-                    is_unit = false;
-                    break;
-                case 7:
-                    tag = "Call";
-                    is_unit = false;
-                    break;
-                case 8:
-                    tag = "Const";
-                    is_unit = false;
-                    break;
-                case 9:
-                    tag = "IndirectConst";
-                    is_unit = false;
-                    break;
-                case 10:
-                    tag = "Return";
-                    is_unit = true;
-                    break;
-                case 11:
-                    tag = "ForeignCall";
-                    is_unit = false;
-                    break;
-                case 12:
-                    tag = "Mov";
-                    is_unit = false;
-                    break;
-                case 13:
-                    tag = "ConditionalMov";
-                    is_unit = false;
-                    break;
-                case 14:
-                    tag = "Load";
-                    is_unit = false;
-                    break;
-                case 15:
-                    tag = "Store";
-                    is_unit = false;
-                    break;
-                case 16:
-                    tag = "BlackBox";
-                    is_unit = false;
-                    break;
-                case 17:
-                    tag = "Trap";
-                    is_unit = false;
-                    break;
-                case 18:
-                    tag = "Stop";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BrilligOpcode' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -2704,8 +2005,6 @@ namespace Acir {
 
         friend bool operator==(const Witness&, const Witness&);
 
-        void msgpack_pack(auto& packer) const { packer.pack(value); }
-
         void msgpack_unpack(msgpack::object const& o) {
             try {
                 o.convert(value);
@@ -2723,8 +2022,6 @@ namespace Acir {
 
             friend bool operator==(const Constant&, const Constant&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -2740,8 +2037,6 @@ namespace Acir {
 
             friend bool operator==(const Witness&, const Witness&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -2755,33 +2050,6 @@ namespace Acir {
         std::variant<Constant, Witness> value;
 
         friend bool operator==(const FunctionInput&, const FunctionInput&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Constant";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Witness";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'FunctionInput' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -2842,14 +2110,6 @@ namespace Acir {
 
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("iv", iv));
-                packer.pack(std::make_pair("key", key));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "AES128Encrypt";
                 if (o.type == msgpack::type::MAP) {
@@ -2877,14 +2137,6 @@ namespace Acir {
             Acir::Witness output;
 
             friend bool operator==(const AND&, const AND&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
-                packer.pack(std::make_pair("num_bits", num_bits));
-                packer.pack(std::make_pair("output", output));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "AND";
@@ -2914,14 +2166,6 @@ namespace Acir {
 
             friend bool operator==(const XOR&, const XOR&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
-                packer.pack(std::make_pair("num_bits", num_bits));
-                packer.pack(std::make_pair("output", output));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "XOR";
                 if (o.type == msgpack::type::MAP) {
@@ -2948,12 +2192,6 @@ namespace Acir {
 
             friend bool operator==(const RANGE&, const RANGE&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("num_bits", num_bits));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "RANGE";
                 if (o.type == msgpack::type::MAP) {
@@ -2976,12 +2214,6 @@ namespace Acir {
 
             friend bool operator==(const Blake2s&, const Blake2s&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake2s";
                 if (o.type == msgpack::type::MAP) {
@@ -3003,12 +2235,6 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::Witness, 32>> outputs;
 
             friend bool operator==(const Blake3&, const Blake3&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake3";
@@ -3035,16 +2261,6 @@ namespace Acir {
             Acir::Witness output;
 
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(6);
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("hashed_message", hashed_message));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("output", output));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256k1";
@@ -3080,16 +2296,6 @@ namespace Acir {
 
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(6);
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("hashed_message", hashed_message));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("output", output));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256r1";
                 if (o.type == msgpack::type::MAP) {
@@ -3122,14 +2328,6 @@ namespace Acir {
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("points", points));
-                packer.pack(std::make_pair("scalars", scalars));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MultiScalarMul";
                 if (o.type == msgpack::type::MAP) {
@@ -3158,14 +2356,6 @@ namespace Acir {
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("input1", input1));
-                packer.pack(std::make_pair("input2", input2));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EmbeddedCurveAdd";
                 if (o.type == msgpack::type::MAP) {
@@ -3192,12 +2382,6 @@ namespace Acir {
 
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Keccakf1600";
                 if (o.type == msgpack::type::MAP) {
@@ -3223,16 +2407,6 @@ namespace Acir {
             Acir::FunctionInput predicate;
 
             friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(6);
-                packer.pack(std::make_pair("verification_key", verification_key));
-                packer.pack(std::make_pair("proof", proof));
-                packer.pack(std::make_pair("public_inputs", public_inputs));
-                packer.pack(std::make_pair("key_hash", key_hash));
-                packer.pack(std::make_pair("proof_type", proof_type));
-                packer.pack(std::make_pair("predicate", predicate));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "RecursiveAggregation";
@@ -3264,12 +2438,6 @@ namespace Acir {
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Poseidon2Permutation";
                 if (o.type == msgpack::type::MAP) {
@@ -3293,13 +2461,6 @@ namespace Acir {
 
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("hash_values", hash_values));
-                packer.pack(std::make_pair("outputs", outputs));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Sha256Compression";
                 if (o.type == msgpack::type::MAP) {
@@ -3321,81 +2482,6 @@ namespace Acir {
         std::variant<AES128Encrypt, AND, XOR, RANGE, Blake2s, Blake3, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccakf1600, RecursiveAggregation, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "AES128Encrypt";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "AND";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "XOR";
-                    is_unit = false;
-                    break;
-                case 3:
-                    tag = "RANGE";
-                    is_unit = false;
-                    break;
-                case 4:
-                    tag = "Blake2s";
-                    is_unit = false;
-                    break;
-                case 5:
-                    tag = "Blake3";
-                    is_unit = false;
-                    break;
-                case 6:
-                    tag = "EcdsaSecp256k1";
-                    is_unit = false;
-                    break;
-                case 7:
-                    tag = "EcdsaSecp256r1";
-                    is_unit = false;
-                    break;
-                case 8:
-                    tag = "MultiScalarMul";
-                    is_unit = false;
-                    break;
-                case 9:
-                    tag = "EmbeddedCurveAdd";
-                    is_unit = false;
-                    break;
-                case 10:
-                    tag = "Keccakf1600";
-                    is_unit = false;
-                    break;
-                case 11:
-                    tag = "RecursiveAggregation";
-                    is_unit = false;
-                    break;
-                case 12:
-                    tag = "Poseidon2Permutation";
-                    is_unit = false;
-                    break;
-                case 13:
-                    tag = "Sha256Compression";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BlackBoxFuncCall' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -3583,8 +2669,6 @@ namespace Acir {
 
         friend bool operator==(const BlockId&, const BlockId&);
 
-        void msgpack_pack(auto& packer) const { packer.pack(value); }
-
         void msgpack_unpack(msgpack::object const& o) {
             try {
                 o.convert(value);
@@ -3600,7 +2684,6 @@ namespace Acir {
         struct Memory {
             friend bool operator==(const Memory&, const Memory&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
@@ -3608,8 +2691,6 @@ namespace Acir {
             uint32_t value;
 
             friend bool operator==(const CallData&, const CallData&);
-
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
                 try {
@@ -3624,44 +2705,12 @@ namespace Acir {
         struct ReturnData {
             friend bool operator==(const ReturnData&, const ReturnData&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Memory, CallData, ReturnData> value;
 
         friend bool operator==(const BlockType&, const BlockType&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Memory";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "CallData";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "ReturnData";
-                    is_unit = true;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BlockType' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -3716,13 +2765,6 @@ namespace Acir {
 
         friend bool operator==(const Expression&, const Expression&);
 
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(3);
-            packer.pack(std::make_pair("mul_terms", mul_terms));
-            packer.pack(std::make_pair("linear_combinations", linear_combinations));
-            packer.pack(std::make_pair("q_c", q_c));
-        }
-
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "Expression";
             if (o.type == msgpack::type::MAP) {
@@ -3748,8 +2790,6 @@ namespace Acir {
 
             friend bool operator==(const Single&, const Single&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -3764,8 +2804,6 @@ namespace Acir {
             std::vector<Acir::Expression> value;
 
             friend bool operator==(const Array&, const Array&);
-
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
                 try {
@@ -3782,8 +2820,6 @@ namespace Acir {
 
             friend bool operator==(const MemoryArray&, const MemoryArray&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -3797,37 +2833,6 @@ namespace Acir {
         std::variant<Single, Array, MemoryArray> value;
 
         friend bool operator==(const BrilligInputs&, const BrilligInputs&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Single";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Array";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "MemoryArray";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BrilligInputs' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -3896,8 +2901,6 @@ namespace Acir {
 
             friend bool operator==(const Simple&, const Simple&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -3913,8 +2916,6 @@ namespace Acir {
 
             friend bool operator==(const Array&, const Array&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -3928,33 +2929,6 @@ namespace Acir {
         std::variant<Simple, Array> value;
 
         friend bool operator==(const BrilligOutputs&, const BrilligOutputs&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Simple";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Array";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'BrilligOutputs' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -4012,13 +2986,6 @@ namespace Acir {
 
         friend bool operator==(const MemOp&, const MemOp&);
 
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(3);
-            packer.pack(std::make_pair("operation", operation));
-            packer.pack(std::make_pair("index", index));
-            packer.pack(std::make_pair("value", value));
-        }
-
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "MemOp";
             if (o.type == msgpack::type::MAP) {
@@ -4044,8 +3011,6 @@ namespace Acir {
 
             friend bool operator==(const AssertZero&, const AssertZero&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -4060,8 +3025,6 @@ namespace Acir {
             Acir::BlackBoxFuncCall value;
 
             friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
-
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
                 try {
@@ -4078,12 +3041,6 @@ namespace Acir {
             Acir::MemOp op;
 
             friend bool operator==(const MemoryOp&, const MemoryOp&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("block_id", block_id));
-                packer.pack(std::make_pair("op", op));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MemoryOp";
@@ -4107,13 +3064,6 @@ namespace Acir {
             Acir::BlockType block_type;
 
             friend bool operator==(const MemoryInit&, const MemoryInit&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("block_id", block_id));
-                packer.pack(std::make_pair("init", init));
-                packer.pack(std::make_pair("block_type", block_type));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MemoryInit";
@@ -4140,14 +3090,6 @@ namespace Acir {
             std::optional<Acir::Expression> predicate;
 
             friend bool operator==(const BrilligCall&, const BrilligCall&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("id", id));
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-                packer.pack(std::make_pair("predicate", predicate));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "BrilligCall";
@@ -4177,14 +3119,6 @@ namespace Acir {
 
             friend bool operator==(const Call&, const Call&);
 
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("id", id));
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-                packer.pack(std::make_pair("predicate", predicate));
-            }
-
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Call";
                 if (o.type == msgpack::type::MAP) {
@@ -4208,49 +3142,6 @@ namespace Acir {
         std::variant<AssertZero, BlackBoxFuncCall, MemoryOp, MemoryInit, BrilligCall, Call> value;
 
         friend bool operator==(const Opcode&, const Opcode&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "AssertZero";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "BlackBoxFuncCall";
-                    is_unit = false;
-                    break;
-                case 2:
-                    tag = "MemoryOp";
-                    is_unit = false;
-                    break;
-                case 3:
-                    tag = "MemoryInit";
-                    is_unit = false;
-                    break;
-                case 4:
-                    tag = "BrilligCall";
-                    is_unit = false;
-                    break;
-                case 5:
-                    tag = "Call";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'Opcode' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -4352,8 +3243,6 @@ namespace Acir {
 
             friend bool operator==(const Expression&, const Expression&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -4369,8 +3258,6 @@ namespace Acir {
 
             friend bool operator==(const Memory&, const Memory&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -4384,33 +3271,6 @@ namespace Acir {
         std::variant<Expression, Memory> value;
 
         friend bool operator==(const ExpressionOrMemory&, const ExpressionOrMemory&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Expression";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Memory";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'ExpressionOrMemory' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -4467,12 +3327,6 @@ namespace Acir {
 
         friend bool operator==(const AssertionPayload&, const AssertionPayload&);
 
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("error_selector", error_selector));
-            packer.pack(std::make_pair("payload", payload));
-        }
-
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "AssertionPayload";
             if (o.type == msgpack::type::MAP) {
@@ -4496,8 +3350,6 @@ namespace Acir {
 
             friend bool operator==(const Acir&, const Acir&);
 
-            void msgpack_pack(auto& packer) const { packer.pack(value); }
-
             void msgpack_unpack(msgpack::object const& o) {
                 try {
                     o.convert(value);
@@ -4513,12 +3365,6 @@ namespace Acir {
             uint64_t brillig_index;
 
             friend bool operator==(const Brillig&, const Brillig&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("acir_index", acir_index));
-                packer.pack(std::make_pair("brillig_index", brillig_index));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Brillig";
@@ -4539,33 +3385,6 @@ namespace Acir {
         std::variant<Acir, Brillig> value;
 
         friend bool operator==(const OpcodeLocation&, const OpcodeLocation&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Acir";
-                    is_unit = false;
-                    break;
-                case 1:
-                    tag = "Brillig";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'OpcodeLocation' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
@@ -4621,8 +3440,6 @@ namespace Acir {
 
         friend bool operator==(const PublicInputs&, const PublicInputs&);
 
-        void msgpack_pack(auto& packer) const { packer.pack(value); }
-
         void msgpack_unpack(msgpack::object const& o) {
             try {
                 o.convert(value);
@@ -4643,17 +3460,6 @@ namespace Acir {
         std::vector<std::tuple<Acir::OpcodeLocation, Acir::AssertionPayload>> assert_messages;
 
         friend bool operator==(const Circuit&, const Circuit&);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(7);
-            packer.pack(std::make_pair("function_name", function_name));
-            packer.pack(std::make_pair("current_witness_index", current_witness_index));
-            packer.pack(std::make_pair("opcodes", opcodes));
-            packer.pack(std::make_pair("private_parameters", private_parameters));
-            packer.pack(std::make_pair("public_parameters", public_parameters));
-            packer.pack(std::make_pair("return_values", return_values));
-            packer.pack(std::make_pair("assert_messages", assert_messages));
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "Circuit";
@@ -4687,12 +3493,6 @@ namespace Acir {
 
         friend bool operator==(const BrilligBytecode&, const BrilligBytecode&);
 
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("function_name", function_name));
-            packer.pack(std::make_pair("bytecode", bytecode));
-        }
-
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "BrilligBytecode";
             if (o.type == msgpack::type::MAP) {
@@ -4714,12 +3514,6 @@ namespace Acir {
         std::vector<Acir::BrilligBytecode> unconstrained_functions;
 
         friend bool operator==(const Program&, const Program&);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("functions", functions));
-            packer.pack(std::make_pair("unconstrained_functions", unconstrained_functions));
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "Program";
@@ -4743,11 +3537,6 @@ namespace Acir {
 
         friend bool operator==(const ProgramWithoutBrillig&, const ProgramWithoutBrillig&);
 
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(1);
-            packer.pack(std::make_pair("functions", functions));
-        }
-
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "ProgramWithoutBrillig";
             if (o.type == msgpack::type::MAP) {
@@ -4767,7 +3556,6 @@ namespace Acir {
         struct Unbounded {
             friend bool operator==(const Unbounded&, const Unbounded&);
 
-            void msgpack_pack(auto& packer) const {}
             void msgpack_unpack(msgpack::object const& o) {}
         };
 
@@ -4775,11 +3563,6 @@ namespace Acir {
             uint64_t width;
 
             friend bool operator==(const Bounded&, const Bounded&);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("width", width));
-            }
 
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Bounded";
@@ -4798,33 +3581,6 @@ namespace Acir {
         std::variant<Unbounded, Bounded> value;
 
         friend bool operator==(const ExpressionWidth&, const ExpressionWidth&);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Unbounded";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "Bounded";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'ExpressionWidth' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    packer.pack_map(1);
-                    packer.pack(tag);
-                    arg.msgpack_pack(packer);
-                }, value);
-            }
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
 
