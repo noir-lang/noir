@@ -1133,3 +1133,39 @@ fn regression_11016() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn varargs_on_non_comptime_function() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] can only be applied to comptime functions
+    fn main() {
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_arguments() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] requires its function to have at least one parameter
+    pub comptime fn foo() {}
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_last_vector_parameter() {
+    let src = "
+    #[foo(1, 2, 3, 4)] // Make sure no error is triggered here because of the varargs error
+    #[varargs]
+    pub comptime fn foo(_: FunctionDefinition, _x: Field, _y: Field) {}
+                                                          ^^ The last parameter of a #[varargs] function must be a vector
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
