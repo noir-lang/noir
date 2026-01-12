@@ -8,25 +8,17 @@ use strum_macros::EnumString;
 const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
 /// A marker byte for the serialization format.
-#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+#[derive(
+    Debug, Default, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq,
+)]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub enum Format {
-    /// Bincode without format marker.
-    /// This does not actually appear in the data.
-    BincodeLegacy = 0,
-    /// Bincode with format marker.
-    Bincode = 1,
     /// Msgpack with named structs.
     Msgpack = 2,
     /// Msgpack with tuple structs.
+    #[default]
     MsgpackCompact = 3,
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Self::MsgpackCompact
-    }
 }
 
 impl Format {
@@ -44,22 +36,6 @@ impl Format {
             .map(Some)
             .map_err(|e| format!("unknown format '{format}' in {FORMAT_ENV_VAR}: {e}"))
     }
-}
-
-/// Serialize a value using `bincode`, based on `serde`.
-///
-/// This format is compact, but provides no backwards compatibility.
-pub(crate) fn bincode_serialize<T: Serialize>(value: &T) -> std::io::Result<Vec<u8>> {
-    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
-    bincode::serde::encode_to_vec(value, config).map_err(std::io::Error::other)
-}
-
-/// Deserialize a value using `bincode`, based on `serde`.
-pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
-    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
-    bincode::serde::borrow_decode_from_slice(buf, config)
-        .map(|(result, _)| result)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
 /// Serialize a value using MessagePack, based on `serde`.
@@ -102,39 +78,19 @@ pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
-/// Deserialize any of the supported formats. Try go guess the format based on the first byte,
-/// but fall back to the legacy `bincode` format if anything fails.
+/// Deserialize any of the supported formats.
 pub(crate) fn deserialize_any_format<T>(buf: &[u8]) -> std::io::Result<T>
 where
     T: for<'a> Deserialize<'a>,
 {
-    // Unfortunately as long as we have to deal with legacy bincode format we might be able
-    // to deserialize any other format as pure coincidence, when it was just legacy data.
-    // Since `bincode` is the least backwards compatible, let's try that first.
-    let bincode_result = bincode_deserialize(buf);
+    let Some(format_byte) = buf.first() else {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "empty buffer"));
+    };
 
-    if bincode_result.is_err() && !buf.is_empty() {
-        if let Ok(format) = Format::try_from(buf[0]) {
-            match format {
-                Format::BincodeLegacy => {
-                    // This is just a coincidence, as this format does not appear in the data,
-                    // but we know it's none of the other formats.
-                }
-                Format::Bincode => {
-                    if let Ok(value) = bincode_deserialize(&buf[1..]) {
-                        return Ok(value);
-                    }
-                }
-                Format::Msgpack | Format::MsgpackCompact => {
-                    if let Ok(value) = msgpack_deserialize(&buf[1..]) {
-                        return Ok(value);
-                    }
-                }
-            }
-        }
+    match Format::try_from(*format_byte) {
+        Ok(Format::Msgpack) | Ok(Format::MsgpackCompact) => msgpack_deserialize(&buf[1..]),
+        Err(msg) => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, msg.to_string())),
     }
-
-    bincode_result
 }
 
 pub(crate) fn serialize_with_format<T>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
@@ -143,8 +99,6 @@ where
 {
     // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
-        Format::BincodeLegacy => return bincode_serialize(value),
-        Format::Bincode => bincode_serialize(value)?,
         Format::Msgpack => msgpack_serialize(value, false)?,
         Format::MsgpackCompact => msgpack_serialize(value, true)?,
     };

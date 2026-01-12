@@ -42,34 +42,28 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     })
 }
 
-/// Inline attributes are only relevant for constrained functions
-/// as all unconstrained functions are not inlined and so
-/// associated attributes are disallowed.
+/// Validate inline-related attributes based on whether the function is constrained or unconstrained.
+/// - Constrained functions: disallow `#[inline_never]`
+/// - Unconstrained functions: disallow `#[no_predicates]` and `#[fold]`
 pub(super) fn inlining_attributes(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if !modifiers.is_unconstrained {
-        return None;
-    }
-
     let attribute = modifiers.attributes.function()?;
     let location = attribute.location;
+    let ident = func_meta_name_ident(func, modifiers);
+
     match &attribute.kind {
-        FunctionAttributeKind::NoPredicates => {
-            let ident = func_meta_name_ident(func, modifiers);
+        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
             Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold => {
-            let ident = func_meta_name_ident(func, modifiers);
+        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
             Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Foreign(_)
-        | FunctionAttributeKind::Builtin(_)
-        | FunctionAttributeKind::Oracle(_)
-        | FunctionAttributeKind::Test(_)
-        | FunctionAttributeKind::InlineAlways
-        | FunctionAttributeKind::FuzzingHarness(_) => None,
+        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+            Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
+        }
+        _ => None,
     }
 }
 
@@ -185,6 +179,65 @@ pub(super) fn oracle_returns_multiple_vectors(
     if vector_count(func.return_type()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
+    } else {
+        None
+    }
+}
+
+/// Oracle functions cannot return references
+pub(super) fn oracle_returns_reference(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    fn contains_reference(typ: &Type) -> bool {
+        match typ {
+            Type::Reference(_, _) => true,
+            Type::Array(_, item) => contains_reference(item),
+            Type::Vector(typ) => contains_reference(typ),
+            Type::Tuple(items) => items.iter().any(contains_reference),
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                if let Some(fields) = struct_type.get_fields(args) {
+                    fields.iter().any(|(_, typ, _)| contains_reference(typ))
+                } else if let Some(variants) = struct_type.get_variants(args) {
+                    variants.iter().flat_map(|(_, types)| types).any(contains_reference)
+                } else {
+                    false
+                }
+            }
+            Type::Alias(def, args) => contains_reference(&def.borrow().get_type(args)),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => contains_reference(binding),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::Forall(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Function(_, _, _, _)
+            | Type::CheckedCast { .. }
+            | Type::TraitAsType(_, _, _)
+            | Type::Error
+            | Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit => false,
+        }
+    }
+
+    if contains_reference(func.return_type()) {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleReturnsReference { location: ident.location() })
     } else {
         None
     }

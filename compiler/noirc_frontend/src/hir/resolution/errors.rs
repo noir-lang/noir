@@ -74,6 +74,8 @@ pub enum ResolverError {
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
+    #[error("Oracle functions cannot return references")]
+    OracleReturnsReference { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -110,6 +112,8 @@ pub enum ResolverError {
     NoPredicatesAttributeOnEntryPoint { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident, location: Location },
+    #[error("#[inline_never] attribute is only allowed on unconstrained functions")]
+    InlineNeverAttributeOnConstrained { ident: Ident, location: Location },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
     #[error("Invalid syntax in macro call")]
@@ -264,8 +268,10 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
+            | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -490,6 +496,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::OracleReturnsReference { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
@@ -613,6 +626,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
+                diag
+            }
+            ResolverError::InlineNeverAttributeOnConstrained { ident, location } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[inline_never] attribute on constrained function {ident}. Only allowed on unconstrained functions"),
+                    "misplaced #[inline_never] attribute".to_string(),
+                    *location,
+                );
+
+                diag.add_note("The `#[inline_never]` attribute prevents inlining of unconstrained functions".to_owned());
                 diag
             }
             ResolverError::UnquoteUsedOutsideQuote { location } => {
