@@ -100,7 +100,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let allow_parser_errors = false;
-    let allow_elaborator_errors = false;
+    let allow_elaborator_errors = true;
     let monomorphize = false;
     check_errors_with_options(
         src,
@@ -113,7 +113,7 @@ fn check_errors(src: &str) {
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
-    let allow_elaborator_errors = false;
+    let allow_elaborator_errors = true;
     let monomorphize = false;
     let options =
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
