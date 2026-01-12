@@ -96,6 +96,14 @@ pub enum InterpreterError {
         err: Box<TypeCheckError>,
         location: Location,
     },
+    InvalidAssociatedConstant {
+        err: Box<TypeCheckError>,
+        location: Location,
+    },
+    InvalidNumericGeneric {
+        err: Box<TypeCheckError>,
+        location: Location,
+    },
     NonNumericCasted {
         typ: Type,
         location: Location,
@@ -335,6 +343,8 @@ impl InterpreterError {
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::InvalidArrayLength { location, .. }
+            | InterpreterError::InvalidAssociatedConstant { location, .. }
+            | InterpreterError::InvalidNumericGeneric { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -512,6 +522,16 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::InvalidArrayLength { err, location } => {
                 let msg = "Invalid array length".to_string();
+                let secondary = err.to_string();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::InvalidAssociatedConstant { err, location } => {
+                let msg = "Invalid associated constant".to_string();
+                let secondary = err.to_string();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::InvalidNumericGeneric { err, location } => {
+                let msg = "Invalid numeric generic".to_string();
                 let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
