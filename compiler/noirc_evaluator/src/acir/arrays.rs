@@ -593,9 +593,11 @@ impl Context<'_> {
             cd.index_map.get(&array).map(|idx| (cd.array_id, *idx, cd.index_map.len()))
         });
         if let Some((array_id, bus_index, index_map_len)) = call_data_info {
-            // Check index for out of bounds when there are multiple elements in the call_data
-            // because the databus aggregates them into the call_data array.
-            if index_map_len > 1 {
+            // Check index for out of bounds in the call_data because
+            // the databus aggregates them into the call_data array.
+            // This is not needed when we access the last element, because
+            // we can benefit from the out-of-bound on call data.
+            if bus_index < index_map_len - 1 {
                 // Get the length of the array we want to read:
                 let array_typ = dfg.type_of_value(array);
                 let flattened_len = array_typ.flattened_size();
