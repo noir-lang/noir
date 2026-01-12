@@ -412,7 +412,7 @@ impl Context {
                 let mut changes = Vec::new();
                 for (i, argument) in arguments.iter().enumerate() {
                     if self.vector_sizes.contains_key(argument)
-                        && matches!(dfg.type_of_value(*argument), Type::Vector(_))
+                        && matches!(arguments_types[i], Type::Vector(_))
                     {
                         assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
                         let new = results[i];
