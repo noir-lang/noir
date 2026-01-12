@@ -1169,3 +1169,26 @@ fn varargs_on_function_without_last_vector_parameter() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn unify_comptime_block_expression_with_target_type() {
+    let src = r#"
+    fn main() {
+        let _: u8 = comptime { 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unify_comptime_block_statement_with_target_type() {
+    let src = r#"
+    fn main() {
+    }
+
+    pub fn foo() -> u8 {
+        comptime { 1 }
+    }
+    "#;
+    assert_no_errors(src);
+}
