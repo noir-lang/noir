@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768241121192,
+  "lastUpdate": 1768241213138,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c83871e216a673ba10cc72ca9a5a889559a2a192",
-          "message": "chore(ownership): Some clarifying comments (#11081)",
-          "timestamp": "2026-01-06T12:33:39Z",
-          "tree_id": "1f839844d6af55b595f1222216e927468ba015ee",
-          "url": "https://github.com/noir-lang/noir/commit/c83871e216a673ba10cc72ca9a5a889559a2a192"
-        },
-        "date": 1767704358126,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251247,
-            "range": "± 611",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224463,
-            "range": "± 4074",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789726,
-            "range": "± 2217",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788152,
             "range": "± 1415",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86ab173b13079370aec337343d1f8b81123a5936",
+          "message": "feat(brillig)!: Avoid unnecessary array to vector conversion for black box inputs/outputs (#10151)\n\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-12T17:44:12Z",
+          "tree_id": "66efef4e615f69c7293d072b8780d8c097e8cefb",
+          "url": "https://github.com/noir-lang/noir/commit/86ab173b13079370aec337343d1f8b81123a5936"
+        },
+        "date": 1768241177988,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258321,
+            "range": "± 1074",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220590,
+            "range": "± 4152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780966,
+            "range": "± 10551",
             "unit": "ns/iter"
           }
         ]
