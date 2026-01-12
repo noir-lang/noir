@@ -1,9 +1,7 @@
 #![cfg(test)]
 use crate::{
-    elaborator::{FrontendOptions, UnstableFeature},
-    test_utils::{
-        get_monomorphized, get_monomorphized_with_error_filter, get_program_with_options,
-    },
+    elaborator::UnstableFeature,
+    test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options},
     tests::check_monomorphization_error_using_features,
 };
 
@@ -380,12 +378,12 @@ fn infix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_error_filter(
+    let program = get_monomorphized_with_options(
         src,
-        |src| get_program_with_options(src, false, true, FrontendOptions::test_default()),
-        |_| false,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
     )
     .unwrap();
+
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub bool {
         let f1$l1 = {
@@ -428,12 +426,12 @@ fn prefix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_error_filter(
+    let program = get_monomorphized_with_options(
         src,
-        |src| get_program_with_options(src, false, true, FrontendOptions::test_default()),
-        |_| false,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
     )
     .unwrap();
+
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let f1$l1 = {

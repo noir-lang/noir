@@ -286,10 +286,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized, get_monomorphized_with_error_filter, get_program},
-    };
+    use crate::test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options};
 
     #[test]
     fn creates_proxies_for_acir_to_oracle_calls() {
@@ -367,15 +364,10 @@ mod tests {
         }
         ";
 
-        let program = get_monomorphized_with_error_filter(src, get_program, |err| {
-            matches!(
-                err,
-                // Ignore the error about creating a builtin function.
-                CompilationError::ResolverError(
-                    ResolverError::LowLevelFunctionOutsideOfStdlib { .. }
-                )
-            )
-        })
+        let program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+        )
         .unwrap();
 
         insta::assert_snapshot!(program, @r"

@@ -34,7 +34,7 @@ use std::collections::{HashMap, HashSet};
 use crate::elaborator::{FrontendOptions, UnstableFeature};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
-use crate::test_utils::{get_program, get_program_with_options};
+use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options};
 
 use noirc_errors::reporter::report_all;
 use noirc_errors::{CustomDiagnostic, Span};
@@ -48,15 +48,20 @@ pub(crate) fn get_program_using_features(
     src: &str,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
-    let allow_parser_errors = false;
-    let root_and_stdlib = false;
-    let mut options = FrontendOptions::test_default();
-    options.enabled_unstable_features = features;
-    get_program_with_options(src, allow_parser_errors, root_and_stdlib, options)
+    get_program_with_options(
+        src,
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    )
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
-    get_program(src).2
+    get_program_with_options(src, Default::default()).2
 }
 
 pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
@@ -100,25 +105,23 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
-    let allow_parser_errors = false;
-    let root_and_stdlib = false;
     let monomorphize = false;
-    check_errors_with_options(
-        src,
-        allow_parser_errors,
-        root_and_stdlib,
-        monomorphize,
-        FrontendOptions::test_default(),
-    );
+    check_errors_with_options(src, monomorphize, GetProgramOptions::default());
 }
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
-    let allow_parser_errors = false;
-    let root_and_stdlib = false;
     let monomorphize = false;
-    let options =
-        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
-    check_errors_with_options(src, allow_parser_errors, root_and_stdlib, monomorphize, options);
+    check_errors_with_options(
+        src,
+        monomorphize,
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    );
 }
 
 pub(super) fn check_monomorphization_error(src: &str) {
@@ -126,25 +129,21 @@ pub(super) fn check_monomorphization_error(src: &str) {
 }
 
 pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
-    let allow_parser_errors = false;
     let monomorphize = true;
-    let root_and_stdlib = false;
     check_errors_with_options(
         src,
-        allow_parser_errors,
-        root_and_stdlib,
         monomorphize,
-        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
     );
 }
 
-fn check_errors_with_options(
-    src: &str,
-    allow_parser_errors: bool,
-    root_and_stdlib: bool,
-    monomorphize: bool,
-    options: FrontendOptions,
-) {
+fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramOptions) {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
@@ -202,8 +201,7 @@ fn check_errors_with_options(
     let secondary_spans_with_errors = to_message_map(secondary_spans_with_errors);
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) =
-        get_program_with_options(&src, allow_parser_errors, root_and_stdlib, options);
+    let (_, mut context, errors) = get_program_with_options(&src, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {

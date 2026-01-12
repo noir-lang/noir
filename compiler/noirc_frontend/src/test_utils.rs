@@ -26,18 +26,34 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
-    get_monomorphized_with_error_filter(src, get_program, |_| false)
+pub(crate) struct GetProgramOptions<'a> {
+    pub(crate) allow_parser_errors: bool,
+    pub(crate) root_and_stdlib: bool,
+    pub(crate) frontend_options: FrontendOptions<'a>,
 }
 
-pub(crate) fn get_monomorphized_with_error_filter(
-    src: &str,
-    compile: impl Fn(&str) -> (ParsedModule, Context, Vec<CompilationError>),
-    ignore_error: impl Fn(&CompilationError) -> bool,
-) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = compile(src);
+impl Default for GetProgramOptions<'_> {
+    fn default() -> Self {
+        Self {
+            allow_parser_errors: false,
+            root_and_stdlib: false,
+            frontend_options: FrontendOptions::test_default(),
+        }
+    }
+}
 
-    let errors = errors.into_iter().filter(|e| !ignore_error(e)).collect::<Vec<_>>();
+/// Compile and monomorphize a program.
+pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
+    get_monomorphized_with_options(src, GetProgramOptions::default())
+}
+
+/// Compile and monomorphize a program.
+pub(crate) fn get_monomorphized_with_options(
+    src: &str,
+    options: GetProgramOptions,
+) -> Result<Program, MonomorphizationError> {
+    let (_parsed_module, mut context, errors) = get_program_with_options(src, options);
+
     assert!(
         errors.iter().all(|err| !err.is_error()),
         "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
@@ -66,8 +82,8 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
 /// Compile a program.
 ///
 /// The stdlib is not available for these snippets.
-pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
-    get_program_with_options(src, false, false, FrontendOptions::test_default())
+pub fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
+    get_program_with_options(src, GetProgramOptions::default())
 }
 
 pub enum Expect {
@@ -78,14 +94,12 @@ pub enum Expect {
 
 /// Compile a program.
 ///
-/// The stdlib is not available for these snippets, but using by passing `root_and_stdlib`
-/// we can treat the snippet itself as stdlib, which tells the compiler for example to
-/// treat trait definitions as potential candidates for prefix/infix operators.
+/// The stdlib is not available for these snippets, but using the `root_and_stdlib`
+/// option allows the inclusion of trait definitions that are considered for prefix/infix
+/// operators by the compiler, as well as defining low-level builtin functions.
 pub(crate) fn get_program_with_options(
     src: &str,
-    allow_parser_errors: bool,
-    root_and_stdlib: bool,
-    options: FrontendOptions,
+    options: GetProgramOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let root = Path::new("/");
     let mut fm = FileManager::new(root);
@@ -94,7 +108,7 @@ pub(crate) fn get_program_with_options(
     context.enable_pedantic_solving();
 
     context.def_interner.populate_dummy_operator_traits();
-    let root_crate_id = if root_and_stdlib {
+    let root_crate_id = if options.root_and_stdlib {
         context.crate_graph.add_crate_root_and_stdlib(root_file_id)
     } else {
         context.crate_graph.add_crate_root(root_file_id)
@@ -104,7 +118,7 @@ pub(crate) fn get_program_with_options(
     let mut errors = vecmap(parser_errors, |e| e.into());
     remove_experimental_warnings(&mut errors);
 
-    if allow_parser_errors || !has_parser_error(&errors) {
+    if options.allow_parser_errors || !has_parser_error(&errors) {
         let inner_attributes: Vec<SecondaryAttribute> = program
             .items
             .iter()
@@ -135,7 +149,7 @@ pub(crate) fn get_program_with_options(
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            options,
+            options.frontend_options,
         ));
     }
 
