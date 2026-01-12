@@ -414,10 +414,8 @@ impl Elaborator<'_> {
                 &arg.kind(),
                 impl_fn_resolved_generic.location,
             ) {
-                bindings.insert(
-                    trait_fn_generic.id(),
-                    (trait_fn_generic.clone(), trait_fn_kind, arg),
-                );
+                bindings
+                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
             }
         }
 
@@ -427,9 +425,7 @@ impl Elaborator<'_> {
             let substituted_trait_generics = method_constraint
                 .trait_bound
                 .trait_generics
-                .map(|generic| {
-                    generic.substitute(&bindings)
-                });
+                .map(|generic| generic.substitute(&bindings));
 
             substituted_method_ids.insert((
                 substituted_constraint_type,
