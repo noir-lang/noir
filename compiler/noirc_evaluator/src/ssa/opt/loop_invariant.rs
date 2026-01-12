@@ -428,7 +428,7 @@ impl<'f> LoopInvariantContext<'f> {
                 if hoist_invariant {
                     self.inserter.push_instruction(instruction_id, pre_header, false);
 
-                    // If we are hoisting an instruction which returns an array,
+                    // If we are hoisting an instruction which returns a new array,
                     // we need to issue an extra inc_rc in case it is mutated afterward.
                     if insert_rc {
                         let dfg = &self.inserter.function.dfg;
