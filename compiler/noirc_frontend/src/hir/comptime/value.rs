@@ -10,9 +10,9 @@ use strum_macros::Display;
 use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, LetStatement, Literal, Pattern, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Literal, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -258,8 +258,40 @@ impl Value {
                 SignedField::positive(value),
                 Some(IntegerTypeSuffix::U128),
             )),
-            Value::String(value) | Value::CtString(value) => {
-                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::CtString(value) => {
+                // Lower to `std::append::Append::append(CtString::new(), <contents>)`
+                let ident = |name: &str| Ident::new(name.to_string(), location);
+                let segment = |name: &str| PathSegment::from(ident(name));
+                let path = |segments| Path {
+                    segments,
+                    location,
+                    kind: PathKind::Plain,
+                    kind_location: location,
+                };
+                let call = |path, arguments| {
+                    ExpressionKind::Call(Box::new(CallExpression {
+                        func: Box::new(Expression {
+                            kind: ExpressionKind::Variable(path),
+                            location,
+                        }),
+                        arguments,
+                        is_macro_call: false,
+                    }))
+                };
+
+                let ct_string_new = path(vec![segment("CtString"), segment("new")]);
+                let ct_string_new = call(ct_string_new, vec![]);
+                let ct_string_new = Expression { kind: ct_string_new, location };
+                let contents = Literal::Str(unwrap_rc(value));
+                let contents = Expression { kind: ExpressionKind::Literal(contents), location };
+                let append = path(vec![
+                    segment("std"),
+                    segment("append"),
+                    segment("Append"),
+                    segment("append"),
+                ]);
+                call(append, vec![ct_string_new, contents])
             }
             Value::FormatString(fragments, _, length) => {
                 // When turning a format string into an expression we could either:
