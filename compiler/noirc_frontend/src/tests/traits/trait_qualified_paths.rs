@@ -149,8 +149,10 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
     "#;
 
     let allow_parser_errors = true;
+    let root_and_stdlib = false;
     let options = FrontendOptions::test_default();
-    let (_, _, errors) = get_program_with_options(src, allow_parser_errors, options);
+    let (_, _, errors) =
+        get_program_with_options(src, allow_parser_errors, root_and_stdlib, options);
     assert!(!errors.is_empty());
 }
 
@@ -280,11 +282,11 @@ fn as_trait_path_with_method_turbofish() {
     trait Foo {
         fn bar<U>(x: U) -> U;
     }
-    
+
     impl Foo for u32 {
         fn bar<U>(x: U) -> U { x }
     }
-    
+
     fn main() {
         let _x: i32 = <u32 as Foo>::bar(42);
         // Explicitly specify U instead of relying on inference
@@ -389,17 +391,17 @@ fn self_with_non_associated_item_access() {
     struct Outer {
         inner: Inner
     }
-    
+
     struct Inner {}
-    
+
     impl Inner {
         fn method() -> u32 { 42 }
     }
-    
+
     trait MyTrait {
         fn test() -> u32;
     }
-    
+
     impl MyTrait for Outer {
         fn test() -> u32 {
             Self::inner::method()

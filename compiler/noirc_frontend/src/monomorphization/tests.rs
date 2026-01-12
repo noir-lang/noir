@@ -1,6 +1,9 @@
 #![cfg(test)]
 use crate::{
-    elaborator::UnstableFeature, test_utils::get_monomorphized,
+    elaborator::{FrontendOptions, UnstableFeature},
+    test_utils::{
+        get_monomorphized, get_monomorphized_with_error_filter, get_program_with_options,
+    },
     tests::check_monomorphization_error_using_features,
 };
 
@@ -305,6 +308,98 @@ fn repeated_array_zero() {
     }
     fn foo$f1() -> Field {
         (1 + 2)
+    }
+    ");
+}
+
+#[test]
+fn trait_method() {
+    let src = r#"
+    struct Foo {
+        a: u32,
+    }
+
+    trait Bar {
+        fn bar(self, other: Self) -> bool;
+    }
+
+    impl Bar for Foo {
+        fn bar(self, other: Self) -> bool {
+            self.a == other.a
+        }
+    }
+
+    fn main() -> pub bool {
+        let f1 = Foo { a: 1 };
+        let f2 = Foo { a: 2 };
+        f1.bar(f2)
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub bool {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let f2$l3 = {
+            let a$l2 = 2;
+            (a$l2)
+        };
+        bar$f1(f1$l1, f2$l3)
+    }
+    fn bar$f1(self$l4: (u32,), other$l5: (u32,)) -> bool {
+        (self$l4.0 == other$l5.0)
+    }
+    ");
+}
+
+#[test]
+fn infix_trait_method() {
+    let src = r#"
+    // There is no stdlib in these tests, so the definition is repeated here.
+    pub trait Eq {
+        fn eq(self, other: Self) -> bool;
+    }
+
+    struct Foo {
+        a: u32,
+    }
+
+    impl Eq for Foo {
+        fn eq(self, other: Self) -> bool {
+            self.a == other.a
+        }
+    }
+
+    fn main() -> pub bool {
+        let f1 = Foo { a: 1 };
+        let f2 = Foo { a: 2 };
+        f1 == f2
+    }
+    "#;
+
+    let program = get_monomorphized_with_error_filter(
+        src,
+        |src| get_program_with_options(src, false, true, FrontendOptions::test_default()),
+        |_| false,
+    )
+    .unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub bool {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let f2$l3 = {
+            let a$l2 = 2;
+            (a$l2)
+        };
+        eq$f1(f1$l1, f2$l3)
+    }
+    fn eq$f1(self$l4: (u32,), other$l5: (u32,)) -> bool {
+        (self$l4.0 == other$l5.0)
     }
     ");
 }

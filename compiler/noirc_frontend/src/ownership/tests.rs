@@ -6,7 +6,7 @@
 
 use crate::{
     hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-    test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
+    test_utils::{get_monomorphized, get_monomorphized_with_error_filter, get_program},
 };
 
 #[test]
@@ -423,7 +423,7 @@ fn array_len_does_not_clone() {
     }
     ";
 
-    let program = get_monomorphized_with_error_filter(src, |err| {
+    let program = get_monomorphized_with_error_filter(src, get_program, |err| {
         matches!(
             err,
             CompilationError::ResolverError(ResolverError::LowLevelFunctionOutsideOfStdlib { .. })

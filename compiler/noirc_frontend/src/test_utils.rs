@@ -27,14 +27,15 @@ use fm::FileManager;
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
 pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
-    get_monomorphized_with_error_filter(src, |_| false)
+    get_monomorphized_with_error_filter(src, get_program, |_| false)
 }
 
 pub(crate) fn get_monomorphized_with_error_filter(
     src: &str,
+    compile: impl Fn(&str) -> (ParsedModule, Context, Vec<CompilationError>),
     ignore_error: impl Fn(&CompilationError) -> bool,
 ) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program(src);
+    let (_parsed_module, mut context, errors) = compile(src);
 
     let errors = errors.into_iter().filter(|e| !ignore_error(e)).collect::<Vec<_>>();
     assert!(
@@ -62,9 +63,11 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
     });
 }
 
+/// Compile a program.
+///
+/// The stdlib is not available for these snippets.
 pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
-    let allow_parser_errors = false;
-    get_program_with_options(src, allow_parser_errors, FrontendOptions::test_default())
+    get_program_with_options(src, false, false, FrontendOptions::test_default())
 }
 
 pub enum Expect {
@@ -75,14 +78,13 @@ pub enum Expect {
 
 /// Compile a program.
 ///
-/// The stdlib is not available for these snippets.
-///
-/// An optional test path is supplied as an argument.
-/// The existence of a test path indicates that we want to emit integration tests
-/// for the supplied program as well.
+/// The stdlib is not available for these snippets, but using by passing `root_and_stdlib`
+/// we can treat the snippet itself as stdlib, which tells the compiler for example to
+/// treat trait definitions as potential candidates for prefix/infix operators.
 pub(crate) fn get_program_with_options(
     src: &str,
     allow_parser_errors: bool,
+    root_and_stdlib: bool,
     options: FrontendOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let root = Path::new("/");
@@ -92,7 +94,11 @@ pub(crate) fn get_program_with_options(
     context.enable_pedantic_solving();
 
     context.def_interner.populate_dummy_operator_traits();
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    let root_crate_id = if root_and_stdlib {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    } else {
+        context.crate_graph.add_crate_root(root_file_id)
+    };
 
     let (program, parser_errors) = parse_program(src, root_file_id);
     let mut errors = vecmap(parser_errors, |e| e.into());

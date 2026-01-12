@@ -288,7 +288,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
 mod tests {
     use crate::{
         hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
+        test_utils::{get_monomorphized, get_monomorphized_with_error_filter, get_program},
     };
 
     #[test]
@@ -367,7 +367,7 @@ mod tests {
         }
         ";
 
-        let program = get_monomorphized_with_error_filter(src, |err| {
+        let program = get_monomorphized_with_error_filter(src, get_program, |err| {
             matches!(
                 err,
                 // Ignore the error about creating a builtin function.

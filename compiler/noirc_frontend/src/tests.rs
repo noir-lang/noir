@@ -49,9 +49,10 @@ pub(crate) fn get_program_using_features(
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let allow_parser_errors = false;
+    let root_and_stdlib = false;
     let mut options = FrontendOptions::test_default();
     options.enabled_unstable_features = features;
-    get_program_with_options(src, allow_parser_errors, options)
+    get_program_with_options(src, allow_parser_errors, root_and_stdlib, options)
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
@@ -100,10 +101,12 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let allow_parser_errors = false;
+    let root_and_stdlib = false;
     let monomorphize = false;
     check_errors_with_options(
         src,
         allow_parser_errors,
+        root_and_stdlib,
         monomorphize,
         FrontendOptions::test_default(),
     );
@@ -111,10 +114,11 @@ fn check_errors(src: &str) {
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
+    let root_and_stdlib = false;
     let monomorphize = false;
     let options =
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
-    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
+    check_errors_with_options(src, allow_parser_errors, root_and_stdlib, monomorphize, options);
 }
 
 pub(super) fn check_monomorphization_error(src: &str) {
@@ -124,9 +128,11 @@ pub(super) fn check_monomorphization_error(src: &str) {
 pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
     let monomorphize = true;
+    let root_and_stdlib = false;
     check_errors_with_options(
         src,
         allow_parser_errors,
+        root_and_stdlib,
         monomorphize,
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
     );
@@ -135,6 +141,7 @@ pub(super) fn check_monomorphization_error_using_features(src: &str, features: &
 fn check_errors_with_options(
     src: &str,
     allow_parser_errors: bool,
+    root_and_stdlib: bool,
     monomorphize: bool,
     options: FrontendOptions,
 ) {
@@ -195,7 +202,8 @@ fn check_errors_with_options(
     let secondary_spans_with_errors = to_message_map(secondary_spans_with_errors);
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let (_, mut context, errors) =
+        get_program_with_options(&src, allow_parser_errors, root_and_stdlib, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -354,7 +362,7 @@ fn wildcard_with_generic_argument() {
     struct Foo<T> {}
 
     pub fn println<T>(_input: T) { }
-    
+
     fn main() {
       let x: _<_> = "123";
       let y: _<_> = Foo::<()> { };
