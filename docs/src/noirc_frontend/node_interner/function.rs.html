@@ -191,7 +191,9 @@
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -323,10 +325,12 @@
                 }
                 <span class="prelude-val">Some</span>(DefinitionKind::Global(global_id)) =&gt; {
                     <span class="kw">let </span>info = <span class="self">self</span>.get_global(<span class="kw-2">*</span>global_id);
-                    <span class="kw">let </span>HirStatement::Let(HirLetStatement { expression, .. }) =
-                        <span class="self">self</span>.statement(<span class="kw-2">&amp;</span>info.let_statement)
-                    <span class="kw">else </span>{
-                        <span class="macro">unreachable!</span>(<span class="string">"global refers to a let statement"</span>);
+                    <span class="kw">let </span>expression = <span class="kw">match </span><span class="self">self</span>.statement(<span class="kw-2">&amp;</span>info.let_statement) {
+                        HirStatement::Let(HirLetStatement { expression, .. })
+                        | HirStatement::Expression(expression) =&gt; expression,
+                        other =&gt; <span class="macro">unreachable!</span>(
+                            <span class="string">"Expected global to be a let statement or expression but found: {other:?}"
+                        </span>),
                     };
                     <span class="self">self</span>.lookup_function_from_expr(<span class="kw-2">&amp;</span>expression)
                 }
