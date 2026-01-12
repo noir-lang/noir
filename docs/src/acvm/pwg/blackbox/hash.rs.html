@@ -221,7 +221,26 @@
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -247,7 +266,7 @@
 }
 
 <span class="doccomment">/// Reads the hash function input from a [`WitnessMap`].
-</span><span class="kw">fn </span>get_hash_input&lt;F: AcirField&gt;(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_hash_input&lt;F: AcirField&gt;(
     initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
     inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;],
     message_size: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;&gt;,
@@ -321,16 +340,26 @@
     hash_values: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">8</span>],
     outputs: <span class="kw-2">&amp;</span>[Witness; <span class="number">8</span>],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="kw">let </span>message = to_u32_array(initial_witness, inputs)<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>state = to_u32_array(initial_witness, hash_values)<span class="question-mark">?</span>;
-
-    sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>message);
+    <span class="kw">let </span>state = execute_sha_256_permutation_opcode(initial_witness, inputs, hash_values)<span class="question-mark">?</span>;
 
     <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip(state.into_iter()) {
         insert_value(output_witness, F::from(u128::from(value)), initial_witness)<span class="question-mark">?</span>;
     }
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_sha_256_permutation_opcode&lt;F: AcirField&gt;(
+    initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
+    inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">16</span>],
+    hash_values: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">8</span>],
+) -&gt; <span class="prelude-ty">Result</span>&lt;[u32; <span class="number">8</span>], OpcodeResolutionError&lt;F&gt;&gt; {
+    <span class="kw">let </span>message = to_u32_array(initial_witness, inputs)<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>state = to_u32_array(initial_witness, hash_values)<span class="question-mark">?</span>;
+
+    sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>message);
+
+    <span class="prelude-val">Ok</span>(state)
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve_poseidon2_permutation_opcode&lt;F: AcirField&gt;(
@@ -350,6 +379,20 @@
         ));
     }
 
+    <span class="kw">let </span>state = execute_poseidon2_permutation_opcode(backend, initial_witness, inputs)<span class="question-mark">?</span>;
+
+    <span class="comment">// Write witness assignments
+    </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip(state.into_iter()) {
+        insert_value(output_witness, value, initial_witness)<span class="question-mark">?</span>;
+    }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_poseidon2_permutation_opcode&lt;F: AcirField&gt;(
+    backend: <span class="kw-2">&amp;</span><span class="kw">impl </span>BlackBoxFunctionSolver&lt;F&gt;,
+    initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
+    inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;],
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;F&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="comment">// Read witness assignments
     </span><span class="kw">let </span>state: Vec&lt;F&gt; = inputs
         .iter()
@@ -357,12 +400,7 @@
         .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
 
     <span class="kw">let </span>state = backend.poseidon2_permutation(<span class="kw-2">&amp;</span>state)<span class="question-mark">?</span>;
-
-    <span class="comment">// Write witness assignments
-    </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip(state.into_iter()) {
-        insert_value(output_witness, value, initial_witness)<span class="question-mark">?</span>;
-    }
-    <span class="prelude-val">Ok</span>(())
+    <span class="prelude-val">Ok</span>(state)
 }
 
 <span class="attr">#[cfg(test)]

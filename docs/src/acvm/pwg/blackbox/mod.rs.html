@@ -170,12 +170,12 @@
 <span class="kw">use super</span>::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 <span class="kw">use crate</span>::{BlackBoxFunctionSolver, pwg::input_to_value};
 
-<span class="kw">mod </span>aes128;
-<span class="kw">mod </span>embedded_curve_ops;
-<span class="kw">mod </span>hash;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>aes128;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>embedded_curve_ops;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>hash;
 <span class="kw">mod </span>logic;
 <span class="kw">mod </span>range;
-<span class="kw">mod </span>signature;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>signature;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>utils;
 
 <span class="kw">use </span>embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PKG_VERSION"],"enum":["ArtifactCommand"],"fn":["main","start_cli"],"static":["VERSION_STRING"],"struct":["ExecutorCli"]};
+window.SIDEBAR_ITEMS = {"constant":["PKG_VERSION"],"enum":["Command"],"fn":["check_witness_file","main","parse_and_normalize_path","start_cli"],"static":["VERSION_STRING"],"struct":["ExecutorCli"]};

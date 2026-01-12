@@ -55,7 +55,30 @@
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
 <a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -76,18 +99,43 @@
     predicate: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
     output: Witness,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
+    <span class="kw">let </span>is_valid = execute_ecdsa(
+        initial_witness,
+        public_key_x_inputs,
+        public_key_y_inputs,
+        signature_inputs,
+        hashed_message_inputs,
+        predicate,
+        <span class="bool-val">true</span>,
+    )<span class="question-mark">?</span>;
+    insert_value(<span class="kw-2">&amp;</span>output, F::from(is_valid), initial_witness)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_ecdsa&lt;F: AcirField&gt;(
+    initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
+    public_key_x_inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">32</span>],
+    public_key_y_inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">32</span>],
+    signature_inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">64</span>],
+    hashed_message_inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">32</span>],
+    predicate: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
+    k1: bool,
+) -&gt; <span class="prelude-ty">Result</span>&lt;bool, OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span>pub_key_x: [u8; <span class="number">32</span>] = to_u8_array(initial_witness, public_key_x_inputs)<span class="question-mark">?</span>;
     <span class="kw">let </span>pub_key_y: [u8; <span class="number">32</span>] = to_u8_array(initial_witness, public_key_y_inputs)<span class="question-mark">?</span>;
     <span class="kw">let </span>signature: [u8; <span class="number">64</span>] = to_u8_array(initial_witness, signature_inputs)<span class="question-mark">?</span>;
     <span class="kw">let </span>hashed_message: [u8; <span class="number">32</span>] = to_u8_array(initial_witness, hashed_message_inputs)<span class="question-mark">?</span>;
     <span class="kw">let </span>predicate = input_to_value(initial_witness, <span class="kw-2">*</span>predicate)<span class="question-mark">?</span>.is_one();
     <span class="kw">let </span>is_valid = <span class="kw">if </span>predicate {
-        ecdsa_secp256k1_verify(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>signature)<span class="question-mark">?
-    </span>} <span class="kw">else </span>{
+        <span class="kw">if </span>k1 {
+            ecdsa_secp256k1_verify(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>signature)<span class="question-mark">?
+        </span>} <span class="kw">else </span>{
+            ecdsa_secp256r1_verify(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>signature)<span class="question-mark">?
+        </span>}
+    } <span class="kw">else </span>{
         <span class="bool-val">true
     </span>};
 
-    insert_value(<span class="kw-2">&amp;</span>output, F::from(is_valid), initial_witness)
+    <span class="prelude-val">Ok</span>(is_valid)
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>secp256r1_prehashed&lt;F: AcirField&gt;(
@@ -99,17 +147,15 @@
     predicate: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
     output: Witness,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="kw">let </span>pub_key_x: [u8; <span class="number">32</span>] = to_u8_array(initial_witness, public_key_x_inputs)<span class="question-mark">?</span>;
-    <span class="kw">let </span>pub_key_y: [u8; <span class="number">32</span>] = to_u8_array(initial_witness, public_key_y_inputs)<span class="question-mark">?</span>;
-    <span class="kw">let </span>signature: [u8; <span class="number">64</span>] = to_u8_array(initial_witness, signature_inputs)<span class="question-mark">?</span>;
-    <span class="kw">let </span>hashed_message: [u8; <span class="number">32</span>] = to_u8_array(initial_witness, hashed_message_inputs)<span class="question-mark">?</span>;
-    <span class="kw">let </span>predicate = input_to_value(initial_witness, <span class="kw-2">*</span>predicate)<span class="question-mark">?</span>.is_one();
-    <span class="kw">let </span>is_valid = <span class="kw">if </span>predicate {
-        ecdsa_secp256r1_verify(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>signature)<span class="question-mark">?
-    </span>} <span class="kw">else </span>{
-        <span class="bool-val">true
-    </span>};
-
+    <span class="kw">let </span>is_valid = execute_ecdsa(
+        initial_witness,
+        public_key_x_inputs,
+        public_key_y_inputs,
+        signature_inputs,
+        hashed_message_inputs,
+        predicate,
+        <span class="bool-val">false</span>,
+    )<span class="question-mark">?</span>;
     insert_value(<span class="kw-2">&amp;</span>output, F::from(is_valid), initial_witness)
 }
 </code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["secp256k1_prehashed","secp256r1_prehashed"]};
+window.SIDEBAR_ITEMS = {"fn":["execute_ecdsa","secp256k1_prehashed","secp256r1_prehashed"]};

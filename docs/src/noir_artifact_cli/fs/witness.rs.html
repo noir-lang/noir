@@ -28,7 +28,15 @@
 <a href="#27" id="27">27</a>
 <a href="#28" id="28">28</a>
 <a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>acvm::acir::native_types::WitnessStack;
@@ -57,5 +65,13 @@
     })<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(witness_path)
+}
+
+<span class="kw">pub fn </span>load_witness_from_file(witness_path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, CliError&gt; {
+    <span class="kw">let </span>witness_data = std::fs::read(witness_path)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(WitnessStack::deserialize(<span class="kw-2">&amp;</span>witness_data).map_err(|e| {
+        FilesystemError::InvalidInputFile(witness_path.to_path_buf(), e.to_string())
+    })<span class="question-mark">?</span>)
 }
 </code></pre></div></section></main></body></html>

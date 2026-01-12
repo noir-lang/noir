@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["solve_aes128_encryption_opcode"]};
+window.SIDEBAR_ITEMS = {"fn":["execute_aes128_encryption_opcode","solve_aes128_encryption_opcode"]};

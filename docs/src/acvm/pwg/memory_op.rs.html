@@ -222,7 +222,13 @@
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::MemOp,
     native_types::{Witness, WitnessMap},
@@ -255,13 +261,16 @@
         })
     }
 
-    <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         u32::try_from(<span class="self">self</span>.block_value.len()).expect(<span class="string">"expected a length that fits into a u32"</span>)
     }
 
     <span class="doccomment">/// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
-    </span><span class="kw">fn </span>index_from_field(<span class="kw-2">&amp;</span><span class="self">self</span>, index: F) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryIndex, OpcodeResolutionError&lt;F&gt;&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>index_from_field(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        index: F,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryIndex, OpcodeResolutionError&lt;F&gt;&gt; {
         index.try_to_u32().ok_or_else({
             || OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
@@ -273,7 +282,7 @@
 
     <span class="doccomment">/// Update the 'block_value' map with the provided index/value
     /// Returns an 'IndexOutOfBounds' error if the index is outside the block range.
-    </span><span class="kw">fn </span>write_memory_index(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_memory_index(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         index: MemoryIndex,
         value: F,
@@ -292,7 +301,10 @@
 
     <span class="doccomment">/// Returns the value stored in the 'block_value' map for the provided index
     /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
-    </span><span class="kw">fn </span>read_memory_index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: MemoryIndex) -&gt; <span class="prelude-ty">Result</span>&lt;F, OpcodeResolutionError&lt;F&gt;&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_memory_index(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        index: MemoryIndex,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;F, OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="self">self</span>.block_value.get(index <span class="kw">as </span>usize).copied().ok_or(
             OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,

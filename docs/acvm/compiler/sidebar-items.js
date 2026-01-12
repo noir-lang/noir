@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["optimize","transform_assert_messages"],"mod":["optimizers","simulator"],"struct":["AcirTransformationMap","CircuitSimulator"]};
+window.SIDEBAR_ITEMS = {"fn":["optimize","transform_assert_messages"],"mod":["optimizers","simulator","validator"],"struct":["AcirTransformationMap","CircuitSimulator"]};

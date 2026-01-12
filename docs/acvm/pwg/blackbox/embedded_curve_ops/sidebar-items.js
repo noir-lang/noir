@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["embedded_curve_add","multi_scalar_mul"]};
+window.SIDEBAR_ITEMS = {"fn":["embedded_curve_add","execute_embedded_curve_add","execute_multi_scalar_mul","multi_scalar_mul"]};

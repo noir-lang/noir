@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_hash_input","solve_generic_256_hash_opcode","solve_poseidon2_permutation_opcode","solve_sha_256_permutation_opcode","to_u32_array","write_digest_to_outputs"]};
+window.SIDEBAR_ITEMS = {"fn":["execute_poseidon2_permutation_opcode","execute_sha_256_permutation_opcode","get_hash_input","solve_generic_256_hash_opcode","solve_poseidon2_permutation_opcode","solve_sha_256_permutation_opcode","to_u32_array","write_digest_to_outputs"]};

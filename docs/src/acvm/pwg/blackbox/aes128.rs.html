@@ -181,7 +181,18 @@
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -199,12 +210,7 @@
     key: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">16</span>],
     outputs: <span class="kw-2">&amp;</span>[Witness],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="kw">let </span>scalars = to_u8_vec(initial_witness, inputs)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>iv = to_u8_array(initial_witness, iv)<span class="question-mark">?</span>;
-    <span class="kw">let </span>key = to_u8_array(initial_witness, key)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>ciphertext = aes128_encrypt(<span class="kw-2">&amp;</span>scalars, iv, key)<span class="question-mark">?</span>;
+    <span class="kw">let </span>ciphertext = execute_aes128_encryption_opcode(initial_witness, inputs, iv, key)<span class="question-mark">?</span>;
 
     <span class="comment">// Write witness assignments
     </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip(ciphertext.into_iter()) {
@@ -212,6 +218,22 @@
     }
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_aes128_encryption_opcode&lt;F: AcirField&gt;(
+    initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
+    inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;],
+    iv: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">16</span>],
+    key: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;; <span class="number">16</span>],
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
+    <span class="kw">let </span>scalars = to_u8_vec(initial_witness, inputs)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>iv = to_u8_array(initial_witness, iv)<span class="question-mark">?</span>;
+    <span class="kw">let </span>key = to_u8_array(initial_witness, key)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>ciphertext = aes128_encrypt(<span class="kw-2">&amp;</span>scalars, iv, key)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(ciphertext)
 }
 
 <span class="attr">#[cfg(test)]

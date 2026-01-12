@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["save_witness_to_dir"]};
+window.SIDEBAR_ITEMS = {"fn":["load_witness_from_file","save_witness_to_dir"]};
