@@ -26,10 +26,12 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-pub(crate) struct GetProgramOptions<'a> {
-    pub(crate) allow_parser_errors: bool,
-    pub(crate) root_and_stdlib: bool,
-    pub(crate) frontend_options: FrontendOptions<'a>,
+pub struct GetProgramOptions<'a> {
+    pub allow_parser_errors: bool,
+    /// Treats the program snippet as if it was stdlib, which allows the definition of
+    /// low-level (builtin) functions, and standard traits used by prefix/infix operators.
+    pub root_and_stdlib: bool,
+    pub frontend_options: FrontendOptions<'a>,
 }
 
 impl Default for GetProgramOptions<'_> {
@@ -48,7 +50,7 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
 }
 
 /// Compile and monomorphize a program.
-pub(crate) fn get_monomorphized_with_options(
+pub fn get_monomorphized_with_options(
     src: &str,
     options: GetProgramOptions,
 ) -> Result<Program, MonomorphizationError> {
