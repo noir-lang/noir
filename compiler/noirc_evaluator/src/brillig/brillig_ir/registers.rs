@@ -39,7 +39,7 @@ use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
 use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, assert_u32,
     brillig_variable::{BrilligArray, BrilligVector},
 };
 
@@ -558,7 +558,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [HeapArray].
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
-        self.allocate_register().map(|pointer| HeapArray { pointer, size })
+        self.allocate_register().map(|pointer| HeapArray { pointer, size: assert_u32(size) })
     }
 
     /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].

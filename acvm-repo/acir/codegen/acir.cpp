@@ -504,7 +504,7 @@ namespace Acir {
     struct MemoryAddress {
 
         struct Direct {
-            uint64_t value;
+            uint32_t value;
 
             friend bool operator==(const Direct&, const Direct&);
 
@@ -519,7 +519,7 @@ namespace Acir {
         };
 
         struct Relative {
-            uint64_t value;
+            uint32_t value;
 
             friend bool operator==(const Relative&, const Relative&);
 
@@ -588,7 +588,7 @@ namespace Acir {
 
     struct HeapArray {
         Acir::MemoryAddress pointer;
-        uint64_t size;
+        uint32_t size;
 
         friend bool operator==(const HeapArray&, const HeapArray&);
 
@@ -1101,7 +1101,7 @@ namespace Acir {
 
         struct Array {
             std::vector<Acir::HeapValueType> value_types;
-            uint64_t size;
+            uint32_t size;
 
             friend bool operator==(const Array&, const Array&);
 
