@@ -317,7 +317,7 @@ impl std::fmt::Display for Kind {
             Kind::TypeInteger => write!(f, "typeInt"),
             Kind::IntegerOrField => write!(f, "intOrField"),
             Kind::TypeIntegerOrField => write!(f, "typeIntOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
+            Kind::Numeric(typ) => write!(f, "{typ}"),
         }
     }
 }
