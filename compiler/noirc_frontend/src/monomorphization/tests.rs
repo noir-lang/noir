@@ -460,7 +460,9 @@ fn multiple_trait_impls_with_different_instantiations() {
 #[test]
 fn fail_to_call_enum_member_without_panic() {
     // The 'Unexpected Type::Error found during monomorphization' error doesn't occur
-    // when running this code as a real source file for some reason.
+    // when running this code as a real source file because in actual Noir code we don't
+    // run the monomorphizer if there were previous errors. Here we do want to do that to
+    // ensure this panic does not re-emerge.
     let src = "
         enum Foo {
             A
