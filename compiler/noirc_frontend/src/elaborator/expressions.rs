@@ -104,7 +104,7 @@ impl Elaborator<'_> {
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(block, _) => {
                 if self.in_comptime_context {
-                    // Treat a nested comptime block as a regular block. Nesteed comptime blocks
+                    // Treat a nested comptime block as a regular block. Nested comptime blocks
                     // can happen as a result of macro expansion so it wouldn't be good to produce
                     // a warning in that case.
                     self.elaborate_block(block, target_type)
