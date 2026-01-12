@@ -386,7 +386,7 @@ impl Value {
                 ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
             }
             value @ Value::Enum(..) => {
-                let hir = value.into_hir_expression(elaborator.interner, location)?;
+                let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
                 ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
@@ -474,10 +474,11 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
-    /// Lowers this compile-time value into a HIR expression. This is similar to
-    /// [Self::into_expression] but is used in some cases in the monomorphizer where
-    /// code must already be in HIR.
-    pub(crate) fn into_hir_expression(
+    /// Lowers this compile-time value into a HIR expression to be used at runtime.
+    /// This means that comptime-only types will panic.
+    /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
+    /// where code must already be in HIR.
+    pub(crate) fn into_runtime_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,
@@ -517,9 +518,7 @@ impl Value {
             Value::U128(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::String(value) | Value::CtString(value) => {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
-            }
+            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
@@ -529,7 +528,8 @@ impl Value {
                             new_fragments.push(FmtStrFragment::String(string.clone()));
                         }
                         FormatStringFragment::Value { name, value } => {
-                            let expr_id = value.clone().into_hir_expression(interner, location)?;
+                            let expr_id =
+                                value.clone().into_runtime_hir_expression(interner, location)?;
                             captures.push(expr_id);
                             new_fragments
                                 .push(FmtStrFragment::Interpolation(name.clone(), location));
@@ -549,13 +549,14 @@ impl Value {
             }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| {
-                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                    field.unwrap_or_clone().into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_hir_expression(interner, location)?;
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -578,7 +579,7 @@ impl Value {
                 };
 
                 let arguments =
-                    try_vecmap(args, |arg| arg.into_hir_expression(interner, location))?;
+                    try_vecmap(args, |arg| arg.into_runtime_hir_expression(interner, location))?;
 
                 HirExpression::EnumConstructor(HirEnumConstructorExpression {
                     r#type,
@@ -588,25 +589,25 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
-            Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
-            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
+            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
             Value::Pointer(element, true, _) => {
-                return element.unwrap_or_clone().into_hir_expression(interner, location);
+                return element.unwrap_or_clone().into_runtime_hir_expression(interner, location);
             }
-            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
-            Value::TypedExpr(TypedExpr::StmtId(..))
+            Value::CtString(..)
+            | Value::Quoted(..)
+            | Value::TypedExpr(..)
             | Value::Expr(..)
             | Value::Pointer(..)
             | Value::TypeDefinition(_)
@@ -755,7 +756,9 @@ impl Value {
                 let string = fragments_to_string(&fragments, interner);
                 vec![Token::Str(string)]
             }
-            other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
+            other => {
+                vec![Token::UnquoteMarker(other.into_runtime_hir_expression(interner, location)?)]
+            }
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         Ok(tokens)
