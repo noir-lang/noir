@@ -809,7 +809,7 @@
 <span class="kw">use </span>smallvec::{SmallVec, smallvec};
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, assert_u32,
     brillig_variable::{BrilligArray, BrilligVector},
 };
 
@@ -1328,7 +1328,7 @@
 
     <span class="doccomment">/// Allocate a [HeapArray].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, size: usize) -&gt; Allocated&lt;HeapArray, Registers&gt; {
-        <span class="self">self</span>.allocate_register().map(|pointer| HeapArray { pointer, size })
+        <span class="self">self</span>.allocate_register().map(|pointer| HeapArray { pointer, size: assert_u32(size) })
     }
 
     <span class="doccomment">/// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].

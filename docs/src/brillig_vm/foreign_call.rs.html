@@ -513,7 +513,9 @@
 <a href="#512" id="512">512</a>
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{
@@ -523,7 +525,7 @@
 };
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-<span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, memory::ArrayAddress};
+<span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, assert_usize, memory::ArrayAddress};
 
 <span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
     <span class="doccomment">/// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -653,7 +655,7 @@
                 HeapValueType::Array { value_types, size: type_size },
             ) <span class="kw">if </span><span class="kw-2">*</span>type_size == size =&gt; {
                 <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
-                <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
+                <span class="self">self</span>.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
@@ -710,7 +712,7 @@
 
                             <span class="self">self</span>.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                <span class="kw-2">*</span>size,
+                                assert_usize(<span class="kw-2">*</span>size),
                                 value_types,
                             )
                         }
@@ -818,7 +820,9 @@
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an array type"
                                 </span>.to_string());
                         };
-                        <span class="kw">if </span>values.len() != <span class="kw-2">*</span>size {
+                        <span class="kw">if </span>values.len()
+                            != usize::try_from(<span class="kw-2">*</span>size).expect(<span class="string">"Failed conversion from u32 to usize"</span>)
+                        {
                             <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
                             </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
 

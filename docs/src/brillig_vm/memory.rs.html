@@ -589,11 +589,15 @@
 <a href="#588" id="588">588</a>
 <a href="#589" id="589">589</a>
 <a href="#590" id="590">590</a>
-<a href="#591" id="591">591</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
+
+<span class="kw">use </span><span class="kw">crate</span>::assert_usize;
 
 <span class="doccomment">/// The bit size used for addressing memory within the Brillig VM.
 ///
@@ -618,14 +622,14 @@
 /// * Vectors are `[ref-count, size, capacity, ...items]`
 </span><span class="kw">pub mod </span>offsets {
     <span class="doccomment">/// Number of prefix fields in an array: RC.
-    </span><span class="kw">pub const </span>ARRAY_META_COUNT: usize = <span class="number">1</span>;
-    <span class="kw">pub const </span>ARRAY_ITEMS: usize = <span class="number">1</span>;
+    </span><span class="kw">pub const </span>ARRAY_META_COUNT: u32 = <span class="number">1</span>;
+    <span class="kw">pub const </span>ARRAY_ITEMS: u32 = <span class="number">1</span>;
 
     <span class="doccomment">/// Number of prefix fields in a vector: RC, size, capacity.
-    </span><span class="kw">pub const </span>VECTOR_META_COUNT: usize = <span class="number">3</span>;
-    <span class="kw">pub const </span>VECTOR_SIZE: usize = <span class="number">1</span>;
-    <span class="kw">pub const </span>VECTOR_CAPACITY: usize = <span class="number">2</span>;
-    <span class="kw">pub const </span>VECTOR_ITEMS: usize = <span class="number">3</span>;
+    </span><span class="kw">pub const </span>VECTOR_META_COUNT: u32 = <span class="number">3</span>;
+    <span class="kw">pub const </span>VECTOR_SIZE: u32 = <span class="number">1</span>;
+    <span class="kw">pub const </span>VECTOR_CAPACITY: u32 = <span class="number">2</span>;
+    <span class="kw">pub const </span>VECTOR_ITEMS: u32 = <span class="number">3</span>;
 }
 
 <span class="doccomment">/// Wrapper for array addresses, with convenience methods for various offsets.
@@ -637,7 +641,7 @@
 <span class="kw">impl </span>ArrayAddress {
     <span class="doccomment">/// The start of the items, after the meta-data.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>items_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress {
-        <span class="self">self</span>.<span class="number">0</span>.offset(offsets::ARRAY_ITEMS)
+        <span class="self">self</span>.<span class="number">0</span>.offset(assert_usize(offsets::ARRAY_ITEMS))
     }
 }
 
@@ -720,7 +724,7 @@
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
     </span><span class="kw">pub fn </span>to_usize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">match </span><span class="self">self </span>{
-            MemoryValue::U32(value) =&gt; (<span class="kw-2">*</span>value).try_into().unwrap(),
+            MemoryValue::U32(value) =&gt; assert_usize(<span class="kw-2">*</span>value),
             other =&gt; <span class="macro">panic!</span>(<span class="string">"value is not typed as Brillig usize: {other}"</span>),
         }
     }
@@ -973,8 +977,8 @@
     /// Returns a memory slot index.
     </span><span class="kw">fn </span>resolve(<span class="kw-2">&amp;</span><span class="self">self</span>, address: MemoryAddress) -&gt; usize {
         <span class="kw">match </span>address {
-            MemoryAddress::Direct(address) =&gt; address,
-            MemoryAddress::Relative(offset) =&gt; <span class="self">self</span>.get_stack_pointer() + offset,
+            MemoryAddress::Direct(address) =&gt; assert_usize(address),
+            MemoryAddress::Relative(offset) =&gt; <span class="self">self</span>.get_stack_pointer() + assert_usize(offset),
         }
     }
 

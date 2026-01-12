@@ -74,7 +74,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext,
+    BrilligBinaryOp, BrilligContext, assert_usize,
     brillig_variable::BrilligVector,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
@@ -125,7 +125,7 @@
             ctx.codegen_usize_op_in_place(
                 allocation_size.address,
                 BrilligBinaryOp::Add,
-                offsets::VECTOR_META_COUNT,
+                assert_usize(offsets::VECTOR_META_COUNT),
             );
             ctx.codegen_allocate_mem(target_vector.pointer, allocation_size.address);
 

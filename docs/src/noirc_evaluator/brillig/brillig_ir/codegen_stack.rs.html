@@ -375,11 +375,15 @@
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Stack;
 
-<span class="kw">use super</span>::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
+<span class="kw">use super</span>::{
+    BrilligContext, assert_usize, debug_show::DebugToString, registers::RegisterAllocator,
+};
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
     <span class="doccomment">/// Map sources to potentially multiple destinations.
@@ -527,7 +531,7 @@
 <span class="doccomment">/// Map the address so that the first register of the stack will have index 0
 </span><span class="kw">fn </span>to_index(adr: <span class="kw-2">&amp;</span>MemoryAddress) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
     <span class="kw">match </span>adr {
-        MemoryAddress::Relative(size) =&gt; <span class="prelude-val">Some</span>(size - Stack::start()),
+        MemoryAddress::Relative(size) =&gt; <span class="prelude-val">Some</span>(assert_usize(<span class="kw-2">*</span>size) - Stack::start()),
         MemoryAddress::Direct(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
     }
 }
@@ -535,7 +539,7 @@
 <span class="doccomment">/// Construct the register corresponding to the given mapped 'index'
 </span><span class="kw">fn </span>from_index(idx: usize) -&gt; MemoryAddress {
     <span class="macro">assert!</span>(idx != usize::MAX, <span class="string">"invalid index"</span>);
-    MemoryAddress::Relative(idx + Stack::start())
+    MemoryAddress::relative(idx + Stack::start())
 }
 
 <span class="attr">#[cfg(test)]

@@ -458,7 +458,8 @@
 <a href="#457" id="457">457</a>
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
-<a href="#460" id="460">460</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
@@ -469,6 +470,7 @@
 <span class="kw">use </span>num_traits::Zero;
 
 <span class="kw">use </span><span class="kw">crate</span>::Memory;
+<span class="kw">use </span><span class="kw">crate</span>::assert_usize;
 <span class="kw">use </span><span class="kw">crate</span>::memory::MemoryValue;
 
 <span class="doccomment">/// Reads a dynamically-sized [vector][HeapVector] from memory.
@@ -502,7 +504,7 @@
     array: <span class="kw-2">&amp;</span>HeapArray,
 ) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[MemoryValue&lt;F&gt;] {
     <span class="kw">let </span>items_start = memory.read_ref(array.pointer);
-    memory.read_slice(items_start, array.size)
+    memory.read_slice(items_start, assert_usize(array.size))
 }
 
 <span class="doccomment">/// Write values to a [array][HeapArray] in memory.

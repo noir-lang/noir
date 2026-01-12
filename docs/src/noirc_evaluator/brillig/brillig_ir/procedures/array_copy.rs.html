@@ -191,7 +191,10 @@
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{
     AcirField,
@@ -205,7 +208,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BrilligContext, ReservedRegisters,
+        BrilligContext, ReservedRegisters, assert_u32, assert_usize,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -232,7 +235,7 @@
         <span class="self">self</span>.mov_instruction(source_array_pointer_arg, source_array.pointer);
         <span class="self">self</span>.usize_const_instruction(
             source_array_memory_size_arg,
-            (source_array.size + offsets::ARRAY_META_COUNT).into(),
+            (source_array.size + assert_usize(offsets::ARRAY_META_COUNT)).into(),
         );
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::ArrayCopy);
@@ -307,7 +310,8 @@
     </span>initialize_constant_string(brillig_context, data, <span class="kw-2">*</span>items_pointer);
 
     <span class="comment">// Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    </span>items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: data.len() }))
+    </span>items_pointer
+        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: assert_u32(data.len()) }))
 }
 
 <span class="doccomment">/// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
@@ -365,11 +369,13 @@
 
         <span class="kw">let </span>newline_type = u1_type.clone();
         <span class="kw">let </span>size = message_with_func_name.len();
-        <span class="kw">let </span>msg_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size };
+        <span class="kw">let </span>msg_type =
+            HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size: assert_u32(size) };
         <span class="kw">let </span>item_count_type = HeapValueType::field();
         <span class="kw">let </span>value_to_print_type = u32_type;
         <span class="kw">let </span>size = PRINT_U32_TYPE_STRING.len();
-        <span class="kw">let </span>metadata_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type], size };
+        <span class="kw">let </span>metadata_type =
+            HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type], size: assert_u32(size) };
         <span class="kw">let </span>is_fmt_string_type = u1_type;
 
         <span class="kw">let </span>input_types = [

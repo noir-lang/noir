@@ -610,7 +610,20 @@
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     brillig_vm::offsets,
@@ -619,7 +632,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
 
 <span class="kw">use super</span>::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters, assert_usize,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
@@ -871,7 +884,7 @@
             array.pointer,
             heap_array.pointer,
             BrilligBinaryOp::Add,
-            offsets::ARRAY_ITEMS,
+            assert_usize(offsets::ARRAY_ITEMS),
         );
         heap_array
     }
@@ -942,7 +955,7 @@
             vector.pointer,
             result.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         <span class="self">self</span>.load_instruction(result.address, result.address);
         result
@@ -959,7 +972,7 @@
             vector.pointer,
             <span class="kw-2">*</span>write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, new_size.address);
     }
@@ -974,7 +987,7 @@
             vector.pointer,
             result.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY,
+            assert_usize(offsets::VECTOR_CAPACITY),
         );
         <span class="self">self</span>.load_instruction(result.address, result.address);
         result
@@ -986,7 +999,12 @@
         vector: BrilligVector,
         result: MemoryAddress,
     ) {
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, offsets::VECTOR_ITEMS);
+        <span class="self">self</span>.codegen_usize_op(
+            vector.pointer,
+            result,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_ITEMS),
+        );
     }
 
     <span class="doccomment">/// Returns a pointer to the items of a given vector.
@@ -1020,7 +1038,7 @@
             vector.pointer,
             <span class="kw-2">*</span>read_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         <span class="kw">if let </span><span class="prelude-val">Some</span>((length, item_size)) = semantic_length_and_item_size {
             <span class="self">self</span>.codegen_vector_flattened_size(size.address, length, item_size);
@@ -1030,14 +1048,14 @@
         <span class="self">self</span>.codegen_usize_op_in_place(
             <span class="kw-2">*</span>read_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE),
         );
         <span class="self">self</span>.load_instruction(capacity.address, <span class="kw-2">*</span>read_pointer);
         <span class="self">self</span>.codegen_usize_op(
             <span class="kw-2">*</span>read_pointer,
             items_pointer.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY,
+            assert_usize(offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY),
         );
 
         VectorMetaData { rc, size, capacity, items_pointer }
@@ -1062,7 +1080,12 @@
         array: BrilligArray,
     ) -&gt; Allocated&lt;MemoryAddress, Registers&gt; {
         <span class="kw">let </span>result = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(array.pointer, <span class="kw-2">*</span>result, BrilligBinaryOp::Add, offsets::ARRAY_ITEMS);
+        <span class="self">self</span>.codegen_usize_op(
+            array.pointer,
+            <span class="kw-2">*</span>result,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::ARRAY_ITEMS),
+        );
         result
     }
 
@@ -1083,7 +1106,10 @@
     <span class="doccomment">/// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: BrilligArray) {
         <span class="comment">// Allocate memory for the ref counter and `size` items.
-        </span><span class="self">self</span>.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);
+        </span><span class="self">self</span>.codegen_allocate_immediate_mem(
+            array.pointer,
+            array.size + assert_usize(offsets::ARRAY_META_COUNT),
+        );
         <span class="self">self</span>.codegen_initialize_rc(array.pointer, <span class="number">1</span>);
     }
 
@@ -1146,7 +1172,7 @@
             capacity.address,
             <span class="kw-2">*</span>allocation_size,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
+            assert_usize(offsets::VECTOR_META_COUNT),
         );
         <span class="self">self</span>.codegen_allocate_mem(vector.pointer, <span class="kw-2">*</span>allocation_size);
 
@@ -1174,7 +1200,7 @@
             vector.pointer,
             <span class="kw-2">*</span>write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, size.address);
 
@@ -1182,7 +1208,7 @@
         </span><span class="self">self</span>.codegen_usize_op_in_place(
             <span class="kw-2">*</span>write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE),
         );
         <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, capacity.address);
     }
@@ -1213,7 +1239,7 @@
             size_var.address,
             <span class="kw-2">*</span>total_size,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
+            assert_usize(offsets::VECTOR_META_COUNT),
         );
 
         <span class="comment">// Increase the free memory pointer to make sure the vector is not going to be allocated to something else.

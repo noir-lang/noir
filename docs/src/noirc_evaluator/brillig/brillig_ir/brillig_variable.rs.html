@@ -171,7 +171,10 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Deref;
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Deref;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
@@ -181,7 +184,10 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
-    brillig::brillig_ir::registers::{Allocated, RegisterAllocator},
+    brillig::brillig_ir::{
+        assert_u32,
+        registers::{Allocated, RegisterAllocator},
+    },
     ssa::ir::types::Type,
 };
 
@@ -326,7 +332,7 @@
         ),
         Type::Array(elem_type, size) =&gt; HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: typ.element_size() * <span class="kw-2">*</span>size <span class="kw">as </span>usize,
+            size: assert_u32(typ.element_size()) * <span class="kw-2">*</span>size,
         },
         Type::Vector(elem_type) =&gt; HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),

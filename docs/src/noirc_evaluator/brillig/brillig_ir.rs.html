@@ -546,7 +546,17 @@
 <a href="#545" id="545">545</a>
 <a href="#546" id="546">546</a>
 <a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -595,6 +605,16 @@
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = <span class="number">32</span>;
+
+<span class="doccomment">/// Converts a u32 value to usize, panicking if the conversion fails.
+</span><span class="kw">fn </span>assert_usize(value: u32) -&gt; usize {
+    value.try_into().expect(<span class="string">"Failed conversion from u32 to usize"</span>)
+}
+
+<span class="doccomment">/// Converts a usize value to u32, panicking if the conversion fails.
+</span><span class="kw">fn </span>assert_u32(value: usize) -&gt; u32 {
+    value.try_into().expect(<span class="string">"Failed conversion from usize to u32"</span>)
+}
 
 <span class="doccomment">/// Registers reserved in runtime for special purposes.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ReservedRegisters;
@@ -673,7 +693,7 @@
         </span>);
 
         <span class="comment">// The copy counter is always put in the first global slot
-        </span>MemoryAddress::Direct(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.layout()))
+        </span>MemoryAddress::direct(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.layout()))
     }
 
     <span class="doccomment">/// If this flag is set, compile the array copy counter as a global.
@@ -897,7 +917,7 @@
     <span class="kw">use </span><span class="kw">super</span>::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
     <span class="kw">use </span><span class="kw">super</span>::procedures::compile_procedure;
     <span class="kw">use </span><span class="kw">super</span>::registers::Stack;
-    <span class="kw">use super</span>::{BrilligOpcode, ReservedRegisters};
+    <span class="kw">use super</span>::{BrilligOpcode, ReservedRegisters, assert_usize};
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DummyBlackBoxSolver;
 
@@ -991,7 +1011,7 @@
 
         <span class="kw">let </span>status = vm.process_opcodes();
         <span class="kw">if let </span>VMStatus::Finished { return_data_offset, return_data_size } = status {
-            (vm, return_data_offset, return_data_size)
+            (vm, assert_usize(return_data_offset), assert_usize(return_data_size))
         } <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"VM did not finish"</span>)
         }
@@ -1036,7 +1056,7 @@
         <span class="comment">// The output pointer points at the heap.
         </span>context.usize_const_instruction(
             r_output_ptr,
-            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+            FieldElement::from(r_free_value + assert_usize(offsets::VECTOR_ITEMS)),
         );
         context.foreign_call_instruction(
             <span class="string">"make_number_sequence"</span>.into(),
