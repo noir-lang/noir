@@ -1206,7 +1206,8 @@
 <a href="#1205" id="1205">1205</a>
 <a href="#1206" id="1206">1206</a>
 <a href="#1207" id="1207">1207</a>
-<a href="#1208" id="1208">1208</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#1208" id="1208">1208</a>
+<a href="#1209" id="1209">1209</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1619,9 +1620,10 @@
 
                 <span class="kw">let </span><span class="kw-2">mut </span>changes = Vec::new();
                 <span class="kw">for </span>(i, argument) <span class="kw">in </span>arguments.iter().enumerate() {
-                    <span class="kw">if </span><span class="self">self</span>.vector_sizes.contains_key(argument) {
+                    <span class="kw">if </span><span class="self">self</span>.vector_sizes.contains_key(argument)
+                        &amp;&amp; <span class="macro">matches!</span>(arguments_types[i], Type::Vector(<span class="kw">_</span>))
+                    {
                         <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types[i - <span class="number">1</span>], Type::Numeric(<span class="kw">_</span>)));
-                        <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types[i], Type::Vector(<span class="kw">_</span>)));
                         <span class="kw">let </span>new = results[i];
                         changes.push(SizeChange::SetTo { old: <span class="kw-2">*</span>argument, new });
                     }
