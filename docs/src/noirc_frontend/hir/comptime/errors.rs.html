@@ -847,7 +847,27 @@
 <a href="#846" id="846">846</a>
 <a href="#847" id="847">847</a>
 <a href="#848" id="848">848</a>
-<a href="#849" id="849">849</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -942,6 +962,14 @@
         location: Location,
     },
     InvalidArrayLength {
+        err: Box&lt;TypeCheckError&gt;,
+        location: Location,
+    },
+    InvalidAssociatedConstant {
+        err: Box&lt;TypeCheckError&gt;,
+        location: Location,
+    },
+    InvalidNumericGeneric {
         err: Box&lt;TypeCheckError&gt;,
         location: Location,
     },
@@ -1184,6 +1212,8 @@
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::InvalidArrayLength { location, .. }
+            | InterpreterError::InvalidAssociatedConstant { location, .. }
+            | InterpreterError::InvalidNumericGeneric { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -1361,6 +1391,16 @@
             }
             InterpreterError::InvalidArrayLength { err, location } =&gt; {
                 <span class="kw">let </span>msg = <span class="string">"Invalid array length"</span>.to_string();
+                <span class="kw">let </span>secondary = err.to_string();
+                CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
+            }
+            InterpreterError::InvalidAssociatedConstant { err, location } =&gt; {
+                <span class="kw">let </span>msg = <span class="string">"Invalid associated constant"</span>.to_string();
+                <span class="kw">let </span>secondary = err.to_string();
+                CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
+            }
+            InterpreterError::InvalidNumericGeneric { err, location } =&gt; {
+                <span class="kw">let </span>msg = <span class="string">"Invalid numeric generic"</span>.to_string();
                 <span class="kw">let </span>secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
             }

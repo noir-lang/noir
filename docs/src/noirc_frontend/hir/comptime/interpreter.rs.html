@@ -1941,7 +1941,8 @@
 <a href="#1940" id="1940">1940</a>
 <a href="#1941" id="1941">1941</a>
 <a href="#1942" id="1942">1942</a>
-<a href="#1943" id="1943">1943</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2697,9 +2698,10 @@
                     .evaluate_to_signed_field(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
                 {
                     <span class="prelude-val">Ok</span>(value) =&gt; <span class="self">self</span>.evaluate_integer(value, id),
-                    <span class="prelude-val">Err</span>(err) =&gt; {
-                        <span class="prelude-val">Err</span>(InterpreterError::InvalidArrayLength { err: Box::new(err), location })
-                    }
+                    <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(InterpreterError::InvalidAssociatedConstant {
+                        err: Box::new(err),
+                        location,
+                    }),
                 }
             }
         }
@@ -2714,7 +2716,7 @@
             .map_err(|err| {
                 <span class="kw">let </span>err = Box::new(err);
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-                InterpreterError::InvalidArrayLength { err, location }
+                InterpreterError::InvalidNumericGeneric { err, location }
             })<span class="question-mark">?</span>;
 
         <span class="self">self</span>.evaluate_integer(value, id)
