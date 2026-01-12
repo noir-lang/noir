@@ -394,6 +394,25 @@ fn databus() {
     ");
 }
 
+#[test]
+fn blake3_slice_regression() {
+    // Sanity check for blake3 black box call brillig codegen.
+    let src = "
+    brillig(inline) predicate_pure fn main f0 {
+      b0(v0: [u8; 1]):
+        v3 = call blake3(v0) -> [u8; 32]
+        return
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    execute_ssa(
+        ssa,
+        WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(104u128))])),
+        None,
+    );
+}
+
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.
