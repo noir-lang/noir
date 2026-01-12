@@ -1,13 +1,12 @@
 use acir::BlackBoxFunc;
-use p256::elliptic_curve::PrimeField;
-use p256::elliptic_curve::sec1::FromEncodedPoint;
 
-use p256::FieldBytes;
 use p256::{
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
+        PrimeField,
+        ops::Reduce,
         scalar::IsHigh,
-        sec1::{Coordinates, ToEncodedPoint},
+        sec1::{Coordinates, FromEncodedPoint, ToEncodedPoint},
     },
 };
 use p256::{Scalar, ecdsa::Signature};
@@ -68,12 +67,10 @@ pub(super) fn verify_signature(
     };
     let pubkey = pubkey.unwrap();
 
-    // Note: This will panic if `hashed_msg >= p256::NistP256::ORDER`.
-    // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
-    let z = Scalar::from_repr(
-        FieldBytes::try_from_iter(hashed_msg.iter().copied()).expect("slice length mismatch"),
-    )
-    .unwrap();
+    // Convert the hashed message to a scalar.
+    // Per ECDSA specification (SEC 1, section 4.1.4), if `hashed_msg >= p256::NistP256::ORDER`,
+    // the message hash should be reduced modulo the curve order.
+    let z = <Scalar as Reduce<p256::U256>>::reduce(&p256::U256::from_be_slice(hashed_msg));
 
     // Finished converting bytes into data structures
 
@@ -98,9 +95,23 @@ pub(super) fn verify_signature(
         .to_affine();
 
     match R.to_encoded_point(false).coordinates() {
-        Coordinates::Uncompressed { x, y: _ } => Ok(Scalar::from_repr(*x).unwrap().eq(&r)),
+        Coordinates::Uncompressed { x, y: _ } => {
+            // The conversion from R.x to a scalar can fail if R.x >= curve_order (a possible but rare case).
+            // In this case, the signature is invalid per ECDSA specification, so we return false.
+            // The prover will handle this gracefully - it should generate a proof that fails verification.
+            Ok(Scalar::from_repr(*x).into_option().map_or_else(
+                || {
+                    log::warn!("Failed to convert R.x coordinate to scalar for ECDSA verification");
+                    false
+                },
+                |scalar| scalar == *r,
+            ))
+        }
         Coordinates::Identity => Ok(false),
-        _ => unreachable!("Point is uncompressed"),
+        _ => Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256r1,
+            "Unexpected coordinate encoding".to_string(),
+        )),
     }
 }
 
