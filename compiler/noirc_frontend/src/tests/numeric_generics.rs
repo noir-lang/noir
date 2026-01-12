@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors, check_errors_using_features, UnstableFeature};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn numeric_generic_in_function_signature() {
