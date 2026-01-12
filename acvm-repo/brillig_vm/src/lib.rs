@@ -35,6 +35,16 @@ mod foreign_call;
 pub mod fuzzing;
 mod memory;
 
+/// Converts a u32 value to usize, panicking if the conversion fails.
+pub(crate) fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+pub(crate) fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
+}
+
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
@@ -425,12 +435,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let revert_data_size = self.memory.read(revert_data.size).to_usize();
                 if revert_data_size > 0 {
                     self.trap(
-                        self.memory
-                            .read_ref(revert_data.pointer)
-                            .unwrap_direct()
-                            .try_into()
-                            .expect("Failed conversion from usize to u32"),
-                        revert_data_size.try_into().expect("Failed conversion from usize to u32"),
+                        assert_u32(self.memory.read_ref(revert_data.pointer).unwrap_direct()),
+                        assert_u32(revert_data_size),
                     )
                 } else {
                     self.trap(0, 0)
@@ -440,12 +446,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let return_data_size = self.memory.read(return_data.size).to_usize();
                 if return_data_size > 0 {
                     self.finish(
-                        self.memory
-                            .read_ref(return_data.pointer)
-                            .unwrap_direct()
-                            .try_into()
-                            .expect("Failed conversion from usize to u32"),
-                        return_data_size.try_into().expect("Failed conversion from usize to u32"),
+                        assert_u32(self.memory.read_ref(return_data.pointer).unwrap_direct()),
+                        assert_u32(return_data_size),
                     )
                 } else {
                     self.finish(0, 0)
