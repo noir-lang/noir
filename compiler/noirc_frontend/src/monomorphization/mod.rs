@@ -1866,9 +1866,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that the 'from' and to' sides of a CheckedCast unify and
-    /// that if the 'to' side evaluates to a field element, that the 'from' side
-    /// evaluates to the same field element
+    /// Check that the 'from' and to' sides of a `CheckedCast` unify and
+    /// that if the 'to' side evaluates to a field element, then the 'from' side
+    /// evaluates to the same field element as well.
     fn check_checked_cast(
         from: &Type,
         to: &Type,
@@ -1924,6 +1924,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Resolve a trait item and monomorphize it either as:
+    /// * an associated numeric constant, or
+    /// * a tuple of (constrained, unconstrained) functions
     fn resolve_trait_item_expr(
         &mut self,
         expr_id: ExprId,
@@ -1951,6 +1954,8 @@ impl<'interner> Monomorphizer<'interner> {
         )
     }
 
+    /// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
+    /// and return and identifier to it.
     fn resolve_trait_method_expr(
         &mut self,
         func_id: node_interner::FuncId,
@@ -2953,6 +2958,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Check that an identifier refers to an unconstrained user defined function.
+    ///
+    /// Returns `false` for any other kind of expression.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
         if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
             if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
@@ -3063,7 +3071,7 @@ pub fn perform_impl_bindings(
     Ok(bindings)
 }
 
-/// Resolve a trait item to a particular impl, returning the id of that impl or an error on failure.
+/// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
 fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3209,6 +3217,10 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
     }
 }
 
+/// Look up a specific member of a trait, then look through the trait methods
+/// and associated constants until an item with a matching name is found.
+///
+/// Panics if the name cannot be matched to anything.
 pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3247,7 +3259,7 @@ pub(crate) fn resolve_trait_item(
         }
     }
 
-    unreachable!("No method named `{name}` in impl")
+    unreachable!("No method or constant named `{name}` in impl")
 }
 
 pub(crate) enum TraitItem {
