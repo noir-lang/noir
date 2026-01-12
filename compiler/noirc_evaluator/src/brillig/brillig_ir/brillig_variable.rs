@@ -8,7 +8,10 @@ use acvm::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    brillig::brillig_ir::registers::{Allocated, RegisterAllocator},
+    brillig::brillig_ir::{
+        assert_u32,
+        registers::{Allocated, RegisterAllocator},
+    },
     ssa::ir::types::Type,
 };
 
@@ -45,7 +48,7 @@ pub(crate) struct BrilligArray {
     pub(crate) size: usize,
 }
 
-/// The representation of a noir slice in the Brillig IR
+/// The representation of a noir vector in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligVector {
     pub(crate) pointer: MemoryAddress,
@@ -153,9 +156,9 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: typ.element_size() * *size as usize,
+            size: assert_u32(typ.element_size()) * *size,
         },
-        Type::Slice(elem_type) => HeapValueType::Vector {
+        Type::Vector(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
         },
     }

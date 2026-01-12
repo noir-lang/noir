@@ -6,7 +6,7 @@ macros
 reference_counts_inliner_0
 reference_counts_inliner_min
 reference_counts_inliner_max
-reference_counts_slices_inliner_0
+reference_counts_vectors_inliner_0
 references
 regression_4709
 regression_7323

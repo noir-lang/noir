@@ -32,6 +32,7 @@ mod visibility;
 use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
 use crate::test_utils::{get_program, get_program_with_options};
 
@@ -57,13 +58,19 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program(src).2
 }
 
-fn assert_no_errors(src: &str) -> Context<'_, '_> {
+pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
     let (_, context, errors) = get_program(src);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("Expected no errors");
     }
+    context
+}
+
+pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
+    let (_, context, errors) = get_program(src);
+    assert!(errors.is_empty(), "Expected no errors");
     context
 }
 
@@ -245,7 +252,7 @@ fn check_errors_with_options(
         if !expected_primaries.contains(primary_message) {
             report_all(context.file_manager.as_file_map(), &errors, false, false);
             panic!(
-                "Primary error at {span:?} has unexpected message: {primary_message:?}; should be one of {expected_primaries:?}"
+                "Primary error at {span:?} has unexpected message: {primary_message:?};\nShould be one of {expected_primaries:?}"
             );
         } else {
             all_primaries.remove(&(span, primary_message.clone()));
@@ -274,7 +281,7 @@ fn check_errors_with_options(
             if !expected_secondaries.contains(secondary_message) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Secondary error at {span:?} has unexpected message: {secondary_message:?}; should be one of {expected_secondaries:?}"
+                    "Secondary error at {span:?} has unexpected message: {secondary_message:?};\nShould be one of {expected_secondaries:?}"
                 );
             } else {
                 all_secondaries.remove(&(span, secondary_message.clone()));
@@ -339,4 +346,129 @@ fn does_not_stack_overflow_on_many_comments_in_a_row() {
     let mut src = "//\n".repeat(10_000);
     src.push_str("fn main() { }");
     assert_no_errors(&src);
+}
+
+#[test]
+fn wildcard_with_generic_argument() {
+    let src = r#"
+    struct Foo<T> {}
+
+    pub fn println<T>(_input: T) { }
+    
+    fn main() {
+      let x: _<_> = "123";
+      let y: _<_> = Foo::<()> { };
+      println(x);
+      println(y);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10553() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+    fn main() {
+        let x = @[false];
+        let s = f"{x}";
+        let _ = @[s];
+                ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_10554() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+    fn main() {
+        let x = @[false];
+        let t = @[x];
+                ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
+        let s = f"{t}";
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn deeply_nested_expression_overflow() {
+    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 50
+    // This tests the interpreter's evaluation depth limit.
+    // If we use an expression too deep (like 100), then we will reach the parser recursion limit.
+    // We use fewer nesting levels (50) combined with recursive function calls
+    // to trigger the interpreter's EvaluationDepthOverflow error.
+    fn make_nested_expr(stem: &str) -> String {
+        let mut expr = String::from(stem);
+        for i in 2..=50 {
+            expr = format!("({expr} + {i})");
+        }
+        expr
+    }
+
+    let expr = make_nested_expr("if max_depth == 0 { 1 } else { foo(max_depth - 1) }");
+
+    let src = format!(
+        "
+      fn foo(max_depth: u32) -> u32 {{
+        {expr}
+      }}
+      fn main() {{
+          comptime {{
+              let _ = foo(5);
+          }}
+      }}
+      "
+    );
+
+    let errors = get_program_errors(&src);
+
+    for error in errors {
+        if matches!(
+            error,
+            CompilationError::InterpreterError(InterpreterError::EvaluationDepthOverflow { .. })
+        ) {
+            return;
+        }
+    }
+
+    panic!("should have got a EvaluationDepthOverflow error");
+}
+
+#[test]
+fn deeply_nested_expression_parser_overflow() {
+    use crate::parser::ParserErrorReason;
+
+    // Build expression: (((1 + 2) + 3) + 4) ... + 200
+    // This should hit the parser's maximum recursion depth limit
+    let mut expr = String::from("1");
+    for i in 2..=200 {
+        expr = format!("({expr} + {i})");
+    }
+
+    let src = format!(
+        "
+      fn main() {{
+          comptime {{
+              let _ = {expr};
+          }}
+      }}
+      "
+    );
+
+    let errors = get_program_errors(&src);
+
+    // We should get exactly one MaximumRecursionDepthExceeded error
+    assert_eq!(errors.len(), 1, "Expected exactly one error");
+
+    let has_depth_error = matches!(
+        &errors[0],
+        CompilationError::ParseError(parser_error)
+            if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
+    );
+    assert!(has_depth_error, "Expected a MaximumRecursionDepthExceeded error");
 }

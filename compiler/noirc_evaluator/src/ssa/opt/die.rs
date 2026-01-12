@@ -42,7 +42,7 @@
 //! - If DIE was run after mem2reg and flattening, no unreachable
 //!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
-use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use acvm::{AcirField, FieldElement};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -276,22 +276,23 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
+        if let Some(return_data) = function.dfg.data_bus.return_data {
+            self.used_values.insert(return_data);
+        }
 
-        // Indexes of instructions that might be out of bounds.
+        // Indices of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
-        let mut possible_index_out_of_bounds_indexes = Vec::new();
+        let mut possible_index_out_of_bounds_indices = Vec::new();
 
         // Going in reverse so we know if a result of an instruction was used.
-        for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
+        for (instruction_index, instruction_id) in block.instructions().iter().enumerate().rev() {
             let instruction = &function.dfg[*instruction_id];
 
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
 
                 if insert_out_of_bounds_checks && should_insert_oob_check(function, instruction) {
-                    possible_index_out_of_bounds_indexes
-                        .push(instructions_len - instruction_index - 1);
+                    possible_index_out_of_bounds_indices.push(instruction_index);
                     // We need to still mark the array index as used as we refer to it in the inserted bounds check.
                     let (Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
                         instruction
@@ -316,11 +317,11 @@ impl Context {
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
-        if !possible_index_out_of_bounds_indexes.is_empty() {
+        if !possible_index_out_of_bounds_indices.is_empty() {
             let inserted_check = self.replace_array_instructions_with_out_of_bounds_checks(
                 function,
                 block_id,
-                &mut possible_index_out_of_bounds_indexes,
+                &mut possible_index_out_of_bounds_indices,
             );
             // There's a chance we didn't insert any checks, so we could proceed with DIE.
             // This can happen for example with arrays of a complex type, where one part
@@ -346,17 +347,9 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
+        can_be_eliminated_if_unused(instruction, function, self.flattened, &self.used_values) && {
             let results = function.dfg.instruction_results(instruction_id);
-            let results_unused = results.iter().all(|result| !self.used_values.contains(result));
-            results_unused && !function.dfg.is_returned_in_databus(instruction_id)
-        } else if let Instruction::Call { func, arguments } = instruction {
-            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
-        } else {
-            // If the instruction has side effects we should never remove it.
-            false
+            results.iter().all(|result| !self.used_values.contains(result))
         }
     }
 
@@ -443,6 +436,7 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     flattened: bool,
+    used_values: &HashSet<ValueId>,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -500,11 +494,8 @@ fn can_be_eliminated_if_unused(
         | RangeCheck { .. } => false,
 
         // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-        Call { func, .. } => match function.dfg[*func] {
-            // Explicitly allows removal of unused ec operations, even if they can fail
-            Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
-            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
-
+        Call { func, arguments } => match function.dfg[*func] {
+            Value::Intrinsic(Intrinsic::AsWitness) if !used_values.contains(&arguments[0]) => true,
             Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
             // All foreign functions are treated as having side effects.
@@ -568,7 +559,7 @@ fn die_post_check(func: &Function, flattened: bool) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use im::vector;
@@ -1244,5 +1235,85 @@ mod test {
         "#
         );
         assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn does_not_remove_unused_curve_operations() {
+        let src = r#"
+        acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field, v2: Field):
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v8 = make_array [v0, Field 0] : [(Field, Field); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field, u1); 1]
+            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -> [(Field, Field, u1); 1]
+            return v12
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn removes_unused_known_small_bit_shifts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 2
+            v2 = shr v0, u32 3
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_bit_shifts_by_unknown_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = shl v0, v1
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn keeps_bit_shifts_by_known_large_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 33
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn keeps_unused_as_witness_databus_return_value() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v2
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = load v1 -> Field
+            call as_witness(v2)
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
     }
 }

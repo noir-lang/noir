@@ -5,7 +5,6 @@
 //! ```
 use std::time::Duration;
 
-use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_evaluator::{
@@ -37,7 +36,6 @@ fn arb_ssa_roundtrip() {
             ssa_logging: ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,

@@ -216,10 +216,12 @@ fn compile_with_maybe_dummy_workspace(
             CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
         let selection = PackageSelection::Selected(package_name);
 
+        let assume_default_entry = true;
         let workspace = resolve_workspace_from_fixed_toml(
             nargo_toml,
             selection,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
         )?;
         compile_cmd::run(cmd, workspace)
     } else {
@@ -305,18 +307,6 @@ fn lock_workspace(
 mod tests {
     use super::NargoCli;
     use clap::Parser;
-
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
-    }
 
     #[test]
     fn test_parse_target_dir() {

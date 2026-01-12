@@ -203,7 +203,7 @@ impl FullDictionary {
     }
 
     /// Update the dictionary with values from a vector of field elements
-    pub fn update_from_vector(&mut self, elements: &[FieldElement]) {
+    pub fn update_from_slice(&mut self, elements: &[FieldElement]) {
         let mut testcase_full_dictionary: HashSet<_> =
             self.field_dictionary.iter().copied().collect();
         testcase_full_dictionary.extend(elements.iter().copied());

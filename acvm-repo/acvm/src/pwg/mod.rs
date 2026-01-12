@@ -92,7 +92,7 @@ pub(crate) mod arithmetic;
 pub(crate) mod brillig;
 // black box functions
 pub(crate) mod blackbox;
-mod memory_op;
+pub(crate) mod memory_op;
 
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
@@ -343,12 +343,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
-    // Enable profiling
+    /// Enable profiling
     pub fn with_profiler(&mut self, profiling_active: bool) {
         self.profiling_active = profiling_active;
     }
 
-    // Enable brillig fuzzing
+    /// Enable brillig fuzzing
     pub fn with_brillig_fuzzing(
         &mut self,
         brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,

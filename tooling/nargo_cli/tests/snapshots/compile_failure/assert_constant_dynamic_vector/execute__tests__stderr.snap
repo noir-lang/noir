@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Argument is not constant
+  ┌─ src/main.nr:4:5
+  │
+4 │     assert_constant([dynamic_one].as_vector());
+  │     ------------------------------------------
+  │
+  = Call stack:
+    1. src/main.nr:4:5
+
+Aborting due to 1 previous error

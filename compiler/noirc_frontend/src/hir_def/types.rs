@@ -43,8 +43,8 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
 
-    /// Slice(E) is a slice of elements of type E.
-    Slice(Box<Type>),
+    /// Vector(E) is a vector of elements of type E.
+    Vector(Box<Type>),
 
     /// A primitive integer type with the given sign and bit count.
     /// E.g. `u32` would be `Integer(Unsigned, ThirtyTwo)`
@@ -59,6 +59,7 @@ pub enum Type {
 
     /// `FmtString(N, Vec<E>)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
+    /// and where N is either a type variable of some kind or a Type::Constant
     FmtString(Box<Type>, Box<Type>),
 
     /// The unit type `()`.
@@ -67,18 +68,18 @@ pub enum Type {
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
-    /// A user-defined struct type. The `Shared<StructType>` field here refers to
-    /// the shared definition for each instance of this struct type. The `Vec<Type>`
-    /// represents the generic arguments (if any) to this struct type.
+    /// A user-defined struct or enum type. The `Shared<DataType>` field here refers to
+    /// the shared definition for each instance of this struct or enum type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this struct or enum type.
     DataType(Shared<DataType>, Vec<Type>),
 
-    /// A user-defined alias to another type. Similar to a Struct, this carries a shared
+    /// A user-defined alias to another type. Similar to a struct, this carries a shared
     /// reference to the definition of the alias along with any generics that may have
     /// been applied to the alias.
     Alias(Shared<TypeAlias>, Vec<Type>),
 
     /// TypeVariables are stand-in variables for some type which is not yet known.
-    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// They are not to be confused with NamedGenerics. While the latter mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
     /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
@@ -116,7 +117,7 @@ pub enum Type {
     /// &T
     Reference(Box<Type>, /*mutable*/ bool),
 
-    /// A type generic over the given type variables.
+    /// A type that's generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
@@ -199,7 +200,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
+        Self::numeric(Type::u32())
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -282,6 +283,10 @@ impl Kind {
             _ => None,
         }
     }
+
+    pub(crate) fn is_normal_or_any(&self) -> bool {
+        matches!(self, Kind::Normal | Kind::Any)
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -291,7 +296,7 @@ impl std::fmt::Display for Kind {
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
             Kind::IntegerOrField => write!(f, "intOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
+            Kind::Numeric(typ) => write!(f, "{typ}"),
         }
     }
 }
@@ -352,7 +357,7 @@ pub struct DataType {
     /// since these will handle applying generic arguments to fields as well.
     body: TypeBody,
 
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub location: Location,
 
     pub must_use: MustUse,
@@ -407,7 +412,7 @@ pub type GenericTypeVars = Vec<TypeVariable>;
 /// Corresponds to generic lists such as `<T, U>` with additional
 /// information gathered during name resolution that is necessary
 /// correctly resolving types.
-pub type Generics = Vec<ResolvedGeneric>;
+pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
@@ -461,7 +466,7 @@ impl DataType {
         id: TypeId,
         name: Ident,
         location: Location,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
     ) -> DataType {
         DataType {
@@ -606,7 +611,11 @@ impl DataType {
         &self,
         generic_args: &[Type],
     ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
-        assert_eq!(self.generics.len(), generic_args.len());
+        assert_eq!(
+            self.generics.len(),
+            generic_args.len(),
+            "get_fields_substitutions: expected the number of generics to equal the number of generic_args"
+        );
 
         self.generics
             .iter()
@@ -712,7 +721,7 @@ pub struct TypeAlias {
     pub name: Ident,
     pub id: TypeAliasId,
     pub typ: Type,
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
@@ -756,7 +765,7 @@ impl TypeAlias {
         name: Ident,
         location: Location,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -> TypeAlias {
@@ -766,7 +775,7 @@ impl TypeAlias {
     pub fn set_type_and_generics(
         &mut self,
         new_typ: Type,
-        new_generics: Generics,
+        new_generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         assert_eq!(self.typ, Type::Error);
@@ -1020,6 +1029,14 @@ impl TypeVariable {
             _ => false,
         }
     }
+
+    pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
+    }
+
+    pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
+    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1049,7 +1066,7 @@ impl std::fmt::Display for Type {
             Type::Array(len, typ) => {
                 write!(f, "[{typ}; {len}]")
             }
-            Type::Slice(typ) => {
+            Type::Vector(typ) => {
                 write!(f, "[{typ}]")
             }
             Type::Integer(sign, num_bits) => match sign {
@@ -1207,6 +1224,10 @@ impl Type {
     }
 
     pub fn default_int_type() -> Type {
+        Self::u32()
+    }
+
+    pub fn u32() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
@@ -1297,7 +1318,7 @@ impl Type {
         match self.follow_bindings() {
             Type::FieldElement
             | Type::Array(_, _)
-            | Type::Slice(_)
+            | Type::Vector(_)
             | Type::Integer(..)
             | Type::Bool
             | Type::String(_)
@@ -1373,7 +1394,7 @@ impl Type {
             | Type::InfixExpr(..)
             | Type::TraitAsType(..)
             | Type::Forall(..)
-            | Type::Slice(_)
+            | Type::Vector(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::Quoted(_)
@@ -1446,7 +1467,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(..)
             | Type::Array(..)
-            | Type::Slice(..)
+            | Type::Vector(..)
             | Type::Bool
             | Type::String(..)
             | Type::FmtString(..)
@@ -1555,17 +1576,19 @@ impl Type {
                     .evaluate_to_u32(*location)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                length * typ.field_count(location)
+                length.checked_mul(typ.field_count(location)).expect("Array length overflow")
             }
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if let Some(fields) = struct_type.get_fields(args) {
                     fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
                 } else if let Some(variants) = struct_type.get_variants(args) {
-                    let mut size = 1; // start with the tag size
+                    let mut size: u32 = 1; // start with the tag size
                     for (_, args) in variants {
                         for arg in args {
-                            size += arg.field_count(location);
+                            size = size
+                                .checked_add(arg.field_count(location))
+                                .expect("Variant size overflow");
                         }
                     }
                     size
@@ -1575,9 +1598,9 @@ impl Type {
             }
             Type::CheckedCast { to, .. } => to.field_count(location),
             Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
-            }
+            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
+                acc.checked_add(field_typ.field_count(location)).expect("Tuple size overflow")
+            }),
             Type::String(size) => size
                 .evaluate_to_u32(*location)
                 .expect("Cannot have variable sized strings as a parameter to main"),
@@ -1591,35 +1614,83 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Constant(_, _)
             | Type::Quoted(_)
-            | Type::Slice(_)
+            | Type::Vector(_)
             | Type::InfixExpr(..)
-            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+            | Type::Error => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
         }
     }
 
-    /// Check whether this type is an array or slice, and contains a nested slice in its element type.
-    pub(crate) fn is_nested_slice(&self) -> bool {
+    /// Check whether this type is an array or vector, and contains a nested vector in its element type.
+    pub(crate) fn is_nested_vector(&self) -> bool {
         match self {
-            Type::Slice(elem) => elem.as_ref().contains_slice(),
-            Type::Array(_, elem) => elem.as_ref().contains_slice(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            _ => false,
-        }
-    }
+            Type::Vector(elem) => elem.as_ref().contains_vector(),
+            Type::Array(_, elem) => elem.as_ref().contains_vector(),
 
-    /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
-    pub(crate) fn contains_slice(&self) -> bool {
-        match self {
-            Type::Slice(_) => true,
-            Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_vector(),
+            Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_slice()) {
+                    if fields.iter().any(|(_, field, _)| field.is_nested_vector()) {
                         return true;
                     }
                 } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_slice()) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_vector())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    if typ.is_nested_vector() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_nested_vector(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.is_nested_vector() || to.is_nested_vector(),
+            Type::Reference(element, _) => element.is_nested_vector(),
+            Type::Forall(_, typ) => typ.is_nested_vector(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
+
+    /// Check whether this type is itself a vector, or a struct/enum/tuple/array which contains a vector.
+    pub(crate) fn contains_vector(&self) -> bool {
+        match self {
+            Type::Vector(_) => true,
+            Type::Array(_, elem) => elem.as_ref().contains_vector(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_vector(),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_vector()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_vector()) {
                         return true;
                     }
                 }
@@ -1627,13 +1698,35 @@ impl Type {
             }
             Type::Tuple(types) => {
                 for typ in types.iter() {
-                    if typ.contains_slice() {
+                    if typ.contains_vector() {
                         return true;
                     }
                 }
                 false
             }
-            _ => false,
+            Type::FmtString(_size, elem) => elem.contains_vector(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_vector(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.contains_vector() || to.contains_vector(),
+            Type::Reference(element, _) => element.contains_vector(),
+            Type::Forall(_, typ) => typ.contains_vector(),
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
         }
     }
 
@@ -1651,7 +1744,7 @@ impl Type {
             | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Slice(length) => length.contains_reference(),
+            Type::Vector(typ) => typ.contains_reference(),
             Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
             Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
             Type::DataType(typ, generics) => {
@@ -1671,7 +1764,7 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -1684,6 +1777,53 @@ impl Type {
                 lhs.contains_reference() || rhs.contains_reference()
             }
             Type::Reference(..) => true,
+        }
+    }
+
+    pub(crate) fn contains_function(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Quoted(_)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Error => false,
+
+            Type::Function(..) => true,
+
+            Type::Reference(typ, _) => typ.contains_function(),
+            Type::Array(length, typ) => length.contains_function() || typ.contains_function(),
+            Type::Vector(typ) => typ.contains_function(),
+            Type::FmtString(length, typ) => length.contains_function() || typ.contains_function(),
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_function()),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_function()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_function())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_function(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_function(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => to.contains_function(),
+            Type::InfixExpr(lhs, _op, rhs, _) => lhs.contains_function() || rhs.contains_function(),
         }
     }
 
@@ -1700,7 +1840,7 @@ impl Type {
             Type::Array(length, typ) => {
                 length.contains_type_variable() || typ.contains_type_variable()
             }
-            Type::Slice(typ) => typ.contains_type_variable(),
+            Type::Vector(typ) => typ.contains_type_variable(),
             Type::String(length) => length.contains_type_variable(),
             Type::FmtString(length, typ) => {
                 length.contains_type_variable() || typ.contains_type_variable()
@@ -2175,9 +2315,9 @@ impl Type {
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::Array(Box::new(size), Box::new(element))
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
-                Type::Slice(Box::new(element))
+                Type::Vector(Box::new(element))
             }
             Type::String(size) => {
                 let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -2269,7 +2409,7 @@ impl Type {
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
-            Type::Slice(elem) => elem.occurs(target_id),
+            Type::Vector(elem) => elem.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::FmtString(len, fields) => {
                 let len_occurs = len.occurs(target_id);
@@ -2326,7 +2466,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
-            Slice(elem) => Slice(Box::new(elem.follow_bindings())),
+            Vector(elem) => Vector(Box::new(elem.follow_bindings())),
             String(size) => String(Box::new(size.follow_bindings())),
             FmtString(size, args) => {
                 let size = Box::new(size.follow_bindings());
@@ -2426,7 +2566,7 @@ impl Type {
                 elem.replace_named_generics_with_type_variables();
             }
 
-            Type::Slice(elem) => elem.replace_named_generics_with_type_variables(),
+            Type::Vector(elem) => elem.replace_named_generics_with_type_variables(),
             Type::String(len) => len.replace_named_generics_with_type_variables(),
             Type::FmtString(len, captures) => {
                 len.replace_named_generics_with_type_variables();
@@ -2495,9 +2635,9 @@ impl Type {
         }
     }
 
-    pub fn slice_element_type(&self) -> Option<&Type> {
+    pub fn vector_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Slice(element) => Some(element),
+            Type::Vector(element) => Some(element),
             _ => None,
         }
     }
@@ -2535,7 +2675,7 @@ impl Type {
             Type::Constant(_, kind) => kind.integral_maximum_size(),
 
             Type::Array(..)
-            | Type::Slice(..)
+            | Type::Vector(..)
             | Type::String(..)
             | Type::FmtString(..)
             | Type::Unit
@@ -2599,7 +2739,7 @@ impl Type {
             ),
             Type::FieldElement
             | Type::Array(..)
-            | Type::Slice(..)
+            | Type::Vector(..)
             | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
@@ -2638,6 +2778,27 @@ impl Type {
     }
 }
 
+impl From<u8> for Type {
+    fn from(value: u8) -> Self {
+        Type::Constant(
+            value.into(),
+            Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        )
+    }
+}
+
+impl From<u32> for Type {
+    fn from(value: u32) -> Self {
+        Type::Constant(value.into(), Kind::u32())
+    }
+}
+
+impl From<SignedField> for Type {
+    fn from(value: SignedField) -> Self {
+        Type::Constant(value, Kind::numeric(Type::FieldElement))
+    }
+}
+
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
@@ -2647,7 +2808,7 @@ impl BinaryTypeOperator {
         kind: &Kind,
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
-        match kind.follow_bindings().integral_maximum_size() {
+        match kind.integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
                 BinaryTypeOperator::Subtraction => Ok(a - b),
@@ -2699,7 +2860,7 @@ impl BinaryTypeOperator {
                         BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                     };
 
-                    Ok(result.into())
+                    kind.ensure_value_fits(result.into(), location)
                 }
             }
         }
@@ -2752,9 +2913,9 @@ impl From<&Type> for PrintableType {
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
-            Type::Slice(typ) => {
+            Type::Vector(typ) => {
                 let typ = typ.as_ref();
-                PrintableType::Slice { typ: Box::new(typ.into()) }
+                PrintableType::Vector { typ: Box::new(typ.into()) }
             }
             Type::Integer(sign, bit_width) => match sign {
                 Signedness::Unsigned => {
@@ -2838,7 +2999,7 @@ impl std::fmt::Debug for Type {
             Type::Array(len, typ) => {
                 write!(f, "[{typ:?}; {len:?}]")
             }
-            Type::Slice(typ) => {
+            Type::Vector(typ) => {
                 write!(f, "[{typ:?}]")
             }
             Type::Integer(sign, num_bits) => match sign {
@@ -2974,7 +3135,7 @@ impl std::hash::Hash for Type {
                 len.hash(state);
                 elem.hash(state);
             }
-            Type::Slice(elem) => elem.hash(state),
+            Type::Vector(elem) => elem.hash(state),
             Type::Integer(sign, bits) => {
                 sign.hash(state);
                 bits.hash(state);
@@ -3059,7 +3220,7 @@ impl PartialEq for Type {
             (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) => {
                 lhs_len == rhs_len && lhs_elem == rhs_elem
             }
-            (Slice(lhs_elem), Slice(rhs_elem)) => lhs_elem == rhs_elem,
+            (Vector(lhs_elem), Vector(rhs_elem)) => lhs_elem == rhs_elem,
             (Integer(lhs_sign, lhs_bits), Integer(rhs_sign, rhs_bits)) => {
                 lhs_sign == rhs_sign && lhs_bits == rhs_bits
             }

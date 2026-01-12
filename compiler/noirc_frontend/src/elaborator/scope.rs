@@ -17,7 +17,6 @@ use crate::{
 use crate::{Type, TypeAlias};
 
 use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
-use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;
@@ -28,9 +27,9 @@ impl Elaborator<'_> {
         ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
-    pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
-        let current_module = self.module_id();
-
+    pub fn replace_module(&mut self, new_module: ModuleId) -> Option<ModuleId> {
+        let current_module =
+            self.local_module.map(|local_id| ModuleId { krate: self.crate_id, local_id });
         self.crate_id = new_module.krate;
         self.local_module = Some(new_module.local_id);
         current_module
@@ -59,10 +58,17 @@ impl Elaborator<'_> {
                     .position(|capture| capture.ident.id == hir_ident.id);
 
                 if position.is_none() {
-                    self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
-                        ident: hir_ident.clone(),
-                        transitive_capture_index,
-                    });
+                    // In a comptime context we capture comptime and non-comptime variables
+                    // (the latter will be an error).
+                    // In a non-comptime context we don't capture comptime variables.
+                    if self.in_comptime_context()
+                        || !self.interner.definition(hir_ident.id).is_comptime_local()
+                    {
+                        self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
+                            ident: hir_ident.clone(),
+                            transitive_capture_index,
+                        });
+                    }
                 }
 
                 if lambda_index + 1 < self.lambda_stack.len() {
@@ -186,7 +192,7 @@ impl Elaborator<'_> {
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();
         if let Some(segment) = segment {
-            if segment.ident.as_str() == SELF_TYPE_NAME {
+            if segment.ident.is_self_type_name() {
                 if let Some(typ) = &self.self_type {
                     return Some(typ.clone());
                 }

@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Unused expression result of type u32
+  ┌─ src/main.nr:5:9
+  │
+5 │         foo();
+  │         -----
+  │
+
+error: unnecessary pub keyword on return type for function foo
+   ┌─ src/main.nr:10:4
+   │
+10 │ fn foo() -> pub u32 {
+   │    --- unnecessary pub return type
+   │
+   = The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed
+
+error: Function expects 2 parameters but 1 was given
+   ┌─ src/main.nr:13:17
+   │
+13 │         let _ = f(1);
+   │                 ----
+   │
+
+error: Expected type u32, found type ()
+   ┌─ src/main.nr:11:5
+   │  
+11 │ ╭     comptime {
+12 │ │         let f = |a: u32, b: u32| a + b;
+13 │ │         let _ = f(1);
+14 │ │     }
+   │ ╰─────'
+   │  
+
+Aborting due to 3 previous errors

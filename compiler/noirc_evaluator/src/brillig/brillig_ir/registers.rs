@@ -39,7 +39,7 @@ use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
 use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, assert_u32,
     brillig_variable::{BrilligArray, BrilligVector},
 };
 
@@ -310,14 +310,6 @@ impl GlobalSpace {
         Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
     }
 
-    /// Check if a `Direct` address is within the bounds of the global space.
-    ///
-    /// Panics if the address is `Relative`.
-    fn is_within_bounds(&self, register: MemoryAddress) -> bool {
-        let index = register.unwrap_direct();
-        index >= self.start()
-    }
-
     /// Expand the global space to fit a new register if necessary.
     fn update_max_address(&mut self, register: MemoryAddress) {
         let index = register.unwrap_direct();
@@ -364,22 +356,10 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn from_preallocated_registers(
-        preallocated_registers: Vec<MemoryAddress>,
-        layout: LayoutConfig,
+        _preallocated_registers: Vec<MemoryAddress>,
+        _layout: LayoutConfig,
     ) -> Self {
-        let empty = Self::new(layout);
-        for register in &preallocated_registers {
-            assert!(empty.is_within_bounds(*register), "Register out of global space bounds");
-        }
-
-        Self {
-            storage: DeallocationListAllocator::from_preallocated_registers(
-                empty.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_direct()),
-            ),
-            max_memory_address: empty.start(),
-            layout,
-        }
+        unimplemented!("`GlobalSpace` does not implement `from_preallocated_registers")
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -578,7 +558,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [HeapArray].
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
-        self.allocate_register().map(|pointer| HeapArray { pointer, size })
+        self.allocate_register().map(|pointer| HeapArray { pointer, size: assert_u32(size) })
     }
 
     /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
@@ -692,19 +672,6 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
         let other = other.into_inner();
         Allocated::from_inner(AllocatedInner {
             value: f(inner.value, other.value),
-            addresses: Self::merge_addresses(inner.addresses, other.addresses),
-            registers: inner.registers.or(other.registers),
-        })
-    }
-
-    /// Map the `value` to something else that involves allocation.
-    ///
-    /// The resulting value keeps both addresses alive.
-    pub(crate) fn and_then<B>(self, f: impl FnOnce(A) -> Allocated<B, R>) -> Allocated<B, R> {
-        let inner = self.into_inner();
-        let other = f(inner.value).into_inner();
-        Allocated::from_inner(AllocatedInner {
-            value: other.value,
             addresses: Self::merge_addresses(inner.addresses, other.addresses),
             registers: inner.registers.or(other.registers),
         })

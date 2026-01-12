@@ -112,7 +112,7 @@ impl<'a> Lexer<'a> {
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
         } else if self.peek_char_is('[') {
-            self.single_char_token(Token::SliceStart)
+            self.single_char_token(Token::DeprecatedVectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -175,6 +175,7 @@ impl<'a> Lexer<'a> {
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('$') => self.single_char_token(Token::DollarSign),
+            Some('@') => self.single_char_token(Token::At),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
@@ -677,7 +678,12 @@ impl<'a> Lexer<'a> {
 
             length += 1; // for the closing curly brace
 
-            let span = Span::from(interpolation_start..self.position);
+            let span = if interpolation_start <= self.position {
+                Span::from(interpolation_start..self.position)
+            } else {
+                // This can happen if the interpolation ends abruptly on EOF
+                Span::single_char(interpolation_start)
+            };
             let location = Location::new(span, self.file_id);
             fragments.push(FmtStrFragment::Interpolation(string, location));
         }
@@ -1640,5 +1646,12 @@ mod tests {
             lexer.next_token(),
             Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
         ));
+    }
+
+    #[test]
+    fn does_not_crash_on_format_string_with_broken_interpolation() {
+        let str = "f\"{";
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        let _ = lexer.next_token();
     }
 }

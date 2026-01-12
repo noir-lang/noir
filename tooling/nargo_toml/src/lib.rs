@@ -13,7 +13,6 @@ use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
-use noirc_driver::parse_expression_width;
 use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
@@ -232,16 +231,6 @@ impl PackageConfig {
             })?;
         }
 
-        let expression_width = self
-            .package
-            .expression_width
-            .as_ref()
-            .map(|expression_width| {
-                parse_expression_width(expression_width)
-                    .map_err(|err| ManifestError::ParseExpressionWidth(err.to_string()))
-            })
-            .map_or(Ok(None), |res| res.map(Some))?;
-
         // Collect any unstable features the package needs to compile.
         // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
         let compiler_required_unstable_features =
@@ -258,7 +247,6 @@ impl PackageConfig {
             package_type,
             name,
             dependencies,
-            expression_width,
         })
     }
 }
@@ -548,7 +536,13 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+    let assume_default_entry = false;
+    resolve_workspace_from_fixed_toml(
+        nargo_toml,
+        package_selection,
+        current_compiler_version,
+        assume_default_entry,
+    )
 }
 
 /// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
@@ -558,8 +552,8 @@ pub fn resolve_workspace_from_fixed_toml(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
     current_compiler_version: Option<String>,
+    assume_default_entry: bool,
 ) -> Result<Workspace, ManifestError> {
-    let assume_default_entry = true;
     let workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;

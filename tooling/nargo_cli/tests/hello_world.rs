@@ -17,6 +17,7 @@ fn hello_world_example() {
     let project_dir = test_dir.child(project_name);
 
     // `nargo new hello_world`
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("new").arg(project_name);
     cmd.assert().success().stdout(predicate::str::contains(format!(
@@ -34,6 +35,7 @@ fn hello_world_example() {
     std::env::set_current_dir(&project_dir).unwrap();
 
     // `nargo check`
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("check");
     cmd.assert().success().stdout(predicate::str::is_empty());
@@ -43,6 +45,7 @@ fn hello_world_example() {
     // `nargo execute`
     project_dir.child("Prover.toml").write_str("x = 1\ny = 2").unwrap();
 
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("execute");
     cmd.arg("--pedantic-solving");

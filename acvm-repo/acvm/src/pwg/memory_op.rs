@@ -31,13 +31,16 @@ impl<F: AcirField> MemoryOpSolver<F> {
         })
     }
 
-    fn len(&self) -> u32 {
+    pub(crate) fn len(&self) -> u32 {
         u32::try_from(self.block_value.len()).expect("expected a length that fits into a u32")
     }
 
     /// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
-    fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
+    pub(crate) fn index_from_field(
+        &self,
+        index: F,
+    ) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
         index.try_to_u32().ok_or_else({
             || OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
@@ -49,7 +52,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
     /// Update the 'block_value' map with the provided index/value
     /// Returns an 'IndexOutOfBounds' error if the index is outside the block range.
-    fn write_memory_index(
+    pub(crate) fn write_memory_index(
         &mut self,
         index: MemoryIndex,
         value: F,
@@ -68,7 +71,10 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
     /// Returns the value stored in the 'block_value' map for the provided index
     /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
-    fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
+    pub(crate) fn read_memory_index(
+        &self,
+        index: MemoryIndex,
+    ) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(index as usize).copied().ok_or(
             OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,

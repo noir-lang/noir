@@ -370,6 +370,27 @@ impl BinaryOpKind {
                 | BinaryOpKind::NotEqual
         )
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinaryOpKind::Add => "+",
+            BinaryOpKind::Subtract => "-",
+            BinaryOpKind::Multiply => "*",
+            BinaryOpKind::Divide => "/",
+            BinaryOpKind::Equal => "==",
+            BinaryOpKind::NotEqual => "!=",
+            BinaryOpKind::Less => "<",
+            BinaryOpKind::LessEqual => "<=",
+            BinaryOpKind::Greater => ">",
+            BinaryOpKind::GreaterEqual => ">=",
+            BinaryOpKind::And => "&",
+            BinaryOpKind::Or => "|",
+            BinaryOpKind::Xor => "^",
+            BinaryOpKind::ShiftRight => ">>",
+            BinaryOpKind::ShiftLeft => "<<",
+            BinaryOpKind::Modulo => "%",
+        }
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -403,7 +424,7 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Bool(bool),
     Integer(SignedField, Option<IntegerTypeSuffix>),
     Str(String),
@@ -450,6 +471,7 @@ pub struct Lambda {
     pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
     pub return_type: Option<UnresolvedType>,
     pub body: Expression,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -535,7 +557,7 @@ pub struct IndexExpression {
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct BlockExpression {
     pub statements: Vec<Statement>,
 }
@@ -658,12 +680,12 @@ impl Display for Literal {
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
             }
-            Literal::Slice(ArrayLiteral::Standard(elements)) => {
+            Literal::Vector(ArrayLiteral::Standard(elements)) => {
                 let contents = vecmap(elements, ToString::to_string);
-                write!(f, "&[{}]", contents.join(", "))
+                write!(f, "@[{}]", contents.join(", "))
             }
-            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
-                write!(f, "&[{repeated_element}; {length}]")
+            Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "@[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(signed_field, Some(suffix)) => write!(f, "{signed_field}_{suffix}"),
@@ -765,24 +787,7 @@ impl Display for InfixExpression {
 
 impl Display for BinaryOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOpKind::Add => write!(f, "+"),
-            BinaryOpKind::Subtract => write!(f, "-"),
-            BinaryOpKind::Multiply => write!(f, "*"),
-            BinaryOpKind::Divide => write!(f, "/"),
-            BinaryOpKind::Equal => write!(f, "=="),
-            BinaryOpKind::NotEqual => write!(f, "!="),
-            BinaryOpKind::Less => write!(f, "<"),
-            BinaryOpKind::LessEqual => write!(f, "<="),
-            BinaryOpKind::Greater => write!(f, ">"),
-            BinaryOpKind::GreaterEqual => write!(f, ">="),
-            BinaryOpKind::And => write!(f, "&"),
-            BinaryOpKind::Or => write!(f, "|"),
-            BinaryOpKind::Xor => write!(f, "^"),
-            BinaryOpKind::ShiftLeft => write!(f, "<<"),
-            BinaryOpKind::ShiftRight => write!(f, ">>"),
-            BinaryOpKind::Modulo => write!(f, "%"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -808,15 +813,16 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let unconstrained = if self.unconstrained { "unconstrained " } else { "" };
         let parameters = vecmap(&self.parameters, |(name, r#type)| {
             if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
         });
 
         let parameters = parameters.join(", ");
         if let Some(return_type) = &self.return_type {
-            write!(f, "|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+            write!(f, "{unconstrained}|{}| -> {} {{ {} }}", parameters, return_type, self.body)
         } else {
-            write!(f, "|{}| {{ {} }}", parameters, self.body)
+            write!(f, "{unconstrained}|{}| {{ {} }}", parameters, self.body)
         }
     }
 }

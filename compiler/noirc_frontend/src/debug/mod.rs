@@ -5,7 +5,7 @@ use crate::signed_field::SignedField;
 use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
-use noirc_errors::debug_info::{DebugFnId, DebugFunction};
+use noirc_artifacts::debug::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -118,6 +118,7 @@ impl DebugInstrumenter {
                 | FunctionAttributeKind::Fold
                 | FunctionAttributeKind::NoPredicates
                 | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::InlineNever
                 | FunctionAttributeKind::FuzzingHarness(..) => (),
             }
         }
@@ -742,7 +743,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
         let (pattern, is_mut) = stack.pop_front().unwrap();
         match pattern {
             ast::Pattern::Identifier(id) => {
-                vars.push((id.clone(), is_mut));
+                if id.as_str() != "_" {
+                    vars.push((id.clone(), is_mut));
+                }
             }
             ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
@@ -752,7 +755,6 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             }
             ast::Pattern::Struct(_, fields, _) => {
                 stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(fields.iter().map(|(id, _)| (id.clone(), false)));
             }
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));

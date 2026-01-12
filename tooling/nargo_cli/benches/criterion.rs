@@ -4,7 +4,7 @@ use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{Criterion, criterion_group, criterion_main};
 
 use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
-use noirc_driver::CompiledProgram;
+use noirc_artifacts::program::CompiledProgram;
 use pprof::criterion::{Output, PProfProfiler};
 use std::cell::RefCell;
 use std::hint::black_box;
@@ -16,6 +16,7 @@ include!("./utils.rs");
 /// Compile the test program in a sub-process
 /// The `force_brillig` option is used to benchmark the program as if it was executed by the AVM.
 fn compile_program(test_program_dir: &Path, force_brillig: bool) {
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile");

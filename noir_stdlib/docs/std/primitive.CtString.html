@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script defer src="../nargo_doc.js"></script>
 <title>Primitive type CtString documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">CtString</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
@@ -63,7 +69,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -78,6 +83,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -96,24 +102,23 @@
 <h1>Primitive type <span id="primitive" class="primitive">CtString</span></h1>
 <div class="comments">
 <p>A a compile-time, dynamically-sized string type.</p>
-<p>Compared to <code>str&lt;N&gt;</code> and <code>fmtstr&lt;N, T&gt;</code>,
+<p>Compared to <a href="../std/primitive.str.html"><code>str</code></a><code>&lt;N&gt;</code> and <a href="../std/primitive.fmtstr.html"><code>fmtstr</code></a><code>&lt;N, T&gt;</code>,
 <code>CtString</code> is useful because its size does not need to be specified in its type. This
 can be used for formatting items at compile-time or general string handling in <code>comptime</code>
 code.</p>
-<p>Since <code>fmtstr</code>s can be converted into <code>CtString</code>s, you can make use of their formatting
-abilities in CtStrings by formatting in <code>fmtstr</code>s then converting the result to a CtString
-afterward.</p>
-</div>
+<p>Since <a href="../std/primitive.fmtstr.html"><code>fmtstr</code></a>s can be converted into <code>CtString</code>s, you can make use of their formatting
+abilities in CtStrings by formatting in <a href="../std/primitive.fmtstr.html"><code>fmtstr</code></a>s then converting the result to a CtString
+afterward.</p></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.CtString.html" class="primitive">CtString</a></code></h3>
 
-<div class="padded-methods"><code id="new" class="code-header">pub comptime fn <span class="fn">new</span>() -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub comptime fn <a href="#new"><span class="fn">new</span></a>() -> Self</code>
 
-<code id="append_str" class="code-header">pub comptime fn <span class="fn">append_str</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
+<code id="append_str" class="code-header">pub comptime fn <a href="#append_str"><span class="fn">append_str</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
 
-<code id="append_fmtstr" class="code-header">pub comptime fn <span class="fn">append_fmtstr</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
+<code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr"><span class="fn">append_fmtstr</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
 
-<code id="as_quoted_str" class="code-header">pub comptime fn <span class="fn">as_quoted_str</span>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str"><span class="fn">as_quoted_str</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>CtString cannot directly return a str since the size would not be known.
@@ -138,5 +143,6 @@ be accessed using macro insertion <code>foo.as_quoted_str!()</code>.</p>
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>

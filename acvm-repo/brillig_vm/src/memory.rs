@@ -4,6 +4,8 @@ use acir::{
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
+use crate::assert_usize;
+
 /// The bit size used for addressing memory within the Brillig VM.
 ///
 /// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
@@ -14,19 +16,27 @@ pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 /// It gets manipulated by opcodes laid down for calls by codegen.
 pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
 
+/// The _free memory pointer_ is always in slot 1.
+///
+/// We added it here to be able to implement a workaround for wrapping around
+/// the free memory, ie. to detect "out of memory" events, but the AVM is not,
+/// and does not want to be aware of the _free memory pointer_, so we cannot,
+/// in general, build much functionality in the VM around it.
+pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
+
 /// Offset constants for arrays and vectors:
 /// * Arrays are `[ref-count, ...items]`
 /// * Vectors are `[ref-count, size, capacity, ...items]`
 pub mod offsets {
     /// Number of prefix fields in an array: RC.
-    pub const ARRAY_META_COUNT: usize = 1;
-    pub const ARRAY_ITEMS: usize = 1;
+    pub const ARRAY_META_COUNT: u32 = 1;
+    pub const ARRAY_ITEMS: u32 = 1;
 
     /// Number of prefix fields in a vector: RC, size, capacity.
-    pub const VECTOR_META_COUNT: usize = 3;
-    pub const VECTOR_SIZE: usize = 1;
-    pub const VECTOR_CAPACITY: usize = 2;
-    pub const VECTOR_ITEMS: usize = 3;
+    pub const VECTOR_META_COUNT: u32 = 3;
+    pub const VECTOR_SIZE: u32 = 1;
+    pub const VECTOR_CAPACITY: u32 = 2;
+    pub const VECTOR_ITEMS: u32 = 3;
 }
 
 /// Wrapper for array addresses, with convenience methods for various offsets.
@@ -38,37 +48,11 @@ pub(crate) struct ArrayAddress(MemoryAddress);
 impl ArrayAddress {
     /// The start of the items, after the meta-data.
     pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0.offset(offsets::ARRAY_ITEMS)
+        self.0.offset(assert_usize(offsets::ARRAY_ITEMS))
     }
 }
 
 impl From<MemoryAddress> for ArrayAddress {
-    fn from(value: MemoryAddress) -> Self {
-        Self(value)
-    }
-}
-
-/// Wrapper for vector addresses, with convenience methods for various offsets.
-///
-/// A vector is prefixed by 3 meta-data fields: the ref-count, the size, and the capacity,
-/// which are followed by a number of items indicated by its capacity, with the items
-/// its size being placeholders to accommodate future growth.
-///
-/// The semantic length of the vector is maintained at a separate address.
-pub(crate) struct VectorAddress(MemoryAddress);
-
-impl VectorAddress {
-    /// Size of the vector.
-    pub(crate) fn size_addr(&self) -> MemoryAddress {
-        self.0.offset(offsets::VECTOR_SIZE)
-    }
-    /// The start of the items, after the meta-data.
-    pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0.offset(offsets::VECTOR_ITEMS)
-    }
-}
-
-impl From<MemoryAddress> for VectorAddress {
     fn from(value: MemoryAddress) -> Self {
         Self(value)
     }
@@ -114,10 +98,18 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
         match bit_size {
             IntegerBitSize::U1 => MemoryValue::U1(value != 0),
-            IntegerBitSize::U8 => MemoryValue::U8(value as u8),
-            IntegerBitSize::U16 => MemoryValue::U16(value as u16),
-            IntegerBitSize::U32 => MemoryValue::U32(value as u32),
-            IntegerBitSize::U64 => MemoryValue::U64(value as u64),
+            IntegerBitSize::U8 => {
+                MemoryValue::U8(value.try_into().expect("{value} is out of 8 bits range"))
+            }
+            IntegerBitSize::U16 => {
+                MemoryValue::U16(value.try_into().expect("{value} is out of 16 bits range"))
+            }
+            IntegerBitSize::U32 => {
+                MemoryValue::U32(value.try_into().expect("{value} is out of 32 bits range"))
+            }
+            IntegerBitSize::U64 => {
+                MemoryValue::U64(value.try_into().expect("{value} is out of 64 bits range"))
+            }
             IntegerBitSize::U128 => MemoryValue::U128(value),
         }
     }
@@ -139,7 +131,7 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
     pub fn to_usize(&self) -> usize {
         match self {
-            MemoryValue::U32(value) => (*value).try_into().unwrap(),
+            MemoryValue::U32(value) => assert_usize(*value),
             other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
@@ -392,8 +384,8 @@ impl<F: AcirField> Memory<F> {
     /// Returns a memory slot index.
     fn resolve(&self, address: MemoryAddress) -> usize {
         match address {
-            MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Direct(address) => assert_usize(address),
+            MemoryAddress::Relative(offset) => self.get_stack_pointer() + assert_usize(offset),
         }
     }
 
@@ -411,13 +403,18 @@ impl<F: AcirField> Memory<F> {
         MemoryAddress::direct(self.read(ptr).to_usize())
     }
 
-    /// Read a contiguous slice of memory starting at `address`, up to `len` slots.
+    /// Sets `ptr` to point at `address`.
+    pub fn write_ref(&mut self, ptr: MemoryAddress, address: MemoryAddress) {
+        self.write(ptr, MemoryValue::from(address.to_usize()));
+    }
+
+    /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
     pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
-        // Allows to read a slice of uninitialized memory if the length is zero.
+        // Allows to read a vector of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
-        // but that's not possible if we want to return a slice instead of owned data.
+        // but that's not possible if we want to return a vector instead of owned data.
         if len == 0 {
             return &[];
         }
@@ -589,7 +586,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
-    fn read_slice_from_non_existent_memory() {
+    fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);
     }

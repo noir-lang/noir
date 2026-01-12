@@ -7,6 +7,7 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
+
 use acir::AcirField;
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, IntegerBitSize, MemoryAddress,
@@ -19,7 +20,10 @@ use black_box::evaluate_black_box;
 // Re-export `brillig`.
 pub use acir::brillig;
 use memory::MemoryTypeError;
-pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, STACK_POINTER_ADDRESS, offsets};
+pub use memory::{
+    FREE_MEMORY_POINTER_ADDRESS, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
+    STACK_POINTER_ADDRESS, offsets,
+};
 
 pub use crate::fuzzing::BranchToFeatureMap;
 use crate::fuzzing::FuzzingTrace;
@@ -30,6 +34,16 @@ mod cast;
 mod foreign_call;
 pub mod fuzzing;
 mod memory;
+
+/// Converts a u32 value to usize, panicking if the conversion fails.
+fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
+}
 
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
@@ -43,9 +57,9 @@ pub enum FailureReason {
     /// The revert data is referenced by the offset and size in the VM memory.
     Trap {
         /// Offset in memory where the revert data begins.
-        revert_data_offset: usize,
+        revert_data_offset: u32,
         /// Size of the revert data.
-        revert_data_size: usize,
+        revert_data_size: u32,
     },
     /// A runtime failure during execution.
     /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
@@ -60,9 +74,9 @@ pub enum VMStatus<F> {
     /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
     Finished {
         /// Offset in memory where the return data begins.
-        return_data_offset: usize,
+        return_data_offset: u32,
         /// Size of the return data.
-        return_data_size: usize,
+        return_data_size: u32,
     },
     /// The VM is still in progress and has not yet completed execution.
     /// This is used when simulating execution.
@@ -196,7 +210,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Sets the current status of the VM to Finished (completed execution).
-    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> &VMStatus<F> {
+    fn finish(&mut self, return_data_offset: u32, return_data_size: u32) -> &VMStatus<F> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
     }
 
@@ -217,7 +231,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Sets the current status of the VM to `Failure`,
     /// indicating that the VM encountered a `Trap` Opcode.
-    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> &VMStatus<F> {
+    fn trap(&mut self, revert_data_offset: u32, revert_data_size: u32) -> &VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_call_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
@@ -319,6 +333,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 }
             }
             Opcode::BinaryIntOp { op, bit_size, lhs, rhs, destination: result } => {
+                match self.process_free_memory_op(*op, *bit_size, *lhs, *rhs, *result) {
+                    Err(error) => return self.fail(error),
+                    Ok(true) => return self.increment_program_counter(),
+                    Ok(false) => {
+                        // Not a free memory op, carry on as a regular binary operation.
+                    }
+                };
                 if let Err(error) = self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result)
                 {
                     self.fail(error.to_string())
@@ -414,8 +435,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let revert_data_size = self.memory.read(revert_data.size).to_usize();
                 if revert_data_size > 0 {
                     self.trap(
-                        self.memory.read_ref(revert_data.pointer).unwrap_direct(),
-                        revert_data_size,
+                        assert_u32(self.memory.read_ref(revert_data.pointer).unwrap_direct()),
+                        assert_u32(revert_data_size),
                     )
                 } else {
                     self.trap(0, 0)
@@ -425,8 +446,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let return_data_size = self.memory.read(return_data.size).to_usize();
                 if return_data_size > 0 {
                     self.finish(
-                        self.memory.read_ref(return_data.pointer).unwrap_direct(),
-                        return_data_size,
+                        assert_u32(self.memory.read_ref(return_data.pointer).unwrap_direct()),
+                        assert_u32(return_data_size),
                     )
                 } else {
                     self.finish(0, 0)
@@ -535,6 +556,62 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.memory.write(result, result_value);
         self.fuzzing_trace_binary_int_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
+    }
+
+    /// Special handling for the increment of the _free memory pointer_.
+    ///
+    /// Binary operations in Brillig wrap around on overflow,
+    /// but there are usually other instruction in the SSA itself
+    /// to make sure the circuit fails when overflows occur.
+    ///
+    /// This is not the case for the _free memory pointer_ itself, however,
+    /// which only exists in Brillig, and points at the first free memory
+    /// slot on the heap where nothing has been allocated yet. If we allowed
+    /// it to wrap around during an overflowing increment, then we could end
+    /// up overwriting parts of the memory reserved for globals, the stack,
+    /// or other values on the heap.
+    ///
+    /// This special handling is not adopted by the AVM. Still, if it fails
+    /// here, at least we have a way to detect this unlikely edge case,
+    /// rather than go into undefined behavior by corrupting memory.
+    /// Detecting overflows with additional bytecode would be an overkill.
+    /// Perhaps in the future the AVM will offer checked operations instead.
+    ///
+    /// Returns:
+    /// * `Ok(false)` if it's not a _free memory pointer_ increase
+    /// * `Ok(true)` if the operation was handled
+    /// * `Err(RuntimeError("Out of memory"))` if there was an overflow
+    fn process_free_memory_op(
+        &mut self,
+        op: BinaryIntOp,
+        bit_size: IntegerBitSize,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        result: MemoryAddress,
+    ) -> Result<bool, String> {
+        if result != FREE_MEMORY_POINTER_ADDRESS
+            || op != BinaryIntOp::Add
+            || bit_size != MEMORY_ADDRESSING_BIT_SIZE
+        {
+            return Ok(false);
+        }
+
+        let lhs_value = self.memory.read(lhs);
+        let rhs_value = self.memory.read(rhs);
+
+        let MemoryValue::U32(lhs_value) = lhs_value else {
+            return Ok(false);
+        };
+        let MemoryValue::U32(rhs_value) = rhs_value else {
+            return Ok(false);
+        };
+        let Some(result_value) = lhs_value.checked_add(rhs_value) else {
+            return Err("Out of memory".to_string());
+        };
+
+        self.memory.write(result, result_value.into());
+
+        Ok(true)
     }
 
     /// Process a unary negation operation.

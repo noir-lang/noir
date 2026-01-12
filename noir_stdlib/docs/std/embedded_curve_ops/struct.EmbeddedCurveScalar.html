@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script defer src="../../nargo_doc.js"></script>
 <title>Struct EmbeddedCurveScalar documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">EmbeddedCurveScalar</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
@@ -14,8 +20,8 @@
 <h2><a href="#struct">Struct EmbeddedCurveScalar</a></h2>
 <h3>Fields</h3>
 <ul class="sidebar-list">
-<li><a href="#hi">hi</a></li>
-<li><a href="#lo">lo</a></li>
+<li><a href="#structfield.hi">hi</a></li>
+<li><a href="#structfield.lo">lo</a></li>
 </ul>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -34,8 +40,6 @@
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.embedded_curve_add.html">embedded_curve_add</a></div></li>
-<li><a href="fn.embedded_curve_add_not_nul.html">embedded_curve_add_not_nul</a></div></li>
-<li><a href="fn.embedded_curve_add_unsafe.html">embedded_curve_add_unsafe</a></div></li>
 <li><a href="fn.fixed_base_scalar_mul.html">fixed_base_scalar_mul</a></div></li>
 <li><a href="fn.multi_scalar_mul.html">multi_scalar_mul</a></div></li>
 </ul>
@@ -54,14 +58,14 @@ By definition, the scalar field of the embedded curve is base field of the provi
 It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.</p>
 </div>
 <h2>Fields</h2>
-<div id="lo" class="struct-field"><code class="code-header">lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
-<div class="padded-description"></div><div id="hi" class="struct-field"><code class="code-header">hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
+<div id="structfield.lo" class="struct-field"><code class="code-header">lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
+<div class="padded-description"></div><div id="structfield.hi" class="struct-field"><code class="code-header">hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
 <div class="padded-description"></div><h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></code></h3>
 
-<div class="padded-methods"><code id="new" class="code-header">pub fn <span class="fn">new</span>(lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new"><span class="fn">new</span></a>(lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
 
-<code id="from_field" class="code-header">pub fn <span class="fn">from_field</span>(scalar: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
+<code id="from_field" class="code-header">pub fn <a href="#from_field"><span class="fn">from_field</span></a>(scalar: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
 
 </div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-EmbeddedCurveScalar"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></code></h3>
@@ -75,5 +79,6 @@ It may not fit into a Field element, so it is represented with two Field element
     H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
 </div></main>
+</span>
 </body>
 </html>

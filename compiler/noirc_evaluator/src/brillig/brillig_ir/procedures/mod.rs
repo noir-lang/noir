@@ -1,4 +1,4 @@
-use noirc_errors::debug_info::ProcedureDebugId;
+use noirc_artifacts::debug::ProcedureDebugId;
 use serde::{Deserialize, Serialize};
 
 mod array_copy;
@@ -164,5 +164,5 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     };
 
     brillig_context.return_instruction();
-    brillig_context.artifact()
+    brillig_context.into_artifact()
 }

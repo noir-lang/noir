@@ -4,7 +4,6 @@ use crate::tests::{assert_no_errors, check_errors};
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
@@ -69,7 +68,7 @@ fn do_not_infer_partial_global_types() {
                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^ Globals must have a specified type
                                  ~~~~ Inferred type is `str<2>`
-        pub global NESTED_STR: [str<_>] = &["hi"];
+        pub global NESTED_STR: [str<_>] = @["hi"];
                                     ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^ Globals must have a specified type
                                           ~~~~~~~ Inferred type is `[str<2>]`
@@ -83,7 +82,7 @@ fn do_not_infer_partial_global_types() {
                                               ^ The placeholder `_` is not allowed in global definitions
                                                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
-            (&["hi"], [[]; 3]);
+            (@["hi"], [[]; 3]);
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
         pub global FOO: [i32; 3] = [1, 2, 3];
     "#;
@@ -137,19 +136,6 @@ fn disallows_references_in_globals() {
     let src = r#"
     pub global mutable: &mut Field = &mut 0;
                ^^^^^^^ References are not allowed in globals
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn errors_on_cyclic_globals() {
-    let src = r#"
-    pub comptime global A: u32 = B;
-                                 ^ Failed to resolve this global
-                        ^ Dependency cycle found
-                        ~ 'A' recursively depends on itself: A -> B -> A
-    pub comptime global B: u32 = A;
-                                 ^ Failed to resolve this global
     "#;
     check_errors(src);
 }
