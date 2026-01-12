@@ -878,7 +878,7 @@ impl Value {
         }
     }
 
-    /// Similar to [Self::into_expression] or [Self::into_hir_expression] but for converting
+    /// Similar to [Self::into_expression] or [Self::into_runtime_hir_expression] but for converting
     /// into top-level item(s). Unlike those other methods, most expressions are invalid
     /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
     /// this method is significantly simpler because we only have to parse `Quoted` values
