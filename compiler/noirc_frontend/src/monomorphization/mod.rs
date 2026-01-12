@@ -436,10 +436,12 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Store the local variable ID created for a definition.
     ///
-    /// Panics if the definition has already been inserted before.
+    /// Note that this might overwrite a previous association, which happens when
+    /// we define a (constrained, unconstrained) pair of lambdas, which share
+    /// the same list of parameter definitions, but will have different
+    /// monomorphized variable IDs created for both function instance.
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: LocalId) {
-        let existing = self.locals.insert(id, new_id);
-        assert!(existing.is_none(), "ICE: Redefined variable.");
+        self.locals.insert(id, new_id);
     }
 
     /// Prerequisite: `typ = typ.follow_bindings()`
@@ -569,7 +571,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Panics if the function has already been pushed.
     fn push_function(&mut self, id: FuncId, function: Function) {
         let existing = self.finished_functions.insert(id, function);
-        assert!(existing.is_none(), "ICE: Redefined function.");
+        assert!(existing.is_none(), "ICE: Redefined function");
     }
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
@@ -612,7 +614,7 @@ impl<'interner> Monomorphizer<'interner> {
                 assert_eq!(
                     fields.len(),
                     tuple_field_types.len(),
-                    "ICE: Unexpected number of tuple pattern fields."
+                    "ICE: Unexpected number of tuple pattern fields"
                 );
                 for (field, typ) in fields.iter().zip(tuple_field_types) {
                     self.parameter(field, &typ, visibility, new_params)?;
@@ -623,7 +625,7 @@ impl<'interner> Monomorphizer<'interner> {
                 assert_eq!(
                     struct_field_types.len(),
                     fields.len(),
-                    "ICE: Unexpected number of struct pattern fields."
+                    "ICE: Unexpected number of struct pattern fields"
                 );
 
                 let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
@@ -692,7 +694,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = prefix
                         .trait_method_id
-                        .expect("ice: missing trait method if when impl was found");
+                        .expect("ICE: missing trait method when impl was found");
 
                     // `true` here to use the current runtime since we're immediately calling this
                     // method in our current runtime.
@@ -726,8 +728,8 @@ impl<'interner> Monomorphizer<'interner> {
                     let method = infix.trait_method_id;
 
                     let method = method.expect("ICE: Monomorphizer::expr: expected the infix operator method to be resolved by monomorphization");
-                    // True here since we're immediately calling this operator method in the
-                    // current runtime.
+                    // `true` here to use the current runtime since we're immediately calling this
+                    // operator method in the current runtime.
                     let func = self.resolve_trait_item_expr(expr, function_type, method, true)?;
                     let operator = infix.operator;
                     self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
