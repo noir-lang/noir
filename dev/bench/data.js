@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768228641683,
+  "lastUpdate": 1768228643824,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -42468,6 +42468,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5bbb5b58596fb88db6269812ad5355cdb4dc58d6"
         },
         "date": 1768226693594,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 643.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 689,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 291.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 239.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 238.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 290.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 256.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 518.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 557.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 403.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 630.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 745.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 186.1,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2068.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 162,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "08eefba940e64b5118d6dfa18dfa949ab077456d",
+          "message": "fix!: unify comptime expression/statement with target type (#10678)",
+          "timestamp": "2026-01-12T14:04:43Z",
+          "tree_id": "b528311806d7952a7be616cac2548e7b6129ddc7",
+          "url": "https://github.com/noir-lang/noir/commit/08eefba940e64b5118d6dfa18dfa949ab077456d"
+        },
+        "date": 1768228606350,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
