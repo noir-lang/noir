@@ -92,7 +92,7 @@ pub(crate) mod arithmetic;
 pub(crate) mod brillig;
 // black box functions
 pub(crate) mod blackbox;
-mod memory_op;
+pub(crate) mod memory_op;
 
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
