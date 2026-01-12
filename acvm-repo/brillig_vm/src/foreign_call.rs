@@ -8,10 +8,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{
-    MemoryValue, VM, VMStatus,
-    memory::{ArrayAddress, VectorAddress},
-};
+use crate::{MemoryValue, VM, VMStatus, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -19,7 +16,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// This method performs the following steps:
     /// 1. Checks if the foreign call results are already available. If not, it resolves the input
     ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
-    ///    For vectors, the preceding `u32` length field is used to truncate the slice input to its semantic length.
+    ///    For vectors, the preceding `u32` length field is used to truncate the vector input to its semantic length.
     /// 2. If results are available, it writes them to memory, ensuring that the returned data
     ///    matches the expected types and sizes:
     ///     * Nested arrays are reconstructed from flat outputs when necessary.
@@ -65,9 +62,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             // they can then make another call to the VM that starts at this opcode
             // but has the necessary results to proceed with execution.
 
-            // With slices we might have more items in the HeapVector than the semantic length
+            // With vectors we might have more items in the HeapVector than the semantic length
             // indicated by the field preceding the pointer to the vector in the inputs.
-            // This happens when SSA merges slices of different length, which can result in
+            // This happens when SSA merges vectors of different length, which can result in
             // a vector that has room for the longer of the two, partially filled with items
             // from the shorter. There are ways to deal with this on the receiver side,
             // but it is cumbersome, and the cleanest solution is not to send the extra empty
@@ -79,12 +76,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 .zip(input_value_types)
                 .map(|(input, input_type)| {
                     let mut input = self.get_memory_values(*input, input_type);
-                    // Truncate slices to their semantic length, which we remember from the preceding field.
+                    // Truncate vectors to their semantic length, which we remember from the preceding field.
                     match input_type {
                         HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
-                            // If we have a single u32 we may have a slice representation, so store this input.
+                            // If we have a single u32 we may have a vector representation, so store this input.
                             // On the next iteration, if we have a vector then we know we have the dynamic length
-                            // for that slice.
+                            // for that vector.
                             let ForeignCallParam::Single(length) = input else {
                                 unreachable!("expected u32; got {input:?}");
                             };
@@ -173,7 +170,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         size: usize,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
-        assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
+        assert!(start.is_direct(), "read_vector_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
@@ -184,14 +181,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 "array/vector does not contain a whole number of elements"
             );
 
-            // We want to send vectors to foreign functions truncated to their semantic length.
-            let mut vector_length: Option<usize> = None;
-
             (0..size)
                 .zip(value_types.iter().cycle())
-                .map(|(i, value_type)| {
+                .flat_map(|(i, value_type)| {
                     let value_address = start.offset(i);
-                    let values = match value_type {
+                    match value_type {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
@@ -205,40 +199,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                 value_types,
                             )
                         }
-                        HeapValueType::Vector { value_types } => {
-                            let vector_address =
-                                VectorAddress::from(self.memory.read_ref(value_address));
-
-                            let side_addr = vector_address.size_addr();
-                            let items_start = vector_address.items_start();
-                            let vector_size = self.memory.read(side_addr).to_usize();
-                            self.read_slice_of_values_from_memory(
-                                items_start,
-                                vector_size,
-                                value_types,
-                            )
-                        }
-                    };
-                    (value_type, values)
-                })
-                .flat_map(|(value_type, mut values)| {
-                    match value_type {
-                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
-                            vector_length = Some(values[0].to_usize());
-                        }
-                        HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
-                                values.truncate(length * type_size);
-                            }
-                            vector_length = None;
-                        }
-                        _ => {
-                            // Otherwise we are not dealing with a u32 followed by a vector.
-                            vector_length = None;
+                        HeapValueType::Vector { .. } => {
+                            unreachable!("Vectors nested in arrays/vectors are not supported");
                         }
                     }
-                    values
                 })
                 .collect::<Vec<_>>()
         }
@@ -435,7 +399,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         Ok(())
     }
 
-    /// Write the `values` of an array or slice to an address stored under the `pointer`.
+    /// Write the `values` of an array or vector to an address stored under the `pointer`.
     fn write_values_to_memory(
         &mut self,
         pointer: MemoryAddress,

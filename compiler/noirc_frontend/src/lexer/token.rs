@@ -64,6 +64,10 @@ pub enum BorrowedToken<'input> {
     Percent,
     /// &
     Ampersand,
+    /// &
+    DeprecatedVectorStart,
+    /// @
+    At,
     /// ^
     Caret,
     /// <<
@@ -243,10 +247,10 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// & followed immediately by '['
-    /// This is a lexer hack to distinguish slices
-    /// from taking a reference to an array
-    SliceStart,
+    /// &
+    DeprecatedVectorStart,
+    /// @
+    At,
     /// ^
     Caret,
     /// <<
@@ -348,7 +352,8 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
-        Token::SliceStart => BorrowedToken::Ampersand,
+        Token::DeprecatedVectorStart => BorrowedToken::DeprecatedVectorStart,
+        Token::At => BorrowedToken::At,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -586,7 +591,8 @@ impl Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::SliceStart => write!(f, "&"),
+            Token::DeprecatedVectorStart => write!(f, "&"),
+            Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -1013,6 +1019,7 @@ pub enum FunctionAttributeKind {
     Fold,
     NoPredicates,
     InlineAlways,
+    InlineNever,
     FuzzingHarness(FuzzingScope),
 }
 
@@ -1057,13 +1064,6 @@ impl FunctionAttributeKind {
         matches!(self, FunctionAttributeKind::NoPredicates)
     }
 
-    /// Check whether we have an `inline_always` attribute
-    /// This is used to indicate that a function should always be inlined
-    /// regardless of the target runtime.
-    pub fn is_inline_always(&self) -> bool {
-        matches!(self, FunctionAttributeKind::InlineAlways)
-    }
-
     pub fn name(&self) -> &'static str {
         match self {
             FunctionAttributeKind::Foreign(_) => "foreign",
@@ -1073,6 +1073,7 @@ impl FunctionAttributeKind {
             FunctionAttributeKind::Fold => "fold",
             FunctionAttributeKind::NoPredicates => "no_predicates",
             FunctionAttributeKind::InlineAlways => "inline_always",
+            FunctionAttributeKind::InlineNever => "inline_never",
             FunctionAttributeKind::FuzzingHarness(_) => "fuzz",
         }
     }
@@ -1094,6 +1095,7 @@ impl Display for FunctionAttributeKind {
             FunctionAttributeKind::Fold => write!(f, "#[fold]"),
             FunctionAttributeKind::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttributeKind::InlineAlways => write!(f, "#[inline_always]"),
+            FunctionAttributeKind::InlineNever => write!(f, "#[inline_never]"),
             FunctionAttributeKind::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
         }
     }

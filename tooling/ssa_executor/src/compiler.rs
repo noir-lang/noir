@@ -1,7 +1,8 @@
 use acvm::acir::circuit::Program;
 use base64::Engine;
 use noirc_abi::Abi;
-use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileError, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::call_stack::CallStack;
 use noirc_evaluator::{
     errors::{InternalError, RuntimeError},

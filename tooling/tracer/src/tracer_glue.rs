@@ -156,9 +156,9 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type Bool", value)
             }
         }
-        PrintableType::Slice { typ: element_type } => {
-            if let PrintableValue::Vec { array_elements, is_slice } = value {
-                if !is_slice {
+        PrintableType::Vector { typ: element_type } => {
+            if let PrintableValue::Vec { array_elements, is_vector } = value {
+                if !is_vector {
                     panic!("value of is_slice: {:?} does not match type Slice", value)
                 }
                 let element_values: Vec<ValueRecord> = array_elements
@@ -173,8 +173,8 @@ fn register_value(
             }
         }
         PrintableType::Array { typ: element_type, .. } => {
-            if let PrintableValue::Vec { array_elements, is_slice } = value {
-                if *is_slice {
+            if let PrintableValue::Vec { array_elements, is_vector } = value {
+                if *is_vector {
                     panic!("value of is_slice: {:?} does not match type Array", value)
                 }
                 let element_values: Vec<ValueRecord> = array_elements
@@ -219,8 +219,8 @@ fn register_value(
             ValueRecord::Raw { r: "()".to_string(), type_id }
         }
         PrintableType::Tuple { types } => {
-            if let PrintableValue::Vec { array_elements, is_slice } = value {
-                if *is_slice {
+            if let PrintableValue::Vec { array_elements, is_vector } = value {
+                if *is_vector {
                     panic!("value of is_slice: {:?} does not match type Tuple", value)
                 }
                 let element_values: Vec<ValueRecord> = array_elements
@@ -340,7 +340,7 @@ fn printable_type_to_kind_and_name(
             (TypeKind::Int, format!("i{width}"))
         }
         PrintableType::Boolean => (TypeKind::Bool, "Bool".to_string()),
-        PrintableType::Slice { .. } => (TypeKind::Slice, "&[..]".to_string()),
+        PrintableType::Vector { .. } => (TypeKind::Slice, "&[..]".to_string()),
         PrintableType::Array { length, .. } => {
             (TypeKind::Seq, format!("Array<{length}, ..>"))
         }

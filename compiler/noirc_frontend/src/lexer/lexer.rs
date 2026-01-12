@@ -112,7 +112,7 @@ impl<'a> Lexer<'a> {
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
         } else if self.peek_char_is('[') {
-            self.single_char_token(Token::SliceStart)
+            self.single_char_token(Token::DeprecatedVectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -175,6 +175,7 @@ impl<'a> Lexer<'a> {
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('$') => self.single_char_token(Token::DollarSign),
+            Some('@') => self.single_char_token(Token::At),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),

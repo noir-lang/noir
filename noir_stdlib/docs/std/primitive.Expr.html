@@ -42,10 +42,12 @@
 <li><a href="#as_method_call">as_method_call</a></li>
 <li><a href="#as_repeated_element_array">as_repeated_element_array</a></li>
 <li><a href="#as_repeated_element_slice">as_repeated_element_slice</a></li>
+<li><a href="#as_repeated_element_vector">as_repeated_element_vector</a></li>
 <li><a href="#as_slice">as_slice</a></li>
 <li><a href="#as_tuple">as_tuple</a></li>
 <li><a href="#as_unary_op">as_unary_op</a></li>
 <li><a href="#as_unsafe">as_unsafe</a></li>
+<li><a href="#as_vector">as_vector</a></li>
 <li><a href="#has_semicolon">has_semicolon</a></li>
 <li><a href="#is_break">is_break</a></li>
 <li><a href="#is_continue">is_continue</a></li>
@@ -91,7 +93,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -106,6 +107,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -136,7 +138,7 @@
 <div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array"><span class="fn">as_array</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is an array literal <code>[elem1, ..., elemN]</code>, this returns a slice of each element in the array.</p>
+<p>If this expression is an array literal <code>[elem1, ..., elemN]</code>, this returns a vector of each element in the array.</p>
 </div>
 </div><code id="as_assert" class="code-header">pub comptime fn <a href="#as_assert"><span class="fn">as_assert</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
 
@@ -165,7 +167,7 @@ return the left-hand side, operator, and the right-hand side of the operation.</
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a block <code>{ stmt1; stmt2; ...; stmtN }</code>, return
-a slice containing each statement.</p>
+a vector containing each statement.</p>
 </div>
 </div><code id="as_bool" class="code-header">pub comptime fn <a href="#as_bool"><span class="fn">as_bool</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.bool.html" class="primitive">bool</a>&gt;</code>
 
@@ -206,7 +208,7 @@ the range start, the range end and the for loop body.</p>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a function call <code>foo(arg1, ..., argN)</code>, return
-the function and a slice of each argument.</p>
+the function and a vector of each argument.</p>
 </div>
 </div><code id="as_if" class="code-header">pub comptime fn <a href="#as_if"><span class="fn">as_if</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;)&gt;</code>
 
@@ -250,7 +252,7 @@ expression and the field. The field will be represented as a quoted value.</p>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a method call <code>foo.bar::&lt;generic1, ..., genericM&gt;(arg1, ..., argN)</code>, return
-the receiver, method name, a slice of each generic argument, and a slice of each argument.</p>
+the receiver, method name, a vector of each generic argument, and a vector of each argument.</p>
 </div>
 </div><code id="as_repeated_element_array" class="code-header">pub comptime fn <a href="#as_repeated_element_array"><span class="fn">as_repeated_element_array</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
@@ -258,17 +260,39 @@ the receiver, method name, a slice of each generic argument, and a slice of each
 <p>If this expression is a repeated element array <code>[elem; length]</code>, return
 the repeated element and the length expressions.</p>
 </div>
-</div><code id="as_repeated_element_slice" class="code-header">pub comptime fn <a href="#as_repeated_element_slice"><span class="fn">as_repeated_element_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+</div><code id="as_repeated_element_vector" class="code-header">pub comptime fn <a href="#as_repeated_element_vector"><span class="fn">as_repeated_element_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a repeated element slice <code>[elem; length]</code>, return
+<p>If this expression is a repeated element vector <code>[elem; length]</code>, return
 the repeated element and the length expressions.</p>
+</div>
+</div><code id="as_repeated_element_slice" class="code-header">pub comptime fn <a href="#as_repeated_element_slice"><span class="fn">as_repeated_element_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_repeated_element_vector`
+</div>
+<div class="comments">
+<p>If this expression is a repeated element vector <code>[elem; length]</code>, return
+the repeated element and the length expressions.
+This method is deprecated in favor of <code>as_repeated_element_vector</code></p>
+</div>
+</div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
+return each element of the vector.</p>
 </div>
 </div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
-<div class="padded-description"><div class="comments">
-<p>If this expression is a slice literal <code>&amp;[elem1, ..., elemN]</code>,
-return each element of the slice.</p>
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_vector`
+</div>
+<div class="comments">
+<p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
+return each element of the vector.
+This method is deprecated in favor of <code>as_vector</code></p>
 </div>
 </div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple"><span class="fn">as_tuple</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
@@ -286,7 +310,7 @@ return the unary operator as well as the right-hand side expression.</p>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an <code>unsafe { stmt1; ...; stmtN }</code> block,
-return each statement inside in a slice.</p>
+return each statement inside in a vector.</p>
 </div>
 </div><code id="has_semicolon" class="code-header">pub comptime fn <a href="#has_semicolon"><span class="fn">has_semicolon</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
@@ -319,8 +343,8 @@ return each statement inside in a slice.</p>
 <p>Applies a mapping function to this expression and to all of its sub-expressions.
 <code>f</code> will be applied to each sub-expression first, then applied to the expression itself.</p>
 <p>This happens recursively for every expression within <code>self</code>.</p>
-<p>For example, calling <code>modify</code> on <code>(&amp;[1], &amp;[2, 3])</code> with an <code>f</code> that returns <code>Option::some</code>
-for expressions that are integers, doubling them, would return <code>(&amp;[2], &amp;[4, 6])</code>.</p>
+<p>For example, calling <code>modify</code> on <code>(@[1], @[2, 3])</code> with an <code>f</code> that returns <code>Option::some</code>
+for expressions that are integers, doubling them, would return <code>(@[2], @[4, 6])</code>.</p>
 </div>
 </div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted"><span class="fn">quoted</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 

@@ -4,7 +4,7 @@
     "The Noir Team <team@noir-lang.org>"
   ],
   "packageManager": "yarn@4.5.2",
-  "version": "1.0.0-beta.16",
+  "version": "1.0.0-beta.18",
   "license": "(MIT OR Apache-2.0)",
   "homepage": "https://noir-lang.org/",
   "repository": {
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@types/prettier": "^3.0.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
     "prettier": "3.7.4",
     "typescript": "^5.8.3"

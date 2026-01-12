@@ -75,7 +75,6 @@
 <li><a href="primitive.i8.html">i8</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
-<li><a href="primitive.slice.html">slice</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
 <li><a href="primitive.TraitConstraint.html">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html">TraitDefinition</a></div></li>
@@ -90,6 +89,7 @@
 <li><a href="primitive.u64.html">u64</a></div></li>
 <li><a href="primitive.u8.html">u8</a></div></li>
 <li><a href="primitive.UnresolvedType.html">UnresolvedType</a></div></li>
+<li><a href="primitive.vector.html">vector</a></div></li>
 </ul>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.as_witness.html">as_witness</a></div></li>
@@ -132,7 +132,7 @@ For example, <code>type Foo&lt;A, B&gt; { ... })</code> would return <code>Foo&l
 
 <div class="padded-description"><div class="comments">
 <p>Return this type applied to the given generic arguments.
-For example, given <code>type Foo&lt;A, B&gt; { ... })</code> could be applied to <code>&amp;[quote[i32].as_type(), quote[Field].as_type()]</code>
+For example, given <code>type Foo&lt;A, B&gt; { ... })</code> could be applied to <code>[quote[i32].as_type(), quote[Field].as_type()].as_vector()</code>
 to return <code>Foo&lt;i32, Field&gt;</code>.</p>
 <p>If an incorrect number of generic arguments are given, this function will return None.
 Otherwise, this function returns Some with the resulting type inside.</p>
@@ -166,9 +166,9 @@ function if possible.</p></div>
 <code id="set_fields" class="code-header">pub comptime fn <a href="#set_fields"><span class="fn">set_fields</span></a>(self, new_fields: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)])</code>
 
 <div class="padded-description"><div class="comments">
-<p>Sets the fields of this type to the given fields list.
+<p>Sets the fields of this type to the given fields vector.
 All existing fields of the type will be overridden with the given fields.
-Each element of the fields list corresponds to the name and type of a field.
+Each element of the fields vector corresponds to the name and type of a field.
 Each name is expected to be a single identifier.</p>
 </div>
 </div></div><h2>Trait implementations</h2>

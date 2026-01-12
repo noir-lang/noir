@@ -12,7 +12,8 @@ use noir_tracer::tracer_glue::finish_trace;
 use noirc_abi::InputMap;
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 use super::fs::inputs::read_inputs_from_file;

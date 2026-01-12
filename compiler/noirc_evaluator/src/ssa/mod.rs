@@ -11,11 +11,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{
-    acir::ssa::Artifacts,
-    brillig::BrilligOptions,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
 use acvm::{
     FieldElement,
     acir::{
@@ -25,10 +21,11 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::{
-    call_stack::CallStackId,
-    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+use noirc_artifacts::{
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
+    ssa::SsaReport,
 };
+use noirc_errors::call_stack::CallStackId;
 
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -189,8 +186,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     );
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All]);
     ssa_pass_builder.add_pass(
-        Ssa::as_slice_optimization,
-        "`as_slice` optimization",
+        Ssa::as_vector_optimization,
+        "`as_vector`",
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(
@@ -626,7 +623,7 @@ pub fn convert_generated_acir_into_circuit(
             OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-    let location_tree = generated_acir.call_stacks.to_location_tree();
+    let location_tree = LocationTree::from(&generated_acir.call_stacks);
     let mut debug_info = DebugInfo::new(
         brillig_locations,
         acir_location_map,

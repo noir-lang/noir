@@ -26,6 +26,12 @@ pub struct CircuitSimulator {
 }
 
 impl CircuitSimulator {
+    /// Check whether the circuit is solvable in theory.
+    ///
+    /// # Returns
+    ///
+    /// Returns `None` if the circuit is deemed to be solvable
+    /// Otherwise returns `Some(index)` where `index` is the opcode index of the first unsolvable opcode.
     pub fn check_circuit<F: AcirField>(circuit: &Circuit<F>) -> Option<usize> {
         Self::default().run_check_circuit(circuit)
     }
@@ -99,7 +105,7 @@ impl CircuitSimulator {
                     self.mark_solvable(w);
                     true
                 } else {
-                    self.try_solve(&Opcode::AssertZero(op.value.clone()))
+                    self.can_solve_expression(&op.value)
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } => {
@@ -357,5 +363,31 @@ mod tests {
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(0));
+    }
+
+    #[test]
+    fn reports_some_when_write_has_a_single_unknown_witness_in_its_value() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
+    }
+
+    #[test]
+    fn reports_none_when_write_has_known_witnesses_in_its_value() {
+        let src = "
+        private parameters: [w0, w1, w2]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), None);
     }
 }

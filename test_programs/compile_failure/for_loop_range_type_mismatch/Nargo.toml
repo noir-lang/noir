@@ -1,0 +1,7 @@
+[package]
+name = "for_loop_range_type_mismatch"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

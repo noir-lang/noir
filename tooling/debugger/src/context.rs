@@ -14,11 +14,10 @@ use codespan_reporting::files::{Error, Files, SimpleFile};
 use fm::{FileId, PathString};
 use nargo::NargoError;
 use nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_error_from};
-use noirc_artifacts::debug::{DebugArtifact, StackFrame};
-use noirc_driver::{CompiledProgram, DebugFile};
+use noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
 
+use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::call_stack::CallStackId;
-use noirc_errors::debug_info::DebugInfo;
 use noirc_printable_type::{PrintableType, PrintableValue};
 use thiserror::Error;
 

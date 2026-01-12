@@ -11,7 +11,7 @@ description: Introspect and transform quoted expressions at compile time—inspe
 
 #include_code as_array noir_stdlib/src/meta/expr.nr rust
 
-If this expression is an array, this returns a slice of each element in the array.
+If this expression is an array, this returns a vector of each element in the array.
 
 ### as_assert
 
@@ -45,7 +45,7 @@ return the left-hand side, operator, and the right-hand side of the operation.
 #include_code as_block noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a block `{ stmt1; stmt2; ...; stmtN }`, return
-a slice containing each statement.
+a vector containing each statement.
 
 ### as_bool
 
@@ -93,7 +93,7 @@ the range start, the range end and the for loop body.
 #include_code as_function_call noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a function call `foo(arg1, ..., argN)`, return
-the function and a slice of each argument.
+the function and a vector of each argument.
 
 ### as_if
 
@@ -142,7 +142,7 @@ expression and the field. The field will be represented as a quoted value.
 #include_code as_method_call noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`, return
-the receiver, method name, a slice of each generic argument, and a slice of each argument.
+the receiver, method name, a vector of each generic argument, and a vector of each argument.
 
 ### as_repeated_element_array
 
@@ -151,19 +151,19 @@ the receiver, method name, a slice of each generic argument, and a slice of each
 If this expression is a repeated element array `[elem; length]`, return
 the repeated element and the length expressions.
 
-### as_repeated_element_slice
+### as_repeated_element_vector
 
-#include_code as_repeated_element_slice noir_stdlib/src/meta/expr.nr rust
+#include_code as_repeated_element_vector noir_stdlib/src/meta/expr.nr rust
 
-If this expression is a repeated element slice `[elem; length]`, return
+If this expression is a repeated element vector `[elem; length]`, return
 the repeated element and the length expressions.
 
-### as_slice
+### as_vector
 
-#include_code as_slice noir_stdlib/src/meta/expr.nr rust
+#include_code as_vector noir_stdlib/src/meta/expr.nr rust
 
-If this expression is a slice literal `&[elem1, ..., elemN]`,
-return each element of the slice.
+If this expression is a vector literal `@[elem1, ..., elemN]`,
+return each element of the vector.
 
 ### as_tuple
 
@@ -184,7 +184,7 @@ return the unary operator as well as the right-hand side expression.
 #include_code as_unsafe noir_stdlib/src/meta/expr.nr rust
 
 If this expression is an `unsafe { stmt1; ...; stmtN }` block,
-return each statement inside in a slice.
+return each statement inside in a vector.
 
 ### has_semicolon
 
@@ -226,8 +226,8 @@ Applies a mapping function to this expression and to all of its sub-expressions.
 
 This happens recursively for every expression within `self`.
 
-For example, calling `modify` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
-for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
+For example, calling `modify` on `(@[1], @[2, 3])` with an `f` that returns `Option::some`
+for expressions that are integers, doubling them, would return `(@[2], @[4, 6])`.
 
 ### quoted
 

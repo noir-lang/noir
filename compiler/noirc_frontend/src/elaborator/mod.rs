@@ -62,7 +62,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
@@ -123,6 +123,19 @@ use path_resolution::{
 use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
+
+/// Maximum number of recursive calls allowed at comptime.
+///
+/// Ideally we would like this to be 1000 to match what happens in ACIR,
+/// however due to the overhead of the `Interpreter` itself Rust itself
+/// would exhaust the stack earlier (or later, because `nargo` increases
+/// the stack size for parsing for example).
+///
+/// Potentially we could increase this if the `Interpreter` used an iterative
+/// strategy instead of recursion.
+///
+/// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
+const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -244,7 +257,7 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    pub(crate) interpreter_call_stack: im::Vector<Location>,
+    interpreter_call_stack: im::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -259,6 +272,10 @@ pub struct Elaborator<'context> {
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+
+    /// Set to true when the interpreter encounters an errored expression/statement,
+    /// causing all subsequent comptime evaluation to be skipped.
+    pub(crate) comptime_evaluation_halted: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -326,6 +343,7 @@ impl<'context> Elaborator<'context> {
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
+            comptime_evaluation_halted: false,
         }
     }
 
@@ -458,14 +476,28 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        self.errors.push(error);
+        // Filter out internal control flow errors that should not be displayed
+        if !error.should_be_filtered() {
+            self.errors.push(error);
+        }
     }
 
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        self.errors.extend(errors.into_iter().map(|e| e.into()));
+        for error in errors {
+            self.push_err(error);
+        }
+    }
+
+    /// Run a given function while also tracking whether any new errors were generated as a result.
+    pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
+        // Count actual errors (ignore warnings)
+        let initial_error_count = self.errors.len();
+        let result = f(self);
+        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        (result, has_new_errors)
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
@@ -500,7 +532,7 @@ impl<'context> Elaborator<'context> {
     fn mark_type_as_used(&mut self, typ: &Type) {
         match typ {
             Type::Array(_n, typ) => self.mark_type_as_used(typ),
-            Type::Slice(typ) => self.mark_type_as_used(typ),
+            Type::Vector(typ) => self.mark_type_as_used(typ),
             Type::Tuple(types) => {
                 for typ in types {
                     self.mark_type_as_used(typ);
@@ -729,6 +761,37 @@ impl<'context> Elaborator<'context> {
         let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
         (errored, ret)
     }
+
+    /// Push a new location to the interpreter call stack.
+    ///
+    /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
+    pub(crate) fn push_interpreter_call_stack(
+        &mut self,
+        location: Location,
+    ) -> Result<(), InterpreterError> {
+        if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+            return Err(InterpreterError::StackOverflow {
+                location,
+                call_stack: self.interpreter_call_stack.clone(),
+            });
+        }
+        self.interpreter_call_stack.push_back(location);
+        Ok(())
+    }
+
+    /// Pops the last item from the interpreter call stack.
+    ///
+    /// Panics if the call stack is empty.
+    pub(crate) fn pop_interpreter_call_stack(&mut self) {
+        self.interpreter_call_stack
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
+    }
+
+    /// The current interpreter call stack.
+    pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
+        &self.interpreter_call_stack
+    }
 }
 
 #[cfg(feature = "test_utils")]
@@ -787,6 +850,7 @@ pub mod test_utils {
         let file_manager = FileManager::new(&PathBuf::new());
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
+        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 

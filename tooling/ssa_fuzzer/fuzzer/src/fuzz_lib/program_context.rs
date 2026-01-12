@@ -8,7 +8,7 @@ use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
     typed_value::Type,
 };
-use noirc_driver::CompiledProgram;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_evaluator::ssa::ir::{
     function::{Function, RuntimeType},
     map::Id,

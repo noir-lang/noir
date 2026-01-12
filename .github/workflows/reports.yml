@@ -101,7 +101,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./dist/*
@@ -135,7 +135,7 @@ jobs:
           cp ./target/release/noir-inspector ./dist/noir-inspector
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: noir-inspector
           path: ./dist/*
@@ -311,7 +311,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: in_progress_compilation_mem_report
           path: memory_report.json
@@ -325,7 +325,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload execution memory report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: in_progress_execution_mem_report
           path: memory_report.json
@@ -384,6 +384,7 @@ jobs:
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
           NUM_RUNS: ${{ matrix.num_runs }}
+          SKIP_BRILLIG_EXECUTION: ${{ matrix.cannot_execute_brillig }}
 
       - name: Process report data
         run: |
@@ -393,7 +394,7 @@ jobs:
           PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -422,6 +423,31 @@ jobs:
             echo "Failing due to execution exceeding timeout..."
             echo "Timeout: "$TIME_LIMIT"s"
             echo "Execution took: "$TIME"s".
+            exit 1
+          fi
+
+      - name: Check Brillig compilation time limit
+        run: |
+          TIME=$(jq '.brillig_compilation_time.value' ${{ steps.compilation_report.outputs.report_path }})
+          TIME_LIMIT=${{ matrix.brillig-compilation-timeout }}
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to Brillig compilation exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Brillig compilation took: "$TIME"s".
+            exit 1
+          fi
+
+      - name: Check Brillig execution time limit
+        if: ${{ !matrix.cannot_execute_brillig }}
+        run: |
+          TIME=$(jq '.brillig_execution_time.value' ${{ steps.compilation_report.outputs.report_path }})
+          TIME_LIMIT=${{ matrix.brillig-execution-timeout }}
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to Brillig execution exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Brillig execution took: "$TIME"s".
             exit 1
           fi
 
@@ -476,7 +502,7 @@ jobs:
           FLAGS: ${{ matrix.flags }}
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -501,7 +527,7 @@ jobs:
 
       - name: Upload execution memory report
         if: ${{ !matrix.cannot_execute }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.execution_report.outputs.report_name }}
           path: ${{ steps.execution_report.outputs.report_path }}
@@ -551,7 +577,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -597,7 +623,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -643,7 +669,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -689,7 +715,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download matrix compilation reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: external_report_*
           path: ./reports
@@ -717,6 +743,144 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
+  upload_brillig_compilation_reports:
+    name: Upload Brillig compilation reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge Brillig compilation reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        with:
+          name: "Brillig Compilation Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+  upload_brillig_execution_reports:
+    name: Upload Brillig execution reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge Brillig execution reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        with:
+          name: "Brillig Execution Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+  upload_brillig_artifact_reports:
+    name: Upload Brillig artifact reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge Brillig artifact size reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.brillig_artifact_size | select(.))' ./reports/* | tee artifact_size.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        with:
+          name: "Brillig Artifact Size"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./artifact_size.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   upload_compilation_memory_report:
     name: Upload compilation memory report
     needs: [generate_memory_report, external_repo_memory_report]
@@ -735,12 +899,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: in_progress_compilation_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: compilation_mem_report_*
           path: ./reports
@@ -786,12 +950,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download initial memory report
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: in_progress_execution_mem_report
 
       - name: Download matrix memory reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: execution_mem_report_*
           path: ./reports
@@ -833,6 +997,9 @@ jobs:
       - upload_execution_reports
       - upload_artifact_reports
       - upload_opcode_reports
+      - upload_brillig_compilation_reports
+      - upload_brillig_execution_reports
+      - upload_brillig_artifact_reports
       - upload_compilation_memory_report
       - upload_execution_memory_report
 

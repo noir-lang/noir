@@ -20,8 +20,8 @@ pub(super) fn evaluate_infix(
         let rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-    let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "<<", location };
-    let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
+    let shl_overflow = || InterpreterError::BinaryOperationOverflow { operator: "<<", location };
+    let shr_overflow = || InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     if matches!(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) && rhs_value.is_zero() {
@@ -207,20 +207,32 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftRight => match_integer! {
             (lhs_value as lhs ">>" rhs_value as rhs) {
                 int: {
-                    #[allow(clippy::cast_lossless)]
-                    lhs.checked_shr(rhs as u32)
+                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::unnecessary_fallible_conversions)]
+                    let rhs: Result<u32, _> = rhs.try_into();
+                    #[allow(irrefutable_let_patterns)]
+                    let Ok(rhs) = rhs else {
+                        return Err(shr_overflow());
+                    };
+                    lhs.checked_shr(rhs)
                 },
-                u1: if rhs { return Err(rhs_overflow)} else { Some(lhs) },
+                u1: if rhs { return Err(shr_overflow())} else { Some(lhs) },
             }
         },
         #[allow(trivial_numeric_casts)]
         BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) {
                 int: {
-                    #[allow(clippy::cast_lossless)]
-                    lhs.checked_shl(rhs as u32)
+                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::unnecessary_fallible_conversions)]
+                    let rhs: Result<u32, _> = rhs.try_into();
+                    #[allow(irrefutable_let_patterns)]
+                    let Ok(rhs) = rhs else {
+                        return Err(shr_overflow());
+                    };
+                    lhs.checked_shl(rhs)
                 },
-                u1: if rhs { return Err(lhs_overflow)} else { Some(lhs) },
+                u1: if rhs { return Err(shl_overflow())} else { Some(lhs) },
             }
         },
         BinaryOpKind::Modulo => match_integer! {
@@ -236,7 +248,7 @@ pub(super) fn evaluate_infix(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::hir::comptime::InterpreterError;
     use crate::hir::comptime::tests::{interpret, interpret_expect_error};
 
@@ -457,5 +469,27 @@ mod test {
         "#;
         let result = interpret(src);
         assert_eq!(result, Value::Unit);
+    }
+
+    #[test]
+    fn shift_right_by_negative_number() {
+        let src = r#"
+            comptime fn main() {
+                let _ = 1 >> -4294967296_i64;
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
+    }
+
+    #[test]
+    fn shift_left_by_negative_number() {
+        let src = r#"
+            comptime fn main() {
+                let _ = 1 << -4294967296_i64;
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 }

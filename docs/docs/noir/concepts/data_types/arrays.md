@@ -57,11 +57,11 @@ You can instantiate a new array of a fixed size with the same value repeated for
 let array: [Field; 32] = [0; 32];
 ```
 
-Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [slice](./slices.mdx), you can just call `as_slice` on your array:
+Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [vector](./vectors.mdx), you can just call `as_vector` on your array:
 
 ```rust
 let array: [Field; 32] = [0; 32];
-let sl = array.as_slice()
+let sl = array.as_vector()
 ```
 
 You can define multidimensional arrays:
@@ -71,10 +71,10 @@ let array : [[Field; 2]; 2];
 let element = array[0][0];
 ```
 
-However, multidimensional slices are not supported. For example, the following code will error at compile time:
+However, multidimensional vectors are not supported. For example, the following code will error at compile time:
 
 ```rust
-let slice : [[Field]] = &[];
+let vector : [[Field]] = @[];
 ```
 
 ## Dynamic Indexing
@@ -110,6 +110,24 @@ fn main(x: u32) {
 
     // error! Only constant indices may be used here since `array` contains references internally!
     let _c = array[x];
+}
+```
+
+## Indexing with Field Elements
+Working with the native Field type can help producing more optimized programs (if you know what you are doing!), by avoiding overflow checks in general and in particular for array index, u32 arithmetic.
+However Noir type system will require your array index to be `u32`, so if you computed an array index using the Field type, you will have to convert it into a `u32`. This operation is usually costly because the 'unbounded' Field element needs to be reduced modulo `2^32`. However we can benefit from the array out-of-bound checks in order to avoid this costly operation.
+One way to do it is the following:
+1. use `assert_max_bit_size::<32>();` and `as u32` in order to convert a Field into a u32 using only one range-check, if you know that the Field is indeed 32 bits (or less).
+2. Index the array with the resulting u32: `array[x as u32]`. This will remove the range-check from the previous step.
+
+```rust
+fn foo(x: Field, array: [Field; 10]) -> Field {
+    // x is used to index `array`, so it must fit into 32 bits
+    x.assert_max_bit_size::<32>();
+    // assert_max_bit_size::<32>() makes the u32 conversion: `x as u32`, free.
+    // Accessing the array also implies an out-of-bound check, so it makes the range-check `x.assert_max_bit_size::<32>();`
+    // redundant. It will be removed in a later stage.
+    array[x as u32]
 }
 ```
 

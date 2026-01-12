@@ -257,3 +257,21 @@ fn check_trait_not_in_scope() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn trait_impl_associated_type_without_body() {
+    let src = "
+    pub trait Trait {
+        type Assoc;
+    }
+
+    impl Trait for Field {
+        type Assoc;
+             ^^^^^ Associated type in impl without body
+             ~~~~~ Provide a definition for the type: ` = <type>;`
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}

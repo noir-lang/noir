@@ -323,7 +323,7 @@ fn flatten_databus_values(values: Vec<Value>) -> Vec<Value> {
 
 fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
     match value {
-        Value::ArrayOrSlice(array_value) => {
+        Value::ArrayOrVector(array_value) => {
             for value in array_value.elements.borrow().iter() {
                 flatten_databus_value(value.clone(), flattened_values);
             }
