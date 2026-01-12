@@ -1878,3 +1878,47 @@ fn call_stack_is_cleared_between_entry_calls() {
     interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
     assert_eq!(interpreter.call_stack.len(), 1, "should clear the previous leftover");
 }
+
+#[test]
+fn regression_11118_allow_empty_zst_array() {
+    let src = r#"
+acir(inline) fn main f0 {
+  b0(v0: u32):
+    v1 = make_array [] : [(); 3]
+    v2 = make_array [] : [()]
+    call f1(u32 3, v2)
+    v5 = make_array [] : [(); 3]
+    v6 = make_array [] : [()]
+    v7 = allocate -> &mut u32
+    store u32 3 at v7
+    v8 = allocate -> &mut [()]
+    store v6 at v8
+    v9 = load v7 -> u32
+    v10 = load v8 -> [()]
+    v11 = lt v0, v9
+    constrain v11 == u1 1, "Index out of bounds"
+    store v9 at v7
+    store v10 at v8
+    v13 = load v7 -> u32
+    v14 = load v8 -> [()]
+    call f1(v13, v14)
+    return
+}
+acir(inline) fn println f1 {
+  b0(v0: u32, v1: [()]):
+    call f2(u1 1, v0, v1)
+    return
+}
+brillig(inline) fn print_unconstrained f2 {
+  b0(v0: u1, v1: u32, v2: [()]):
+    v21 = make_array b"{\"kind\":\"vector\",\"type\":{\"kind\":\"unit\"}}"
+    call print(v0, v1, v2, v21, u1 0)
+    return
+}
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let input = from_constant(1u128.into(), NumericType::unsigned(32));
+    let result = ssa.interpret(vec![input]);
+    // v2 matches type [(); 3] in the interpreter because it is an empty ZST array.
+    assert!(result.is_ok());
+}
