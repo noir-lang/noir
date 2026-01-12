@@ -608,28 +608,6 @@ namespace Acir {
         }
     };
 
-    struct HeapVector {
-        Acir::MemoryAddress pointer;
-        Acir::MemoryAddress size;
-
-        friend bool operator==(const HeapVector&, const HeapVector&);
-
-        void msgpack_unpack(msgpack::object const& o) {
-            std::string name = "HeapVector";
-            if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
-            } else if (o.type == msgpack::type::ARRAY) {
-                auto array = o.via.array; 
-                Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
-                Helpers::conv_fld_from_array(array, name, "size", size, 1);
-            } else {
-                throw_or_abort("expected MAP or ARRAY for " + name);
-            }
-        }
-    };
-
     struct BlackBoxOp {
 
         struct AES128Encrypt {
@@ -1209,20 +1187,20 @@ namespace Acir {
         Acir::MemoryAddress size;
 
         friend bool operator==(const HeapVector&, const HeapVector&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapVector bincodeDeserialize(std::vector<uint8_t>);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("pointer", pointer));
-            packer.pack(std::make_pair("size", size));
-        }
 
         void msgpack_unpack(msgpack::object const& o) {
-            auto name = "HeapVector";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+            std::string name = "HeapVector";
+            if (o.type == msgpack::type::MAP) {
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+            } else if (o.type == msgpack::type::ARRAY) {
+                auto array = o.via.array; 
+                Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
+                Helpers::conv_fld_from_array(array, name, "size", size, 1);
+            } else {
+                throw_or_abort("expected MAP or ARRAY for " + name);
+            }
         }
     };
 
