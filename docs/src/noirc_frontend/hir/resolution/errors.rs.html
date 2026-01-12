@@ -929,7 +929,37 @@
 <a href="#928" id="928">928</a>
 <a href="#929" id="929">929</a>
 <a href="#930" id="930">930</a>
-<a href="#931" id="931">931</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1139,6 +1169,12 @@
     </span>DataBusOnNonEntryPoint { visibility: String, ident: Ident },
     <span class="attr">#[error(<span class="string">"Associated type in `impl` without body"</span>)]
     </span>AssociatedTypeInImplWithoutBody { ident: Ident },
+    <span class="attr">#[error(<span class="string">"#[varargs] can only be applied to comptime functions"</span>)]
+    </span>VarargsOnNonComptimeFunction { location: Location },
+    <span class="attr">#[error(<span class="string">"#[varargs] requires its function to have at least one parameter"</span>)]
+    </span>VarargsOnFunctionWithNoParameters { location: Location },
+    <span class="attr">#[error(<span class="string">"The last parameter of a #[varargs] function must be a vector"</span>)]
+    </span>VarargsLastParameterIsNotAVector { location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1210,7 +1246,10 @@
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
-            | ResolverError::BuiltinWithBody { location } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::BuiltinWithBody { location }
+            | ResolverError::VarargsOnNonComptimeFunction { location }
+            | ResolverError::VarargsOnFunctionWithNoParameters { location }
+            | ResolverError::VarargsLastParameterIsNotAVector { location } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1855,6 +1894,27 @@
                     <span class="string">"Associated type in impl without body"</span>.to_string(),
                     <span class="string">"Provide a definition for the type: ` = &lt;type&gt;;`"</span>.to_string(),
                     ident.location(),
+                )
+            },
+            ResolverError::VarargsOnNonComptimeFunction { location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"#[varargs] can only be applied to comptime functions"</span>.to_string(),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
+            ResolverError::VarargsOnFunctionWithNoParameters { location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"#[varargs] requires its function to have at least one parameter"</span>.to_string(),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
+            ResolverError::VarargsLastParameterIsNotAVector { location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"The last parameter of a #[varargs] function must be a vector"</span>.to_string(),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
                 )
             },
         }
